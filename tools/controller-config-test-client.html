@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.54 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.55 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -21,6 +21,9 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.55 Advanced's footer keeps the Mode picker and Close on the
+            right at every width: they and "controllers -> page" are one
+            cluster, pushed to the right edge on whatever line it lands.
     2.66.54 The footer counts devices, not their parts: parts under one
             nickname are one device, as on the tabs, so four devices in
             ten parts read "4 devices bridged". The empty overview says
@@ -1515,6 +1518,20 @@
      third child to a space-between row moves the hint to the centre and the
      bar reads as three unrelated things. */
   #gpbar #gphint { margin-left:auto; }
+  /* ⭐⭐ THE PICKER AND CLOSE ARE ALWAYS ON THE RIGHT (rhoquinn8217, 2026-10-03:
+     "I want it to always right align the close button and the mode selector,
+     never left aligned them").
+     ⛔ They were loose children of a wrapping space-between row. A narrower
+     window put them on a line of their own, where Close alone sat at the left,
+     or the picker went left and Close right; only when "controllers -> page"
+     wrapped with them did its auto margin push them right.
+     ➡️ So the three are one cluster with the auto margin: one line or two, it
+     ends at the right edge, and on a very narrow window it wraps inside itself
+     with every line still ending there. One line is unchanged: the bar's free
+     space still goes before the hint and before this cluster, and the cluster
+     keeps the bar's own 16px gap, so its three are as far apart as before. */
+  #gpend { margin-left:auto; display:flex; align-items:center;
+           justify-content:flex-end; flex-wrap:wrap; gap:16px; }
   #modePick, #closeBtn { padding:2px 8px; font-size:11px; margin-left:8px; }
   /* The same treatment the compact pickers get, for the same reason: the mode
      identifier is ON the picker now rather than in the legend beside it. The
@@ -1539,7 +1556,6 @@
   .holdBtnCopy { font-weight:600; }
   #holdBtn.on, .holdBtnCopy.on { background:#3a3320; border-color:#e0c07a; color:#e8cf92; }
   #holdBtn.safe, .holdBtnCopy.safe { background:#1f3325; border-color:#7fd18c; color:#a9e3b5; }
-  #padDest { margin-left:auto; }
   #padDest.on { color:#7fd18c; }
   /* Lit while ○ has backed out into it, so it is clear where focus went. */
   #gpbar.gp-zone { background:#22252e; border-top-color:#6c8cff; }
@@ -1786,7 +1802,7 @@
 <div class="bar">
   <!-- ⓘ The same number as VERSION at the top of this file, by hand. It sat
        at 2.66.4 for thirty-four versions while VERSION moved on. -->
-  <span class="muted" style="font-size:12px">v2.66.54</span>
+  <span class="muted" style="font-size:12px">v2.66.55</span>
   <label class="muted">agent</label>
   <input id="base" value="http://127.0.0.1:48055" size="26">
   <label class="muted">bearer</label>
@@ -1904,6 +1920,9 @@
   <!-- ⭐ Where the controller's input is going. Says it plainly rather than
        naming the mechanism: "gated" means nothing to someone who did not build
        it, and this is the one piece of state that changes under you. -->
+  <!-- ⭐ THE RIGHT-HAND END IS ONE CLUSTER: where the input goes, the Mode
+       picker and Close. See #gpend in the style. -->
+  <span id="gpend">
   <span id="padDest" class="muted">controllers → game</span>
   <!-- T-233: one Mode picker replaces the Simple and Quick buttons. It is
        filled by paintModePickers(), which runs on every mode change, and it
@@ -1916,6 +1935,7 @@
   <!-- ⓘ Closing releases the gate on the way out, via the pagehide beacon, so
        this is a safe exit rather than a way to strand yourself. -->
   <button id="closeBtn" onclick="window.close()" title="close this window">Close</button>
+  </span>
 </div>
 
 <script>
