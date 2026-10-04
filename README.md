@@ -1,200 +1,161 @@
-# CTM-USBIP
+# DS5-USBIP - Remote DualSense Bridge
 
 ![platform](https://img.shields.io/badge/platform-Windows%2010%2F11%20x64-0078D6?logo=windows&logoColor=white)
 ![language](https://img.shields.io/badge/C%2B%2B-17-00599C?logo=cplusplus&logoColor=white)
 ![transport](https://img.shields.io/badge/transport-USB%2FIP-2ea44f)
+![fork of CTM-Bridge/CTM-USBIP](https://img.shields.io/badge/fork%20of-CTM--Bridge%2FCTM--USBIP-lightgrey)
 
-## Support
+DS5-USBIP is a fork of [ciprianmisaila's
+CTM-USBIP](https://github.com/CTM-Bridge/CTM-USBIP) that offers a DualSense
+connected to a webOS TV a native connection to a host PC over the network or the
+internet with gyro, touchpad, **audio-based rumble** and **speaker audio** all
+working. This fork brings additional DualSense specific features, including
+**microphone support on USB**, **DualSense Edge support** and
+**[DS5Dongle](https://github.com/awalol/DS5Dongle)** support.
 
-One person, late nights: controllers were just the start — native AMF
-streaming, a custom low-latency codec and a bigger webOS app are in the pipe.
-If CTM Bridge saved you some hassle, coffee speeds them up.
+This fork also adds an optional host-side controller rebinder with
+stick/gyro/touchpad-to-mouse pre-sets and an integrated virtual keyboard,
+intended to let you drive the stream with only a controller, as well as switch
+controller configs mid-game.
 
-[![Support me on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/ciprianteodormisaila)
-
-> Turn a controller attached to **another machine** into a **real USB device on Windows**, over the network, using USB/IP.
-
-**CTM** = *Controller Translation Mapper*. CTM-USBIP is the Windows half of the bridge: it receives a controller's raw HID transport forwarded from the **ctm-bridge-webos** TV app (companion project) and re-creates it as a virtual USB device through the [usbip-win2] virtual host-controller driver — so Windows, Steam, and games see a genuine gamepad (input, rumble, LEDs, and audio where supported).
-
-The original use case: you stream a PC game to an LG TV (Moonlight/Sunshine) and your controller is connected to the **TV**, not the PC. CTM-USBIP makes that controller appear on the PC.
-
-## Ciprian's Bridge — local controllers, full USB features
-
-The installer also ships **Ciprian's Bridge** (Start Menu), a desktop app for
-controllers connected **to the PC itself** over Bluetooth. Windows normally
-exposes a BT-paired DS4/DS5 as a limited HID device — no audio endpoints, no
-headset, degraded rumble in many titles. Ciprian's Bridge plugs the pad through
-the same map-driven translation pipeline instead, so the PC sees the **full
-native USB controller**: speaker/headset audio, haptics, LEDs, and the DS4's
-headphone-jack auto-routing (for DS4 pad-speaker audio in games, keep **Steam
-Input enabled** for now — the direct-mode path has a known chop being fixed;
-DS5 is best with Steam Input **disabled**, keeping native DualSense features
-incl. adaptive triggers) — one **Plug in / Plug out** click per device, with
-optional [HidHide](https://github.com/nefarius/HidHide) integration so games
-never see the double device. Generic BT mice/keyboards and other HID devices
-can be bridged the same way. Included in `CTM-Bridge-Setup.exe` — no separate
-download.
-
-> **Quick install:** download `CTM-Bridge-Setup.exe` from the [latest release](https://github.com/CTM-Bridge/CTM-USBIP/releases) — it installs the background service, the LAN firewall rule, and the usbip-win2 driver in one step (see [§4](#4-install-as-a-windows-service-recommended)).
+[rhoquinn8217/aurora-tv](https://github.com/rhoquinn8217/aurora-tv) on a webOS
+TV is required to bridge DualSense controllers to DS5-USBIP.
 
 ---
 
-## 1. What it does
+## Start up guide
 
-- **Virtual USB device over USB/IP.** Hosts a local USB/IP server and presents the controller to Windows through usbip-win2's WHQL-signed virtual host controller — no custom kernel driver of our own.
-- **Map-driven translation.** Each controller is described by two data files: a descriptor `.profile` (the USB device it should look like) and a `.map` (how to translate the source transport into it). Adding a controller is data, not code.
-- **Composite devices.** Rebuilds multi-interface devices (e.g. the Steam Controller Puck dongle) from their *own* forwarded USB enumeration, routing each interface independently.
-- **Supported today:** DualSense (DS5), DualShock 4 (DS4), Xbox (GIP), Steam Controller Puck, and a generic HID pass-through.
+**Prerequisites**
 
-```
-[controller] --BT/USB--> [ctm-bridge-webos]  --TCP/ENet-->  [CTM-USBIP agent]  --USB/IP-->  [usbip-win2 vhci]  -->  Windows / Steam / games
- (paired to TV)           reads hidraw,                       rebuilds the USB                WHQL virtual host
-                          forwards raw HID                    device + maps reports           controller
-```
+| Requirement | Notes |
+|---|---|
+| **DualSense** | Your controller |
+| **Windows machine** | usbip-win2 and DS5-USBIP run only on Windows |
+| **[vadimgrn/usbip-win2](https://github.com/vadimgrn/usbip-win2/releases)** | Install vadimgrn's usbip-win2 fork on your Windows machine, requires restart. Tested with 0.9.7.7 |
+| **Moonlight-compatible host** | [Sunshine](https://github.com/LizardByte/Sunshine), [Apollo](https://github.com/ClassicOldSong/Apollo), [Vibepollo](https://github.com/Nonary/Vibepollo), [Vibeshine](https://github.com/Nonary/vibeshine), etc.<br>Any host that works with Moonlight or aurora-tv |
+| **[rhoquinn8217/aurora-tv](https://github.com/rhoquinn8217/aurora-tv)** | Install the ipk (pending) on your webOS TV |
 
-The TV stays "blind" — it only moves raw HID bytes. All controller knowledge lives here, in the profiles and maps.
+**Set up DS5-USBIP**
 
----
+1. Download DS5-USBIP from the [releases page](https://github.com/rhoquinn8217/CTM-USBIP/releases) (pending).
+2. Put the folder somewhere you have write access.
+3. Double-click `ctm-usbip.exe` in that folder. It runs in the background, with
+   its icon in the tray: click the icon to open **Controller Configs**, the
+   virtual keyboard, or to quit.
 
-## 2. How to build
+**Bridge and play**
 
-Requirements:
-- Windows 10/11 (x64)
-- **Visual Studio 2022** with the *Desktop development with C++* workload
+1. Connect a DualSense to the television: via Bluetooth or USB port.
+   Some LG televisions do not run a DualSense over Bluetooth. Use a USB port
+   on those, or a [DS5Dongle](https://github.com/awalol/DS5Dongle) to stay
+   wireless.
+2. Start rhoquinn8217/aurora-tv on the television.
+3. Turn on **Enable Device Bridging** in **Settings (⚙️) → USB Bridge**.
+4. Start the stream to the host.
+5. Press and hold the touchpad with two fingers for a second.
 
-```powershell
-.\build.ps1                       # Debug x64 (default)
-.\build.ps1 -Configuration Release
-```
+**DualSense is ready to use with its full feature set (microphone over USB only).**
 
-Output: `out\x64\<Config>\ctm-usbip.exe`, with `profiles\`, `maps\`, and the runtime DLLs copied next to it.
-
----
-
-## 3. How to use it with USB/IP
-
-CTM-USBIP needs the [usbip-win2] USB/IP client and its **WHQL-signed virtual host-controller driver** installed. CTM-USBIP runs its own USB/IP *server* for the virtual device and then calls `usbip.exe` to *attach* it locally — you don't attach anything by hand.
-
-**Step 1 — install the usbip-win2 driver**
-
-> Using the installer (§4)? **Skip this** — it bundles and installs usbip-win2 for you. This manual step is only for the build-and-run-the-agent (dev) workflow.
-
-Download and install a usbip-win2 release that includes the WHQL/WHLK-certified driver:
-
-➡ **https://github.com/vadimgrn/usbip-win2** — releases: **https://github.com/vadimgrn/usbip-win2/releases**
-
-The MSI installs `usbip.exe` and the driver to `C:\Program Files\USBip\` (the path CTM-USBIP expects). Load the driver per the usbip-win2 instructions.
-
-**Step 2 — run the CTM-USBIP agent**
-
-```powershell
-.\out\x64\Debug\ctm-usbip.exe agent 48054
-```
-
-The agent listens for the TV app on the control port (`48054`), runs a local USB/IP server on `127.0.0.1:3240`, and automatically `usbip attach`es the virtual device whenever a controller is plugged in on the TV.
-
-**Step 3 — plug a controller on the TV**
-
-Start the **ctm-bridge-webos** app on the TV, point it at your PC's IP and the agent port, and connect a controller. It appears on Windows in Device Manager and as a gamepad in Steam / games.
-
-> Set `CTM_USBIP_VERBOSE=1` before launching the agent for detailed per-endpoint logging.
-
-<details>
-<summary>Standalone / local modes</summary>
-
-`ctm-usbip.exe` can also run without the TV bridge for testing — e.g. against a local Bluetooth backend, or with `--profile` / `--map` overrides. See `src/app/`.
-</details>
+*Note: DS5-USBIP can be set up, stopped and started through the same stream.*
 
 ---
 
-## 4. Install as a Windows service (recommended)
+## Why this exists
 
-For day-to-day use, install CTM-USBIP as an auto-start service instead of running the agent by hand.
+Before Ciprianmisaila's ctm-bridge-webos/CTM-USBIP, a DualSense connected to a
+webOS TV could already send its input to a PC through the streaming software,
+and Windows saw it as a device with gyro, touchpad and adaptive triggers.
+However, it is limited in that it does not support audio-based rumble, speaker
+audio or microphone.
 
-**Run the installer** — `out\installer\CTM-Bridge-Setup.exe`. It copies the agent to `C:\Program Files\CTM Bridge`, registers an auto-start **LocalSystem** service, opens a LAN (private-profile) firewall rule for it, starts it, and (on upgrade) removes the previous version first while leaving any custom `.map` / `.profile` files in place. It also **bundles and silently installs the usbip-win2 driver** (BSD-2-Clause, signed installer shipped unmodified) when it isn't already present. Service logs go to `%ProgramData%\CTM Bridge\ctm-usbip.log`.
+USB/IP allows devices to fully connect to a host over a network or the internet,
+providing the DualSense's audio features that the streaming software doesn't
+have. However, a USB/IP client has to reach out over the network or internet to
+the server that presents the device, but reaching out to a webOS TV is
+difficult, especially over the internet.
 
-The service runs the same `agent` loop, so the TV connects to it exactly as before.
+DS5-USBIP resolves this issue by being a relay that runs on the host, waiting
+for a webOS TV to make the request to connect a DualSense to it. It then uses
+USB/IP to present the DualSense to the host as a native device, with gyro,
+touchpad, audio-based rumble and speaker audio all working as if connected
+directly to the PC.
 
-Equivalent CLI, if you prefer no installer (run from an elevated prompt):
-
-```powershell
-ctm-usbip install [control-port]     # register + start the service (default port 48054)
-ctm-usbip uninstall                  # stop + remove the service and its firewall rule
-ctm-usbip version                    # print the version
-```
-
-The agent can be reset over the control channel without touching Windows: send `RESTART` to rebuild the bridges in place, or `RESTART hard` for a full service restart.
-
-### Building the installer
-
-```powershell
-.\build.ps1 -Configuration Release
-.\installer\make-icon.ps1            # only if the brand art changed
-& "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" installer\ctm-usbip.iss
-```
-
-Output: `out\installer\CTM-Bridge-Setup.exe`.
+Being a relay also made the controller rebinder and Controller Configs cheap to
+add. Every report already passes through DS5-USBIP, so rebinding needed no new
+plumbing. Having it run on the Windows host machine meant custom controller
+rebindings could be stored and managed.
 
 ---
 
-## 5. REST API (optional)
+## What this fork adds
 
-The agent can additionally serve an HTTP/JSON control API for tooling —
-status, session list, start/stop bridges, soft/hard restart — while the TV
-keeps speaking the plaintext control channel unchanged:
+In [ciprianmisaila](https://github.com/ciprianmisaila)'s Bluetooth path, report
+packets are tunnelled over the network and straight to the controller, bypassing
+the TV's own audio pathways, so a DualSense reaches the PC with its speaker,
+haptics and adaptive triggers. Ciprianmisaila's Bluetooth solution works cleanly
+with the exception of the microphone, which is a limitation of webOS rather than
+anything in that design.
 
-```powershell
-ctm-usbip agent --rest 48055                       # loopback-only
-ctm-usbip install --rest 48055 --rest-token sekrit # service mode, bearer auth
-curl -s localhost:48055/api/v1/status
-```
+This fork's goal is to expand DualSense support and provide a controller
+rebinder that gives you the ability to drive the stream with only a controller.
 
-Loopback-only unless `--rest-lan`; optional bearer token via `--rest-token`.
-Off by default. Full reference: [`docs/rest_api.md`](docs/rest_api.md).
+| Addition | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; What it does |
+|---|---|
+| **DualSense audio over the TV's USB port** | A DualSense's speaker, audio-based haptics and microphone travel as isochronous audio on the controller's own audio interfaces, not as HID traffic. Bluetooth carries input and audio in one report stream that can be forwarded whole; USB splits the audio onto endpoints of its own. This fork rebuilds the pad as the composite device presenting those interfaces and carries the streams both ways, so the speaker, haptics and microphone behave as they would on a cable. |
+| **DualSense Edge support** | The Edge's product ID was already recognised when listing devices, but DS5-USBIP rebuilt every DualSense from the same descriptor, so Windows saw a plain DualSense. The Edge differs by more than its product ID: a larger HID report descriptor, extra feature reports and different endpoint polling. This fork adds a descriptor for it, captured from the hardware's own kernel descriptor files, so Windows sees a DualSense Edge. |
+| **DS5Dongle support** | A DS5Dongle presents itself over USB as a DualSense or DualSense Edge, so a wireless controller still reaches the PC with its speaker, haptics, adaptive triggers and microphone. Using a DS5Dongle is also an alternative to a wireless DualSense connected over Bluetooth; the difference is that over Bluetooth the microphone doesn't work, while through a DS5Dongle it does, since it connects through the TV's USB path. You also have access to the DS5Dongle features from various [community forks](https://github.com/awalol/DS5Dongle#community-fork). |
+| **Optional: controller rebinder and virtual keyboard** | A controller rebinder with stick, gyro and touchpad to mouse pre-sets. The pre-sets can be modified and saved, and a built-in virtual keyboard is available to the controller. The rebinder and the virtual keyboard both isolate the controller's input so a game does not receive it at the same time. |
+
+> The webOS limitation: its input driver reads Bluetooth microphone audio from the
+> DualSense as controller button inputs. The captured audio produces a flood of
+> random inputs that can reach the host during a stream. The driver is
+> system-locked, so a permanent fix needs root-level access. The USB path does
+> not have this problem: microphone audio arrives on its own isochronous
+> endpoint rather than inside the report stream, so nothing reads it as button
+> presses.
 
 ---
-
-## Project layout
-
-| Path | What |
-|------|------|
-| `src/usbip/` | USB/IP server + virtual USB device |
-| `src/backend/` | transports (TCP bridge, ENet/UDP, local Bluetooth) |
-| `src/map/` | map runtime (report translation) |
-| `src/app/` | CLI, agent, and Windows-service entry points |
-| `profiles/descriptors/` | per-controller USB descriptor profiles |
-| `maps/` | per-controller translation maps |
-| `include/`, `app/` | headers, the MSBuild project, app icon + version resource |
-| `installer/` | Inno Setup script (`ctm-usbip.iss`) + icon generator |
-| `tests/` | unit tests, built by `build-tests.ps1` (map defaults, device config, audio pacing, REST parser) |
-| `docs/` | design notes + worklog |
-
-## Status
-
-Experimental / research. DS5/DS4/Xbox input + rumble work. The Steam Controller Puck composite enumerates and the input transport is in place; controller gamepad-mode activation is still WIP — see `docs/steam_puck_knowledge.md`.
 
 ## Clean-room
 
-All controller protocol in this project is derived from its own observation (sysfs reads, on-wire/Wireshark captures) — **not** from third-party or kernel driver sources.
+**Load-bearing, not a formality.** All controller protocol here is derived from
+this project's own observation (sysfs reads and on-wire captures), **not** from
+third-party or kernel driver sources. ciprianmisaila's CTM-USBIP holds the same
+line, and this fork continues it.
 
-## Companion project
-
-**ctm-bridge-webos** — the LG webOS TV app that reads the controller and forwards it here.
+---
 
 ## Acknowledgements
 
-- [usbip-win2] by **vadimgrn** — the USB/IP client for Windows and its signed virtual host-controller driver, which CTM-USBIP builds on. The installer redistributes its signed setup unmodified under the BSD-2-Clause license (`usbip-win2-LICENSE.txt` is installed alongside the app).
+- **[ciprianmisaila](https://github.com/ciprianmisaila)**: [CTM-USBIP](https://github.com/CTM-Bridge/CTM-USBIP)
+  and [ctm-bridge-webos](https://github.com/CTM-Bridge/ctm-bridge-webos), which
+  this is built on. The bridge itself, the map-driven translation pipeline, the
+  USB/IP hosting and the DualSense audio work over Bluetooth are all
+  ciprianmisaila's.
+- **[usbip-win2](https://github.com/vadimgrn/usbip-win2)** by **vadimgrn**: the
+  USB/IP client for Windows and its signed virtual host-controller driver.
+- **[GamepadMotionHelpers](https://github.com/JibbSmart/GamepadMotionHelpers)** by
+  **Jibb Smart** (MIT): the motion maths behind the gyro-to-mouse pre-sets,
+  bundled in `third_party/`.
+- **[DS5Dongle](https://github.com/awalol/DS5Dongle)** by **awalol**: the
+  on-hardware reference the gyro report offsets and gate logic were ported from.
 
-[usbip-win2]: https://github.com/vadimgrn/usbip-win2
+---
 
 ## License
 
 [GNU General Public License v3.0](LICENSE) (GPL-3.0-or-later).
-Copyright (C) 2026 Ciprian Teodor Misaila.
 
-Not a license term, just a friendly ask: if you integrate CTM Bridge into your
-own app or fork, please overlay the CTM Bridge badge on your app's icon — the
-way the [aurora-tv](https://github.com/CTM-Bridge/aurora-tv) and
-[moonlight-tv](https://github.com/CTM-Bridge/moonlight-tv) forks do:
+Copyright (C) 2026 Ciprian Teodor Misaila. Fork additions copyright (C) 2026
+rhoquinn8217, under the same license.
 
-<a href="https://github.com/CTM-Bridge/ctm-bridge-webos/blob/main/icon_extra_large.png"><img src="https://raw.githubusercontent.com/CTM-Bridge/ctm-bridge-webos/main/icon_extra_large.png" width="96" alt="CTM Bridge badge"></a>&nbsp;&nbsp;→&nbsp;&nbsp;<img src="https://raw.githubusercontent.com/CTM-Bridge/aurora-tv/main/deploy/webos/icon.png" width="96" alt="Aurora icon with the badge">&nbsp;<img src="https://raw.githubusercontent.com/CTM-Bridge/moonlight-tv/main/deploy/webos/icon.png" width="96" alt="Moonlight TV icon with the badge">
+Not a license term, an ask from ciprianmisaila's CTM-USBIP that this fork
+honours: if you integrate CTM Bridge into your own app or fork, overlay the CTM
+Bridge badge on your app's icon, the way the
+[aurora-tv](https://github.com/CTM-Bridge/aurora-tv) and
+[moonlight-tv](https://github.com/CTM-Bridge/moonlight-tv) forks do.
+
+<a
+href="https://github.com/CTM-Bridge/ctm-bridge-webos/blob/main/icon_extra_large.png"><img
+src="https://raw.githubusercontent.com/CTM-Bridge/ctm-bridge-webos/main/icon_extra_large.png"
+width="96" alt="CTM Bridge badge"></a>
