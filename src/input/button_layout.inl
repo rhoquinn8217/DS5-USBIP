@@ -1084,4 +1084,41 @@ inline void blank_stick(const Layout &lay, uint8_t *data, size_t len, bool left)
     }
 }
 
+// ⭐ ADDS to a stick rather than setting it: the gyro's push on top of wherever
+// the thumb has the stick, in the pad's own form, held at the ends rather than
+// wrapping round. `x` and `y` are fractions of full travel with LEFT and UP
+// negative, stick_axis()'s convention, so a pad that reads up as positive is
+// turned round here and nowhere else.
+inline void nudge_stick(const Layout &lay, uint8_t *data, size_t len, bool left,
+                        float x, float y)
+{
+    if (data == nullptr) return;
+    const int ox = left ? lay.sticks.lx : lay.sticks.rx;
+    const int oy = left ? lay.sticks.ly : lay.sticks.ry;
+    if (lay.sticks.upIsPositive) y = -y;
+    if (lay.sticks.format == kAxisU8) {
+        if (!fits(len, ox, 1) || !fits(len, oy, 1)) return;
+        const auto put = [&](int offset, float by) {
+            long v = static_cast<long>(data[offset]) + std::lround(by * 127.0f);
+            if (v < 0) v = 0;
+            if (v > 255) v = 255;
+            data[offset] = static_cast<uint8_t>(v);
+        };
+        put(ox, x);
+        put(oy, y);
+    } else {
+        if (!fits(len, ox, 2) || !fits(len, oy, 2)) return;
+        const auto put = [&](int offset, float by) {
+            long v = static_cast<long>(read_s16(data, offset)) + std::lround(by * 32767.0f);
+            if (v < -32768) v = -32768;
+            if (v > 32767) v = 32767;
+            const uint16_t u = static_cast<uint16_t>(static_cast<int16_t>(v));
+            data[offset] = static_cast<uint8_t>(u & 0xff);
+            data[offset + 1] = static_cast<uint8_t>(u >> 8);
+        };
+        put(ox, x);
+        put(oy, y);
+    }
+}
+
 }  // namespace ctm_rebind

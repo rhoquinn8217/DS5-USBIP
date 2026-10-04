@@ -497,6 +497,89 @@ inline Config load_config(const char *section)
     return c;
 }
 
+// ---- Gyro moves the right stick ---------------------------------------------
+//
+// ⭐⭐ FOR THE GAME THAT CANNOT TAKE A MOUSE (rhoquinn8217, 2026-10-03: "lets add
+// gyro to stick similar to artzox ds5dongle gyro to stick"). In The Witcher 3 a
+// held L2 flickered whenever the gyro moved the mouse, and was steady with the
+// gyro mouse off -- proven step by step on the C1 that day. A gyro that pushes
+// the right stick shows the game a controller and nothing else.
+//
+// ⭐ THE MODEL IS artzox's DS5Dongle: the stick moves by how fast the controller
+// is turning RIGHT NOW, added to wherever the thumb has it and clamped at the
+// ends. Nothing is added up from one report to the next, so nothing can drift.
+// Its settings are theirs too: a sensitivity from 1 to 100 where 50 is about
+// the raw turning speed, a vertical one where 0 means the same, which way left
+// and right come from, and invert per axis.
+// ⓘ What it gets from here that theirs does not: the controller's own
+// calibration and the filter's drift removal and player space, the same motion
+// the mouse aims with.
+//
+// ⚠️ A stick sets the camera's turning SPEED, and games put a dead zone on it,
+// so a very slow turn can move nothing at all. That is the trade for a game
+// that only ever sees a controller.
+enum StickAxisFrom : int { kStickFromPlayer = 0, kStickFromYaw, kStickFromRoll };
+
+struct StickConfig {
+    Gate gate = gate_off();
+    int sens = 50;          // 1..100; 50 is about the raw turning speed
+    int sens_v = 0;         // 0 follows sens
+    int axis = kStickFromPlayer;
+    bool invert_x = false;
+    bool invert_y = false;
+};
+
+inline StickConfig load_stick_config(const char *section)
+{
+    StickConfig s;
+    // ⓘ The pair only. The mouse's single-key fallback exists for configs
+    // written before its split; nothing was ever written for the stick.
+    s.gate = parse_gate_pair(device_config_str(section, "gyro_to_stick_gate_type"),
+                             device_config_str(section, "gyro_to_stick_gate_button"));
+    s.sens = device_config_int(section, "gyro_stick_sens", 50);
+    if (s.sens < 1) s.sens = 1;
+    if (s.sens > 100) s.sens = 100;
+    s.sens_v = device_config_int(section, "gyro_stick_sens_v", 0);
+    if (s.sens_v < 0) s.sens_v = 0;
+    if (s.sens_v > 100) s.sens_v = 100;
+    const std::string axis = gate_lower(device_config_str(section, "gyro_stick_axis"));
+    if (axis == "yaw") s.axis = kStickFromYaw;
+    else if (axis == "roll") s.axis = kStickFromRoll;
+    else s.axis = kStickFromPlayer;            // blank, or anything unknown
+    const int inv = device_config_int(section, "gyro_stick_invert", 0);
+    s.invert_x = (inv & 1) != 0;
+    s.invert_y = (inv & 2) != 0;
+    return s;
+}
+
+// ⭐ THEIR ARITHMETIC IN DEGREES. artzox moves the one-byte stick by
+// raw * sensitivity / 200, raw being the gyro's own units. A DualSense's gyro
+// spans 2000 degrees a second in 32768 of those, so one degree a second is
+// 16.384 -- which puts the calibrated motion on their scale exactly.
+inline constexpr float kRawPerDegreePerSecond = 32768.0f / 2000.0f;
+// ⓘ Below this the controller is held still and the reading is noise: their
+// 12 raw units, in degrees a second.
+inline constexpr float kStickStillBelow = 12.0f / kRawPerDegreePerSecond;
+
+// How far the stick moves for a turn, as fractions of full travel with LEFT and
+// UP negative -- the form ctm_rebind::nudge_stick takes. Pure, for the tests.
+inline void stick_push(const StickConfig &s, float horizontal, float vertical,
+                       float *x, float *y)
+{
+    if (horizontal > -kStickStillBelow && horizontal < kStickStillBelow) horizontal = 0.0f;
+    if (vertical > -kStickStillBelow && vertical < kStickStillBelow) vertical = 0.0f;
+    const float sensV = static_cast<float>(s.sens_v > 0 ? s.sens_v : s.sens);
+    // ⚠️ The SAME signs the mouse uses, set on a real controller: turn left and
+    // it goes left, tilt up and it goes up. A stick reads up as negative here,
+    // just as the screen does.
+    float px = -horizontal * kRawPerDegreePerSecond * static_cast<float>(s.sens) / 200.0f / 127.0f;
+    float py = -vertical * kRawPerDegreePerSecond * sensV / 200.0f / 127.0f;
+    if (s.invert_x) px = -px;
+    if (s.invert_y) py = -py;
+    *x = px;
+    *y = py;
+}
+
 // ---- Cursor recentre -------------------------------------------------------
 //
 // Warps the REAL Windows cursor to the middle of the primary screen. This is
@@ -625,7 +708,14 @@ public:
             recenterWasDown_ = false;
         }
 
-        if (cfg.gate.when == GateWhen::Off) {
+        // ⭐ The right stick's push is decided afresh on every report: none
+        // unless its own gate is open on THIS one.
+        stickX_ = 0.0f;
+        stickY_ = 0.0f;
+        const StickConfig stick = load_stick_config(section);
+        const bool stickOn = stick.gate.when != GateWhen::Off;
+
+        if (cfg.gate.when == GateWhen::Off && !stickOn) {
             reset_remainder();
             return false;
         }
@@ -678,9 +768,25 @@ public:
         motion_.ProcessMotion(gyroPitch, gyroYaw, gyroRoll,
                               accelX, accelY, accelZ, dt);
 
+        // ⭐ THE STICK, before the mouse's gate can return: either can be on
+        // without the other. ⓘ No device key, so the trigger that steadies the
+        // CURSOR does not stop it -- the stick is not a cursor.
+        if (stickOn && gate_open(stick.gate, lay, d, len)) {
+            float sv = 0.0f;    // pitch, deg/sec
+            float sh = 0.0f;    // the horizontal source, deg/sec
+            if (stick.axis == kStickFromPlayer) {
+                motion_.GetPlayerSpaceGyro(sv, sh);
+            } else {
+                float roll = 0.0f;
+                motion_.GetCalibratedGyro(sv, sh, roll);
+                if (stick.axis == kStickFromRoll) sh = roll;
+            }
+            stick_push(stick, sh, sv, &stickX_, &stickY_);
+        }
+
         // Gate AFTER processing, so calibration is continuous but movement only
         // emits when the player is actually aiming.
-        if (!gate_open(cfg.gate, lay, d, len, key_)) {
+        if (cfg.gate.when == GateWhen::Off || !gate_open(cfg.gate, lay, d, len, key_)) {
             reset_remainder();
             return false;
         }
@@ -824,8 +930,20 @@ public:
         return true;
     }
 
+    // ⓘ The right stick's push from the last report, as fractions of full
+    // travel. apply_stick reads it for the same report, on the same thread.
+    bool stick_push_now(float *x, float *y) const
+    {
+        if (stickX_ == 0.0f && stickY_ == 0.0f) return false;
+        *x = stickX_;
+        *y = stickY_;
+        return true;
+    }
+
 private:
     ctm_gyro_calib::Scale cal_;
+    float stickX_ = 0.0f;
+    float stickY_ = 0.0f;
 
     void reset_remainder()
     {
@@ -1047,6 +1165,26 @@ inline void on_ds5_input(const void *deviceKey,
         g_diag_last_dx.store(static_cast<uint32_t>(delta.dx < 0 ? -delta.dx : delta.dx));
         g_diag_last_dy.store(static_cast<uint32_t>(delta.dy < 0 ? -delta.dy : delta.dy));
     }
+}
+
+// ⭐⭐ THE RIGHT STICK GETS ITS PUSH HERE, LAST OF ALL. The push was worked out in
+// on_ds5_input from the real report, before anything touched it -- it has to
+// be, because hiding the gyro from the game blanks those very bytes. It is
+// ADDED after everything that may centre the stick, so a right stick that is
+// itself a mouse leaves the gyro's push as all the game sees of it.
+// ⛔ Not while the settings window has the pad: the game is meant to see the pad
+// at rest then, and a camera turning behind the window is not rest.
+inline void apply_stick(const void *deviceKey,
+                        const std::vector<unsigned char> &descriptor,
+                        uint8_t *d, size_t len)
+{
+    const InputPad pad = device_input_pad_for(descriptor);
+    if (pad.layout == nullptr || !pad.layout->motion.present) return;
+    if (ctm_rebind_config_mode_effective()) return;
+    float x = 0.0f;
+    float y = 0.0f;
+    if (!gyro_for(deviceKey).stick_push_now(&x, &y)) return;
+    ctm_rebind::nudge_stick(*pad.layout, d, len, false, x, y);
 }
 
 } // namespace ctm_gyro_mouse

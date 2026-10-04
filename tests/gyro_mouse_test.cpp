@@ -48,6 +48,13 @@ int g_sens = 0;          // legacy multiplier; 0 = unset
 int g_invert = 0;
 bool g_player = true;
 int g_px360 = 1920;
+// ⓘ Gyro on the right stick.
+std::string g_stickType;
+std::string g_stickButton;
+std::string g_stickAxis;
+int g_stickSens = 50;
+int g_stickSensV = 0;
+int g_stickInvert = 0;
 
 } // namespace
 
@@ -58,6 +65,9 @@ static std::string device_config_str(const char *, const char *key)
 {
     if (std::string(key) == "gyro_to_mouse_gate") return g_gate;
     if (std::string(key) == "gyro_mouse_recenter_button") return "";
+    if (std::string(key) == "gyro_to_stick_gate_type") return g_stickType;
+    if (std::string(key) == "gyro_to_stick_gate_button") return g_stickButton;
+    if (std::string(key) == "gyro_stick_axis") return g_stickAxis;
     return "";
 }
 static int device_config_int(const char *, const char *key, int fallback)
@@ -66,6 +76,9 @@ static int device_config_int(const char *, const char *key, int fallback)
     if (k == "gyro_mouse_sens") return g_sens;
     if (k == "gyro_mouse_invert") return g_invert;
     if (k == "gyro_mouse_px_per_360") return g_px360;
+    if (k == "gyro_stick_sens") return g_stickSens;
+    if (k == "gyro_stick_sens_v") return g_stickSensV;
+    if (k == "gyro_stick_invert") return g_stickInvert;
     return fallback;
 }
 static bool device_config_bool(const char *, const char *key, bool fallback)
@@ -682,6 +695,133 @@ int run_gyro_mouse_tests()
         ctm_gyro_calib::Scale paired;
         ctm_gyro_calib::parse(d.data(), d.size(), ctm_gyro_calib::kDs5Calibration, &paired);
         CTM_CHECK(!closeTo(paired.pitch, wantPitch));
+    }
+
+    // ---- Gyro on the right stick ------------------------------------------
+
+    section("gyro-stick: the push is artzox's arithmetic, in degrees");
+    {
+        StickConfig s;                               // sens 50, vertical follows
+        float x = 0.0f, y = 0.0f;
+        // ⓘ Theirs is raw * 50 / 200: 30 deg/s is 491.52 raw, so 122.88 of 127.
+        stick_push(s, 30.0f, 0.0f, &x, &y);
+        CTM_CHECK(std::fabs(x * 127.0f + 122.88f) < 0.01f);
+        CTM_CHECK(y == 0.0f);
+        stick_push(s, 0.0f, -10.0f, &x, &y);         // tilted down: the stick goes down
+        CTM_CHECK(std::fabs(y * 127.0f - 40.96f) < 0.01f);
+        s.sens_v = 100;                              // vertical set on its own
+        stick_push(s, 0.0f, -10.0f, &x, &y);
+        CTM_CHECK(std::fabs(y * 127.0f - 81.92f) < 0.01f);
+        s.invert_x = true;
+        stick_push(s, 30.0f, 0.0f, &x, &y);
+        CTM_CHECK(x > 0.0f);
+    }
+
+    section("gyro-stick: a controller held still pushes nothing");
+    {
+        StickConfig s;
+        float x = 1.0f, y = 1.0f;
+        stick_push(s, 0.5f, -0.5f, &x, &y);          // under their 12 raw units
+        CTM_CHECK(x == 0.0f && y == 0.0f);
+    }
+
+    section("gyro-stick: the push adds to the stick, is held at the ends, in the pad's own form");
+    {
+        std::vector<uint8_t> d(64, 0);
+        d[3] = 0x80;
+        d[4] = 0x80;
+        ctm_rebind::nudge_stick(ctm_rebind::kDs5Layout, d.data(), d.size(), false, -0.5f, 0.25f);
+        CTM_CHECK(d[3] == 64 && d[4] == 160);
+        ctm_rebind::nudge_stick(ctm_rebind::kDs5Layout, d.data(), d.size(), false, -2.0f, 2.0f);
+        CTM_CHECK(d[3] == 0 && d[4] == 255);         // held at the ends, never wrapped
+        CTM_CHECK(d[1] == 0 && d[2] == 0);           // the left stick is left alone
+        // ⓘ An Xbox pad: signed 16 bits, and up reads POSITIVE there.
+        std::vector<uint8_t> x(64, 0);
+        const ctm_rebind::Layout &xl = ctm_rebind::kXboxLayout;
+        ctm_rebind::nudge_stick(xl, x.data(), x.size(), false, 0.5f, -0.5f);   // right and up
+        CTM_CHECK(ctm_rebind::read_s16(x.data(), xl.sticks.rx) == 16384);
+        CTM_CHECK(ctm_rebind::read_s16(x.data(), xl.sticks.ry) == 16384);
+        // A report too short to hold the stick is not touched at all.
+        std::vector<uint8_t> shortReport(3, 0x80);
+        ctm_rebind::nudge_stick(ctm_rebind::kDs5Layout, shortReport.data(), shortReport.size(),
+                                false, 0.5f, 0.5f);
+        CTM_CHECK(shortReport[0] == 0x80 && shortReport[1] == 0x80 && shortReport[2] == 0x80);
+    }
+
+    section("gyro-stick: off unless its own gate is set, and on with the mouse off");
+    {
+        g_gate = "";                                 // the mouse is off throughout
+        g_player = false;
+        g_stickType = "";
+        g_stickButton = "";
+        g_stickAxis = "yaw";
+        GyroMouse gm;
+        MouseDelta out{};
+        float x = 0.0f, y = 0.0f;
+        auto r = make_report(20000, 0);
+        CTM_CHECK(!gm.on_report(r.data(), r.size(), "ds5", &out));
+        CTM_CHECK(!gm.stick_push_now(&x, &y));
+        g_stickType = "until_held";                  // no button: always on
+        gm.on_report(r.data(), r.size(), "ds5", &out);
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+        CTM_CHECK(!gm.on_report(r.data(), r.size(), "ds5", &out));   // still no cursor
+        CTM_CHECK(gm.stick_push_now(&x, &y));
+        CTM_CHECK(x < 0.0f);                         // the mouse's sign: this way is left
+        g_stickType = "";
+    }
+
+    section("gyro-stick: held to L2, and nothing carried once it is let go");
+    {
+        g_gate = "";
+        g_player = false;
+        g_stickType = "while_held";
+        g_stickButton = "l2";
+        g_stickAxis = "yaw";
+        GyroMouse gm;
+        MouseDelta out{};
+        float x = 0.0f, y = 0.0f;
+        auto loose = make_report(20000, 0, 0);
+        auto held = make_report(20000, 0, 255);
+        gm.on_report(loose.data(), loose.size(), "ds5", &out);
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+        gm.on_report(loose.data(), loose.size(), "ds5", &out);
+        CTM_CHECK(!gm.stick_push_now(&x, &y));
+        gm.on_report(held.data(), held.size(), "ds5", &out);
+        CTM_CHECK(gm.stick_push_now(&x, &y) && x < 0.0f);
+        gm.on_report(loose.data(), loose.size(), "ds5", &out);
+        CTM_CHECK(!gm.stick_push_now(&x, &y));       // stops on the very next report
+        g_stickType = "";
+        g_stickButton = "";
+    }
+
+    section("gyro-stick: the push lands on the report's right stick, and only there");
+    {
+        g_gate = "";
+        g_player = false;
+        g_stickType = "until_held";
+        g_stickButton = "";
+        g_stickAxis = "yaw";
+        std::vector<unsigned char> desc(18, 0);
+        desc[8] = 0x4c; desc[9] = 0x05; desc[10] = 0xe6; desc[11] = 0x0c;   // a DualSense
+        static int key = 0;
+        auto warm = make_report(20000, 0);
+        on_ds5_input(&key, desc, "", warm.data(), warm.size());
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+        auto r = make_report(20000, 0);
+        r[1] = r[2] = r[3] = r[4] = 0x80;            // both sticks centred
+        on_ds5_input(&key, desc, "", r.data(), r.size());
+        apply_stick(&key, desc, r.data(), r.size());
+        CTM_CHECK(r[3] < 0x80);                      // pushed left
+        CTM_CHECK(r[1] == 0x80 && r[2] == 0x80);     // the left stick untouched
+        // ⭐ Switched off, a report goes through byte for byte as it came.
+        g_stickType = "";
+        auto r2 = make_report(20000, 0);
+        r2[1] = r2[2] = r2[3] = r2[4] = 0x80;
+        const auto before = r2;
+        on_ds5_input(&key, desc, "", r2.data(), r2.size());
+        apply_stick(&key, desc, r2.data(), r2.size());
+        CTM_CHECK(r2 == before);
+        forget_device(&key);
     }
 
     return 0;

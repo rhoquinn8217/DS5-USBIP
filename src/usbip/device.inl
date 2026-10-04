@@ -573,10 +573,19 @@ public:
         //
         // ⓘ Everything that needs to READ the real report -- the three mouse
         // hooks, the chord, the rebinds -- has now had it. Nothing runs after
-        // this but the send, which is exactly what "hidden from the game"
-        // should mean.
+        // this but the gyro's push on the right stick, which only adds to the
+        // stick, and the send -- which is what "hidden from the game" should
+        // mean.
         ctm_mouse_exclusive_apply(this, profile_.device_descriptor, linked_config(),
                                   report.data, report.length);
+
+        // ⭐ Gyro on the right stick. ADDS to the report, so it goes after the
+        // hiding above: a right stick centred because it drives the mouse still
+        // gets the gyro's push. The push itself was worked out by the gyro hook
+        // at the top, from the report as it arrived. No-op unless
+        // gyro_to_stick_gate_type is set.
+        ctm_gyro_mouse::apply_stick(this, profile_.device_descriptor,
+                                    report.data, report.length);
 
         enqueue_input_report(report);
     }
