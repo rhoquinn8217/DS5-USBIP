@@ -125,6 +125,9 @@ carry it; upstream's own history is unchanged.
 | 2026-10-02 | Advanced cycles two window sizes, as Simple and Quick do: the smallest is gone, it did not work at 250% scaling, and a saved size from before is moved down one so the window opens where it was. Circle in Quick goes to Close rather than closing, as in Simple, and Circle or Escape in Advanced lands on Close in the footer. Down from Quick's auto link button lands on Close and up from Close on it; down from Simple's config picker lands on New. Page 2.66.51. | `4f286b6` |
 | 2026-10-02 | The tray icon's menu counts and lists devices, not their parts: the parts under one nickname are one device, as on the settings page's tabs, so four devices in ten parts read "4 devices connected" and are four lines. The side menu is "Devices", and a line leads with the device's name: "DualSense (USB) - Token - 100%". The title picture is never narrower than the menu's widest line; narrower, Windows drew it without its transparency, a black box. | `b9cb386`, `68e08dc`, `0d5bf94` |
 | 2026-10-03 | The on-screen keyboard's sub-compact face is laid out for a controller: ten equal columns with no gaps, backspace and space side by side wearing the face button that does their job, and a fn layer with F1 to F12, the 22 symbols near where a full keyboard has them around enter, esc, tab, page up and down, del, home and copy. The legend and the button marks follow the pad that pressed last; opening the config window no longer closes the keyboard; paste and copy work from the pad; and the keyboard remembers its face, size and place. The settings page's Simple footer has a twelfth hint and three reworded, names the pad's buttons by their symbols, and its hint 8 follows the input in use. | `d57a9cf`, `5be42f5`, `9247539`, `99326a0`, `136b9ce`, `64270bc`, `f7366d7`, `2ad911f`, `10296d4`, `9f53768`, `41f4ece` |
+| 2026-10-03 | The settings page's footer counts devices, not their parts, as the tabs do: a receiver of three parts is one device, so the footer reads "3 devices bridged". In Advanced the Mode picker and Close stay at the right edge at every window width, with "controllers -> game" beside them; they wrapped to the left before. Page 2.66.55. | `a022171`, `1858a10` |
+| 2026-10-03 | When a full-screen game takes the front back from the settings window just raised over it, the listener raises it again: up to three times within two seconds, and only while the front is the window it was taken from, so a click elsewhere or Alt+Tab is left alone. The log names the program that had the front. In The Witcher 3 the pad chord needed two or three presses before. | `e0fff4d` |
+| 2026-10-03 | The gyro can move the right stick, for a game that drops a held button whenever a mouse moves: the stick moves by how fast the controller is turning, added to wherever the thumb has it and held at the ends, as artzox's DS5Dongle does, with gyro-to-mouse's gate and motion filter underneath. Settings `gyro_to_stick_gate_type` and `gyro_to_stick_gate_button` (the mouse's choices), `gyro_stick_sens`, `gyro_stick_sens_v`, `gyro_stick_axis` and `gyro_stick_invert`, and the preset `gyro-to-stick-on-L2-aiming` after its mouse twin. Page 2.66.56. | `e7996e3` |
 
 ## Files changed
 
@@ -135,7 +138,7 @@ upstream's release FFmpeg binaries replacing the repo's debug ones).
 ```
  .gitattributes                                |   48 +
  .gitignore                                    |   34 +-
- CHANGES.md                                    |  280 +
+ CHANGES.md                                    |  283 +
  LINK                                          |    0
  README.md                                     |   18 +
  app/ctm-usbip-tests.vcxproj                   |  124 +
@@ -171,10 +174,10 @@ upstream's release FFmpeg binaries replacing the repo's debug ones).
  src/app/device_type.inl                       |   70 +
  src/app/home_folder.inl                       |  110 +
  src/app/nickname.inl                          |   90 +
- src/app/open_ui.inl                           |  489 ++
+ src/app/open_ui.inl                           |  562 ++
  src/app/overlay_window.inl                    | 2263 ++++++
  src/app/rest.inl                              |  760 ++
- src/app/rest_config.inl                       | 1234 ++++
+ src/app/rest_config.inl                       | 1240 ++++
  src/app/rest_config_sessions.inl              |  204 +
  src/app/rest_sessions.inl                     |   33 +
  src/app/same_controller.inl                   |   38 +
@@ -201,18 +204,18 @@ upstream's release FFmpeg binaries replacing the repo's debug ones).
  src/backend/bridge.inl                        |  271 +-
  src/backend/bridge_enet.inl                   |   40 +-
  src/backend/bt.inl                            |   16 +-
- src/config/config_presets.inl                 |  452 ++
+ src/config/config_presets.inl                 |  475 ++
  src/config/config_store.inl                   |  820 +++
  src/config/config_watcher.inl                 |  170 +
  src/config/device_config.inl                  |  218 +
  src/input/battery.inl                         |  105 +
  src/input/binding_names.inl                   |  244 +
- src/input/button_layout.inl                   | 1087 +++
+ src/input/button_layout.inl                   | 1124 +++
  src/input/chord_gate.inl                      |   66 +
  src/input/gyro_calibration.inl                |  168 +
  src/input/gyro_calibration_fetch.inl          |   99 +
  src/input/gyro_hold.inl                       |   48 +
- src/input/gyro_mouse.inl                      | 1052 +++
+ src/input/gyro_mouse.inl                      | 1190 ++++
  src/input/key_pulse.inl                       |  106 +
  src/input/keyboard_device.inl                 |  366 +
  src/input/mic_report.inl                      |   41 +
@@ -230,17 +233,17 @@ upstream's release FFmpeg binaries replacing the repo's debug ones).
  src/log/device_log.inl                        |  233 +
  src/main.cpp                                  |  713 +-
  src/map/runtime.cpp                           |   68 +-
- src/usbip/device.inl                          |  650 +-
+ src/usbip/device.inl                          |  659 +-
  src/usbip/server.inl                          |   55 +-
  tests/binding_names_test.cpp                  |  200 +
- tests/button_layout_test.cpp                  | 1184 ++++
+ tests/button_layout_test.cpp                  | 1184 +++
  tests/capped_log_test.cpp                     |  140 +
  tests/config_store_test.cpp                   |  906 +++
  tests/device_capabilities_test.cpp            |   75 +
  tests/device_config_test.cpp                  |  521 ++
  tests/device_names_test.cpp                   |   88 +
  tests/device_type_test.cpp                    |   89 +
- tests/gyro_mouse_test.cpp                     |  688 ++
+ tests/gyro_mouse_test.cpp                     |  828 +++
  tests/harness.h                               |   55 +
  tests/home_folder_test.cpp                    |  163 +
  tests/host_audio_settings_test.cpp            |  125 +
@@ -268,7 +271,7 @@ upstream's release FFmpeg binaries replacing the repo's debug ones).
  tests/units.h                                 |   54 +
  tests/window_icon_rule_test.cpp               |   86 +
  tests/window_size_rule_test.cpp               |  129 +
- tools/controller-config-test-client.html      | 9452 +++++++++++++++++++++++++
+ tools/controller-config-test-client.html      | 9500 +++++++++++++++++++++++++
  tools/create-desktop-shortcut.bat             |   46 +
  tools/create-desktop-shortcut.ps1             |  148 +
  tools/device-config-panel-edge.bat            |    9 +
@@ -276,5 +279,5 @@ upstream's release FFmpeg binaries replacing the repo's debug ones).
  tools/device-config-panel.bat                 |    4 +
  tools/device-config-panel.ps1                 |  303 +
  tools/osk-mockups.py                          |  103 +
- 143 files changed, 46386 insertions(+), 155 deletions(-)
+ 143 files changed, 46863 insertions(+), 155 deletions(-)
 ```
