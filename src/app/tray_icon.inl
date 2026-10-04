@@ -361,7 +361,7 @@ inline void show_menu(HWND hwnd)
     AppendMenuW(menu, MF_STRING, kIdToggle, tray_menu::keyboard_line(ctm_overlay::visible()));
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
 
-    // ---- Config Mode: the window's layout, the padlock on the one it is in ---
+    // ---- Window Mode: the window's layout, the padlock on the one it is in ---
     bool compact = false, quick = false;
     const bool known = ui_view_get(&compact, &quick, nullptr);
     const int current = tray_menu::mode_index(known, compact, quick);
@@ -574,7 +574,7 @@ inline void thread_main()
     // UTF-8, so the compiler took the dash's three bytes for three
     // characters. Text a person reads does not need a dash that depends on
     // how the file happened to be saved.
-    wcscpy_s(nid.szTip, L"DS5-USBIP: click for controllers, config, the keyboard or Quit");
+    wcscpy_s(nid.szTip, L"DS5-USBIP: Select Devices, Controller Configs, Virtual Keyboard or Quit");
     Shell_NotifyIconW(NIM_ADD, &nid);
     device_log::session_w() << L"tray: icon added, from " << iconSource;
 

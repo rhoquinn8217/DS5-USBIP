@@ -6,21 +6,24 @@
 //     2 devices connected            closes the menu. A count under it
 //     ----------------------------
 //     Devices                    >   one line per device; choosing one opens
-//     ----------------------------   the config window on that device
-//     Open Controller Config
+//     ----------------------------   the Controller Configs window on it
+//     Open Controller Configs
 //     Open Virtual Keyboard
 //     ----------------------------
-//     Config Mode                >   Advanced, Simple, Quick, with the
+//     Window Mode                >   Advanced, Simple, Quick, with the
 //     ----------------------------   padlock on the one the window is in
 //     Quit
 //
 // ⓘ Quit was not in the order they gave. It is the only way the listener is
 // closed, so it stays, last, under a break of its own.
 //
-// ⛔ "CONFIG MODE" HERE IS THE WINDOW'S LAYOUT. Inside the listener the same
-// two words already name something else -- the state in which a pad drives
-// the settings page instead of the game -- so in code and in the log the
-// layout is always called the VIEW or the mode of the window, never that.
+// ⭐ THE WINDOW IS "CONTROLLER CONFIGS" (rhoquinn8217, 2026-10-03). "Config"
+// meant the window, the saved set a pad is linked to and the folder at once;
+// a config stays a config, and the window that holds them is named for them.
+// ⓘ And its layout is "Window Mode": the side menu was "Config Mode", the
+// two words that inside the listener name the state in which a pad drives
+// the page instead of the game. In code and in the log the layout is still
+// called the VIEW or the mode of the window.
 //
 // ⭐ DEVICES, NOT CONTROLLERS, AND NOT THEIR PARTS (rhoquinn8217, 2026-10-02:
 // *"Multiple devices with the same name should count as 1 device in the tray
@@ -41,8 +44,8 @@ namespace tray_menu {
 
 inline const wchar_t *const kTitle = L"DS5-USBIP";
 inline const wchar_t *const kDevices = L"Devices";
-inline const wchar_t *const kOpenConfig = L"Open Controller Config";
-inline const wchar_t *const kConfigMode = L"Config Mode";
+inline const wchar_t *const kOpenConfig = L"Open Controller Configs";
+inline const wchar_t *const kConfigMode = L"Window Mode";
 inline const wchar_t *const kQuit = L"Quit";
 
 // ⓘ By code point, so no editor and no compiler setting can turn it into

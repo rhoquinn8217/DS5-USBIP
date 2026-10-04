@@ -55,20 +55,20 @@ int run_window_icon_rule_tests()
         const wchar_t *marker = L"[ctm-app]";
 
         // The window --app= makes: the page's title is the whole title.
-        CTM_CHECK(is_app_window_title(L"Advanced - DS5-USBIP Device Config - v0.1.0 [ctm-app]", marker));
-        CTM_CHECK(is_app_window_title(L"Quick - DS5-USBIP Device Config - v0.1.0 [ctm-app]", marker));
+        CTM_CHECK(is_app_window_title(L"Advanced - DS5-USBIP Controller Configs - v0.1.0 [ctm-app]", marker));
+        CTM_CHECK(is_app_window_title(L"Quick - DS5-USBIP Controller Configs - v0.1.0 [ctm-app]", marker));
         CTM_CHECK(is_app_window_title(L"[ctm-app]", marker));
 
         // ⛔ THE CASE THIS RULE EXISTS FOR. The same page in a tab of someone's
         // own browser, opened with ?app typed by hand. The marker is in the
         // title, the browser's name follows it, and that window is theirs.
         CTM_CHECK(!is_app_window_title(
-            L"Advanced - DS5-USBIP Device Config - v0.1.0 [ctm-app] - Google Chrome", marker));
+            L"Advanced - DS5-USBIP Controller Configs - v0.1.0 [ctm-app] - Google Chrome", marker));
         CTM_CHECK(!is_app_window_title(
-            L"Advanced - DS5-USBIP Device Config - v0.1.0 [ctm-app] - Microsoft Edge", marker));
+            L"Advanced - DS5-USBIP Controller Configs - v0.1.0 [ctm-app] - Microsoft Edge", marker));
 
         // The page before its script has run, and a tab that never had ?app.
-        CTM_CHECK(!is_app_window_title(L"DS5-USBIP Device Config", marker));
+        CTM_CHECK(!is_app_window_title(L"DS5-USBIP Controller Configs", marker));
         CTM_CHECK(!is_app_window_title(L"", marker));
 
         // A title shorter than the marker, and a marker that is only part of one.
