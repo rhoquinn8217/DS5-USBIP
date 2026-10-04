@@ -345,6 +345,21 @@ inline const Setting kL2GyroAiming[] = {
     { "gyro_no_passthrough", "true" },
 };
 
+// ---- L2-gyro-stick-aiming ----------------------------------------------------
+//
+// ⭐ THE SAME PRESET FOR A GAME THAT CANNOT TAKE A MOUSE (rhoquinn8217,
+// 2026-10-03). The Witcher 3 let go of a held L2 whenever the gyro moved the
+// mouse; here the gyro pushes the right stick instead, so the game sees a
+// controller and nothing else.
+// ⓘ Binds nothing, for the reason the mouse one gives: it is for playing.
+inline const Setting kL2GyroStickAiming[] = {
+    { "gyro_to_stick_gate_type", "while_held" },
+    { "gyro_to_stick_gate_button", "l2" },
+    // ⭐ And the game stops reading the gyro itself, or a game with gyro
+    // aiming of its own would turn twice for every turn.
+    { "gyro_no_passthrough", "true" },
+};
+
 #define CTM_PRESET_COUNT_OF(a) (sizeof(a) / sizeof((a)[0]))
 
 // ⭐ THE ORDER IS THE ORDER PEOPLE READ, and the ones that need a DualSense
@@ -356,6 +371,8 @@ inline const Setting kL2GyroAiming[] = {
 // gyro-to-mouse-on-L2-aiming, DS5-gyro-to-mouse, DS5-DS4-touchpad-to-mouse.
 // It still honours the rule above -- the two DualSense-only shapes are last --
 // and it opens on the stick, which is the one every pad can use.
+// ⓘ gyro-to-stick-on-L2-aiming came later (2026-10-03) and sits straight after
+// its mouse twin; where it goes is theirs to change.
 // This array IS the order the picker draws, so moving an entry moves the row.
 inline const Preset kPresets[] = {
     { "stick-to-mouse",
@@ -391,6 +408,12 @@ inline const Preset kPresets[] = {
       "else is bound: every button stays with the game.",
       // A gyro and an analog L2: DualSense, Edge, DS4.
       true, true, true, false, kL2GyroAiming, CTM_PRESET_COUNT_OF(kL2GyroAiming) },
+    { "gyro-to-stick-on-L2-aiming",
+      "The same, for a game that will not take a mouse alongside a controller: "
+      "while L2 is held, the gyro moves the right stick instead of the cursor. "
+      "Nothing else is bound.",
+      // The same pads as its mouse twin, for the same reasons.
+      true, true, true, false, kL2GyroStickAiming, CTM_PRESET_COUNT_OF(kL2GyroStickAiming) },
     { "DS5-gyro-to-mouse",
       "The gyro moves the cursor and a trigger holds it still. Start to pull "
       "and the cursor stops; push past the break and it clicks. Keep holding "
