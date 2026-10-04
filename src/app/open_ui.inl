@@ -282,7 +282,76 @@ inline bool window_exists()
 // ⓘ TOPMOST then back to NOTOPMOST. Setting it topmost lifts it above a
 // full-screen game; dropping it again immediately means it does not then sit
 // over everything else forever, which would be its own annoyance.
-//
+inline void raise_now(HWND hwnd)
+{
+    SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0,
+                 SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+    SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0,
+                 SWP_NOMOVE | SWP_NOSIZE);
+    // ⛔ And take the KEYBOARD too. Raising changes drawing order only,
+    // so without this the window sat in front while the game still
+    // owned input -- and the gate's keystrokes went to the game.
+    focus_existing();
+}
+
+// The program a window belongs to, by its exe's name, for the log. "?" when
+// Windows will not say -- a game run elevated, or by an anti-cheat, refuses.
+inline std::wstring exe_of(HWND hwnd)
+{
+    DWORD pid = 0;
+    if (hwnd == nullptr || GetWindowThreadProcessId(hwnd, &pid) == 0) return L"?";
+    std::wstring name = L"?";
+    HANDLE process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+    if (process != nullptr) {
+        wchar_t path[MAX_PATH] = {};
+        DWORD size = MAX_PATH;
+        if (QueryFullProcessImageNameW(process, 0, path, &size)) {
+            const wchar_t *base = wcsrchr(path, L'\\');
+            name = base != nullptr ? base + 1 : path;
+        }
+        CloseHandle(process);
+    }
+    return name;
+}
+
+// ⭐⭐ A FULL-SCREEN GAME TAKES THE FRONT BACK (rhoquinn8217, 2026-10-03, in The
+// Witcher 3: "chord take 2 or 3 times to push through full screen on this
+// game"). The log showed it the same way every time: the window raised and in
+// front, and under a second later the game owned the keyboard again -- until a
+// second or third chord stuck.
+// ➡️ So after raising, watch the front for a moment, and raise again when it
+// goes back to the window it was taken from: what they were doing by hand.
+// ⓘ Bounded: three more tries, each one watched for two seconds, and only while
+// the front is that same window. Anything else taking it -- a click somewhere,
+// Alt+Tab to another program -- is left alone.
+// ⓘ Its own thread, so the one-at-a-time claim above still ends when the window
+// first appears.
+inline void keep_front_from(HWND taken_from)
+{
+    if (taken_from == nullptr) return;
+    std::thread([taken_from]() {
+        int tries = 0;
+        auto watched_since = std::chrono::steady_clock::now();
+        while (std::chrono::steady_clock::now() - watched_since < std::chrono::seconds(2)) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            if (GetForegroundWindow() != taken_from) continue;
+            FindState state;
+            EnumWindows(find_window_proc, reinterpret_cast<LPARAM>(&state));
+            if (state.found == nullptr) return;     // closed in the meantime
+            if (tries == 3) {
+                device_log::input_w() << L"ui: " << exe_of(taken_from)
+                                      << L" took the front back again -- leaving it after 3 tries";
+                return;
+            }
+            ++tries;
+            device_log::input_w() << L"ui: " << exe_of(taken_from)
+                                  << L" took the front back -- raising again (" << tries << L" of 3)";
+            raise_now(state.found);
+            watched_since = std::chrono::steady_clock::now();
+        }
+    }).detach();
+}
+
 // ⚠️ Runs on a thread because the window does not exist yet when the browser is
 // launched -- it has to be waited for.
 // ⭐⭐ `release_claim`: THE ONE-AT-A-TIME CLAIM ENDS WHEN THE WINDOW EXISTS, not
@@ -298,7 +367,16 @@ inline bool window_exists()
 // thread that must not wait.
 inline void raise_when_ready(bool release_claim = false)
 {
-    std::thread([release_claim]() {
+    // ⓘ Who has the front BEFORE the window exists: the game, when there is
+    // one. Read here, while the browser is still starting, so it cannot be the
+    // new window itself; and never our own window, which is not a game.
+    HWND before = GetForegroundWindow();
+    wchar_t title[512] = {};
+    if (before != nullptr && GetWindowTextW(before, title, 511) > 0 &&
+        wcsstr(title, kTitleMarker) != nullptr) {
+        before = nullptr;
+    }
+    std::thread([release_claim, before]() {
         struct Done {
             bool release;
             ~Done() { if (release) release_open(); }
@@ -309,15 +387,10 @@ inline void raise_when_ready(bool release_claim = false)
             EnumWindows(find_window_proc, reinterpret_cast<LPARAM>(&state));
             if (state.found == nullptr) continue;
 
-            SetWindowPos(state.found, HWND_TOPMOST, 0, 0, 0, 0,
-                         SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
-            SetWindowPos(state.found, HWND_NOTOPMOST, 0, 0, 0, 0,
-                         SWP_NOMOVE | SWP_NOSIZE);
-            // ⛔ And take the KEYBOARD too. Raising changes drawing order only,
-            // so without this the window sat in front while the game still
-            // owned input -- and the gate's keystrokes went to the game.
-            focus_existing();
-            device_log::input_w() << L"ui: raised the window above the game";
+            raise_now(state.found);
+            device_log::input_w() << L"ui: raised the window above the game (the front was "
+                                  << (before != nullptr ? exe_of(before) : std::wstring(L"nothing")) << L")";
+            keep_front_from(before);
             return;
         }
         device_log::input_w() << L"ui: no window appeared to raise";
