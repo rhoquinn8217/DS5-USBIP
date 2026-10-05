@@ -438,8 +438,52 @@ inline void show_menu(HWND hwnd)
     }
 }
 
+// ⭐⭐ THE ICON COMES BACK WHEN THE TASKBAR DOES (code review, 2026-10-05).
+//
+// ⛔ The shell forgets every notification icon when Explorer restarts, and
+// tells each top-level window by broadcasting "TaskbarCreated". This window
+// never listened, and the add's result was never checked, so after an
+// Explorer restart -- or an add the shell refused because the taskbar was
+// not up yet at sign-in -- the listener ran on with no icon: no Quit, no
+// Controller Configs, no keyboard, nothing but Task Manager.
+// ➡️ Re-add on the broadcast, and retry a refused add on a timer.
+inline UINT g_taskbarCreated = 0;
+inline NOTIFYICONDATAW g_nid = {};
+inline const wchar_t *g_iconSource = L"";
+inline const UINT_PTR kAddRetryTimer = 1;
+inline int g_addRetriesLeft = 0;
+
+// ⓘ "tray: icon added" is matched by the ctm-usbip-windows skill's
+// live-start.ps1, so every success says those words.
+inline bool add_icon(bool again, const wchar_t *why)
+{
+    if (Shell_NotifyIconW(NIM_ADD, &g_nid)) {
+        if (again) {
+            device_log::session_w() << L"tray: icon added again (" << why << L")";
+        } else {
+            device_log::session_w() << L"tray: icon added, from " << g_iconSource;
+        }
+        return true;
+    }
+    device_log::session_w() << L"tray: the shell refused the icon (" << why
+                            << L"), error " << GetLastError();
+    return false;
+}
+
 inline LRESULT CALLBACK tray_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 {
+    if (g_taskbarCreated != 0 && msg == g_taskbarCreated) {
+        if (add_icon(true, L"the taskbar was created again")) {
+            KillTimer(hwnd, kAddRetryTimer);
+        }
+        return 0;
+    }
+    if (msg == WM_TIMER && wp == kAddRetryTimer) {
+        if (add_icon(true, L"a retry") || --g_addRetriesLeft <= 0) {
+            KillTimer(hwnd, kAddRetryTimer);
+        }
+        return 0;
+    }
     if (msg == WM_CTM_TRAY) {
         // ⭐⭐ A LEFT CLICK OPENS THE MENU (T-163). It used to open the keyboard
         // outright, which was the icon's whole meaning while the keyboard was
@@ -484,6 +528,11 @@ inline void thread_main()
         device_log::session_w() << L"tray: could not create its window";
         g_running.store(false);
         return;
+    }
+    g_taskbarCreated = RegisterWindowMessageW(L"TaskbarCreated");
+    // ⓘ Let the broadcast through even if this process runs elevated.
+    if (g_taskbarCreated != 0) {
+        ChangeWindowMessageFilterEx(g_hwnd, g_taskbarCreated, MSGFLT_ALLOW, nullptr);
     }
 
     NOTIFYICONDATAW nid = {};
@@ -575,8 +624,15 @@ inline void thread_main()
     // characters. Text a person reads does not need a dash that depends on
     // how the file happened to be saved.
     wcscpy_s(nid.szTip, L"DS5-USBIP: Select Devices, Controller Configs, Virtual Keyboard or Quit");
-    Shell_NotifyIconW(NIM_ADD, &nid);
-    device_log::session_w() << L"tray: icon added, from " << iconSource;
+    g_nid = nid;
+    g_iconSource = iconSource;
+    if (!add_icon(false, L"at start")) {
+        // ⓘ The broadcast covers a taskbar that does not exist yet; this
+        // covers a shell that exists but turned the add down. Every two
+        // seconds, for two minutes.
+        g_addRetriesLeft = 60;
+        SetTimer(g_hwnd, kAddRetryTimer, 2000, nullptr);
+    }
 
     MSG m;
     while (g_running.load() && GetMessageW(&m, nullptr, 0, 0) > 0) {
