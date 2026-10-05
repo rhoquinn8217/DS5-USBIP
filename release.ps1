@@ -138,9 +138,10 @@ DS5-USBIP $Version
 Start it: double-click ctm-usbip.exe
 
 It runs in the background. No window opens for it: look for the DS5-USBIP icon
-in the tray, by the clock. Click it for the settings page or the on-screen
-keyboard, and choose Quit there to close it. Double-click the exe again while
-it is running and the settings page comes to the front.
+in the tray, by the clock. Click it for Controller Configs, where each
+controller's settings are made, or for the on-screen keyboard, and choose Quit
+there to close it. Double-click the exe again while it is running and
+Controller Configs comes to the front.
 
 Want it on your desktop? Double-click create-desktop-shortcut.bat once.
 It builds the shortcut from wherever this folder currently is, so MOVE THE
@@ -164,7 +165,7 @@ Program Files. The exe finds profiles and maps beside itself, and creates its
 config and logs here as you use it, wherever it is started from. If the
 profiles folder is missing it says so and does not start.
 
---ui opens the settings page in a browser window. The page is built into the
+Controller Configs opens in a browser window, but the page is built into the
 exe and served by it, so there is no file to place and it cannot fall out of
 step with the version you are running.
 
@@ -180,10 +181,13 @@ Profiles and maps are DATA, on purpose. Adding a controller means adding a
 file here, not rebuilding -- so keep the folders beside the exe. Without them
 the listener says the profiles folder is missing and does not start.
 
-Two files are created next to the exe as you use it:
+These are created next to the exe as you use it:
 
-    ctm-device-config.txt     settings shared by every controller
-    configs\                  per-controller settings, made from the page
+    configs\                  each controller's settings, made in Controller Configs
+    ctm-device-config.txt     settings shared by every controller, once one is saved
+    device.log                what it did, for when something goes wrong
+    window-state.txt          where you left Controller Configs, and its size
+    keyboard-state.txt        where you left the on-screen keyboard, and its size
 
 Full documentation: https://github.com/rhoquinn8217/CTM-USBIP
 "@
