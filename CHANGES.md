@@ -128,6 +128,7 @@ carry it; upstream's own history is unchanged.
 | 2026-10-03 | The settings page's footer counts devices, not their parts, as the tabs do: a receiver of three parts is one device, so the footer reads "3 devices bridged". In Advanced the Mode picker and Close stay at the right edge at every window width, with "controllers -> game" beside them; they wrapped to the left before. Page 2.66.55. | `a022171`, `1858a10` |
 | 2026-10-03 | When a full-screen game takes the front back from the settings window just raised over it, the listener raises it again: up to three times within two seconds, and only while the front is the window it was taken from, so a click elsewhere or Alt+Tab is left alone. The log names the program that had the front. In The Witcher 3 the pad chord needed two or three presses before. | `e0fff4d` |
 | 2026-10-03 | The gyro can move the right stick, for a game that drops a held button whenever a mouse moves: the stick moves by how fast the controller is turning, added to wherever the thumb has it and held at the ends, as artzox's DS5Dongle does, with gyro-to-mouse's gate and motion filter underneath. Settings `gyro_to_stick_gate_type` and `gyro_to_stick_gate_button` (the mouse's choices), `gyro_stick_sens`, `gyro_stick_sens_v`, `gyro_stick_axis` and `gyro_stick_invert`, and the preset `gyro-to-stick-on-L2-aiming` after its mouse twin. Page 2.66.56. | `e7996e3` |
+| 2026-10-04 | The window is "Controller Configs": "config" named the window, the saved set a controller is linked to and the folder at once, so a config stays a config and the window is named for the configs it holds. Its title ("DS5-USBIP Controller Configs"), the tray's "Open Controller Configs", Simple's heading, the hints and the confirm box say so, the tray's layout side menu is "Window Mode" (it was "Config Mode"), and the tray tip reads "DS5-USBIP: Select Devices, Controller Configs, Virtual Keyboard or Quit". Page 2.66.57. | `6515409` |
 
 ## Files changed
 
@@ -138,9 +139,9 @@ upstream's release FFmpeg binaries replacing the repo's debug ones).
 ```
  .gitattributes                                |   48 +
  .gitignore                                    |   34 +-
- CHANGES.md                                    |  283 +
+ CHANGES.md                                    |  284 +
  LINK                                          |    0
- README.md                                     |   18 +
+ README.md                                     |  255 +-
  app/ctm-usbip-tests.vcxproj                   |  124 +
  app/ctm-usbip.ico                             |  Bin 156019 -> 174189 bytes
  app/ctm-usbip.rc                              |   18 +-
@@ -186,7 +187,7 @@ upstream's release FFmpeg binaries replacing the repo's debug ones).
  src/app/start_report.inl                      |   37 +
  src/app/stop_wait.inl                         |   74 +
  src/app/tray_icon.inl                         |  614 ++
- src/app/tray_menu.inl                         |  154 +
+ src/app/tray_menu.inl                         |  157 +
  src/app/ui_page.inl                           |  114 +
  src/app/window_icon.inl                       |  242 +
  src/app/window_icon_rule.inl                  |   67 +
@@ -271,7 +272,7 @@ upstream's release FFmpeg binaries replacing the repo's debug ones).
  tests/units.h                                 |   54 +
  tests/window_icon_rule_test.cpp               |   86 +
  tests/window_size_rule_test.cpp               |  129 +
- tools/controller-config-test-client.html      | 9500 +++++++++++++++++++++++++
+ tools/controller-config-test-client.html      | 9504 +++++++++++++++++++++++++
  tools/create-desktop-shortcut.bat             |   46 +
  tools/create-desktop-shortcut.ps1             |  148 +
  tools/device-config-panel-edge.bat            |    9 +
@@ -279,5 +280,5 @@ upstream's release FFmpeg binaries replacing the repo's debug ones).
  tools/device-config-panel.bat                 |    4 +
  tools/device-config-panel.ps1                 |  303 +
  tools/osk-mockups.py                          |  103 +
- 143 files changed, 46863 insertions(+), 155 deletions(-)
+ 143 files changed, 46970 insertions(+), 293 deletions(-)
 ```
