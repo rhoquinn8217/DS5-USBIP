@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.57 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.59 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -21,6 +21,15 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.59 Advanced said it twice after all: every failed request after
+            the cover came up put the early warning back above it. Not
+            once the cover is up.
+    2.66.58 What the window says when DS5-USBIP does not answer is true
+            again: start it from its desktop shortcut or a double-click,
+            or wait if it is restarting. Gone: the command lines, the
+            --rest switch, the address field and the firewall. Advanced
+            says it once, not twice, and the footer and log say
+            "listener" where they said "agent".
     2.66.57 The window is "Controller Configs": its title ("DS5-USBIP
             Controller Configs"), Simple's heading, the hints that send
             people to the tray's "Open Controller Configs", and the confirm
@@ -1784,24 +1793,20 @@
      configs and devices we can no longer reach, and every control on it would
      write to nothing -- showing them greyed would still invite clicking. -->
 <div id="downCover" style="display:none">
-  <h2><span style="color:#ff8f8f">&#10007;</span> Can't reach the listener</h2>
-  <p class="muted">No reply from <code id="downAddr"></code>. Any of these
-  would do it:</p>
-  <table>
-    <tr><th>Cause</th><th>What to do</th></tr>
-    <tr>
-      <td>It isn't running</td>
-      <td>Start it: <code>ctm-usbip.exe agent 48054 --rest 48055 --ui</code></td>
-    </tr>
-    <tr>
-      <td>It's running without the settings API</td>
-      <td>It needs <code>--rest</code>. Stop it and start it with the command
-          above.</td>
-    </tr>
-    <!-- ⛔ REMOVED 2026-09-01. A row suggesting the address be opened in a
-         browser sent people somewhere that only tells them the page cannot be
-         used that way -- advice that costs a click and answers nothing. -->
-  </table>
+  <!-- ⭐ WHAT IS TRUE NOW (rhoquinn8217, 2026-10-04: "The message doesn't
+       seem right anymore"). It gave a command line to type, a --rest switch
+       the listener now turns on by itself with --ui, and a firewall, which
+       does not stand between a window and the listener on the same PC. This
+       window only ever sees a listener that was closed, stopped, or is
+       starting again, and a double-click starts it (or its desktop shortcut).
+       ⓘ When it answers again the page reloads (setDown), and a listener that
+       starts afresh closes this window and opens a new one, so either way
+       Controller Configs comes back by itself. -->
+  <h2><span style="color:#ff8f8f">&#10007;</span> Can't reach DS5-USBIP</h2>
+  <p class="muted">No reply from <code id="downAddr"></code>.</p>
+  <p>If it was closed, start it again: the DS5-USBIP shortcut on the desktop,
+  or double-click <code>ctm-usbip.exe</code>.</p>
+  <p>If it is restarting, wait: Controller Configs comes back by itself.</p>
 </div>
 
 <div class="pane on" id="pane-overview">
@@ -1809,7 +1814,7 @@
 <div class="bar">
   <!-- ⓘ The same number as VERSION at the top of this file, by hand. It sat
        at 2.66.4 for thirty-four versions while VERSION moved on. -->
-  <span class="muted" style="font-size:12px">v2.66.57</span>
+  <span class="muted" style="font-size:12px">v2.66.59</span>
   <label class="muted">agent</label>
   <input id="base" value="http://127.0.0.1:48055" size="26">
   <label class="muted">bearer</label>
@@ -2135,8 +2140,8 @@ function call(method, path, body, quiet) {
       if (status === 0 && !quiet) {
         // Reaching nothing at all is a different problem from a rejected call,
         // and the usual cause is the agent not running with --rest.
-        log(method, path, 0, 'could not reach the agent: ' + e.message);
-        setConn('cannot reach agent', 'bad');
+        log(method, path, 0, 'could not reach the listener: ' + e.message);
+        setConn('cannot reach the listener', 'bad');
         showOfflineHelp();
       }
       throw e;
@@ -2197,18 +2202,25 @@ function fitWindow() {
 // gated with no way out. It was pointing people at the worst place to be.
 function showOfflineHelp() {
   if (document.getElementById('offlineHelp')) return;
+  // ⛔ NOT ONCE THE COVER IS UP. setDown takes this box away when the cover
+  // comes up, and every failed request after that called here again and put
+  // it back: two copies of the same advice, one above the other (rhoquinn8217,
+  // 2026-10-04, "in advance mode with see two duplicate messages").
+  if (IS_DOWN) return;
   var box = document.createElement('div');
   box.id = 'offlineHelp';
   box.style.cssText = 'margin:14px 0;padding:12px 14px;border:1px solid #b5564f;' +
     'border-radius:10px;background:#2b1b1b';
+  // ⭐ The same advice as the cover, and the same reasons it changed
+  // (2026-10-04): no command line, no switch, no address field this window
+  // does not show, no firewall. setDown takes this box away when the cover
+  // comes up, so the two never say it twice.
   box.innerHTML =
-    '<strong>The listener is not answering.</strong>' +
+    '<strong>DS5-USBIP is not answering.</strong>' +
     '<div class="muted" style="margin-top:8px;line-height:1.7">' +
-    '&bull; It may not be running &mdash; start it with ' +
-    '<code>ctm-usbip.exe agent 48054 --ui</code><br>' +
-    '&bull; It may have been rebuilt and not restarted<br>' +
-    '&bull; The address above may be wrong for this machine<br>' +
-    '&bull; A firewall may be blocking the port' +
+    'If it was closed, start it again: the DS5-USBIP shortcut on the desktop, ' +
+    'or double-click <code>ctm-usbip.exe</code>.<br>' +
+    'If it is restarting, wait: Controller Configs comes back by itself.' +
     '</div>';
   var host = document.getElementById('stickyTop');
   if (host) host.appendChild(box);
@@ -8266,9 +8278,10 @@ function paintCompact() {
     // ⭐ THE LISTENER IS NOT ANSWERING (rhoquinn8217, 2026-09-09). The full
     // page has its cover; compact says the same thing at its own size, with
     // the address that failed and the line that starts the listener.
-    html += '<div class="cempty"><span class="cbad">\u2717</span> Listener not connected</div>' +
-            '<div class="csub">Check if the listener is running or restart it.</div>' +
-            '<div class="ccmd">ctm-usbip.exe agent 48054 --rest 48055 --ui</div>';
+    // ⓘ The same advice as Advanced's cover, and no command line (2026-10-04).
+    html += '<div class="cempty"><span class="cbad">\u2717</span> DS5-USBIP is not answering</div>' +
+            '<div class="csub">If it was closed, start it again from its desktop shortcut. ' +
+            'If it is restarting, this comes back by itself.</div>';
   } else if (!d) {
     html += '<div class="cempty">Bridge a controller to start.</div>' + foot(false, '');
   } else {
@@ -8866,6 +8879,11 @@ function setDown(down) {
   if (addr && down) addr.textContent = base();
   var pane = document.getElementById('pane-overview');
   if (cover) cover.style.display = down ? 'block' : 'none';
+  // ⓘ The cover says what the early warning said, so the warning goes.
+  if (down) {
+    var early = document.getElementById('offlineHelp');
+    if (early) early.parentNode.removeChild(early);
+  }
   // ⛔ CLEAR the inline style, never set one to show. An inline display beats
   // the .pane / .pane.on rules for good, so setting "block" here left Overview
   // visible on every controller tab afterwards -- showTab dutifully removed the
@@ -8917,23 +8935,23 @@ function paintHealth() {
   var colour, text;
   if (age === null) {
     colour = '#71737c';
-    text = 'no contact with the agent yet';
+    text = 'no contact with the listener yet';
   } else if (FAILS >= 3) {
     setDown(true);
     // ⚠️ Three misses is twelve seconds. One failed poll is a restart or a
     // rebuild, which happens constantly -- calling that "down" would cry wolf
     // every time you build.
     colour = '#ff8f8f';
-    text = 'agent not answering — last seen ' + age + 's ago';
+    text = 'listener not answering — last seen ' + age + 's ago';
   } else if (age > 15) {
     colour = '#e0c07a';
-    text = 'agent quiet — last seen ' + age + 's ago';
+    text = 'listener quiet — last seen ' + age + 's ago';
   } else {
     setDown(false);
     colour = '#7fd18c';
     text = LAST_COUNT
       ? LAST_COUNT + (LAST_COUNT === 1 ? ' device' : ' devices') + ' bridged'
-      : 'agent up — no devices bridged';
+      : 'listener up — no devices bridged';
   }
   el.innerHTML = '<span class="dot" style="background:' + colour + '"></span>' + esc(text);
 }
