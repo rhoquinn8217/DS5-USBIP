@@ -81,7 +81,12 @@ static std::wstring bridge_profile_for_kind(const std::string &kind)
     if (kind == "ds5_usb") {
         return find_relative_asset(L"profiles\\descriptors\\ds5_composite.profile");
     }
-    if (kind == "ds5e_usb") {
+    // ⭐ A DUALSENSE EDGE OVER BLUETOOTH (code review, 2026-10-05). The TV
+    // has sent "ds5e" for one since 2026-08-05, and this side knew only
+    // "ds5e_usb", so every Bluetooth Edge was refused with "ERR bad bridge
+    // args". To Windows it is the same Edge as on a cable; only the wire
+    // format the map reads differs, as for the plain DualSense.
+    if (kind == "ds5e" || kind == "ds5e_usb") {
         return find_relative_asset(L"profiles\\descriptors\\ds5e_composite.profile");
     }
     if (kind == "puck") {
@@ -109,7 +114,7 @@ static std::wstring bridge_map_for_kind(const std::string &kind)
         // nothing in the game.
         return find_relative_asset(L"maps\\ds4_usb_over_ds4_usb.map");
     }
-    if (kind == "ds5") {
+    if (kind == "ds5" || kind == "ds5e") {   // the Bluetooth map, either pad
         return find_ds5_map_file();
     }
     if (kind == "ds5_usb") {
@@ -215,6 +220,7 @@ static void bridge_session_worker(AgentBridgeSession *session)
         // the 15 s window, which the backend detects and applies itself.
         backend->set_session_timeouts(30000, 15000);
         const bool gamepadKind = session->kind == "ds4" || session->kind == "ds5" ||
+                                 session->kind == "ds5e" ||
                                  session->kind == "xbox" || session->kind == "puck";
         backend->set_idle_timeouts(gamepadKind ? 15000 : 0, 15000);
         // TCP path: when the TV client vanishes and the reconnect grace runs
@@ -519,7 +525,7 @@ static void bridge_session_worker(AgentBridgeSession *session)
         // effort -- a controller whose calibration cannot be read still works,
         // on the old fixed scale, and says so in the log.
         if (session->kind == "ds5" || session->kind == "ds5_usb" ||
-            session->kind == "ds5e_usb") {
+            session->kind == "ds5e" || session->kind == "ds5e_usb") {
             ctm_gyro_calib::fetch(session->device.get(), backendPtr, session->ordinal);
         } else if (session->kind == "ds4_usb") {
             // ⭐ A DS4 HAS A GYRO TOO, and ships its own calibration. Without it
@@ -600,7 +606,7 @@ static void bridge_session_worker(AgentBridgeSession *session)
     // itself -- the touchpad, stick and trigger hooks do when they emit -- so a
     // DS4 left off this list would pile movement into a mailbox nothing drains.
     if (session->kind == "ds5" || session->kind == "ds5_usb" ||
-        session->kind == "ds5e_usb" || session->kind == "ds4" ||
+        session->kind == "ds5e" || session->kind == "ds5e_usb" || session->kind == "ds4" ||
         session->kind == "ds4_usb") {
         ctm_gyro_mouse_ensure_mouse_started();   // defined in mouse_device.inl
     }
@@ -950,7 +956,7 @@ static void handle_agent_client(SOCKET client, const sockaddr_in &peer)
         std::string busIdAscii;
         input >> kind >> port >> busIdAscii;
         if ((kind != "ds4" && kind != "ds4_usb" && kind != "ds5" && kind != "ds5_usb" &&
-             kind != "ds5e_usb" && kind != "hid" && kind != "puck" && kind != "xbox") ||
+             kind != "ds5e" && kind != "ds5e_usb" && kind != "hid" && kind != "puck" && kind != "xbox") ||
             port < 1024 || port > 65535 ||
             busIdAscii.empty() || busIdAscii.size() > 31) {
             send_text(client, "ERR bad bridge args\n");
