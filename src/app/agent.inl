@@ -897,6 +897,19 @@ static void send_text(SOCKET sock, const std::string &text)
 
 static void handle_agent_client(SOCKET client, const sockaddr_in &peer)
 {
+    // ⛔⛔ BOUNDED, because this runs inline on the one loop that answers every
+    // TV, the REST API and discovery. With no limit, a peer that connected and
+    // sent nothing -- a port scanner waiting for a banner, a TV whose network
+    // dropped between connect and send -- held this recv, and the whole
+    // listener with it, until that peer let go (code review, 2026-10-05).
+    // ⓘ One second: the TV gives each call one second to be answered, so a
+    // command that has not arrived by then has nobody waiting for its reply.
+    DWORD timeoutMs = 1000;
+    setsockopt(client, SOL_SOCKET, SO_RCVTIMEO,
+               reinterpret_cast<const char *>(&timeoutMs), sizeof(timeoutMs));
+    setsockopt(client, SOL_SOCKET, SO_SNDTIMEO,
+               reinterpret_cast<const char *>(&timeoutMs), sizeof(timeoutMs));
+
     char line[512] = {};
     int n = recv(client, line, sizeof(line) - 1, 0);
     if (n <= 0) {

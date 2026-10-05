@@ -687,8 +687,8 @@ static SOCKET rest_open_listener(std::wstring *error)
 static void rest_handle_client(SOCKET client, uint16_t agentPort)
 {
     // Bounded I/O so a stalled peer can't wedge the agent loop for long. The
-    // plaintext channel has the same inline-blocking shape; here we at least
-    // put a ceiling on it.
+    // plaintext channel has the same inline-blocking shape and is bounded the
+    // same way, at one second (handle_agent_client).
     DWORD timeoutMs = 2000;
     setsockopt(client, SOL_SOCKET, SO_RCVTIMEO,
                reinterpret_cast<const char *>(&timeoutMs), sizeof(timeoutMs));
