@@ -148,10 +148,10 @@ int run_tray_menu_tests()
     {
         // ⛔ The settings page's hints name the first of these, and the tool
         // every session quits the listener with finds the last by its words.
-        CTM_CHECK_EQ(narrow(tray_menu::kOpenConfig), std::string("Open Controller Config"));
+        CTM_CHECK_EQ(narrow(tray_menu::kOpenConfig), std::string("Open Controller Configs"));
         // ⓘ The swap tool opens this side menu by its words.
         CTM_CHECK_EQ(narrow(tray_menu::kDevices), std::string("Devices"));
-        CTM_CHECK_EQ(narrow(tray_menu::kConfigMode), std::string("Config Mode"));
+        CTM_CHECK_EQ(narrow(tray_menu::kConfigMode), std::string("Window Mode"));
         CTM_CHECK_EQ(narrow(tray_menu::kTitle), std::string("DS5-USBIP"));
         CTM_CHECK_EQ(narrow(tray_menu::kQuit), std::string("Quit"));
     }

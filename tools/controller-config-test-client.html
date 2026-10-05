@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.56 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.57 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -21,6 +21,10 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.57 The window is "Controller Configs": its title ("DS5-USBIP
+            Controller Configs"), Simple's heading, the hints that send
+            people to the tray's "Open Controller Configs", and the confirm
+            box's title. A config is still a config.
     2.66.56 Gyro moves the right stick: the stick's gate rows read like the
             mouse's (off / on button release / on button hold, and "no
             button set"), and its axis row's blank reads "player space".
@@ -969,7 +973,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>DS5-USBIP Device Config</title>
+<title>DS5-USBIP Controller Configs</title>
 <!-- The window's icon. A browser draws an app window's title bar and
      taskbar button from this, and the listener answers it with the icon
      built into its own exe. ?v= makes a browser that cached the old
@@ -1805,7 +1809,7 @@
 <div class="bar">
   <!-- ⓘ The same number as VERSION at the top of this file, by hand. It sat
        at 2.66.4 for thirty-four versions while VERSION moved on. -->
-  <span class="muted" style="font-size:12px">v2.66.56</span>
+  <span class="muted" style="font-size:12px">v2.66.57</span>
   <label class="muted">agent</label>
   <input id="base" value="http://127.0.0.1:48055" size="26">
   <label class="muted">bearer</label>
@@ -1904,7 +1908,7 @@
 
 <div id="confirmBox" style="display:none">
   <div class="confirmCard">
-    <h2 id="confirmTitle">Controller config</h2>
+    <h2 id="confirmTitle">Controller Configs</h2>
     <p id="confirmText"></p>
     <div class="confirmBtns">
       <button id="confirmYes" class="go" onclick="confirmYes()">OK</button>
@@ -3463,7 +3467,7 @@ function noteInputSource(what) {
 var FOOTER_HINTS = [
   'To bring this window back: <b>hold two fingers on the touchpad and press ' +
   '☰</b> (DS5/DS4 only), or click the tray icon and choose ' +
-  '<b>Open Controller Config</b>.',
+  '<b>Open Controller Configs</b>.',
 
   'DS5-USBIP keeps running in the <b>background</b> when this window is ' +
   'closed. To stop it, click the <b>tray icon</b> by the clock and choose ' +
@@ -3472,7 +3476,7 @@ var FOOTER_HINTS = [
   'Hold <b>☰</b> and move the <b>left stick</b> to drag this window. Tap it ' +
   'instead and the window steps between three spots.',
 
-  'Click the <b>tray icon</b> and choose <b>Open Controller Config</b> to ' +
+  'Click the <b>tray icon</b> and choose <b>Open Controller Configs</b> to ' +
   'bring back this window. You can also open the DS5-USBIP virtual keyboard ' +
   'from there.',
 
@@ -8382,7 +8386,7 @@ function paintCompact() {
       }
       // The selector under a title, sliding with the ring (rhoquinn8217, 2026-09-09).
       html += '<div class="csel' + slide + '">' +
-              (QUICK ? '' : '<div class="ctitle">Controller Config</div>') +
+              (QUICK ? '' : '<div class="ctitle">Controller Configs</div>') +
               '<div class="cselrow">' + unlinkBtn() +
               '<select id="cpick" data-ordinal="' + esc(d.ordinal) + '"' +
               ' onmousedown="pickerActivate(event,this)"' +
@@ -9467,7 +9471,7 @@ function startPage() {
   // from parts and painted again, so the [ctm-app] marker stays on it.
   call('GET', '/api/v1/status', undefined, true).then(function(d) {
     if (d && d.product && d.product_version) {
-      BASE_TITLE = d.product + ' Device Config - v' + d.product_version;
+      BASE_TITLE = d.product + ' Controller Configs - v' + d.product_version;
       paintTitle();
     }
   }).catch(function() {});
