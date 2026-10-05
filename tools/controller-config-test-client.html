@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.58 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.59 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -21,6 +21,9 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.59 Advanced said it twice after all: every failed request after
+            the cover came up put the early warning back above it. Not
+            once the cover is up.
     2.66.58 What the window says when DS5-USBIP does not answer is true
             again: start it from its desktop shortcut or a double-click,
             or wait if it is restarting. Gone: the command lines, the
@@ -1811,7 +1814,7 @@
 <div class="bar">
   <!-- ⓘ The same number as VERSION at the top of this file, by hand. It sat
        at 2.66.4 for thirty-four versions while VERSION moved on. -->
-  <span class="muted" style="font-size:12px">v2.66.58</span>
+  <span class="muted" style="font-size:12px">v2.66.59</span>
   <label class="muted">agent</label>
   <input id="base" value="http://127.0.0.1:48055" size="26">
   <label class="muted">bearer</label>
@@ -2199,6 +2202,11 @@ function fitWindow() {
 // gated with no way out. It was pointing people at the worst place to be.
 function showOfflineHelp() {
   if (document.getElementById('offlineHelp')) return;
+  // ⛔ NOT ONCE THE COVER IS UP. setDown takes this box away when the cover
+  // comes up, and every failed request after that called here again and put
+  // it back: two copies of the same advice, one above the other (rhoquinn8217,
+  // 2026-10-04, "in advance mode with see two duplicate messages").
+  if (IS_DOWN) return;
   var box = document.createElement('div');
   box.id = 'offlineHelp';
   box.style.cssText = 'margin:14px 0;padding:12px 14px;border:1px solid #b5564f;' +
