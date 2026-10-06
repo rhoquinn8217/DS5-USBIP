@@ -204,23 +204,15 @@ static std::string rest_shared_json(const std::vector<RestDeviceView> &devices)
         // can itself be stale is worse than no diagnostic, because it is
         // believed. This is a human-paced call -- rereading a small file costs
         // nothing next to being wrong.
+        // ⚠️ ERASE FIRST, which the reload does: loading alone only INSERTS,
+        // so it would keep a key that had been DELETED from the file. That
+        // is precisely the case this fix exists for: an emptied file still
+        // reporting speaker_volume=33. Only the sections this file owns are
+        // dropped; the "cfg:" sections belong to config_store.
+        // ⭐ And the file is read before the input lock is taken, not under it
+        // (code review, 2026-10-05): this runs on every page poll.
+        device_config_reload_shared();
         std::lock_guard<std::mutex> lock(g_device_config_mutex);
-
-        // ⚠️ ERASE FIRST. device_config_load_locked() only INSERTS -- it never
-        // clears -- so reloading alone would keep a key that had been DELETED
-        // from the file. That is precisely the case this fix exists for: an
-        // emptied file still reporting speaker_volume=33.
-        //
-        // Only the sections this file owns are dropped. The "cfg:" sections
-        // belong to config_store and are not reloaded here; clearing them
-        // would blank every linked controller's settings until something
-        // reloaded them.
-        for (auto it = g_device_config.begin(); it != g_device_config.end(); ) {
-            if (it->first.rfind("cfg:", 0) == 0) ++it;
-            else it = g_device_config.erase(it);
-        }
-        g_device_config_loaded = false;
-        device_config_load_locked();
 
         auto it = g_device_config.find("ds5");
         bool firstKey = true;

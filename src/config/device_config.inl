@@ -57,20 +57,22 @@ static std::string device_config_lower(std::string text)
     return text;
 }
 
-// Caller must hold g_device_config_mutex.
-static void device_config_load_locked()
+using DeviceConfigSections = std::map<std::string, std::map<std::string, std::string>>;
+
+// Reads the shared file's sections and keys into *out, and returns how many
+// settings it held, or -1 when there is no file.
+// ⓘ Touches nothing shared, so it runs with no lock held; see
+// device_config_reload_shared().
+static int device_config_read_file(DeviceConfigSections *out)
 {
-    g_device_config_loaded = true;
     std::ifstream file(kDeviceConfigFileName);
     if (!file.is_open()) {
-        device_log::config(device_log::msg()
-            << "no " << kDeviceConfigFileName << " found, using built-in defaults");
-        return;
+        return -1;
     }
 
     std::string section;
     std::string line;
-    size_t entries = 0;
+    int entries = 0;
     while (std::getline(file, line)) {
         const size_t comment = line.find_first_of("#;");
         if (comment != std::string::npos) {
@@ -92,40 +94,91 @@ static void device_config_load_locked()
         if (key.empty()) {
             continue;
         }
-        g_device_config[section][key] = device_config_trim(line.substr(equals + 1));
+        (*out)[section][key] = device_config_trim(line.substr(equals + 1));
         ++entries;
     }
+    return entries;
+}
 
-    // ⭐ Only when it changed. The settings page polls every ten seconds and
-    // each poll reloads, so an unconditional line here said nothing and buried
-    // everything that mattered.
-    {
-        static int lastEntries = -1;
-        if (entries != lastEntries) {
-            lastEntries = entries;
-            device_log::config(device_log::msg()
-                << "loaded " << entries << " setting(s) from " << kDeviceConfigFileName);
-        }
+// ⭐ Only when it changed. The settings page polls every ten seconds and each
+// poll reloads, so an unconditional line here said nothing and buried
+// everything that mattered. ⓘ "No file" too, since 2026-10-06: it was said on
+// every poll. Caller must hold g_device_config_mutex.
+static void device_config_say_locked(int entries)
+{
+    static int lastEntries = -2;
+    if (entries == lastEntries) {
+        return;
+    }
+    lastEntries = entries;
+    if (entries < 0) {
+        device_log::config(device_log::msg()
+            << "no " << kDeviceConfigFileName << " found, using built-in defaults");
+    } else {
+        device_log::config(device_log::msg()
+            << "loaded " << entries << " setting(s) from " << kDeviceConfigFileName);
     }
 }
 
-// Drop the cached copy so the next lookup re-reads the file. Called when a
-// bridge session starts: that is what turns a virtual reseat into "apply my
-// edited settings", which is the model this file exists to serve.
-static void device_config_invalidate()
+// Caller must hold g_device_config_mutex. ⓘ Inserts and never erases: a
+// caller that rereads erases this file's sections first.
+static void device_config_load_locked()
 {
+    g_device_config_loaded = true;
+    DeviceConfigSections read;
+    const int entries = device_config_read_file(&read);
+    for (const auto &section : read) {
+        for (const auto &setting : section.second) {
+            g_device_config[section.first][setting.first] = setting.second;
+        }
+    }
+    device_config_say_locked(entries);
+}
+
+// ⓘ Held across one whole reload, the reading and the swap, so two reloads
+// cannot cross and leave an older read in place of a newer one. Nothing on the
+// input path takes it.
+static std::mutex g_device_config_reload_mutex;
+
+// ⭐⭐ READ FIRST, LOCK AFTER (code review, 2026-10-05). The shared file was
+// read from disk under g_device_config_mutex, the lock every input hook takes
+// on every report, and it sits on OneDrive, where a read can wait: every
+// bridge start dropped the cache and the next lookup, any pad's, read the file
+// under that lock. It is read with no lock now, and the lock is held only to
+// swap the sections this file owns.
+static void device_config_reload_shared()
+{
+    std::lock_guard<std::mutex> reloading(g_device_config_reload_mutex);
+    DeviceConfigSections read;
+    const int entries = device_config_read_file(&read);
     std::lock_guard<std::mutex> guard(g_device_config_mutex);
-    g_device_config_loaded = false;
-    // ⚠️ Erase only the sections THIS file owns. Per-controller config files
-    // load their settings into "cfg:<name>/<kind>" sections in the same map,
-    // and this function does not reload those -- a blanket clear() wiped them
-    // on every bridge and every save of the shared file, after which every
-    // linked device silently fell back to the shared section. Intermittent,
-    // and invisible until someone noticed their config had stopped applying.
+    // ⚠️ Only the sections THIS file owns: see device_config_invalidate().
     for (auto it = g_device_config.begin(); it != g_device_config.end(); ) {
         if (it->first.rfind("cfg:", 0) == 0) ++it;
         else it = g_device_config.erase(it);
     }
+    for (auto &section : read) {
+        g_device_config[section.first] = std::move(section.second);
+    }
+    g_device_config_loaded = true;
+    device_config_say_locked(entries);
+}
+
+// Re-read the file now. Called when a bridge session starts: that is what
+// turns a virtual reseat into "apply my edited settings", which is the model
+// this file exists to serve.
+// ⓘ It dropped the cached copy and left the next lookup to re-read it, which
+// was a pad's lookup, under the input lock; device_config_reload_shared() says
+// why it reads now instead.
+// ⚠️ Erase only the sections THIS file owns. Per-controller config files
+// load their settings into "cfg:<name>/<kind>" sections in the same map,
+// and this function does not reload those -- a blanket clear() wiped them
+// on every bridge and every save of the shared file, after which every
+// linked device silently fell back to the shared section. Intermittent,
+// and invisible until someone noticed their config had stopped applying.
+static void device_config_invalidate()
+{
+    device_config_reload_shared();
 }
 
 // Look up a text setting. Returns an empty string when the file, section, key
