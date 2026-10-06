@@ -12,13 +12,13 @@
         MsgOutputReport = 4,
         MsgFeatureGet = 5,
         MsgFeatureReport = 6,
-        MsgLog = 7,
-        MsgError = 8,
+        MsgLog = 7,             // the TV has never sent one; logged if it arrives
+        MsgError = 8,           // likewise
         MsgFeatureSet = 9,
         MsgEnum = 10,           // forwarded composite USB enumeration (puck)
         MsgIsoAudio = 11,       // raw PCM audio: CTM-USBIP -> aurora-tv for wired ISO passthrough
         MsgMicAudio = 12,       // raw PCM audio: aurora-tv -> CTM-USBIP, the controller microphone
-        MsgAudioHold = 13,      // aurora-tv -> CTM-USBIP: keep the audio block in outgoing reports; in the TV's list, not acted on here
+        MsgAudioHold = 13,      // reserved: never sent by the TV nor acted on here; the number stays taken
         MsgOpenConfig = 14,     // aurora-tv -> CTM-USBIP: open the settings window on this device (the overlay's DS5-USBIP button)
     };
 
@@ -709,6 +709,11 @@ private:
             hostConfig.feature_report_len = capsRaw_.feature_report_len;
             hostConfig.paced_report_count = 2;
             hostConfig.paced_report_ids[0] = 0x36;
+            // ⓘ 0x15 was the DS4's Bluetooth audio report in the map's
+            // rolled-back Layout A; the active Layout B sends 0x14, which is
+            // not paced (code review, 2026-10-05). Left as it is: what the
+            // DS4's Bluetooth audio wants paced is a listening question, with
+            // the rest of that audio work.
             hostConfig.paced_report_ids[1] = 0x15;
             // ⭐ A RECONNECT KEEPS WHAT THE SESSION LAST SENT (code review,
             // 2026-10-05). The shared [ds5] value is all there is at the FIRST
