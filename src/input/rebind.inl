@@ -387,7 +387,13 @@ inline void apply(const void *deviceKey,
         // ⭐ "On" as it APPLIES, the flag and the window in front (code review,
         // 2026-10-05). The flag alone refused the chord with the window left
         // behind the game, which is when the chord is the way back to it.
-        if (f1 && f2 && optionsPressedNow && !(config_mode() && ctm_ui_has_foreground())) {
+        // ⛔ And still refused while the window the last chord asked for is on
+        // its way (the four seconds below), as the flag alone refused it
+        // before: a second chord then would close the opening window, open
+        // another, and give the game a second Options, unpausing it.
+        const bool windowComing = chord_now_ms() < g_gateProvisionalUntil.load();
+        if (f1 && f2 && optionsPressedNow && !windowComing &&
+            !(config_mode() && ctm_ui_has_foreground())) {
             device_log::input(device_log::msg()
                 << "chord: two fingers + Options -- showing the settings window");
             {
