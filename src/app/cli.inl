@@ -23,8 +23,13 @@ static bool run_usbip_attach_to(const std::wstring &remote, const std::wstring &
                                 uint16_t usbipPort)
 {
     const std::wstring usbip = resolve_usbip_exe_path();
+    // ⭐ EACH FAILURE IN device.log TOO (code review, 2026-10-05). A listener
+    // started from its shortcut has no console, so these reached nobody, and a
+    // bridge without usbip-win2 failed with device.log saying "ready".
     if (usbip != L"usbip.exe" && !file_exists(usbip)) {
         std::wcerr << L"usbip.exe not found: " << usbip << L"\n";
+        device_log::usb_w() << L"ATTACH IMPOSSIBLE: usbip.exe not found at " << usbip
+                            << L" -- is usbip-win2 installed?";
         return false;
     }
     // -t/--tcp-port is a GLOBAL option (before the subcommand) on usbip-win2.
@@ -55,7 +60,9 @@ static bool run_usbip_attach_to(const std::wstring &remote, const std::wstring &
     // so its own lines still appear when the listener is watched in a terminal.
     const DWORD attachFlags = console_attach::g_has_console ? 0 : CREATE_NO_WINDOW;
     if (!CreateProcessW(nullptr, mutableCommand.data(), nullptr, nullptr, FALSE, attachFlags, nullptr, nullptr, &si, &pi)) {
-        std::wcerr << last_error_message(L"CreateProcess usbip attach failed") << L"\n";
+        const std::wstring why = last_error_message(L"CreateProcess usbip attach failed");
+        std::wcerr << why << L"\n";
+        device_log::usb_w() << L"ATTACH FAILED: " << why;
         return false;
     }
     WaitForSingleObject(pi.hProcess, 30000);
@@ -65,6 +72,8 @@ static bool run_usbip_attach_to(const std::wstring &remote, const std::wstring &
     CloseHandle(pi.hProcess);
     if (code != 0) {
         std::wcerr << L"usbip attach exited with code " << code << L"\n";
+        device_log::usb_w() << L"ATTACH FAILED: usbip attach exited with code " << code
+                            << (code == STILL_ACTIVE ? L" (still running after 30 s)" : L"");
         return false;
     }
     return true;

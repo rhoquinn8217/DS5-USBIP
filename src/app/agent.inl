@@ -731,6 +731,8 @@ static void bridge_session_worker(AgentBridgeSession *session)
     }
     if (!run_usbip_attach(session->busId, kDefaultUsbipPort)) {
         std::wcerr << L"agent local attach failed busid=" << session->busId << L"\n";
+        device_log::session_w() << L"attach FAILED busid=" << session->busId
+                                << L": Windows did not get this pad; the [usb] line above says why";
     }
 }
 
