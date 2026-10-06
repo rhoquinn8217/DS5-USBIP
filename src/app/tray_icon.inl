@@ -345,7 +345,7 @@ inline void show_menu(HWND hwnd)
         const RestDeviceView &d = devices[lead_part(devices, groups[i])];
         const RestDeviceView &b = devices[battery_part(devices, groups[i])];
         const std::string line = tray_menu::device_line(
-            d.nickname, device_names::label(d.kind, d.product, d.deviceType),
+            d.nickname, device_names::label(d.kind, d.product, d.deviceType, d.link),
             b.batteryPercent, b.batteryState);
         AppendMenuW(list, MF_STRING, kIdDeviceFirst + static_cast<UINT>(i), widen(line).c_str());
     }

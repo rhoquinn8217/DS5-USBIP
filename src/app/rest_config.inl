@@ -28,6 +28,7 @@ struct RestDeviceView {
     bool ready = false;         // false = still starting or tearing down
     std::string product;        // the device's own name, from the TV at HELLO
     std::string deviceType;     // "controller", "keyboard", "mouse" or ""
+    std::string link;           // "USB" or "BT" by the TV's HELLO, or ""
     // ⛔ -1 is "the pad did not say", which is NOT zero percent: a flat pad and
     // a pad with no battery byte are opposite facts and must not share a value
     // (T-195). A kind with nothing to report carries no field at all.
@@ -80,7 +81,7 @@ static std::string rest_device_json(const RestDeviceView &d)
     // (device_names.inl). The page shows this, and the tray icon's menu shows
     // the same words because it asks the same function.
     out += ",\"label\":\"" +
-           rest_json_escape(device_names::label(d.kind, d.product, d.deviceType)) + "\"";
+           rest_json_escape(device_names::label(d.kind, d.product, d.deviceType, d.link)) + "\"";
     // ⭐ Only when the pad actually said. Absent means the page draws nothing;
     // it must never be able to read a missing battery as an empty one.
     if (d.batteryPercent >= 0) {

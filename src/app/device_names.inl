@@ -15,7 +15,8 @@
 //
 // ⓘ USB or Bluetooth is how the device reaches the TELEVISION, and it is in
 // the kind for a DualSense, an Edge and a DualShock 4 only. For anything else
-// it is not known here, and the name says nothing rather than guess.
+// it comes from the bus the TV sends at HELLO (code review, 2026-10-05), and
+// when that is not known either the name says nothing rather than guess.
 //
 // ⭐ Pure on purpose -- no Windows call, no session -- so the test binary
 // includes it as it is.
@@ -48,29 +49,45 @@ inline std::string link_for_kind(const std::string &kind)
     return std::string();
 }
 
+// The same short form from the bus the TV sent at HELLO, numbered as Linux
+// numbers them: 3 is USB and 5 Bluetooth. Anything else says nothing.
+inline std::string link_for_bus(unsigned bus)
+{
+    if (bus == 3) return "USB";
+    if (bus == 5) return "BT";
+    return std::string();
+}
+
 // ⭐ The name a device is listed by: "DualSense (USB)", "DualShock 4 (BT)",
-// "Xbox Controller".
+// "Xbox Controller (BT)", "Pro Controller (USB)".
+//
+// ⓘ `link` is the device's link by its bus (link_for_bus), for a kind that
+// does not carry one. The kind's own wins where it has one.
 //
 // ⛔ NEVER "hid" WHERE ANYTHING BETTER IS KNOWN (rhoquinn8217, 2026-09-13):
 // for a kind this file does not name, the model name the TV sent comes first,
 // then what sort of device its descriptor says it is, and the raw kind only
 // after both.
 inline std::string label(const std::string &kind, const std::string &product,
-                         const std::string &deviceType)
+                         const std::string &deviceType, const std::string &link = std::string())
 {
+    const std::string kindLink = link_for_kind(kind);
+    const std::string how = kindLink.empty() ? link : kindLink;
+    std::string name;
     const std::string model = model_for_kind(kind);
     if (!model.empty()) {
-        const std::string link = link_for_kind(kind);
-        return link.empty() ? model : model + " (" + link + ")";
+        name = model;
+    } else if (!product.empty()) {
+        name = product;
+    } else if (!deviceType.empty()) {
+        name = deviceType;
+        if (name[0] >= 'a' && name[0] <= 'z') name[0] = static_cast<char>(name[0] - 'a' + 'A');
+    } else if (!kind.empty()) {
+        name = kind;
+    } else {
+        name = "controller";
     }
-    if (!product.empty()) return product;
-    if (!deviceType.empty()) {
-        std::string type = deviceType;
-        if (type[0] >= 'a' && type[0] <= 'z') type[0] = static_cast<char>(type[0] - 'a' + 'A');
-        return type;
-    }
-    if (!kind.empty()) return kind;
-    return "controller";
+    return how.empty() ? name : name + " (" + how + ")";
 }
 
 } // namespace device_names

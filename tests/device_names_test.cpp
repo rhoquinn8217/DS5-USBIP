@@ -28,8 +28,8 @@ int run_device_names_tests()
         CTM_CHECK_EQ(label("ds5e_usb", "", ""), std::string("DualSense Edge (USB)"));
         CTM_CHECK_EQ(label("ds4", "", ""), std::string("DualShock 4 (BT)"));
         CTM_CHECK_EQ(label("ds4_usb", "", ""), std::string("DualShock 4 (USB)"));
-        // ⓘ An Xbox pad's kind does not say how it reached the TV, so the
-        // name does not either.
+        // ⓘ An Xbox pad's kind does not say how it reached the TV, so
+        // without the bus the name does not either.
         CTM_CHECK_EQ(label("xbox", "", ""), std::string("Xbox Controller"));
         // A kind the agent never sends, which the page named all the same.
         CTM_CHECK_EQ(label("ds5_edge", "", ""), std::string("DualSense Edge"));
@@ -62,6 +62,28 @@ int run_device_names_tests()
         // left as it stands.
         CTM_CHECK_EQ(label("hid", "", "Keyboard"), std::string("Keyboard"));
         CTM_CHECK_EQ(label("hid", "", "8bitdo"), std::string("8bitdo"));
+    }
+
+    section("device names: the link by the bus the TV sent, where the kind does not say");
+    {
+        using device_names::label;
+        using device_names::link_for_bus;
+        CTM_CHECK_EQ(link_for_bus(3), std::string("USB"));
+        CTM_CHECK_EQ(link_for_bus(5), std::string("BT"));
+        // ⛔ Not known is not guessed: no HELLO yet, or a bus that is neither.
+        CTM_CHECK(link_for_bus(0).empty());
+        CTM_CHECK(link_for_bus(6).empty());
+        CTM_CHECK_EQ(label("xbox", "Generic X-Box pad", "controller", "BT"),
+                     std::string("Xbox Controller (BT)"));
+        CTM_CHECK_EQ(label("hid", "Pro Controller", "controller", "USB"),
+                     std::string("Pro Controller (USB)"));
+        CTM_CHECK_EQ(label("hid", "", "keyboard", "USB"), std::string("Keyboard (USB)"));
+        CTM_CHECK_EQ(label("hid", "", "", "BT"), std::string("hid (BT)"));
+        // ⓘ A kind that carries its link keeps its own.
+        CTM_CHECK_EQ(label("ds5", "", "", "USB"), std::string("DualSense (BT)"));
+        CTM_CHECK_EQ(label("ds4_usb", "", "", "BT"), std::string("DualShock 4 (USB)"));
+        // And an empty link changes nothing.
+        CTM_CHECK_EQ(label("hid", "Pro Controller", "controller", ""), std::string("Pro Controller"));
     }
 
     section("device names: the two halves, asked for separately");
