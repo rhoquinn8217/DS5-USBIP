@@ -139,6 +139,10 @@ public:
         size_t sourceLength,
         CTM_INPUT_REPORT *destination);
 
+    // The OUT endpoint this map translates host writes from ([usb.endpoints]
+    // hid_out), so a report the listener builds itself can be sent the way the
+    // host's own output goes.
+    uint8_t usb_output_endpoint() const { return usbOutputEndpoint_; }
     bool translate_controller_output(
         const CTM_USB_EVENT &source,
         uint8_t *sequence,

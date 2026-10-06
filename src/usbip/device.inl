@@ -759,6 +759,45 @@ public:
         enqueue_input_report(report);
     }
 
+    // ⭐⭐ A REPORT BUILT BY THE LISTENER, SENT THE WAY THE HOST'S OWN GO (code
+    // review, 2026-10-05). The settings report is a USB 0x02, and sent straight
+    // to the backend it reached a Bluetooth DualSense raw: the TV writes a 0x02
+    // to the pad unchanged, and on Bluetooth the pad does nothing with it, so
+    // mic mute, trigger effects and routing never took. Through the map it
+    // goes out in the form the session needs: as it is on a cable, the signed
+    // 0x31 on Bluetooth.
+    // ⓘ Not through handle_endpoint_out: its output overrides and the trigger
+    // defence are for the HOST'S reports, and this one is built from the same
+    // settings already.
+    bool send_built_output_report(const std::vector<uint8_t> &report, std::wstring *error)
+    {
+        if (report.empty() || report.size() > sizeof(CTM_USB_EVENT::data) || backend_ == nullptr) {
+            if (error) *error = L"no report to send, or no backend";
+            return false;
+        }
+        CTM_USB_EVENT event = {};
+        event.event_type = CTM_USB_EVENT_HID_OUTPUT;
+        event.report_id = report[0];
+        event.length = static_cast<uint16_t>(report.size());
+        memcpy(event.data, report.data(), report.size());
+        std::vector<uint8_t> output;
+        bool ok = false;
+        {
+            std::lock_guard<std::mutex> guard(mapMutex_);
+            event.endpoint_address = map_.usb_output_endpoint();
+            ok = map_.translate_controller_output(event, &outputSeq_, &output);
+        }
+        if (!ok || output.empty()) {
+            if (error) *error = L"the map has no output rule for this report";
+            return false;
+        }
+        if (output[0] == 0x31) {
+            std::lock_guard<std::mutex> guard(lastControllerOutputMutex_);
+            lastControllerOutput_ = output;
+        }
+        return backend_->send_output_report(output, false, error);
+    }
+
 private:
     using FeatureCacheKey = std::pair<uint8_t, std::vector<uint8_t>>;
 

@@ -627,7 +627,7 @@ static void bridge_session_worker(AgentBridgeSession *session)
             std::lock_guard<std::mutex> lock(session->mutex);
             linked = session->linkedConfig;
         }
-        ds5_apply_initial_settings(backendPtr, linked);
+        ds5_apply_initial_settings(backendPtr, linked, session->device.get());
 
         // ⭐ Push the audio buffer too, now that the link is known.
         //
