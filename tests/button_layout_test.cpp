@@ -574,6 +574,11 @@ int run_button_layout_tests()
                             r[10] = b10;
                             std::vector<uint8_t> expected = r;
                             old_config_blank(expected.data(), pass != 0);
+                            // ⭐ One change on purpose since the old lines: the
+                            // Edge's Fn buttons and back paddles (0x10 to 0x80
+                            // of [10]) are held back too, where the old lines
+                            // let them reach the game (code review, 2026-10-05).
+                            expected[10] = static_cast<uint8_t>(expected[10] & ~0xF0);
                             blank_to_rest(*ds5, r.data(), r.size(), pass != 0);
                             if (r != expected) ++mismatches;
                         }

@@ -423,9 +423,16 @@ public:
         return true;
     }
 
+    // True once a connection is up AND its handshake is done. Output, audio and
+    // the rest wait for it; until then they are dropped, as with no connection.
+    bool link_ready() const
+    {
+        return clientSocket_.load() != INVALID_SOCKET && handshakeDone_.load();
+    }
+
     bool send_output_report(const std::vector<uint8_t> &report, bool paced, std::wstring *error) override
     {
-        if (clientSocket_.load() == INVALID_SOCKET) {
+        if (!link_ready()) {
             return true;
         }
         if (send_message(
@@ -437,12 +444,12 @@ public:
             error)) {
             return true;
         }
-        return clientSocket_.load() == INVALID_SOCKET;
+        return !link_ready();
     }
 
     bool send_output_report_ep(const std::vector<uint8_t> &report, uint8_t endpoint, bool paced, std::wstring *error) override
     {
-        if (clientSocket_.load() == INVALID_SOCKET) {
+        if (!link_ready()) {
             return true;
         }
         if (send_message(
@@ -454,11 +461,11 @@ public:
             error)) {
             return true;
         }
-        return clientSocket_.load() == INVALID_SOCKET;
+        return !link_ready();
     }
     bool send_iso_audio(const std::vector<uint8_t> &pcm, std::wstring *error) override
     {
-        if (clientSocket_.load() == INVALID_SOCKET) { return true; }
+        if (!link_ready()) { return true; }
         return send_message(
             CtmBridgeProtocol::MsgIsoAudio,
             0, 0,
@@ -608,6 +615,18 @@ private:
                                << L" interval_ms=" << keepAlive.keepaliveinterval;
                 }
             }
+            // ⛔⛔ PUBLISHED FOR THE HANDSHAKE, CLOSED TO EVERYTHING ELSE UNTIL
+            // HOST_CONFIG IS OUT (code review, 2026-10-05). On a reconnect the
+            // session is live: the host's output, the audio and feature reads
+            // are all being sent from other threads, and one of them reaching
+            // the TV ahead of HOST_CONFIG fails its handshake ("host config
+            // unexpected type") and it dials again. send_message() refuses
+            // anything but a host config until this is set.
+            // ⓘ Published at all so stop() can close it: a handshake waiting on
+            // a socket nothing else can reach would hold up the stop.
+            // ⓘ Cleared BEFORE the socket is stored: a sender that sees the new
+            // socket then sees the flag clear.
+            handshakeDone_.store(false);
             clientSocket_.store(client);
 
             CtmBridgeMessage hello;
@@ -674,6 +693,15 @@ private:
             }
 
             CtmBridgeProtocol::HostConfig hostConfig = {};
+            // ⛔ NOT ZERO (code review, 2026-10-05). `= {}` made the speaker,
+            // headset and mode 0/0/0 at every handshake -- the triple the header
+            // above says this side must never send by accident -- and every later
+            // audio push copies lastHostConfig_, so the zeros rode along. The TV
+            // ignores an all-zero triple for older hosts' sake, which is what kept
+            // it harmless; it is still the wrong thing to say.
+            hostConfig.speaker_volume_pct = CtmBridgeProtocol::kAudioUnset;
+            hostConfig.headset_volume_pct = CtmBridgeProtocol::kAudioUnset;
+            hostConfig.audio_mode = CtmBridgeProtocol::kAudioUnset;
             hostConfig.bt_pace_us = static_cast<uint32_t>(btPaceMs_ * 1000.0 + 0.5);
             hostConfig.input_report_len = capsRaw_.input_report_len;
             hostConfig.output_report_len = capsRaw_.output_report_len;
@@ -681,7 +709,21 @@ private:
             hostConfig.paced_report_count = 2;
             hostConfig.paced_report_ids[0] = 0x36;
             hostConfig.paced_report_ids[1] = 0x15;
-            hostConfig.latency_ms = configured_audio_latency();
+            // ⭐ A RECONNECT KEEPS WHAT THE SESSION LAST SENT (code review,
+            // 2026-10-05). The shared [ds5] value is all there is at the FIRST
+            // connect, before the session exists, and agent.inl sends the linked
+            // one as soon as it does. A reconnect is the same session: reading
+            // [ds5] again overwrote a linked config's latency, and a stale shared
+            // 7 can silence a Bluetooth speaker. The audio triple is kept for the
+            // same reason; it is unset or what the session pushed, never zero.
+            if (initial) {
+                hostConfig.latency_ms = configured_audio_latency();
+            } else {
+                hostConfig.latency_ms = lastHostConfig_.latency_ms;
+                hostConfig.speaker_volume_pct = lastHostConfig_.speaker_volume_pct;
+                hostConfig.headset_volume_pct = lastHostConfig_.headset_volume_pct;
+                hostConfig.audio_mode = lastHostConfig_.audio_mode;
+            }
             std::wstring sendError;
             if (!send_message(
                     CtmBridgeProtocol::MsgHostConfig,
@@ -699,6 +741,7 @@ private:
                 continue;
             }
             lastHostConfig_ = hostConfig;
+            handshakeDone_.store(true);
 
             device_log::bridge_w() << L"bridge backend"
                        << (initial ? L"" : L" reconnected")
@@ -733,6 +776,11 @@ private:
         SOCKET s = clientSocket_.load();
         if (s == INVALID_SOCKET) {
             if (error) *error = L"bridge socket closed";
+            return false;
+        }
+        // ⓘ Read AFTER the socket, for the ordering accept_client() relies on.
+        if (type != CtmBridgeProtocol::MsgHostConfig && !handshakeDone_.load()) {
+            if (error) *error = L"bridge handshake not finished";
             return false;
         }
         if (!send_all(s, reinterpret_cast<const uint8_t *>(&header), sizeof(header))) {
@@ -1139,6 +1187,8 @@ private:
     std::function<void()> closedCallback_;
     SOCKET listenSocket_ = INVALID_SOCKET;
     std::atomic<SOCKET> clientSocket_{INVALID_SOCKET};
+    // False from a connection's accept until its HOST_CONFIG is out; see accept_client().
+    std::atomic<bool> handshakeDone_{false};
     CtmBridgeProtocol::DeviceCaps capsRaw_ = {};
     // Guards capsRaw_.serial only -- see caps(). Mutable so caps() can stay const.
     mutable std::mutex serialMutex_;

@@ -432,6 +432,12 @@ private:
             }
 
             CtmBridgeProtocol::HostConfig hostConfig = {};
+            // ⛔ The same as the TCP handshake: unset, never zero. The latency too:
+            // zero is a real value to the TV, in the range measured as silent.
+            hostConfig.speaker_volume_pct = CtmBridgeProtocol::kAudioUnset;
+            hostConfig.headset_volume_pct = CtmBridgeProtocol::kAudioUnset;
+            hostConfig.audio_mode = CtmBridgeProtocol::kAudioUnset;
+            hostConfig.latency_ms = CtmBridgeProtocol::kLatencyUnset;
             hostConfig.bt_pace_us = static_cast<uint32_t>(btPaceMs_ * 1000.0 + 0.5);
             hostConfig.input_report_len = capsRaw_.input_report_len;
             hostConfig.output_report_len = capsRaw_.output_report_len;

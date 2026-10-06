@@ -32,7 +32,7 @@ inline std::string model_for_kind(const std::string &kind)
 {
     // ⓘ "ds5_edge" is not a kind the agent has ever used, and the page named
     // it all the same. Kept, so nothing that read as an Edge stops doing so.
-    if (kind == "ds5e_usb" || kind == "ds5_edge") return "DualSense Edge";
+    if (kind == "ds5e" || kind == "ds5e_usb" || kind == "ds5_edge") return "DualSense Edge";
     if (kind == "ds5" || kind == "ds5_usb") return "DualSense";
     if (kind == "ds4" || kind == "ds4_usb") return "DualShock 4";
     if (kind == "xbox") return "Xbox Controller";
@@ -43,7 +43,7 @@ inline std::string model_for_kind(const std::string &kind)
 // "USB", or "" when the kind does not say.
 inline std::string link_for_kind(const std::string &kind)
 {
-    if (kind == "ds5" || kind == "ds4") return "BT";
+    if (kind == "ds5" || kind == "ds5e" || kind == "ds4") return "BT";
     if (kind == "ds5_usb" || kind == "ds5e_usb" || kind == "ds4_usb") return "USB";
     return std::string();
 }

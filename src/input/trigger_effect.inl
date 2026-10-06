@@ -142,6 +142,13 @@ constexpr size_t kBlockLen = 11;
 constexpr uint8_t kClaimR2 = 0x04;
 constexpr uint8_t kClaimL2 = 0x08;
 
+// ⭐ WHERE A TRIGGER PRESSES when no config names it: 90 percent of its
+// travel. The click reader, the effect's landmark and the page's schema each
+// had their own number for that one place, 90, 50 and 80, so a feel left at
+// its default sat nowhere near the click (code review, 2026-10-05;
+// rhoquinn8217 chose 90). ⓘ The schema in rest_config.inl repeats it as text.
+constexpr int kPressAtDefault = 90;
+
 // ---- the modes --------------------------------------------------------------
 constexpr uint8_t kModeOff      = 0x05;
 constexpr uint8_t kModeFeedback = 0x21;
@@ -469,7 +476,7 @@ inline uint8_t apply_one(const std::string &section, const char *sideKey,
     const std::string clickAtKey = press_at_key(sideKey);
     const int percent = device_config_int(
         section.c_str(), atKey.c_str(),
-        device_config_int(section.c_str(), clickAtKey.c_str(), 50));
+        device_config_int(section.c_str(), clickAtKey.c_str(), kPressAtDefault));
     const int strength = device_config_int(section.c_str(), strengthKey.c_str(), 5);
     const int zone     = zone_from_percent(percent);
 

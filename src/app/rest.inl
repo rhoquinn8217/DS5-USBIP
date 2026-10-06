@@ -346,7 +346,7 @@ static bool rest_valid_kind(const std::string &kind)
 {
     // Mirror of the kind list in handle_agent_client — keep the two in sync.
     return kind == "ds4" || kind == "ds4_usb" || kind == "ds5" || kind == "ds5_usb" ||
-           kind == "ds5e_usb" || kind == "hid" || kind == "puck" || kind == "xbox";
+           kind == "ds5e" || kind == "ds5e_usb" || kind == "hid" || kind == "puck" || kind == "xbox";
 }
 
 static bool rest_bearer_matches(const std::string &headerValue, const std::string &token)
@@ -506,7 +506,7 @@ static std::string rest_handle_sessions_post(const RestRequest &req)
         return rest_error_response(400, "kind (string), port (number) and busid (string) are required");
     }
     if (!rest_valid_kind(kindIt->second)) {
-        return rest_error_response(400, "kind must be one of ds4, ds5, ds5_usb, ds5e_usb, hid, puck, xbox");
+        return rest_error_response(400, "kind must be one of ds4, ds4_usb, ds5, ds5_usb, ds5e, ds5e_usb, hid, puck, xbox");
     }
     if (portIt->second < 1024 || portIt->second > 65535) {
         return rest_error_response(400, "port must be 1024..65535");
@@ -687,8 +687,8 @@ static SOCKET rest_open_listener(std::wstring *error)
 static void rest_handle_client(SOCKET client, uint16_t agentPort)
 {
     // Bounded I/O so a stalled peer can't wedge the agent loop for long. The
-    // plaintext channel has the same inline-blocking shape; here we at least
-    // put a ceiling on it.
+    // plaintext channel has the same inline-blocking shape and is bounded the
+    // same way, at one second (handle_agent_client).
     DWORD timeoutMs = 2000;
     setsockopt(client, SOL_SOCKET, SO_RCVTIMEO,
                reinterpret_cast<const char *>(&timeoutMs), sizeof(timeoutMs));

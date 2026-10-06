@@ -110,7 +110,7 @@ inline bool valid_name(const std::string &name)
 // measurement rather than assumption.
 // ⭐⭐ TWO NAMING SYSTEMS, AND CONFIG FILES USE THE SECOND.
 //
-// A SESSION kind comes from the TV: "ds5", "ds5_usb", "ds5e_usb" -- it says how
+// A SESSION kind comes from the TV: "ds5", "ds5_usb", "ds5e", "ds5e_usb" -- it says how
 // the controller is attached as much as what it is. A SETTINGS section comes
 // from the USB product id via device_section_for(): "ds5" or "ds5_edge".
 //
@@ -125,7 +125,7 @@ inline bool valid_name(const std::string &name)
 inline std::string settings_kind_for(const std::string &sessionKind)
 {
     if (sessionKind == "ds5" || sessionKind == "ds5_usb") return "ds5";
-    if (sessionKind == "ds5e_usb" || sessionKind == "ds5_edge") return "ds5_edge";
+    if (sessionKind == "ds5e" || sessionKind == "ds5e_usb" || sessionKind == "ds5_edge") return "ds5_edge";
     // ⭐ Buttons are the UNIVERSAL capability -- every controller has them, in the
     // same standard positions. Audio and gyro are the exceptions layered on top,
     // not the other way round, so a kind earns a config by existing rather than

@@ -177,6 +177,9 @@ static void apply_pending_config_to_sessions()
         std::string linkedConfig;
         std::string kind;
         std::string busIdAscii;
+        // The settings report goes out through the device's map, which shapes
+        // it for the wire the pad is on. Held, so it outlives the lock.
+        std::shared_ptr<CtmUsbipDevice> device;
     };
     std::vector<Target> targets;
     {
@@ -191,14 +194,14 @@ static void apply_pending_config_to_sessions()
                 linked = session->linkedConfig;
             }
             targets.push_back(Target{session->backend.get(), linked, session->kind,
-                                     session->busIdAscii});
+                                     session->busIdAscii, session->device});
         }
     }
 
     for (const Target &target : targets) {
         device_log::config(device_log::msg()
             << "pushing settings to live session busid=" << target.busIdAscii);
-        ds5_apply_initial_settings(target.backend, target.linkedConfig);
+        ds5_apply_initial_settings(target.backend, target.linkedConfig, target.device.get());
 
         // The audio buffer is not part of the settings report -- it lives in
         // the host config, which the TV accepts at any point in a session. Sent

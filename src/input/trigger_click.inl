@@ -620,8 +620,10 @@ inline void on_ds5_input(const void *deviceKey,
         device_config_int(section.c_str(), "right_trigger_double_click_ms", 200);
     const int doubleL2 =
         device_config_int(section.c_str(), "left_trigger_double_click_ms", 200);
-    const int pressAtR2 = device_config_int(section.c_str(), "right_trigger_press_at", 90);
-    const int pressAtL2 = device_config_int(section.c_str(), "left_trigger_press_at", 90);
+    const int pressAtR2 = device_config_int(section.c_str(), "right_trigger_press_at",
+                                            trigger_effect::kPressAtDefault);
+    const int pressAtL2 = device_config_int(section.c_str(), "left_trigger_press_at",
+                                            trigger_effect::kPressAtDefault);
     const int clickR2 = raw_from_percent(pressAtR2);
     const int clickL2 = raw_from_percent(pressAtL2);
     const Steady steadyR2 = steady_mode(section, kR2.name);

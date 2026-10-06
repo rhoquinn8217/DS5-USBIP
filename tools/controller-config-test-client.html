@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.59 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.60 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -21,6 +21,13 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.60 Battery levels follow the pad while it is bridged; they kept
+            the level from the moment it was bridged. A tab opens on a
+            section its config has: Audio on a DualSense, then an Xbox
+            pad's tab, showed an empty settings area. The trigger feel's
+            blank reads "leave the trigger alone", which is what it does;
+            it read "off". No Refresh button is mentioned any more: the
+            list refreshes itself.
     2.66.59 Advanced said it twice after all: every failed request after
             the cover came up put the early warning back above it. Not
             once the cover is up.
@@ -1814,7 +1821,7 @@
 <div class="bar">
   <!-- ⓘ The same number as VERSION at the top of this file, by hand. It sat
        at 2.66.4 for thirty-four versions while VERSION moved on. -->
-  <span class="muted" style="font-size:12px">v2.66.59</span>
+  <span class="muted" style="font-size:12px">v2.66.60</span>
   <label class="muted">agent</label>
   <input id="base" value="http://127.0.0.1:48055" size="26">
   <label class="muted">bearer</label>
@@ -1838,7 +1845,7 @@
 </div>
 
 <h2>Devices</h2>
-<div id="devices"><span class="muted">Refresh to load.</span></div>
+<div id="devices"><span class="muted">Looking for bridged devices…</span></div>
 
 <!-- ⛔⛔ THE CONFIGS SECTION LEFT OVERVIEW (T-232, 2026-09-19).
      rhoquinn8217: "It doesn't have a real purpose anymore. The Editor tab
@@ -2351,7 +2358,9 @@ var LAST_DEVICES = [];
 // ⭐ Which settings section is on show. One value for the whole page rather
 // than one per controller tab: switching pads and finding yourself in a
 // different section than the one you were just reading would be its own
-// surprise, and the sections are the same everywhere.
+// surprise. ⚠️ The sections are NOT the same everywhere any more (an Xbox
+// pad's config has no Audio), so a tab change keeps this only when the pane
+// has it: syncSectionToPane().
 // ⚠️ Validated on every render -- a section that no longer exists (a config
 // with no keys of that family) falls back to the first rather than showing an
 // empty pane.
@@ -2649,6 +2658,32 @@ function stepSection(dir) {
   return true;
 }
 
+// ⛔⛔ THE SECTION IS ONE VALUE FOR THE PAGE, BUT THE PANES NO LONGER SHARE ONE
+// SET OF SECTIONS (code review, 2026-10-05): a DualSense's config has Audio and
+// an Xbox pad's has none. A tab change swapped the pane's strip in and touched
+// nothing else, so a tab opened on a section it lacks showed an empty settings
+// area, its strip underlined whatever was on when it was drawn, and ◄ ► started
+// from a section that was not there.
+// ➡️ Called on every tab change: keep the page's section when this pane has it,
+// otherwise move to the pane's first, and show it -- WITHOUT moving the halo,
+// which a tab change leaves on the tabs.
+function syncSectionToPane() {
+  var bar = document.getElementById('sectBar');
+  if (!bar) return;
+  var names = [];
+  bar.querySelectorAll('button[data-sect]').forEach(function (b) {
+    names.push(b.getAttribute('data-sect'));
+  });
+  if (!names.length) return;
+  if (names.indexOf(SECT_ACTIVE) < 0) SECT_ACTIVE = names[0];
+  activePane().querySelectorAll('.sect[data-sect]').forEach(function (el) {
+    el.style.display = (el.getAttribute('data-sect') === SECT_ACTIVE) ? '' : 'none';
+  });
+  bar.querySelectorAll('button[data-sect]').forEach(function (b) {
+    b.className = (b.getAttribute('data-sect') === SECT_ACTIVE) ? 'on' : '';
+  });
+}
+
 // ⭐ THE WINDOW OPENING DOES NOT MEAN A PAD CAN BRIDGE YET.
 // (rhoquinn8217, 2026-08-31: bridging is refused a few times on a cold start
 // before it takes, and the settings window appearing reads as "ready now".)
@@ -2738,7 +2773,11 @@ function batteryTag(d) {
   // inverts over the green fill. One colour reads on both, wherever the fill
   // happens to end -- which is the point, since the fill moves.
   var bolt = batteryMark(d) ? '<span class="battbolt">⚡</span>' : '';
-  return '<span class="batt" title="' + esc(batteryTitle(d)) + '">' +
+  // ⓘ data-ord and data-lvl let refreshBatteries() find this gauge and tell
+  // whether its reading has changed, without redrawing anything around it.
+  return '<span class="batt" data-ord="' + esc(String(d.ordinal)) +
+           '" data-lvl="' + esc(batteryLevelKey(d)) +
+           '" title="' + esc(batteryTitle(d)) + '">' +
            '<span class="battbar">' +
              '<span class="battfill" style="width:' + n + '%"></span>' +
              '<span class="battery-text">' + bolt + n + '%</span>' +
@@ -2755,6 +2794,29 @@ function batteryCell(d) { return batteryTag(d); }
 // most devices have one gauge or none.
 function batteryTags(parts) {
   return (parts || []).map(batteryTag).join('');
+}
+
+// What a gauge shows, as one string, so a repaint can tell whether it changed.
+function batteryLevelKey(d) {
+  return batteryPct(d) + '|' + ((d && d.battery_state) || '');
+}
+
+// ⭐ THE GAUGES FOLLOW THE POLL (code review, 2026-10-05). The device
+// signature leaves the battery out on purpose -- a full redraw for every
+// percent would take the halo off whatever it was on -- so pollDevices()
+// returned before anything was drawn, and a bridged pad showed the level it
+// had when it was bridged, for the whole session. Each gauge is now repainted
+// in place when its own reading changes, and nothing around it is touched.
+// ⓘ A part that had no reading when its row was drawn has no gauge here to
+// repaint; it gains one at the next redraw.
+function refreshBatteries(list) {
+  var byOrd = {};
+  (list || []).forEach(function (d) { byOrd[String(d.ordinal)] = d; });
+  document.querySelectorAll('.batt[data-ord]').forEach(function (el) {
+    var d = byOrd[el.getAttribute('data-ord')];
+    if (!d || el.getAttribute('data-lvl') === batteryLevelKey(d)) return;
+    el.outerHTML = batteryTag(d);
+  });
 }
 
 function renderTabs(devices) {
@@ -3662,6 +3724,12 @@ function choiceLabel(key, value) {
   // ⭐ T-242: a pad button reads the same wherever it is offered, so this is
   // asked before the per-row cases below rather than inside any one of them.
   if (BUTTON_VALUE_LABELS[value]) return BUTTON_VALUE_LABELS[value];
+  // ⓘ A blank trigger feel leaves the trigger as it is; only "off" clears it
+  // (Shape::Absent in trigger_effect.inl). "(blank — off)" said the opposite,
+  // and an effect left on the pad by an earlier config stayed there.
+  if (value === '' && (key === 'right_trigger_effect' || key === 'left_trigger_effect')) {
+    return '(blank — leave the trigger alone)';
+  }
   if (value === '') {
     // ⓘ A blank BUTTON is not "off" -- it means no button at all, which is a
     // real setting: with until_held it is always on, with while_held it is off.
@@ -4096,6 +4164,7 @@ function showTab(name) {
   });
   paintStickyHead();
   paintSectBar();    // ⓘ each pane has its own sections; swap them in
+  syncSectionToPane();   // ...and stand on one this pane has
   gpCollect();       // the focusable set changed
 }
 
@@ -5025,7 +5094,7 @@ function loadDevices() {
     var host = document.getElementById('devices');
     if (!list.length) {
       host.innerHTML = '<span class="muted">No devices bridged. ' +
-        'Bridge one from the TV, then Refresh.</span>';
+        'Bridge one from the TV and it shows up here.</span>';
       renderTabs([]);
       DEVICE_SIG = deviceSignature([]);
       return;
@@ -9109,6 +9178,7 @@ function pollDevices() {
       }
     }
 
+    refreshBatteries(list);                  // the one thing the signature leaves out
     var sig = deviceSignature(list);
     if (sig === DEVICE_SIG) return;          // nothing to do
     var first = DEVICE_SIG === null;

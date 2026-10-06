@@ -17,10 +17,14 @@
 // device is attached to Windows, so nothing else is writing to the controller
 // at that moment.
 //
-// WIRED ONLY. The backend's send path expects bytes that are ready for the
-// physical controller. On the wired path that is the report verbatim; on the
-// wireless path reports are reshaped and signed on the way through, so a
-// hand-built one would arrive malformed.
+// ⭐ ON A CABLE AND OVER BLUETOOTH ALIKE (code review, 2026-10-05). The report
+// is built in its USB form, 0x02, and goes out through the session's map the
+// way the host's own output does: verbatim on a cable, reshaped and signed as
+// a 0x31 over Bluetooth.
+// ⛔ This used to say WIRED ONLY and send the report straight to the backend,
+// but nothing kept a Bluetooth pad out: the gate below is the pad's ids, which
+// are the same on both. So a Bluetooth DualSense was sent a raw 0x02, which it
+// ignores, and its mic mute, trigger effects and routing never took.
 //
 // Field positions and claim bits below are our own, from on-wire capture, and
 // were independently cross-checked against daidr/dualsense-tester (MIT) --
@@ -41,11 +45,13 @@
 // at least one setting is configured, so an unconfigured install behaves
 // exactly as it did before this existed.
 // `linkedConfig` names a per-controller config file, or is empty for the shared
-// section. Defaulted so every existing caller is unaffected.
+// section. `device` is the session's virtual device, whose map shapes the
+// report for the wire the pad is on.
 static void ds5_apply_initial_settings(CtmBackend *backend,
-                                       const std::string &linkedConfig = std::string())
+                                       const std::string &linkedConfig,
+                                       CtmUsbipDevice *device)
 {
-    if (backend == nullptr) {
+    if (backend == nullptr || device == nullptr) {
         return;
     }
     // Runs once per session, so asking the backend for its caps is fine here --
@@ -192,7 +198,7 @@ static void ds5_apply_initial_settings(CtmBackend *backend,
     report[kDs5IdxAudioControl] = audioControl;
 
     std::wstring error;
-    if (!backend->send_output_report(report, false, &error)) {
+    if (!device->send_built_output_report(report, &error)) {
         device_log::report(device_log::msg()
             << section << ": settings: send FAILED -- "
             << std::string(error.begin(), error.end()));
@@ -249,7 +255,7 @@ static void ds5_apply_initial_settings(CtmBackend *backend,
         for (int again = 0; again < 2; ++again) {
             std::this_thread::sleep_for(std::chrono::milliseconds(90));
             std::wstring repeatError;
-            if (!backend->send_output_report(report, false, &repeatError)) {
+            if (!device->send_built_output_report(report, &repeatError)) {
                 device_log::report(device_log::msg()
                     << section << ": settings: trigger repeat " << (again + 1)
                     << " FAILED -- "
