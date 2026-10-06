@@ -9350,7 +9350,7 @@ function selfTest() {
   ['renderTabs','buildDevicePane','setStickyHead','paintStickyHead','measureSticky',
    'nameFor','deviceLabelShort','settingsKindOf',
    'askConfirm','confirmYes','confirmNo','whoIs','setAutoLink','claimAutoLink',
-   'stopAutoLink','archive','unlink','renameConfig','copyConfigFor','createFromPreset','presetCancel','openPresetInfo','closePresetInfo','renameKey','loadConfigs','loadDevices',
+   'stopAutoLink','archive','unlinkConfirmed','renameConfig','copyConfigFor','createFromPreset','presetCancel','openPresetInfo','closePresetInfo','renameKey','loadConfigs','loadDevices',
    'openConfig','applyPick','newConfigFor','preserveScroll','setDown','gpCollect'
   ].forEach(function(n) {
     ok('function ' + n, typeof window[n] === 'function');
@@ -9488,12 +9488,22 @@ function selfTest() {
 
   // 6. Down and back. DEVICE_SIG = null once meant "redraw next time" AND
   //    "never loaded", so the redraw never happened.
+  //    ⛔ WITHOUT RELOADING (code review, 2026-10-05). Coming back up reloads
+  //    the page once the listener has ever been down, which is right in use --
+  //    and here it reloaded the page with ?selftest still on, which ran this
+  //    again, for ever, each reload telling the listener the window had closed.
+  //    So the flag is cleared before coming back up and put back after.
+  var wasDownEver = IS_DOWN_EVER;
   setDown(true);
-  ok('tabs cleared when down', document.querySelectorAll('#tabs button').length <= 1);
+  // ⓘ Device tabs: the Editor tab stays whatever the listener's state.
+  ok('tabs cleared when down',
+     document.querySelectorAll('#tabs button:not(.editortab)').length <= 1);
   ok('header cleared when down',
      document.getElementById('stickyHead').innerHTML === '');
   ok('signature is not the never-loaded sentinel', DEVICE_SIG !== null);
+  IS_DOWN_EVER = false;
   setDown(false);
+  IS_DOWN_EVER = wasDownEver;
 
   // 7. The dialog opens, traps the pad, and closes.
   askConfirm('self test', 'self test', function(){});
@@ -9542,9 +9552,14 @@ function selfTest() {
   var head = (fail ? 'FAILED' : 'PASSED') + ' — ' + pass + ' passed, ' + fail + ' failed';
   console.log('%c' + head, 'font-weight:bold;color:' + (fail ? '#ff8f8f' : '#7fd18c'));
   console.log(out.join('\n'));
-  document.body.innerHTML =
-    '<pre style="padding:20px;font:13px ui-monospace,monospace">' +
-    esc(head) + '\n\n' + esc(out.join('\n')) + '</pre>';
+  // ⓘ OVER the page, not instead of it (code review, 2026-10-05). Replacing
+  // the body took away the elements the page's own timers go on reading, and
+  // once step 6 stopped reloading the page they threw every second.
+  var report = document.createElement('pre');
+  report.style.cssText = 'position:fixed;inset:0;z-index:100;margin:0;overflow:auto;' +
+    'background:#15161a;padding:20px;font:13px ui-monospace,monospace';
+  report.textContent = head + '\n\n' + out.join('\n');
+  document.body.appendChild(report);
   return fail === 0;
 }
 
