@@ -517,30 +517,37 @@ static void bridge_session_worker(AgentBridgeSession *session)
         if (session->device) {
             session->device->set_linked_config(session->linkedConfig);
         }
+    }
 
-        // ⭐ Read the controller's own gyro calibration, once the session is up.
-        //
-        // Here rather than at attach because it is a round trip to the TV: the
-        // feature request has to reach the physical pad and come back. Best
-        // effort -- a controller whose calibration cannot be read still works,
-        // on the old fixed scale, and says so in the log.
-        if (session->kind == "ds5" || session->kind == "ds5_usb" ||
-            session->kind == "ds5e" || session->kind == "ds5e_usb") {
-            ctm_gyro_calib::fetch(session->device.get(), backendPtr, session->ordinal);
-        } else if (session->kind == "ds4_usb") {
-            // ⭐ A DS4 HAS A GYRO TOO, and ships its own calibration. Without it
-            // the fallback scale makes motion about 60 times too slow, which looks
-            // like a broken gyro rather than a missing read. On a cable it is
-            // report 0x02, in the DualSense's field order.
-            ctm_gyro_calib::fetch(session->device.get(), backendPtr, session->ordinal,
-                                  ctm_gyro_calib::kDs4UsbCalibration);
-        } else if (session->kind == "ds4") {
-            // ⚠️ Over Bluetooth it is report 0x05 with the plus values grouped
-            // first. Read off the Linux driver, NOT measured: no TV here can pair a
-            // DS4 over Bluetooth.
-            ctm_gyro_calib::fetch(session->device.get(), backendPtr, session->ordinal,
-                                  ctm_gyro_calib::kDs4BtCalibration);
-        }
+    // ⭐ Read the controller's own gyro calibration, once the session is up.
+    //
+    // Here rather than at attach because it is a round trip to the TV: the
+    // feature request has to reach the physical pad and come back. Best
+    // effort -- a controller whose calibration cannot be read still works,
+    // on the old fixed scale, and says so in the log.
+    //
+    // ⭐ OUTSIDE THE SESSION'S LOCK (code review, 2026-10-05). The round trip
+    // takes up to a second, and it held the lock: the settings page's listing,
+    // asked for four times a second, waited on it while holding every
+    // session's lock, and a TV command arriving meanwhile could miss its own
+    // one-second wait. ⓘ The kind and the ordinal are set when the session is
+    // made and never change, so they are read here without the lock.
+    if (session->kind == "ds5" || session->kind == "ds5_usb" ||
+        session->kind == "ds5e" || session->kind == "ds5e_usb") {
+        ctm_gyro_calib::fetch(session->device.get(), backendPtr, session->ordinal);
+    } else if (session->kind == "ds4_usb") {
+        // ⭐ A DS4 HAS A GYRO TOO, and ships its own calibration. Without it
+        // the fallback scale makes motion about 60 times too slow, which looks
+        // like a broken gyro rather than a missing read. On a cable it is
+        // report 0x02, in the DualSense's field order.
+        ctm_gyro_calib::fetch(session->device.get(), backendPtr, session->ordinal,
+                              ctm_gyro_calib::kDs4UsbCalibration);
+    } else if (session->kind == "ds4") {
+        // ⚠️ Over Bluetooth it is report 0x05 with the plus values grouped
+        // first. Read off the Linux driver, NOT measured: no TV here can pair a
+        // DS4 over Bluetooth.
+        ctm_gyro_calib::fetch(session->device.get(), backendPtr, session->ordinal,
+                              ctm_gyro_calib::kDs4BtCalibration);
     }
 
     session->ready.store(true);
