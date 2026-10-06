@@ -493,7 +493,10 @@ inline bool create_config(const std::string &name, std::string *error)
     }
     if (!ensure_dir(kDir)) { *error = "could not create " + std::string(kDir); return false; }
 
-    std::ofstream file(path_for(name), std::ios::trunc);
+    // ⛔ BINARY, as every other writer here is. The text below spells its own
+    // CRLF, and a text stream on Windows turned each one into CR CR LF (code
+    // review, 2026-10-05: found on disk in configs made by New).
+    std::ofstream file(path_for(name), std::ios::binary | std::ios::trunc);
     if (!file.is_open()) { *error = "could not write " + path_for(name); return false; }
 
     // ⭐ The settings block is written EMPTY, not pre-filled with defaults.
