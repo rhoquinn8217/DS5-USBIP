@@ -6654,13 +6654,20 @@ function showListenerNotice(text) {
 //
 // ⓘ Both events, because pagehide does not always fire when a process is torn
 // down, and a duplicate release costs nothing.
+// ⛔ WITH A TOKEN, NOT A BEACON (code review, 2026-10-05). sendBeacon cannot
+// carry a header, so with --rest-token the listener refused it while
+// sendBeacon still said it was queued, and the window's going was never heard.
+// A keepalive fetch outlives the page the same way, and carries the token.
 function reportClosing() {
   try {
+    var tokenBox = document.getElementById('token');
+    var hasToken = !!tokenBox && tokenBox.value.trim() !== '';
     var body = new Blob(['{"closed":true}'], { type: 'application/json' });
-    if (!navigator.sendBeacon(base() + '/api/v1/ui/closed', body)) {
-      // ⓘ Last resort. keepalive lets a fetch outlive the page, which is the
-      // same promise sendBeacon makes.
-      fetch(base() + '/api/v1/ui/closed', { method: 'POST', keepalive: true })
+    if (hasToken || !navigator.sendBeacon(base() + '/api/v1/ui/closed', body)) {
+      // ⓘ keepalive lets a fetch outlive the page, which is the same promise
+      // sendBeacon makes.
+      fetch(base() + '/api/v1/ui/closed',
+            { method: 'POST', keepalive: true, headers: headers(), body: '{"closed":true}' })
         .catch(function () {});
     }
   } catch (e) {}
