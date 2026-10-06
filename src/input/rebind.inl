@@ -550,12 +550,20 @@ inline void apply(const void *deviceKey,
     // with the window closed. ⓘ What is held as the window drops behind is
     // swallowed until released, as on leaving the gate, so a press meant for
     // the page does not land in the game.
+    // ⛔ ONLY A WINDOW THAT WAS IN FRONT DROPS BEHIND. The pad shortcut turns
+    // config mode on before its window exists, and its own Options is passed
+    // through, held, so the game pauses: swallowing there would cut that press
+    // to one report. So the swallow is armed on gating -> not gating alone,
+    // and the exchange makes exactly one report see that edge.
     static bool g_saidNotInFront = false;
+    static std::atomic<bool> g_wasGating{false};
     const bool gating = config_mode() && ctm_ui_has_foreground();
+    if (g_wasGating.exchange(gating) && !gating && config_mode()) {
+        g_swallowGeneration.fetch_add(1);
+    }
     if (config_mode() && !gating) {
         if (!g_saidNotInFront) {
             g_saidNotInFront = true;
-            g_swallowGeneration.fetch_add(1);
             device_log::input(device_log::msg()
                 << "config mode: our window is not in front -- not gating"
                 << " (silent until that changes)");
