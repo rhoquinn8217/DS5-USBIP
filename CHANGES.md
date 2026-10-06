@@ -130,6 +130,7 @@ carry it; upstream's own history is unchanged.
 | 2026-10-03 | The gyro can move the right stick, for a game that drops a held button whenever a mouse moves: the stick moves by how fast the controller is turning, added to wherever the thumb has it and held at the ends, as artzox's DS5Dongle does, with gyro-to-mouse's gate and motion filter underneath. Settings `gyro_to_stick_gate_type` and `gyro_to_stick_gate_button` (the mouse's choices), `gyro_stick_sens`, `gyro_stick_sens_v`, `gyro_stick_axis` and `gyro_stick_invert`, and the preset `gyro-to-stick-on-L2-aiming` after its mouse twin. Page 2.66.56. | `e7996e3` |
 | 2026-10-04 | The window is "Controller Configs": "config" named the window, the saved set a controller is linked to and the folder at once, so a config stays a config and the window is named for the configs it holds. Its title ("DS5-USBIP Controller Configs"), the tray's "Open Controller Configs", Simple's heading, the hints and the confirm box say so, the tray's layout side menu is "Window Mode" (it was "Config Mode"), and the tray tip reads "DS5-USBIP: Select Devices, Controller Configs, Virtual Keyboard or Quit". Page 2.66.57. | `6515409` |
 | 2026-10-05 | What the window says when DS5-USBIP does not answer is true again: start it from its desktop shortcut or a double-click, or wait if it is restarting, as Controller Configs comes back by itself. Gone: the command lines to type, the --rest switch it now turns on by itself, the address field the window does not show, and the firewall. Advanced says it once (the early warning gives way to the cover and stays gone), Simple and Quick lose their command line, and the footer and the log say "listener" where they said "agent". The README in the zip names Controller Configs and lists every file the listener creates beside itself. Page 2.66.59. | `0778b81`, `69b1370` |
+| 2026-10-05 | Fixes from a code review, tested by hand over Bluetooth. A DualSense Edge over Bluetooth is accepted (kind `ds5e`). The DualSense settings report (mic mute, trigger feel, routing) goes through the session's map, so a Bluetooth pad gets it in its own form. A reconnect sends its handshake before anything else and keeps the session's audio and latency, and the handshake's speaker, headset and mode start unset rather than zero. Config mode holds back the Edge's Fn buttons and back paddles. A trigger presses at 90 percent unless a config says otherwise, in the reader, the feel and the page alike. The control port waits at most a second for a command, and the tray icon comes back after Explorer restarts. Page 2.66.60: no Refresh button is mentioned, battery levels repaint, a tab lands on a section it has, and a trigger feel's blank says it leaves the trigger alone. | `26c12ef`, `297173d`, `450558f`, `f7a3639`, `044d958`, `5e69594`, `0b55e48`, `7853fc3`, `09ce5ea`, `77c6e53` |
 
 ## Files changed
 
@@ -140,7 +141,7 @@ upstream's release FFmpeg binaries replacing the repo's debug ones).
 ```
  .gitattributes                                |   48 +
  .gitignore                                    |   34 +-
- CHANGES.md                                    |  285 +
+ CHANGES.md                                    |  286 +
  LINK                                          |    0
  README.md                                     |  255 +-
  app/ctm-usbip-tests.vcxproj                   |  124 +
@@ -153,7 +154,7 @@ upstream's release FFmpeg binaries replacing the repo's debug ones).
  build.ps1                                     |   96 +-
  device-config.md                              |  195 +
  docs/rest_api.md                              |  139 +
- include/ctm/map/runtime.h                     |   30 +
+ include/ctm/map/runtime.h                     |   34 +
  include/ctm/product.h                         |   32 +
  installer/make-icon-ds5.ps1                   |  210 +
  maps/ds4_usb_over_ds4_usb.map                 |   61 +
@@ -165,8 +166,8 @@ upstream's release FFmpeg binaries replacing the repo's debug ones).
  profiles/descriptors/virtual_keyboard.profile |   74 +
  profiles/descriptors/virtual_mouse.profile    |   59 +
  release.ps1                                   |  260 +
- src/app/agent.inl                             |  645 +-
- src/app/agent_session_sweep.inl               |  320 +
+ src/app/agent.inl                             |  666 +-
+ src/app/agent_session_sweep.inl               |  323 +
  src/app/cli.inl                               |   36 +-
  src/app/common.inl                            |   48 +-
  src/app/config_move.inl                       | 1112 +++
@@ -187,7 +188,7 @@ upstream's release FFmpeg binaries replacing the repo's debug ones).
  src/app/service.inl                           |   25 +-
  src/app/start_report.inl                      |   37 +
  src/app/stop_wait.inl                         |   74 +
- src/app/tray_icon.inl                         |  614 ++
+ src/app/tray_icon.inl                         |  670 ++
  src/app/tray_menu.inl                         |  157 +
  src/app/ui_page.inl                           |  114 +
  src/app/window_icon.inl                       |  242 +
@@ -195,7 +196,7 @@ upstream's release FFmpeg binaries replacing the repo's debug ones).
  src/app/window_move.inl                       |  245 +
  src/app/window_size_rule.inl                  |  101 +
  src/audio/audio_gain.inl                      |  178 +
- src/audio/ds5_apply_settings.inl              |  310 +
+ src/audio/ds5_apply_settings.inl              |  316 +
  src/audio/ds5_output_overrides.inl            |  699 ++
  src/audio/iso_in_pacing.inl                   |  221 +
  src/audio/iso_in_test_tone.inl                |   95 +
@@ -203,8 +204,8 @@ upstream's release FFmpeg binaries replacing the repo's debug ones).
  src/audio/pcm_amplitude_log.inl               |  162 +
  src/audio/rumble_floor.inl                    |   58 +
  src/backend/backend.inl                       |   53 +
- src/backend/bridge.inl                        |  271 +-
- src/backend/bridge_enet.inl                   |   40 +-
+ src/backend/bridge.inl                        |  329 +-
+ src/backend/bridge_enet.inl                   |   46 +-
  src/backend/bt.inl                            |   16 +-
  src/config/config_presets.inl                 |  475 ++
  src/config/config_store.inl                   |  820 +++
@@ -212,7 +213,7 @@ upstream's release FFmpeg binaries replacing the repo's debug ones).
  src/config/device_config.inl                  |  218 +
  src/input/battery.inl                         |  105 +
  src/input/binding_names.inl                   |  244 +
- src/input/button_layout.inl                   | 1124 +++
+ src/input/button_layout.inl                   | 1130 +++
  src/input/chord_gate.inl                      |   66 +
  src/input/gyro_calibration.inl                |  168 +
  src/input/gyro_calibration_fetch.inl          |   99 +
@@ -229,16 +230,16 @@ upstream's release FFmpeg binaries replacing the repo's debug ones).
  src/input/rebind.inl                          | 1227 ++++
  src/input/stick_mouse.inl                     |  471 ++
  src/input/touch_mouse.inl                     | 1346 ++++
- src/input/trigger_click.inl                   |  801 +++
- src/input/trigger_effect.inl                  |  630 ++
+ src/input/trigger_click.inl                   |  803 +++
+ src/input/trigger_effect.inl                  |  637 ++
  src/log/capped_log.inl                        |  117 +
  src/log/device_log.inl                        |  233 +
  src/main.cpp                                  |  713 +-
  src/map/runtime.cpp                           |   68 +-
- src/usbip/device.inl                          |  659 +-
+ src/usbip/device.inl                          |  698 +-
  src/usbip/server.inl                          |   55 +-
  tests/binding_names_test.cpp                  |  200 +
- tests/button_layout_test.cpp                  | 1184 +++
+ tests/button_layout_test.cpp                  | 1189 +++
  tests/capped_log_test.cpp                     |  140 +
  tests/config_store_test.cpp                   |  906 +++
  tests/device_capabilities_test.cpp            |   75 +
@@ -273,7 +274,7 @@ upstream's release FFmpeg binaries replacing the repo's debug ones).
  tests/units.h                                 |   54 +
  tests/window_icon_rule_test.cpp               |   86 +
  tests/window_size_rule_test.cpp               |  129 +
- tools/controller-config-test-client.html      | 9522 +++++++++++++++++++++++++
+ tools/controller-config-test-client.html      | 9592 +++++++++++++++++++++++++
  tools/create-desktop-shortcut.bat             |   46 +
  tools/create-desktop-shortcut.ps1             |  148 +
  tools/device-config-panel-edge.bat            |    9 +
@@ -281,5 +282,5 @@ upstream's release FFmpeg binaries replacing the repo's debug ones).
  tools/device-config-panel.bat                 |    4 +
  tools/device-config-panel.ps1                 |  303 +
  tools/osk-mockups.py                          |  103 +
- 143 files changed, 46993 insertions(+), 293 deletions(-)
+ 143 files changed, 47272 insertions(+), 298 deletions(-)
 ```
