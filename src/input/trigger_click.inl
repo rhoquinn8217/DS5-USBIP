@@ -759,7 +759,7 @@ inline void on_ds5_input(const void *deviceKey,
     // A click is allowed there by design, since it lands on the window; a key
     // is the window's own, as in the rebinder: a steady trigger bound to Enter
     // typed Enter into the page. Published as none, so a held key lets go.
-    if (wantsKeys && ctm_rebind::config_mode()) {
+    if (wantsKeys && ctm_rebind_config_mode_effective()) {
         mods = 0;
         keyCount = 0;
     }

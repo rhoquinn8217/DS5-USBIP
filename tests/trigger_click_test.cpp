@@ -181,13 +181,12 @@ inline std::ostream &input_s()
 }  // namespace
 }  // namespace device_log
 
-// The settings window's gate, which trigger_click asks before it sends keys.
-namespace ctm_rebind {
+// The settings window's gate as it applies, which trigger_click asks before it
+// sends keys.
 namespace {
 bool g_configModeForTest = false;
-inline bool config_mode() { return g_configModeForTest; }
 }  // namespace
-}  // namespace ctm_rebind
+static bool ctm_rebind_config_mode_effective() { return g_configModeForTest; }
 
 namespace {
 inline void ctm_gyro_mouse_ensure_mouse_started() { ++g_mouseStarts; }
@@ -729,11 +728,11 @@ int run_trigger_click_tests()
     {
         const std::vector<unsigned char> descriptor(12, 0);
         int pad = 0;
-        ctm_rebind::g_configModeForTest = true;
+        g_configModeForTest = true;
         on_ds5_input(&pad, descriptor, "", report_with(0, 240).data(), 16);
         CTM_CHECK(g_keys.find(&pad) == g_keys.end());   // nothing typed into the page
         on_ds5_input(&pad, descriptor, "", report_with(0, 0).data(), 16);
-        ctm_rebind::g_configModeForTest = false;
+        g_configModeForTest = false;
     }
 
     section("trigger click: both triggers, bound differently");

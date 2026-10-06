@@ -202,6 +202,16 @@ inline void set_config_mode(bool on)
 
 inline bool config_mode() { return g_configMode.load(std::memory_order_relaxed); }
 
+// ⭐ Everything this pad's rebinding is holding, let go: its keys and its mouse
+// buttons. For a report the rebinder does not see, so would not release.
+inline void let_go(const void *deviceKey)
+{
+    if (ctm_keyboard_device::holds_for(deviceKey)) {
+        ctm_keyboard_device::set_state_for(deviceKey, 0, nullptr, 0);
+    }
+    ctm_mouse_device::set_buttons_for(deviceKey, 0);
+}
+
 // ⭐⭐ IS THE PAGE'S CURSOR IN A TEXT FIELD? (T-141, 2026-09-03.)
 //
 // ⛔ The listener already knows when the WINDOW has focus -- ui/focus and
@@ -374,7 +384,10 @@ inline void apply(const void *deviceKey,
         // paused for no reason.
         //
         // ⓘ Options is then gated normally, like every other button.
-        if (f1 && f2 && optionsPressedNow && !config_mode()) {
+        // ⭐ "On" as it APPLIES, the flag and the window in front (code review,
+        // 2026-10-05). The flag alone refused the chord with the window left
+        // behind the game, which is when the chord is the way back to it.
+        if (f1 && f2 && optionsPressedNow && !(config_mode() && ctm_ui_has_foreground())) {
             device_log::input(device_log::msg()
                 << "chord: two fingers + Options -- showing the settings window");
             {
@@ -529,17 +542,25 @@ inline void apply(const void *deviceKey,
     // ⚠️ EDGE-TRIGGERED (2026-08-31): this was a 2-second heartbeat, and any
     // config session that left the flag set had it drumming into the log
     // indefinitely. Transitions speak; steady state is silent.
+    //
+    // ⭐⭐ AND NOT GATING MEANS THE PAD WORKS AS IT DOES IN A GAME (code review,
+    // 2026-10-05). This returned here, before the bindings, so the game behind
+    // got the raw pad with none of them, and every key the gate had down stayed
+    // down. ➡️ Only the gate is skipped now; the bindings below run as they do
+    // with the window closed. ⓘ What is held as the window drops behind is
+    // swallowed until released, as on leaving the gate, so a press meant for
+    // the page does not land in the game.
     static bool g_saidNotInFront = false;
-    if (config_mode() && !ctm_ui_has_foreground()) {
+    const bool gating = config_mode() && ctm_ui_has_foreground();
+    if (config_mode() && !gating) {
         if (!g_saidNotInFront) {
             g_saidNotInFront = true;
+            g_swallowGeneration.fetch_add(1);
             device_log::input(device_log::msg()
                 << "config mode: our window is not in front -- not gating"
                 << " (silent until that changes)");
         }
-        return;
-    }
-    if (g_saidNotInFront) {
+    } else if (g_saidNotInFront) {
         g_saidNotInFront = false;
         if (config_mode()) {
             device_log::input(device_log::msg()
@@ -583,7 +604,7 @@ inline void apply(const void *deviceKey,
         g_chordPads[deviceKey].swallowMask = swallow;
     }
 
-    if (config_mode()) {
+    if (gating) {
         // ⛔ BUILT HERE, not borrowed. `section` is not created until well
         // below this branch -- after the gate has already returned -- so
         // reaching for it compiled nowhere. ⓘ At the TOP, because the Square
@@ -1045,11 +1066,16 @@ inline void apply(const void *deviceKey,
         if ((touchPressed & (1u << i)) != 0) set_button(*layout, data, len, i);
     }
 
-    if (anyBound) {
+    // ⭐ AND WHILE THIS PAD STILL HOLDS SOMETHING, bound or not (code review,
+    // 2026-10-05). Publishing only while a binding exists left a key down for
+    // good once its last binding was taken away mid-press, or when the gate's
+    // keys were still down as the window dropped behind.
+    if (anyBound || ctm_keyboard_device::holds_for(deviceKey)) {
         ctm_keyboard_device::set_state_for(deviceKey, modifiers, keys, keyCount);
     }
-    // ⓘ Only when something is bound to a mouse button, so a controller with no
-    // mouse bindings never touches the mouse's state.
+    // ⓘ This once ran only when something was bound to a mouse button, so a
+    // controller with no mouse bindings never touched the mouse; the last note
+    // below says why it runs on every report now.
     // ⭐ PUBLISH WHENEVER WE HAVE AN OPINION, which includes "this trigger is
     // not mine any more" -- that is precisely when the bit needs clearing.
     // ⓘ Starting the mouse is a separate question: a suppressed trigger may be
@@ -1061,8 +1087,12 @@ inline void apply(const void *deviceKey,
     // released the Xbox pad's held RT between its reports, and a drag became
     // *"double or multi clicking"*. Each pad's mask is kept apart now and the
     // mouse sends the union (mouse_held.inl).
+    // ⭐ ON EVERY REPORT NOW (code review, 2026-10-05), for the reason the keys
+    // above give: a mouse binding taken away mid-press left its button down.
+    // ⓘ Safe for a pad with no mouse binding: the level is this pad's own and
+    // the rebinder's alone, so "nothing" clears only what this wrote.
+    ctm_mouse_device::set_buttons_for(deviceKey, mouseButtons);
     if (anyMouse || gaveUpATrigger) {
-        ctm_mouse_device::set_buttons_for(deviceKey, mouseButtons);
         if (device_config_bool(section.c_str(), "trigger_probe", false)) {
             static uint8_t lastPublished = 0xff;
             if (mouseButtons != lastPublished) {
@@ -1248,6 +1278,13 @@ void ctm_rebind_apply(const void *deviceKey,
     // both are showing, the keyboard has the pad, as it always has.
         if (config_move::handle_report(deviceKey, overlayLayout, data, len)) {
             ctm_overlay::blank_report(overlayLayout, data, len);
+            // ⭐ AND THE REBINDER'S KEYS AND CLICKS LET GO (code review,
+            // 2026-10-05). The rebinder is skipped while Options steers, so
+            // whatever it had down stayed down: a d-pad held into the steer
+            // kept its arrow key held, and Windows repeated it.
+            // ⓘ Not for the keyboard above, which owns this pad's keys while
+            // it is up.
+            ctm_rebind::let_go(deviceKey);
             return;
         }
     }
