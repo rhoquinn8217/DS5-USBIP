@@ -241,8 +241,14 @@ inline const Layout kDs5Layout = {
     },
     // Rest: LX LY RX RY centre at 0x80, then L2 and R2 analog at 0.
     { { 1, 4, 0x80 }, { 5, 2, 0x00 } },
-    // Touchpad click 0x02 and mute 0x04 have no standard index.
-    10, 0x06,
+    // Touchpad click 0x02 and mute 0x04 have no standard index. ⭐ Nor do the
+    // DualSense Edge's Fn buttons (0x10 left, 0x20 right) and back paddles
+    // (0x40 left, 0x80 right), which share this byte; the Edge uses this table.
+    // ⛔ Left out, they passed through config mode's "nothing held", so a
+    // paddle pressed while the settings window held the pad reached the game
+    // (code review, 2026-10-05). ⓘ Their bits are SDL's PS5 driver's; a plain
+    // DualSense never sets them, so clearing them costs it nothing.
+    10, 0xF6,
     // Sticks one byte each, pushing up reads lower.
     { kAxisU8, 1, 2, 3, 4, false },
     // Triggers at [5] and [6]; effect status in the high nibbles of [42] R2, [43] L2.
