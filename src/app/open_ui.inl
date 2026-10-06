@@ -420,16 +420,6 @@ inline bool close_existing()
     return true;
 }
 
-// ⭐ Show the settings window and take the controllers. One implementation for
-// the REST endpoint and the chord, so they cannot drift apart.
-//
-// ⛔ Kill and recreate rather than focusing an existing window: every call then
-// lands in a known state, with nothing carried over from one left mid-edit.
-//
-// ⚠️ Declared here and defined in main.cpp, because this needs the gate --
-// which lives in rebind.inl, included long after this file.
-void ctm_show_settings_window();
-
 // Opens the settings page, or focuses the one already open.
 //
 // !! Never fatal. A missing page or browser is logged and the agent carries on
