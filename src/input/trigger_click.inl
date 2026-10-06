@@ -755,6 +755,14 @@ inline void on_ds5_input(const void *deviceKey,
     // trigger publishes here on every report, and one shared level let a pad at
     // rest release another pad's press (2026-09-15, mouse_held.inl).
     ctm_mouse_device::set_trigger_buttons_for(deviceKey, buttons);
+    // ⭐ NO KEYS WHILE THE SETTINGS WINDOW HAS THE PAD (code review, 2026-10-05).
+    // A click is allowed there by design, since it lands on the window; a key
+    // is the window's own, as in the rebinder: a steady trigger bound to Enter
+    // typed Enter into the page. Published as none, so a held key lets go.
+    if (wantsKeys && ctm_rebind::config_mode()) {
+        mods = 0;
+        keyCount = 0;
+    }
     if (wantsKeys) {
         ctm_keyboard_device::set_trigger_keys_for(deviceKey, mods, keys, keyCount);
         ctm_rebind_ensure_keyboard_started();

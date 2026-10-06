@@ -181,6 +181,14 @@ inline std::ostream &input_s()
 }  // namespace
 }  // namespace device_log
 
+// The settings window's gate, which trigger_click asks before it sends keys.
+namespace ctm_rebind {
+namespace {
+bool g_configModeForTest = false;
+inline bool config_mode() { return g_configModeForTest; }
+}  // namespace
+}  // namespace ctm_rebind
+
 namespace {
 inline void ctm_gyro_mouse_ensure_mouse_started() { ++g_mouseStarts; }
 inline void ctm_rebind_ensure_keyboard_started() { ++g_keyboardStarts; }
@@ -712,6 +720,20 @@ int run_trigger_click_tests()
         on_ds5_input(&pad, descriptor, "", report_with(0, 0).data(), 16);
         CTM_CHECK(g_keys.find(&pad) == g_keys.end());
         CTM_CHECK(held_for(&pad));
+    }
+
+    section("trigger click: no key while the settings window has the pad");
+    reset_all();
+    g_strings["ds5.right_trigger_steady_cursor_pull"] = "immediate";
+    g_strings["ds5.rebind_7"] = "Enter";
+    {
+        const std::vector<unsigned char> descriptor(12, 0);
+        int pad = 0;
+        ctm_rebind::g_configModeForTest = true;
+        on_ds5_input(&pad, descriptor, "", report_with(0, 240).data(), 16);
+        CTM_CHECK(g_keys.find(&pad) == g_keys.end());   // nothing typed into the page
+        on_ds5_input(&pad, descriptor, "", report_with(0, 0).data(), 16);
+        ctm_rebind::g_configModeForTest = false;
     }
 
     section("trigger click: both triggers, bound differently");
