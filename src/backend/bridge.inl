@@ -674,6 +674,15 @@ private:
             }
 
             CtmBridgeProtocol::HostConfig hostConfig = {};
+            // ⛔ NOT ZERO (code review, 2026-10-05). `= {}` made the speaker,
+            // headset and mode 0/0/0 at every handshake -- the triple the header
+            // above says this side must never send by accident -- and every later
+            // audio push copies lastHostConfig_, so the zeros rode along. The TV
+            // ignores an all-zero triple for older hosts' sake, which is what kept
+            // it harmless; it is still the wrong thing to say.
+            hostConfig.speaker_volume_pct = CtmBridgeProtocol::kAudioUnset;
+            hostConfig.headset_volume_pct = CtmBridgeProtocol::kAudioUnset;
+            hostConfig.audio_mode = CtmBridgeProtocol::kAudioUnset;
             hostConfig.bt_pace_us = static_cast<uint32_t>(btPaceMs_ * 1000.0 + 0.5);
             hostConfig.input_report_len = capsRaw_.input_report_len;
             hostConfig.output_report_len = capsRaw_.output_report_len;
