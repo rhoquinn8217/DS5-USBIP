@@ -106,6 +106,10 @@ struct ChordPad {
     bool lastOptions = false;
     bool passOptions = false;
     int  lastDebugState = -1;
+    // The swallow below, per pad: the arming this pad has seen, and which of its
+    // buttons are still waiting to be seen released.
+    uint32_t swallowGeneration = 0;
+    uint32_t swallowMask = 0;
 };
 
 inline std::mutex g_chordMutex;
@@ -145,7 +149,14 @@ inline void set_gate_hold(bool hold)
 // ⓘ Cleared per button as each is released, not on a timer: a button held
 // deliberately across the transition should start working when it is next
 // pressed, not after an arbitrary wait.
-inline uint32_t g_swallowUntilReleased = 0;
+//
+// ⭐⭐ ARMED FOR EVERY PAD, CLEARED BY EACH PAD FOR ITSELF (code review,
+// 2026-10-05). This was one mask for all pads, so with two bridged the other
+// pad's next report, 4 ms later, cleared the buttons IT was not holding: close
+// the window with Cross on pad A and A's still-held Cross reached the game.
+// ➡️ Arming now counts up; each pad, at its next report, takes its own copy of
+// the mask (in ChordPad) and clears only its own released buttons.
+inline std::atomic<uint32_t> g_swallowGeneration{0};
 
 // ⭐ THE GATE IS PROVISIONAL UNTIL THE PAGE CONFIRMS IT.
 //
@@ -176,7 +187,7 @@ inline void set_config_mode(bool on)
     // Leaving the gate: whatever is down now must be released before the game
     // hears it.
     if (!on && g_configMode.load(std::memory_order_relaxed)) {
-        g_swallowUntilReleased = 0xffffffffu;
+        g_swallowGeneration.fetch_add(1);
     }
 
     const bool was = g_configMode.exchange(on);
@@ -377,7 +388,11 @@ inline void apply(const void *deviceKey,
             // ⓘ Four seconds: long enough for a browser to start cold, short
             // enough that being locked out is a blip rather than a problem.
             g_gateProvisionalUntil.store(chord_now_ms() + 4000);
-            ctm_chord_show_ui(chordOrdinal);
+            // ⭐ OFF THIS THREAD, as every other caller does (code review,
+            // 2026-10-05). This is the pad's own report thread, and opening the
+            // window can take a second and a browser start: this pad's presses
+            // were lost meanwhile and then burst out together.
+            std::thread([chordOrdinal]() { ctm_chord_show_ui(chordOrdinal); }).detach();
         }
 
         if (device_config_bool("global", "chord_debug", false)) {
@@ -543,16 +558,29 @@ inline void apply(const void *deviceKey,
     // ⓘ A held button is blanked until it is seen RELEASED. Whatever armed it
     // -- hide(), a keyboard close, a mode change -- gets the same protection,
     // and it has to be applied before anything can consume the report.
-    if (g_swallowUntilReleased != 0 && len > 10) {
+    uint32_t swallow = 0;
+    {
+        const uint32_t generation = g_swallowGeneration.load();
+        std::lock_guard<std::mutex> lock(g_chordMutex);
+        ChordPad &pad = g_chordPads[deviceKey];
+        if (pad.swallowGeneration != generation) {
+            pad.swallowGeneration = generation;
+            pad.swallowMask = 0xffffffffu;
+        }
+        swallow = pad.swallowMask;
+    }
+    if (swallow != 0 && len > 10) {
         for (int i = 0; i < kButtonCount; ++i) {
             const uint32_t bit = 1u << i;
-            if ((g_swallowUntilReleased & bit) == 0) continue;
+            if ((swallow & bit) == 0) continue;
             if (is_pressed(*layout, data, len, i)) {
                 clear_button(*layout, data, len, i);
             } else {
-                g_swallowUntilReleased &= ~bit;
+                swallow &= ~bit;
             }
         }
+        std::lock_guard<std::mutex> lock(g_chordMutex);
+        g_chordPads[deviceKey].swallowMask = swallow;
     }
 
     if (config_mode()) {
@@ -1067,7 +1095,7 @@ inline void apply(const void *deviceKey,
 // problem for the same reason.
 void ctm_rebind_swallow_held()
 {
-    ctm_rebind::g_swallowUntilReleased = 0xffffffffu;
+    ctm_rebind::g_swallowGeneration.fetch_add(1);
 }
 
 void ctm_keyboard_forget_device(const void *deviceKey)
