@@ -100,6 +100,7 @@ std::string device_settings_section(const char *kind, const std::string &linked)
 std::map<const void *, uint8_t> g_buttonsFor;
 uint8_t g_buttons = 0;
 std::map<const void *, std::vector<uint8_t>> g_keys;
+std::map<const void *, uint8_t> g_modsFor;
 int g_mouseStarts = 0;
 int g_keyboardStarts = 0;
 
@@ -114,34 +115,9 @@ int g_keyboardStarts = 0;
 // stand-in internal linkage, so this file's copy can only ever be this file's,
 // the same rule touch_mouse_test.cpp follows for its mailbox.
 
-// Standing in for the rebinder's name lookup, with just enough vocabulary to
-// prove the binding is resolved rather than assumed.
-namespace ctm_rebind {
-namespace {
-enum MouseAction { kMouseNone = 0, kMouseLeft, kMouseRight, kMouseMiddle,
-                   kMouseWheelUp, kMouseWheelDown };
-
-inline MouseAction mouse_action_for(const std::string &code)
-{
-    if (code == "MouseLeft")      return kMouseLeft;
-    if (code == "MouseRight")     return kMouseRight;
-    if (code == "MouseMiddle")    return kMouseMiddle;
-    if (code == "MouseWheelUp")   return kMouseWheelUp;
-    return kMouseNone;
-}
-
-struct KeyName { const char *code; uint8_t usage; uint8_t modifier; };
-
-inline const KeyName *key_for(const std::string &code)
-{
-    static const KeyName kEnter{ "Enter", 0x28, 0x00 };
-    static const KeyName kShiftA{ "ShiftA", 0x04, 0x02 };
-    if (code == "Enter") return &kEnter;
-    if (code == "ShiftA") return &kShiftA;
-    return nullptr;
-}
-}  // namespace
-}  // namespace ctm_rebind
+// ⭐ The rebinder's REAL name reader, not a stand-in: the gesture reads a
+// binding through it, so a stand-in would let the two drift apart again.
+#include "input/binding_names.inl"
 
 namespace ctm_mouse_device {
 namespace {
@@ -157,13 +133,15 @@ inline void set_trigger_buttons_for(const void *key, uint8_t mask)
 
 namespace ctm_keyboard_device {
 namespace {
-inline void set_trigger_keys_for(const void *key, uint8_t /*mods*/,
+inline void set_trigger_keys_for(const void *key, uint8_t mods,
                                  const uint8_t *keys, size_t count)
 {
     std::vector<uint8_t> v;
     for (size_t i = 0; i < count && keys != nullptr; ++i) v.push_back(keys[i]);
     if (v.empty()) g_keys.erase(key);
     else g_keys[key] = v;
+    if (mods == 0) g_modsFor.erase(key);
+    else g_modsFor[key] = mods;
 }
 }  // namespace
 }  // namespace ctm_keyboard_device
@@ -187,6 +165,18 @@ namespace {
 bool g_configModeForTest = false;
 }  // namespace
 static bool ctm_rebind_config_mode_effective() { return g_configModeForTest; }
+
+namespace {
+int g_oskToggles = 0;
+int g_oskLastButton = -1;
+int g_oskLastProgram = -1;
+}  // namespace
+static void ctm_osk_toggle(const std::string &, int button, int program)
+{
+    ++g_oskToggles;
+    g_oskLastButton = button;
+    g_oskLastProgram = program;
+}
 
 namespace {
 inline void ctm_gyro_mouse_ensure_mouse_started() { ++g_mouseStarts; }
@@ -215,6 +205,7 @@ void reset_all()
         ctm_gyro_mouse::g_gyroHold.clear();
     }
     g_keys.clear();
+    g_modsFor.clear();
     g_mouseStarts = 0;
     g_keyboardStarts = 0;
     std::lock_guard<std::mutex> lock(g_mutex);
@@ -269,7 +260,15 @@ int run_trigger_click_tests()
     CTM_CHECK_EQ((int)bound_for("MouseRight").mouseBit, 0x02);
     CTM_CHECK_EQ((int)bound_for("MouseMiddle").mouseBit, 0x04);
     CTM_CHECK_EQ((int)bound_for("Enter").keyUsage, 0x28);
-    CTM_CHECK_EQ((int)bound_for("ShiftA").keyModifier, 0x02);
+    // ⓘ A modifier alone is a binding too, as it is in the rebinder.
+    CTM_CHECK_EQ((int)bound_for("ShiftLeft").keyModifier, 0x02);
+    CTM_CHECK(bound_for("ShiftLeft").set());
+    // ⭐ Everything else a button can be bound to: a pad button, a keyboard.
+    CTM_CHECK_EQ(bound_for("button_cross").padButton, (int)ctm_rebind::kBtnFaceDown);
+    CTM_CHECK(bound_for("button_cross").set());
+    CTM_CHECK_EQ(bound_for("KeyboardDS5_USBIP").osk, (int)binding::kOskOurs);
+    // ⛔ A pad button that does not exist binds nothing, and is not a key.
+    CTM_CHECK(!bound_for("button_nosuch").set());
     // ⛔ A wheel tick is a pulse and this gesture is built on holding, so it is
     // left unbound rather than made to half work.
     CTM_CHECK(!bound_for("MouseWheelUp").set());
@@ -733,6 +732,52 @@ int run_trigger_click_tests()
         CTM_CHECK(g_keys.find(&pad) == g_keys.end());   // nothing typed into the page
         on_ds5_input(&pad, descriptor, "", report_with(0, 0).data(), 16);
         g_configModeForTest = false;
+    }
+
+    section("trigger click: a pad button, held for the press");
+    reset_all();
+    g_strings["ds5.right_trigger_steady_cursor_pull"] = "immediate";
+    g_strings["ds5.rebind_7"] = "button_cross";
+    {
+        const std::vector<unsigned char> descriptor(12, 0);
+        int pad = 0;
+        on_ds5_input(&pad, descriptor, "", report_with(0, 240).data(), 16);
+        CTM_CHECK_EQ(trigger_click_pad_buttons(&pad), 1u << ctm_rebind::kBtnFaceDown);
+        CTM_CHECK_EQ((int)g_buttons, 0);                 // no click as well
+        on_ds5_input(&pad, descriptor, "", report_with(0, 0).data(), 16);
+        CTM_CHECK_EQ(trigger_click_pad_buttons(&pad), 0u);
+    }
+
+    section("trigger click: an on-screen keyboard opens once a press");
+    reset_all();
+    g_oskToggles = 0;
+    g_strings["ds5.right_trigger_steady_cursor_pull"] = "immediate";
+    g_strings["ds5.rebind_7"] = "KeyboardDS5_USBIP";
+    {
+        const std::vector<unsigned char> descriptor(12, 0);
+        int pad = 0;
+        on_ds5_input(&pad, descriptor, "", report_with(0, 240).data(), 16);
+        on_ds5_input(&pad, descriptor, "", report_with(0, 240).data(), 16);
+        CTM_CHECK_EQ(g_oskToggles, 1);                  // held: still once
+        CTM_CHECK_EQ(g_oskLastButton, 7);
+        CTM_CHECK_EQ(g_oskLastProgram, (int)binding::kOskOurs);
+        on_ds5_input(&pad, descriptor, "", report_with(0, 0).data(), 16);
+        on_ds5_input(&pad, descriptor, "", report_with(0, 240).data(), 16);
+        CTM_CHECK_EQ(g_oskToggles, 2);                  // a second press, a second toggle
+        on_ds5_input(&pad, descriptor, "", report_with(0, 0).data(), 16);
+    }
+
+    section("trigger click: a modifier alone is held for the press");
+    reset_all();
+    g_strings["ds5.right_trigger_steady_cursor_pull"] = "immediate";
+    g_strings["ds5.rebind_7"] = "ShiftLeft";
+    {
+        const std::vector<unsigned char> descriptor(12, 0);
+        int pad = 0;
+        on_ds5_input(&pad, descriptor, "", report_with(0, 240).data(), 16);
+        CTM_CHECK(g_modsFor.count(&pad) == 1 && g_modsFor[&pad] == 0x02);
+        on_ds5_input(&pad, descriptor, "", report_with(0, 0).data(), 16);
+        CTM_CHECK(g_modsFor.count(&pad) == 0);
     }
 
     section("trigger click: both triggers, bound differently");

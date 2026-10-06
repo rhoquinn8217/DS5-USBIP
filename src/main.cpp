@@ -167,6 +167,9 @@ void trigger_click_apply(const void *deviceKey,
                          const std::string &linkedConfig,
                          const uint8_t *data, size_t len);
 void trigger_click_forget(const void *deviceKey);
+/* The pad buttons a steady trigger is pressing, which the rebinder presses into
+ * the report after its own remaps. */
+uint32_t trigger_click_pad_buttons(const void *deviceKey);
 // ⓘ And for keeping a config's trigger effect in place over a game's own. It
 // is defined in ds5_apply_settings.inl, beside the encoder it calls.
 void trigger_defend_host_report(uint8_t *data, size_t length,

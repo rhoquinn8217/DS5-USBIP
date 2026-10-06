@@ -122,29 +122,41 @@ inline bool crossed_effect(const Side &side, const uint8_t *data, size_t len,
 struct Bound {
     uint8_t mouseBit    = 0;   // a mouse button bit, or 0
     uint8_t keyUsage    = 0;   // a keyboard usage, or 0
-    uint8_t keyModifier = 0;
-    bool set() const { return mouseBit != 0 || keyUsage != 0; }
+    uint8_t keyModifier = 0;   // a modifier's bit, alone or with the key
+    int     padButton   = -1;  // another button on the pad, by its standard index
+    int     osk         = -1;  // an on-screen keyboard to open, or -1
+    bool set() const
+    {
+        return mouseBit != 0 || keyUsage != 0 || keyModifier != 0 ||
+               padButton >= 0 || osk >= 0;
+    }
 };
 
+// ⭐⭐ THE REBINDER'S OWN READER, so a trigger can be bound here to anything a
+// button can be bound to (code review, 2026-10-05). This read mouse buttons
+// and keys for itself and knew nothing else: a steady trigger bound to a pad
+// button or to an on-screen keyboard did nothing, and one bound to a modifier
+// alone (ShiftLeft) did nothing either.
 inline Bound bound_for(const std::string &code)
 {
     Bound out;
-    if (code.empty()) return out;
-
-    const ctm_rebind::MouseAction ma = ctm_rebind::mouse_action_for(code);
-    if (ma == ctm_rebind::kMouseLeft)   { out.mouseBit = 0x01; return out; }
-    if (ma == ctm_rebind::kMouseRight)  { out.mouseBit = 0x02; return out; }
-    if (ma == ctm_rebind::kMouseMiddle) { out.mouseBit = 0x04; return out; }
-    // ⛔ A wheel tick is a PULSE and this whole gesture is built on holding, so
-    // there is nothing sensible to do with one. Left unbound rather than half
-    // working: a scroll that fired once on press and never again would be a
-    // stranger fault than a binding that plainly does nothing.
-    if (ma != ctm_rebind::kMouseNone) return out;
-
-    const ctm_rebind::KeyName *k = ctm_rebind::key_for(code);
-    if (k != nullptr) {
-        out.keyUsage    = k->usage;
-        out.keyModifier = k->modifier;
+    const binding::Target t = binding::parse(code);
+    switch (t.kind) {
+        case binding::kMouseButton: out.mouseBit = t.mouseMask; break;
+        case binding::kKey:
+            out.keyUsage = t.usage;
+            out.keyModifier = t.modifier;
+            break;
+        case binding::kPadButton: out.padButton = t.button; break;
+        case binding::kOsk: out.osk = t.osk; break;
+        // ⛔ A wheel tick is a PULSE and this whole gesture is built on
+        // holding, so there is nothing sensible to do with one. Left unbound
+        // rather than half working: a scroll that fired once on press and
+        // never again would be a stranger fault than a binding that plainly
+        // does nothing.
+        case binding::kMouseWheel:
+        case binding::kNone:
+        default: break;
     }
     return out;
 }
@@ -167,6 +179,9 @@ struct Pad {
     State r2;
     State l2;
     bool heldKeys = false;   // so an idle pad never touches the keyboard
+    // The pad buttons a press is holding, by standard index, for the rebinder
+    // to press into the report: this file only reads it.
+    uint32_t padButtons = 0;
 };
 
 inline std::mutex g_mutex;
@@ -646,11 +661,15 @@ inline void on_ds5_input(const void *deviceKey,
     size_t keyCount = 0;
     bool freeze = false;
     bool wantsKeys = false;
+    // ⓘ Which side's on-screen keyboard to toggle, outside the lock.
+    int oskToggle[2] = { -1, -1 };
 
     {
         std::lock_guard<std::mutex> lock(g_mutex);
         Pad &pad = g_pads[deviceKey];
 
+        const bool wasR2 = pad.r2.down;
+        const bool wasL2 = pad.l2.down;
         const bool downR2 = step_side(kR2, pad.r2, data, len, nowMs, engageR2,
                                       clickR2, holdR2, doubleR2, boundR2.set(),
                                       steadyR2, effectR2, breaksR2, &freeze);
@@ -658,24 +677,36 @@ inline void on_ds5_input(const void *deviceKey,
                                       clickL2, holdL2, doubleL2, boundL2.set(),
                                       steadyL2, effectL2, breaksL2, &freeze);
 
-        const struct { bool down; const Bound *b; } held[2] = {
-            { downR2, &boundR2 }, { downL2, &boundL2 }
+        const struct { bool down; bool was; const Bound *b; } held[2] = {
+            { downR2, wasR2, &boundR2 }, { downL2, wasL2, &boundL2 }
         };
-        for (const auto &h : held) {
+        uint32_t padButtons = 0;
+        for (int s = 0; s < 2; ++s) {
+            const auto &h = held[s];
+            // ⭐ An on-screen keyboard opens ONCE A PRESS, on the way down, as a
+            // button bound to one does in the rebinder: held, it would open and
+            // close at report rate.
+            if (h.b->osk >= 0 && h.down && !h.was) oskToggle[s] = h.b->osk;
             if (!h.down) continue;
             if (h.b->mouseBit != 0) {
                 buttons = static_cast<uint8_t>(buttons | h.b->mouseBit);
-            } else if (h.b->keyUsage != 0 && keyCount < 2) {
-                keys[keyCount++] = h.b->keyUsage;
+            } else if (h.b->keyUsage != 0 || h.b->keyModifier != 0) {
+                if (h.b->keyUsage != 0 && keyCount < 2) keys[keyCount++] = h.b->keyUsage;
                 mods = static_cast<uint8_t>(mods | h.b->keyModifier);
+            } else if (h.b->padButton >= 0) {
+                padButtons |= 1u << h.b->padButton;
             }
         }
+        pad.padButtons = padButtons;
         // ⛔ Only touch the keyboard when this pad has something to say there,
         // or had something a moment ago. Writing an empty state 250 times a
         // second would take the keyboard's lock for nothing.
-        wantsKeys = (keyCount > 0) || pad.heldKeys;
-        pad.heldKeys = keyCount > 0;
+        const bool keysNow = keyCount > 0 || mods != 0;
+        wantsKeys = keysNow || pad.heldKeys;
+        pad.heldKeys = keysNow;
     }
+    if (oskToggle[0] >= 0) ctm_osk_toggle(section, kR2.rebindIndex, oskToggle[0]);
+    if (oskToggle[1] >= 0) ctm_osk_toggle(section, kL2.rebindIndex, oskToggle[1]);
 
     // ⭐ WHAT THE GESTURE ACTUALLY DID, logged only when it CHANGES, and only
     // when asked for. ⓘ It earned its place twice -- it found a press firing
@@ -771,6 +802,16 @@ inline void on_ds5_input(const void *deviceKey,
     if (buttons != 0) ctm_gyro_mouse_ensure_mouse_started();
 }
 
+// The pad buttons this pad's triggers are pressing right now, by standard
+// index. ⓘ The rebinder asks, after its own remaps, and presses them into the
+// report: this hook runs before it and may not write the report itself.
+inline uint32_t pad_buttons(const void *deviceKey)
+{
+    std::lock_guard<std::mutex> lock(g_mutex);
+    const auto it = g_pads.find(deviceKey);
+    return it == g_pads.end() ? 0u : it->second.padButtons;
+}
+
 // ⛔ A pad that unbridges mid-press must not leave anything held: nothing else
 // can release it, and no controller is left to try.
 inline void forget(const void *deviceKey)
@@ -808,4 +849,9 @@ void trigger_click_apply(const void *deviceKey,
 void trigger_click_forget(const void *deviceKey)
 {
     trigger_click::forget(deviceKey);
+}
+
+uint32_t trigger_click_pad_buttons(const void *deviceKey)
+{
+    return trigger_click::pad_buttons(deviceKey);
 }

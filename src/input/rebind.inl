@@ -1065,6 +1065,13 @@ inline void apply(const void *deviceKey,
     for (int i = 0; touchPressed != 0 && i < kButtonCount; ++i) {
         if ((touchPressed & (1u << i)) != 0) set_button(*layout, data, len, i);
     }
+    // ⭐ And the buttons a steady trigger is pressing (trigger_click.inl), for
+    // the same reason and in the same place: a trigger bound to a pad button
+    // presses it at the trigger's own depth (code review, 2026-10-05).
+    const uint32_t triggerPressed = trigger_click_pad_buttons(deviceKey);
+    for (int i = 0; triggerPressed != 0 && i < kButtonCount; ++i) {
+        if ((triggerPressed & (1u << i)) != 0) set_button(*layout, data, len, i);
+    }
 
     // ⭐ AND WHILE THIS PAD STILL HOLDS SOMETHING, bound or not (code review,
     // 2026-10-05). Publishing only while a binding exists left a key down for
