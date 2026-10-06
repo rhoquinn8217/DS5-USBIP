@@ -749,7 +749,13 @@ int wmain(int argc, wchar_t **argv)
             // could only fail silently. Turning the port on is the useful
             // reading of "give me the settings page".
             if (g_rest_port == 0) {
-                g_rest_port = 48055;
+                // ⭐ 48053, NOT 48055 (code review, 2026-10-05; chosen by
+                // rhoquinn8217, 2026-10-06). 48055 is also the TV's first
+                // bridge port: with --rest-lan the page held it on every
+                // address, so the first device bridged could not open its
+                // port and the TV kept dialling the page. 48053 sits beside
+                // the agent's 48054, below every bridge port.
+                g_rest_port = 48053;
                 device_log::config_w() << L"--ui needs the settings API; enabling it on port "
                            << g_rest_port ;
             }

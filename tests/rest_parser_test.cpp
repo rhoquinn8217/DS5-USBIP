@@ -192,49 +192,49 @@ static void test_who_may_ask()
     const std::vector<std::string> own = {"studio-pc", "studio-pc.local"};
 
     // An address, localhost, or this PC's own name.
-    CTM_CHECK(rest_host_allowed("127.0.0.1:48055", own));
+    CTM_CHECK(rest_host_allowed("127.0.0.1:48053", own));
     CTM_CHECK(rest_host_allowed("127.0.0.1", own));
-    CTM_CHECK(rest_host_allowed("localhost:48055", own));
-    CTM_CHECK(rest_host_allowed("LocalHost:48055", own));
-    CTM_CHECK(rest_host_allowed("[::1]:48055", own));
+    CTM_CHECK(rest_host_allowed("localhost:48053", own));
+    CTM_CHECK(rest_host_allowed("LocalHost:48053", own));
+    CTM_CHECK(rest_host_allowed("[::1]:48053", own));
     CTM_CHECK(rest_host_allowed("[::1]", own));
-    CTM_CHECK(rest_host_allowed("192.168.1.88:48055", own));      // --rest-lan, by address
-    CTM_CHECK(rest_host_allowed("studio-pc:48055", own));         // ... and by the PC's name
-    CTM_CHECK(rest_host_allowed("Studio-PC.local:48055", own));
+    CTM_CHECK(rest_host_allowed("192.168.1.88:48053", own));      // --rest-lan, by address
+    CTM_CHECK(rest_host_allowed("studio-pc:48053", own));         // ... and by the PC's name
+    CTM_CHECK(rest_host_allowed("Studio-PC.local:48053", own));
 
     // ⛔ Any other name: the shape of a page DNS has pointed at 127.0.0.1.
-    CTM_CHECK(!rest_host_allowed("evil.example:48055", own));
+    CTM_CHECK(!rest_host_allowed("evil.example:48053", own));
     CTM_CHECK(!rest_host_allowed("evil.example", own));
-    CTM_CHECK(!rest_host_allowed("127.0.0.1.evil.example:48055", own));
-    CTM_CHECK(!rest_host_allowed("localhost.evil.example:48055", own));
-    CTM_CHECK(!rest_host_allowed("studio-pc.evil.example:48055", own));
-    CTM_CHECK(!rest_host_allowed("other-pc:48055", own));
+    CTM_CHECK(!rest_host_allowed("127.0.0.1.evil.example:48053", own));
+    CTM_CHECK(!rest_host_allowed("localhost.evil.example:48053", own));
+    CTM_CHECK(!rest_host_allowed("studio-pc.evil.example:48053", own));
+    CTM_CHECK(!rest_host_allowed("other-pc:48053", own));
     // and anything that is not a well-formed address
-    CTM_CHECK(!rest_host_allowed("256.1.1.1:48055", own));
-    CTM_CHECK(!rest_host_allowed("1.2.3:48055", own));
-    CTM_CHECK(!rest_host_allowed("1.2.3.4.5:48055", own));
-    CTM_CHECK(!rest_host_allowed("1234.1.1.1:48055", own));
-    CTM_CHECK(!rest_host_allowed("::1:48055", own));
+    CTM_CHECK(!rest_host_allowed("256.1.1.1:48053", own));
+    CTM_CHECK(!rest_host_allowed("1.2.3:48053", own));
+    CTM_CHECK(!rest_host_allowed("1.2.3.4.5:48053", own));
+    CTM_CHECK(!rest_host_allowed("1234.1.1.1:48053", own));
+    CTM_CHECK(!rest_host_allowed("::1:48053", own));
     CTM_CHECK(!rest_host_allowed("[::1", own));
     CTM_CHECK(!rest_host_allowed("[::1]x", own));
-    CTM_CHECK(!rest_host_allowed("[evil]:48055", own));
+    CTM_CHECK(!rest_host_allowed("[evil]:48053", own));
     CTM_CHECK(!rest_host_allowed("", own));
     // an own name only counts when it is given
-    CTM_CHECK(!rest_host_allowed("studio-pc:48055", std::vector<std::string>()));
+    CTM_CHECK(!rest_host_allowed("studio-pc:48053", std::vector<std::string>()));
 
     // An Origin is absent, or exactly this listener.
-    CTM_CHECK(rest_origin_allowed("", "127.0.0.1:48055"));
-    CTM_CHECK(rest_origin_allowed("http://127.0.0.1:48055", "127.0.0.1:48055"));
-    CTM_CHECK(rest_origin_allowed("HTTP://LOCALHOST:48055", "localhost:48055"));
-    CTM_CHECK(rest_origin_allowed("http://127.0.0.1:48055/", "127.0.0.1:48055"));
+    CTM_CHECK(rest_origin_allowed("", "127.0.0.1:48053"));
+    CTM_CHECK(rest_origin_allowed("http://127.0.0.1:48053", "127.0.0.1:48053"));
+    CTM_CHECK(rest_origin_allowed("HTTP://LOCALHOST:48053", "localhost:48053"));
+    CTM_CHECK(rest_origin_allowed("http://127.0.0.1:48053/", "127.0.0.1:48053"));
     // ⛔ Another site, another port, another scheme, another spelling of this
     // one, a page from a file, or an Origin with no Host to compare it to.
-    CTM_CHECK(!rest_origin_allowed("http://evil.example", "127.0.0.1:48055"));
-    CTM_CHECK(!rest_origin_allowed("http://127.0.0.1:48056", "127.0.0.1:48055"));
-    CTM_CHECK(!rest_origin_allowed("https://127.0.0.1:48055", "127.0.0.1:48055"));
-    CTM_CHECK(!rest_origin_allowed("http://localhost:48055", "127.0.0.1:48055"));
-    CTM_CHECK(!rest_origin_allowed("null", "127.0.0.1:48055"));
-    CTM_CHECK(!rest_origin_allowed("http://127.0.0.1:48055", ""));
+    CTM_CHECK(!rest_origin_allowed("http://evil.example", "127.0.0.1:48053"));
+    CTM_CHECK(!rest_origin_allowed("http://127.0.0.1:48054", "127.0.0.1:48053"));
+    CTM_CHECK(!rest_origin_allowed("https://127.0.0.1:48053", "127.0.0.1:48053"));
+    CTM_CHECK(!rest_origin_allowed("http://localhost:48053", "127.0.0.1:48053"));
+    CTM_CHECK(!rest_origin_allowed("null", "127.0.0.1:48053"));
+    CTM_CHECK(!rest_origin_allowed("http://127.0.0.1:48053", ""));
 }
 
 int run_rest_parser_tests()

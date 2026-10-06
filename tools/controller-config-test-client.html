@@ -9,11 +9,15 @@
   a usable SERIAL. The whole auto_link design rests on that and it has never
   been observed.
 
-  HOW TO RUN IT. Save the file and open it in a browser. No server, no build:
-  it is one file that talks to the agent over fetch(). The agent sends
-  Access-Control-Allow-Origin, so a file:// page can reach it.
+  HOW TO RUN IT. The listener serves this page: start it, and the window
+  opens on http://127.0.0.1:48053/ (the settings port since 2026-10-06; it
+  was 48055, which is also the TV's first bridge port).
 
-    ctm-usbip.exe agent 48054 --rest 48055
+    ctm-usbip.exe agent 48054 --ui        (or double-click the exe)
+
+  ⛔ Not as a file. Opened from disk it cannot reach the listener: no CORS
+  header is sent, and a page from a file (Origin "null") is refused (code
+  review, 2026-10-05).
 
   ⚠️ NOT A PRODUCT. This is a probe -- deliberately plain, deliberately shows
   the raw response for every call, and does not try to hide errors. When
@@ -1828,7 +1832,7 @@
        at 2.66.4 for thirty-four versions while VERSION moved on. -->
   <span class="muted" style="font-size:12px">v2.66.61</span>
   <label class="muted">agent</label>
-  <input id="base" value="http://127.0.0.1:48055" size="26">
+  <input id="base" value="http://127.0.0.1:48053" size="26">
   <label class="muted">bearer</label>
   <input id="token" placeholder="leave empty unless you set one" size="16"
     title="A password for the listener. Leave this empty -- almost everyone should. The listener normally only answers programs on this same PC, so it needs no password. If you start it with --rest-lan it answers other machines on your network too, and then anyone on your wifi could send it commands. --rest-token sets a password to stop that, and this box is where you type the same password back so this page is still allowed in.">
@@ -5537,7 +5541,7 @@ function commitRename() { commitNameRow(); }
 // rename row, which had to become inline for that reason. These are keyboard
 // and mouse actions in practice, and the alternative is losing work silently.
 // ⛔ NOT confirm(). Chrome titles a native dialog with the ORIGIN --
-// "127.0.0.1:48055 says" -- and a page cannot change that. It also cannot be
+// "127.0.0.1:48053 says" -- and a page cannot change that. It also cannot be
 // dismissed by a controller, which is why the rename row had to become inline.
 //
 // ⭐ This is ordinary markup, so it takes a real title, and ○ backs out of it.

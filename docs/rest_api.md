@@ -7,13 +7,16 @@ keeps using that channel; REST serves the settings page and tooling: curl,
 scripts, health checks.
 
 ```powershell
-ctm-usbip agent --rest 48055                      # loopback-only, no auth
-ctm-usbip agent --rest 48055 --rest-lan --rest-token <token>
-ctm-usbip install --rest 48055                    # service mode carries the same flags
+ctm-usbip agent --rest 48053                      # loopback-only, no auth
+ctm-usbip agent --rest 48053 --rest-lan --rest-token <token>
+ctm-usbip install --rest 48053                    # service mode carries the same flags
 ```
 
 Off unless `--rest` is given, or `--ui`, which needs the settings page and so
-turns REST on at 48055 when no port was named. If the REST port cannot be
+turns REST on at 48053 when no port was named. ⚠️ Not 48055, which it was
+until 2026-10-06: that is also the TV's first bridge port (48055 and up, one
+per bridged device), so with `--rest-lan` the first device bridged could not
+open its port. If the REST port cannot be
 bound the agent fails startup (exit 4) rather than running with a silently
 missing API.
 
@@ -123,7 +126,7 @@ posting an existing `busid` leaves the running session untouched and still
 answers 202.
 
 ```bash
-curl -s -X POST localhost:48055/api/v1/sessions \
+curl -s -X POST localhost:48053/api/v1/sessions \
      -H 'Content-Type: application/json' \
      -d '{"kind":"ds5","port":48100,"busid":"ctm-ds5-1"}'
 ```
