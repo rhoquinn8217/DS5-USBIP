@@ -184,10 +184,12 @@ the listener says the profiles folder is missing and does not start.
 These are created next to the exe as you use it:
 
     configs\                  each controller's settings, made in Controller Configs
-    ctm-device-config.txt     settings shared by every controller, once one is saved
     device.log                what it did, for when something goes wrong
     window-state.txt          where you left Controller Configs, and its size
     keyboard-state.txt        where you left the on-screen keyboard, and its size
+
+ctm-device-config.txt, if it is there, holds settings shared by every
+controller with no config of its own. Nothing creates it: it is written by hand.
 
 Full documentation: https://github.com/rhoquinn8217/CTM-USBIP
 "@
