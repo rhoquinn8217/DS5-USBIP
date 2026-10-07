@@ -29,6 +29,12 @@ inline std::shared_ptr<CtmUsbipDevice> g_device;
 inline std::thread g_pump;
 inline std::atomic_bool g_running{false};
 inline std::atomic_bool g_started{false};
+// ⛔ A FAILED START WAITS BEFORE THE NEXT TRY (code review, 2026-10-05).
+// ensure_started() is called on every report that wants this device, and a
+// failed one re-read its profile and map from disk 250 times a second. Two
+// seconds is soon enough to catch the USB/IP server coming up.
+inline std::atomic<unsigned long long> g_nextTryMs{0};
+constexpr unsigned long long kRetryMs = 2000;
 
 // ⭐ The state the pump publishes. Written by the rebind path, read here.
 //
@@ -318,10 +324,19 @@ inline bool ensure_started()
     if (g_started.load()) {
         return true;
     }
+    const unsigned long long nowMs = GetTickCount64();
+    if (nowMs < g_nextTryMs.load()) {
+        return false;
+    }
     std::lock_guard<std::mutex> lock(g_mutex);
     if (g_started.load()) {
         return true;
     }
+    if (nowMs < g_nextTryMs.load()) {
+        return false;               // another thread just tried
+    }
+    // Set before trying, so every way this attempt can fail waits.
+    g_nextTryMs.store(nowMs + kRetryMs);
 
     if (!g_agent_usbip_server) {
         return false;               // server not up yet; try again next session

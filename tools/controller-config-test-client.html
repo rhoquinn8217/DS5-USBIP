@@ -1989,7 +1989,7 @@
 // come back and you are someone new. That is deliberate, and it matches the
 // ordinal, which is never reused either.
 function nameFor(ordinal) {
-  var d = (LAST_DEVICES || []).filter(function(x) { return x.ordinal === ordinal; })[0];
+  var d = deviceByOrdinal(ordinal);
   // ⓘ Falls back to the ordinal rather than inventing anything: an older agent
   // sends no nickname, and a made-up one here would be the exact bug that was
   // just removed.
@@ -2042,6 +2042,17 @@ function groupDevices(list) {
 }
 
 function leadOf(ordinal) { return GROUP_OF[ordinal] || ordinal; }
+
+// ⓘ The device an ordinal names, or undefined. One loop, no array built: the
+// same filter was written out fifteen times, five of them for the active
+// tab, some on the pad's every frame (code review, 2026-10-05).
+function deviceByOrdinal(ordinal) {
+  var list = LAST_DEVICES || [];
+  for (var i = 0; i < list.length; i++) {
+    if (list[i].ordinal === ordinal) return list[i];
+  }
+  return undefined;
+}
 
 function partsOf(ordinal) {
   var parts = PARTS_OF[leadOf(ordinal)];
@@ -3155,7 +3166,7 @@ function padLegend() {
   // touched has no last press, and the legend still has to say something. The
   // shown controller is the sensible answer there, and a DualSense when
   // nothing is bridged, because that is this project's primary device.
-  var d = (LAST_DEVICES || []).filter(function (x) { return x.ordinal === ACTIVE; })[0];
+  var d = deviceByOrdinal(ACTIVE);
   if (!d) d = (LAST_DEVICES || []).filter(function (x) { return x.supports_config; })[0];
   return padLegendForKind(d ? d.kind : 'ds5');
 }
@@ -3317,7 +3328,7 @@ function nextCopyName(sourceName) {
 // offers gyro_to_mouse_config_3. This is a box around a decision the code
 // already made, not a new naming rule.
 function copyConfigFor(ordinal) {
-  var dev = LAST_DEVICES.filter(function(x) { return x.ordinal === ordinal; })[0];
+  var dev = deviceByOrdinal(ordinal);
   if (!dev || !dev.linked_config) return;
   openNameRow('copy', dev.linked_config, ordinal);
 }
@@ -3363,7 +3374,7 @@ function newConfigFor(ordinal) {
   // used to fall into the guard below and return, so New there did nothing at
   // all -- it was not offering too few presets, it was offering none.
   var dev = ordinal
-    ? (LAST_DEVICES.filter(function(x) { return x.ordinal === ordinal; })[0] || null)
+    ? (deviceByOrdinal(ordinal) || null)
     : null;
   if (ordinal && !dev) return;   // a named controller that has since gone
   // ⓘ The list comes from the agent, not from here: two places naming the same
@@ -4016,7 +4027,7 @@ function createFromPreset(ordinal, preset) {
   // nothing, and open it. The API reads a body with no "device" as exactly
   // that, which is the same spelling unlink uses.
   var dev = ordinal
-    ? (LAST_DEVICES.filter(function(x) { return x.ordinal === ordinal; })[0] || null)
+    ? (deviceByOrdinal(ordinal) || null)
     : null;
   if (ordinal && !dev) { presetCancel(); return; }
   var name = nextConfigName(dev ? dev.kind : '', preset);
@@ -4675,7 +4686,7 @@ function renderConfigEditor(hostId, configName, prefix, ordinal) {
     // ⓘ Missing flags mean TRUE. An older agent sends none, and a page that
     // hid everything against it would be unusable rather than merely dated.
     var capDev = ordinal
-      ? (LAST_DEVICES || []).filter(function(x) { return x.ordinal === ordinal; })[0]
+      ? deviceByOrdinal(ordinal)
       : null;
     var can = function(flag) {
       if (!capDev) return true;
@@ -4770,7 +4781,7 @@ function renderConfigEditor(hostId, configName, prefix, ordinal) {
                        esc(configName) + '\',\'' + esc(meta.key) + '\')"';
         // Disabled below when the key cannot act on this controller.
         var dis = inertReason(meta.key, (ordinal
-          ? (LAST_DEVICES.filter(function(x) { return x.ordinal === ordinal; })[0] || {})
+          ? (deviceByOrdinal(ordinal) || {})
           : {}).kind) ? ' disabled' : '';
         var control;
         // ⭐ A rebind is a PICKER, not a text field. The names are
@@ -4864,7 +4875,7 @@ function renderConfigEditor(hostId, configName, prefix, ordinal) {
         // A controller tab knows its transport; Overview does not, so nothing is
         // marked there -- a config is not tied to one controller.
         var dev2 = ordinal
-          ? (LAST_DEVICES.filter(function(x) { return x.ordinal === ordinal; })[0] || {})
+          ? (deviceByOrdinal(ordinal) || {})
           : {};
         var inert = inertReason(meta.key, dev2.kind);
         // ⭐ And SAY the range, rather than only enforcing it. A box that
@@ -5551,7 +5562,7 @@ var CONFIRM_CB = null;
 // what the setting is keyed on, and a destructive confirmation should name its
 // target precisely.
 function whoIs(ordinal) {
-  var d = (LAST_DEVICES || []).filter(function(x) { return x.ordinal === ordinal; })[0];
+  var d = deviceByOrdinal(ordinal);
   var nick = nameFor(ordinal);
   return (d && d.serial) ? (nick + ' (' + d.serial + ')') : nick;
 }
@@ -5559,7 +5570,7 @@ function whoIs(ordinal) {
 // The same, for a question set as HTML: the serial as a name, the nickname
 // as text (rhoquinn8217, 2026-09-09).
 function whoIsHtml(ordinal) {
-  var d = (LAST_DEVICES || []).filter(function(x) { return x.ordinal === ordinal; })[0];
+  var d = deviceByOrdinal(ordinal);
   var nick = esc(nameFor(ordinal));
   return (d && d.serial) ? (nick + ' (<code>' + esc(d.serial) + '</code>)') : nick;
 }
@@ -5679,6 +5690,9 @@ var GP_REPEAT_AT = 0;
 // cannot see what is coming and you cannot back out.
 var GP_SELECTING = null;
 var GP_EDITING = null;   // a value box the pad is inside
+// ⓘ What the pad bar's hint shows now, so gpPoll writes it only when it changes
+// (code review, 2026-10-05). null after anything else writes the hint.
+var GP_HINT_SHOWN = null;
 var GP_SELECT_WAS = 0;
 
 // Everything focusable in the ACTIVE pane, in document order, plus the tab bar.
@@ -8147,7 +8161,7 @@ function compactAskExit(title, buttons) {
 // setAutoLink does the asking when another config holds the claim, and the
 // claiming; the repaint that follows lights the 🗘.
 function compactAutoLink() {
-  var d = (LAST_DEVICES || []).filter(function (x) { return x.ordinal === ACTIVE; })[0];
+  var d = deviceByOrdinal(ACTIVE);
   if (!d || !d.linked_config) return;
   var mySerial = normSerial(d.serial);
   if (!mySerial) return;
@@ -8168,7 +8182,7 @@ function compactAutoLink() {
 // while the button is lit -- but NOT when no config is linked at all, which is
 // now a state this button can act in. Reading the claim itself is right in both.
 function compactAutoUnlink() {
-  var d = (LAST_DEVICES || []).filter(function (x) { return x.ordinal === ACTIVE; })[0];
+  var d = deviceByOrdinal(ACTIVE);
   if (!d) return;
   var mySerial = normSerial(d.serial);
   if (!mySerial) return;
@@ -8185,7 +8199,7 @@ function compactAutoUnlink() {
 
 // The compact views' Unlink: the same call the picker's "(no config)" makes.
 function compactUnlink() {
-  var d = (LAST_DEVICES || []).filter(function (x) { return x.ordinal === ACTIVE; })[0];
+  var d = deviceByOrdinal(ACTIVE);
   if (!d || !d.linked_config) return;
   unlinkConfirmed(d.ordinal);
 }
@@ -8326,7 +8340,7 @@ function paintCompact() {
     // legend doesn't update with the correct text after switching to a
     // different mode"*). A collapsed picker has nothing to protect.
   if (GP_SELECTING && box.contains(GP_SELECTING) && GP_SELECTING.size > 1) return;
-  var d = (LAST_DEVICES || []).filter(function (x) { return x.ordinal === ACTIVE; })[0];
+  var d = deviceByOrdinal(ACTIVE);
   // T-240: the legend's glyphs, for the pad this window is showing.
   var LG = padLegend();
   // The listener remembers which controller was on screen, for the next
@@ -8380,7 +8394,7 @@ function paintCompact() {
     var next = many ? ring[(at + 1) % ring.length] : '';
     var side = function (ord, cls, key) {
       if (!ord) return '<div class="cside ' + cls + '"></div>';
-      var od = (LAST_DEVICES || []).filter(function (x) { return x.ordinal === ord; })[0];
+      var od = deviceByOrdinal(ord);
       // ⓘ Quick shows the key alone -- "◂ L1", "R1 ▸" -- the neighbour's name
       // and kind will not fit its width (rhoquinn8217, 2026-09-09).
       if (QUICK) {
@@ -8619,6 +8633,7 @@ function gpPoll() {
     // and someone would go looking for one.
     var hintOff = document.getElementById('gphint');
     if (hintOff) hintOff.textContent = 'controller ignored while this window is behind — click it to use the pad';
+    GP_HINT_SHOWN = null;
     requestAnimationFrame(gpPoll);
     return;
   }
@@ -8650,6 +8665,7 @@ function gpPoll() {
     // this one says what is reaching the page; this says only how to drive it.
     hint.textContent = 'arrows move, Enter select, Esc back, Space on/off' +
                        '   ·   press a controller button to use a pad';
+    GP_HINT_SHOWN = null;
     bar.className = '';
     requestAnimationFrame(gpPoll);
     return;
@@ -8691,12 +8707,25 @@ function gpPoll() {
   // announced; if that is wanted back it belongs on the destination line,
   // which owns this question now, and from LAST_DEVICES rather than the
   // browser's view -- that mismatch is what T-240 had to be rebuilt for.
-  hint.innerHTML = LGA.shoulder + ' controller | ' + LGA.select +
-                     ' select | ' + LGA.dpad + ' move | ' + LGA.toggle + ' on/off | ' +
-                     LGA.position + ' position | ' + LGA.resize + ' resize | ' +
-                     LGA.close + ' footer/close';
-  bar.className = 'live';
-  measureGpBar();
+  // ⓘ WRITTEN AND MEASURED ONLY WHEN SOMETHING CHANGED (code review,
+  // 2026-10-05). This runs every frame a pad is live, and rewriting the line
+  // and then reading the bar's height forced a layout of the whole page sixty
+  // times a second. While a value is being edited, its own hint (below) stands.
+  var barChanged = false;
+  var legend = LGA.shoulder + ' controller | ' + LGA.select +
+               ' select | ' + LGA.dpad + ' move | ' + LGA.toggle + ' on/off | ' +
+               LGA.position + ' position | ' + LGA.resize + ' resize | ' +
+               LGA.close + ' footer/close';
+  if (!GP_EDITING && GP_HINT_SHOWN !== legend) {
+    hint.innerHTML = legend;
+    GP_HINT_SHOWN = legend;
+    barChanged = true;
+  }
+  if (bar.className !== 'live') {
+    bar.className = 'live';
+    barChanged = true;
+  }
+  if (barChanged) measureGpBar();
 
   var now = performance.now();
 
@@ -8790,8 +8819,11 @@ function gpPoll() {
     // ⭐ SAY SO, in the footer. A mode you cannot tell you are in is worse than
     // no mode: every other button stops working and the pad just feels broken.
     var hintEd = document.getElementById('gphint');
-    if (hintEd) {
-      hintEd.textContent = '▲▼ 1, ◄► 10, L1/R1 100 — ✕ or ○ to leave';
+    var editHint = '▲▼ 1, ◄► 10, L1/R1 100 — ✕ or ○ to leave';
+    if (hintEd && GP_HINT_SHOWN !== editHint) {
+      hintEd.textContent = editHint;
+      GP_HINT_SHOWN = editHint;
+      measureGpBar();
     }
 
     if (edge(0) || edge(1)) {
