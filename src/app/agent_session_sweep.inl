@@ -147,18 +147,20 @@ static void sweep_bridge_sessions()
 // that are SENT to the controller, like speaker_volume, which otherwise sit
 // unchanged until something happens to write that field.
 //
-// !! WHY THE POINTERS ARE COPIED AND THE LOCK RELEASED BEFORE SENDING.
+// !! WHY THE BACKENDS ARE COPIED AND THE LOCK RELEASED BEFORE SENDING.
 // !! Sending is network I/O on a socket with no send timeout, so a wedged TV
 // !! can stall it. Holding the session list lock across that would block a
 // !! starting session's worker, which takes the same lock. Copying and
 // !! releasing avoids it.
 // !!
-// !! THAT IS ONLY SAFE BECAUSE SESSION TEARDOWN HAPPENS ON THIS THREAD.
-// !! stop_bridge_session() and the reap drain both run on the agent loop, so
-// !! no backend can be freed while this function is running. If teardown ever
-// !! moves to another thread, this becomes a use-after-free and must be
-// !! revisited -- copying a raw pointer out from under a lock is only correct
-// !! under that guarantee.
+// !! ⛔ AND EACH COPY IS A SHARED REFERENCE, NOT A RAW POINTER (code review,
+// !! 2026-10-05). This said teardown happened only on this thread, and it does
+// !! not: a session's own worker retires an older session for the same pad,
+// !! and the REST API stops one too, both through stop_bridge_session(). A raw
+// !! pointer copied here could be freed in the middle of a send. The reference
+// !! keeps the backend alive until this loop is done with it, and a backend
+// !! stopped meanwhile refuses the send ("bridge socket closed", or the ENet
+// !! peer gone), which is safe.
 //
 // A stall here delays the agent loop -- no new sessions, no reaps -- until the
 // send returns. That is the least-bad place for it: one thread waiting rather
@@ -170,7 +172,8 @@ static void apply_pending_config_to_sessions()
     }
 
     struct Target {
-        CtmBackend *backend;
+        // Shared, so a stop on another thread cannot free it mid-send (above).
+        std::shared_ptr<CtmBackend> backend;
         // ⚠️ The linked config travels with the target. Without it this sweep
         // pushed SHARED-section values over a linked device's settings, quietly
         // undoing its config every time the shared file changed.
@@ -193,15 +196,24 @@ static void apply_pending_config_to_sessions()
                 std::lock_guard<std::mutex> sessionLock(session->mutex);
                 linked = session->linkedConfig;
             }
-            targets.push_back(Target{session->backend.get(), linked, session->kind,
+            targets.push_back(Target{session->backend, linked, session->kind,
                                      session->busIdAscii, session->device});
         }
     }
 
     for (const Target &target : targets) {
+        // ⛔ NOTHING FOR A DEVICE WITHOUT A SETTINGS SECTION OF ITS OWN (code
+        // review, 2026-10-05). A keyboard, a mouse or pointer, any other HID
+        // part, the Steam puck: none has audio, and none has a section to
+        // read. This loop fell back to "ds5" for them and sent the DualSense
+        // section's audio latency and levels to every keyboard's session.
+        const std::string settingsKind = config_store::settings_kind_for(target.kind);
+        if (settingsKind.empty()) {
+            continue;
+        }
         device_log::config(device_log::msg()
             << "pushing settings to live session busid=" << target.busIdAscii);
-        ds5_apply_initial_settings(target.backend, target.linkedConfig, target.device.get());
+        ds5_apply_initial_settings(target.backend.get(), target.linkedConfig, target.device.get());
 
         // The audio buffer is not part of the settings report -- it lives in
         // the host config, which the TV accepts at any point in a session. Sent
@@ -215,10 +227,8 @@ static void apply_pending_config_to_sessions()
         //
         // ⚠️ Uses the SESSION kind, not a literal, so an Edge resolves its own
         // section rather than borrowing the DualSense one.
-        const std::string latencyKind = config_store::settings_kind_for(target.kind);
         const std::string latencySection =
-            device_settings_section(latencyKind.empty() ? "ds5" : latencyKind.c_str(),
-                                    target.linkedConfig);
+            device_settings_section(settingsKind.c_str(), target.linkedConfig);
         const int latency = device_config_int(latencySection.c_str(), "audio_latency_ms", -1);
         // Warn on the live path as well as at handshake. This is the one a
         // person actually meets: they edit the file mid-session, the audio goes

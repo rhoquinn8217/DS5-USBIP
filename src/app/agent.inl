@@ -6,7 +6,11 @@ struct AgentBridgeSession {
     std::string busIdAscii;
     uint16_t port = 0;
     std::shared_ptr<CtmUsbipDevice> device;
-    std::unique_ptr<CtmBackend> backend;
+    // ⛔ SHARED, NOT UNIQUE (code review, 2026-10-05). The settings push sends
+    // on it from the agent loop after letting go of the session list lock, and
+    // a stop on another thread -- a worker retiring an older session for the
+    // same pad, or the REST API -- must not free it under that send.
+    std::shared_ptr<CtmBackend> backend;
     // Non-owning view of backend when it is the ENet transport, used to wire the
     // plug-out/plug-in callbacks. nullptr for the TCP BridgeBackend.
     EnetBridgeBackend *enetBackend = nullptr;
