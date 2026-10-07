@@ -87,7 +87,13 @@ static bool write_hid_report(
         if (wait == WAIT_OBJECT_0) {
             ok = GetOverlappedResult(handle, &ov, &written, FALSE);
         } else {
-            CancelIo(handle);
+            // ⛔ CANCEL, THEN WAIT FOR THE CANCEL (code review, 2026-10-05). ov
+            // and framed live on this stack, and CancelIo only asks: returning
+            // at once let Windows finish the write into memory already gone.
+            // Cancel this write alone and let it land before anything goes.
+            CancelIoEx(handle, &ov);
+            DWORD cancelled = 0;
+            (void)GetOverlappedResult(handle, &ov, &cancelled, TRUE);
             CloseHandle(ov.hEvent);
             if (error) *error = L"BT HID write timed out";
             return false;

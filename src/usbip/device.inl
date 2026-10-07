@@ -191,6 +191,9 @@ public:
                    << L"ms audio_start="
                    << std::chrono::duration_cast<std::chrono::milliseconds>(attachT2 - attachT1).count()
                    << L"ms";
+        // ⭐ The profile, the serial and the USB info are final: input may come
+        // through now (see on_physical_input).
+        inputReady_.store(true, std::memory_order_release);
         return true;
     }
 
@@ -346,11 +349,20 @@ public:
             return;
         }
 
-        if (ctm_verbose_logs()) device_log::usb_s() << "unknown reports";
-        for (const auto &entry : unknownLogCounts_) {
-            device_log::usb_s() << " " << entry.first << "=" << entry.second;
+        // ⛔ ONE RECORD, AND ONLY WITH --verbose (code review, 2026-10-05). Each
+        // usb_s() writes its own record when its statement ends, so this wrote
+        // the header (verbose only), then a record per counter and an empty one
+        // whatever the mode: 1,101 fragments in one device.log.1. Upstream
+        // printed it as one console line; the header's gate says the counters
+        // were meant to go with it.
+        if (ctm_verbose_logs()) {
+            std::ostringstream line;
+            line << "unknown reports";
+            for (const auto &entry : unknownLogCounts_) {
+                line << " " << entry.first << "=" << entry.second;
+            }
+            device_log::usb(line.str());
         }
-        device_log::usb_s() << std::endl;
         unknownLogCounts_.clear();
         unknownLogLastFlush_ = now;
     }
@@ -441,6 +453,16 @@ public:
     void on_physical_input(const uint8_t *data, size_t length, uint8_t endpoint)
     {
         if (data == nullptr || length == 0) {
+            return;
+        }
+        // ⛔ NOTHING UNTIL THE DEVICE IS WHOLE (code review, 2026-10-05). The
+        // backend delivers reports from the moment it starts, but the session's
+        // worker writes a dynamic or composite profile, the virtual serial and
+        // the USB info parsed from them AFTER that, and this reads them on
+        // every report: one arriving in that window read a profile being
+        // replaced. attach_backend() opens the gate once they are final.
+        // ⓘ Nothing is lost: Windows has no device to hand a report to yet.
+        if (!inputReady_.load(std::memory_order_acquire)) {
             return;
         }
         if (!compInLogged_[endpoint]) {
@@ -1296,16 +1318,20 @@ private:
                 &responseLength,
                 reason,
                 timeoutMs);
-            device_log::usb_s() << reason << " get report=0x"
-                      << std::hex << std::setw(2) << std::setfill('0')
-                      << static_cast<unsigned int>(action.report)
-                      << std::dec << std::setfill(' ')
-                      << " ok=" << (ok ? 1 : 0)
-                      << " len=" << responseLength;
-            if (ok && response != nullptr && responseLength > 0) {
-                if (ctm_verbose_logs()) device_log::usb_s() << " head=" << hex_span(response, (std::min<size_t>)(responseLength, 32));
+            // ⓘ One record (code review, 2026-10-05): the head and the line's
+            // end were records of their own, so every preload left a fragment
+            // and an empty line behind it.
+            std::ostringstream line;
+            line << reason << " get report=0x"
+                 << std::hex << std::setw(2) << std::setfill('0')
+                 << static_cast<unsigned int>(action.report)
+                 << std::dec << std::setfill(' ')
+                 << " ok=" << (ok ? 1 : 0)
+                 << " len=" << responseLength;
+            if (ok && response != nullptr && responseLength > 0 && ctm_verbose_logs()) {
+                line << " head=" << hex_span(response, (std::min<size_t>)(responseLength, 32));
             }
-            device_log::usb_s() << std::endl;
+            device_log::usb(line.str());
         }
     }
 
@@ -2027,6 +2053,8 @@ private:
     CtmMapRuntime map_;
     UsbDeviceInfo info_;
     CtmBackend *backend_ = nullptr;
+    // Opened by attach_backend(), read on every report (on_physical_input).
+    std::atomic_bool inputReady_{false};
     std::mutex mapMutex_;
     std::mutex inputMutex_;
     std::condition_variable inputCv_;

@@ -819,20 +819,23 @@ private:
             if (status != kStatusOk) {
                 record_error();
                 if (ctm_verbose_logs()) {
-                    device_log::usb_s() << "usbip issue"
-                              << " seq=" << seqnum
-                              << " status=" << status
-                              << " dir=" << (direction == kUsbipDirIn ? "in" : "out")
-                              << " ep=0x" << std::hex << std::setw(2) << std::setfill('0')
-                              << static_cast<unsigned int>((ep & 0x0f) | (direction == kUsbipDirIn ? 0x80 : 0x00))
-                              << std::dec << std::setfill(' ')
-                              << " len=" << transferLength
-                              << " start_frame=" << startFrame
-                              << " interval=" << interval;
+                    // ⓘ One record (code review, 2026-10-05): the setup bytes
+                    // and the line's end were records of their own.
+                    std::ostringstream line;
+                    line << "usbip issue"
+                         << " seq=" << seqnum
+                         << " status=" << status
+                         << " dir=" << (direction == kUsbipDirIn ? "in" : "out")
+                         << " ep=0x" << std::hex << std::setw(2) << std::setfill('0')
+                         << static_cast<unsigned int>((ep & 0x0f) | (direction == kUsbipDirIn ? 0x80 : 0x00))
+                         << std::dec << std::setfill(' ')
+                         << " len=" << transferLength
+                         << " start_frame=" << startFrame
+                         << " interval=" << interval;
                     if (isControl) {
-                        device_log::usb_s() << " setup=" << hex_span(setup, 8);
+                        line << " setup=" << hex_span(setup, 8);
                     }
-                    device_log::usb_s() << std::endl;
+                    device_log::usb(line.str());
                 }
             }
 
