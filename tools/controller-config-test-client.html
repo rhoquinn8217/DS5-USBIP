@@ -5011,25 +5011,46 @@ function openConfig(name) {
 // per increment, which can stutter audio while you drag a value.
 var WRITE_TIMERS = {};
 
+// ⛔⛔ THE VALUE AND THE CONFIG ARE TAKEN WHEN THE EDIT IS MADE, NOT WHEN THE
+// TIMER FIRES (code review, 2026-10-05). A row is found by an id that belongs
+// to the TAB, not to the config: switch the tab to another config within the
+// 400 ms and the row read at fire time held the OTHER config's value, which was
+// written into this one, and the edit was lost. And the pending write is keyed
+// by its config too, so an edit to the same setting in the next config cannot
+// cancel it.
 function writeOne(prefix, configName, key) {
-  var slot = prefix + '|' + key;
+  var value = settingValue(prefix, key);
+  if (value === null) return;
+  var slot = prefix + '|' + configName + '|' + key;
   if (WRITE_TIMERS[slot]) clearTimeout(WRITE_TIMERS[slot]);
   WRITE_TIMERS[slot] = setTimeout(function() {
     delete WRITE_TIMERS[slot];
-    writeOneNow(prefix, configName, key);
+    postSetting(configName, key, value);
   }, 400);
 }
 
 function writeOneNow(prefix, configName, key) {
+  var value = settingValue(prefix, key);
+  if (value === null) return;
+  postSetting(configName, key, value);
+}
+
+// What a row holds now: its value, or '' when its box says unmanaged. null
+// when the row is not on the page.
+function settingValue(prefix, key) {
   var id = 'dv-' + prefix + '-' + key;
   var el = document.getElementById(id);
   var box = document.getElementById('mg-' + id);
-  if (!el) return;
+  if (!el) return null;
+  return (box && !box.checked) ? '' : el.value;
+}
+
+function postSetting(configName, key, value) {
   var body = {};
-  body[key] = (box && !box.checked) ? '' : el.value;
+  body[key] = value;
   call('POST', '/api/v1/configs/' + encodeURIComponent(configName) + '/settings', body)
     .then(function() {
-      setConn(key + ' → ' + (body[key] === '' ? 'unmanaged' : body[key]), 'good');
+      setConn(key + ' → ' + (value === '' ? 'unmanaged' : value), 'good');
     }).catch(function(){});
 }
 
