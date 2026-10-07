@@ -69,8 +69,24 @@ inline std::atomic_int g_openedBy{-1};
 // held press typed a Backspace: the exact fault above. Two DualSenses always
 // shared it; a DualSense beside a DS4 started to once the keyboard read a DS4.
 // ➡️ Each pad arms on seeing the button up in ITS OWN report. Cleared by show().
-// Guarded by g_padMutex, declared with the pad edges below.
+// Guarded by g_stateMutex, below; forget_device erases it with the pad edges.
 inline std::map<const void *, bool> g_closeArmedFor;
+
+// ⛔⛔ THE KEYBOARD'S STATE IS SHARED BY THREE KINDS OF THREAD, AND THIS IS ITS
+// LOCK (code review, 2026-10-05). Each bridged pad's input thread drives it
+// through handle_report(), the window's own thread paints it and takes the
+// mouse, and the tray and a departing device show, hide and forget. The maps,
+// the key layout (a vector the paint rebuilds) and the cursor were touched
+// from all of them with no lock: hide() emptied heldKeyFor while a pad held a
+// reference into it, and a pad switching the face emptied the layout under
+// the paint.
+// ➡️ RECURSIVE, because the paths nest on one thread: a press can close the
+// keyboard (hide() inside handle_report), and the window procedure calls
+// itself through SetCapture, ReleaseCapture and SetWindowPos.
+// ➡️ ORDER: this one first, g_padMutex inside it. And never held across
+// DefWindowProcW: dragging the window runs a modal loop in there, and every
+// pad would wait for the whole drag.
+inline std::recursive_mutex g_stateMutex;
 
 // ⓘ Declared here: handle_report closes the window, and is defined above hide.
 inline void hide();
@@ -1533,6 +1549,19 @@ inline void paint(HWND hwnd)
 
 inline LRESULT CALLBACK wnd_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 {
+    // ⛔ The keyboard's lock, for the messages that read or change its state
+    // (see g_stateMutex). Each of them returns from its own case, so the lock
+    // is never held across DefWindowProcW at the bottom.
+    std::unique_lock<std::recursive_mutex> stateLock(g_stateMutex, std::defer_lock);
+    switch (msg) {
+    case WM_PAINT: case WM_NCHITTEST: case WM_MOUSEMOVE: case WM_MOUSELEAVE:
+    case WM_LBUTTONDOWN: case WM_LBUTTONUP: case WM_CAPTURECHANGED: case WM_DESTROY:
+        stateLock.lock();
+        break;
+    default:
+        break;
+    }
+
     switch (msg) {
     case WM_PAINT:
         paint(hwnd);
@@ -1837,11 +1866,15 @@ inline bool edge(const void *deviceKey, int index, bool downNow)
 
 inline void forget_device(const void *deviceKey)
 {
+    std::lock_guard<std::recursive_mutex> state(g_stateMutex);
     std::lock_guard<std::mutex> lock(g_padMutex);
     g_padPrev.erase(deviceKey);
     g_dirHeldFor.erase(deviceKey);
     g_layersHeldFor.erase(deviceKey);
     g_closeArmedFor.erase(deviceKey);
+    // ⓘ And its latched key: hide() clears every pad's, but nothing cleared
+    // one pad's as it left (code review, 2026-10-05).
+    heldKeyFor.erase(deviceKey);
 }
 
 // ⓘ Everything neutral: sticks centred, triggers released, no buttons, hat
@@ -1866,6 +1899,8 @@ inline bool handle_report(const void *deviceKey, const ctm_rebind::Layout &lay,
                           const uint8_t *data, size_t len)
 {
     if (!visible() || data == nullptr || len < lay.minLength) return false;
+    // ⛔ The whole report under the keyboard's lock (see g_stateMutex).
+    std::lock_guard<std::recursive_mutex> stateLock(g_stateMutex);
 
     // ⓘ Any button down says which pad is in the hand, for the symbols.
     for (int i = 0; i < ctm_rebind::kButtonCount; ++i) {
@@ -2221,6 +2256,7 @@ inline void show(int width = 0, int height = 0, int openedByButton = -1)
     if (const char *layoutName = rebind_last_press_layout()) g_glyphs.store(glyphs_for(layoutName));
     {
         // ⓘ The opening press must not close it, or type -- on any pad.
+        std::lock_guard<std::recursive_mutex> state(g_stateMutex);
         std::lock_guard<std::mutex> lock(g_padMutex);
         g_closeArmedFor.clear();
     }
@@ -2240,6 +2276,7 @@ inline void hide()
     // forever and looks like a stuck keyboard -- the same class of fault as a
     // stuck mouse button, and the same reason unbridging releases its keys.
     {
+        std::lock_guard<std::recursive_mutex> state(g_stateMutex);
         std::lock_guard<std::mutex> lock(g_padMutex);
         for (const auto &entry : g_padPrev) {
             ctm_keyboard_device::forget_device(entry.first);
