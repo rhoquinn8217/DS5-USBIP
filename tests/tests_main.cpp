@@ -21,6 +21,7 @@ int run_stick_mouse_tests();
 int run_osk_tests();
 int run_window_icon_rule_tests();
 int run_nickname_tests();
+int run_rest_shared_section_tests();
 int run_device_names_tests();
 int run_tray_menu_tests();
 int run_same_controller_tests();
@@ -116,6 +117,7 @@ int main(int argc, char **argv)
     run_osk_tests();
     run_window_icon_rule_tests();
     run_nickname_tests();
+    run_rest_shared_section_tests();
     run_device_names_tests();
     run_tray_menu_tests();
     run_same_controller_tests();
