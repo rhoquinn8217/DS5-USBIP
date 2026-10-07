@@ -98,6 +98,7 @@
     <ClCompile Include="..\tests\window_icon_rule_test.cpp" />
     <ClCompile Include="..\tests\nickname_test.cpp" />
     <ClCompile Include="..\tests\rest_shared_section_test.cpp" />
+    <ClCompile Include="..\tests\held_edges_test.cpp" />
     <ClCompile Include="..\tests\device_names_test.cpp" />
     <ClCompile Include="..\tests\tray_menu_test.cpp" />
     <ClCompile Include="..\tests\same_controller_test.cpp" />
