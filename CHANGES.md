@@ -131,6 +131,10 @@ carry it; upstream's own history is unchanged.
 | 2026-10-04 | The window is "Controller Configs": "config" named the window, the saved set a controller is linked to and the folder at once, so a config stays a config and the window is named for the configs it holds. Its title ("DS5-USBIP Controller Configs"), the tray's "Open Controller Configs", Simple's heading, the hints and the confirm box say so, the tray's layout side menu is "Window Mode" (it was "Config Mode"), and the tray tip reads "DS5-USBIP: Select Devices, Controller Configs, Virtual Keyboard or Quit". Page 2.66.57. | `6515409` |
 | 2026-10-05 | What the window says when DS5-USBIP does not answer is true again: start it from its desktop shortcut or a double-click, or wait if it is restarting, as Controller Configs comes back by itself. Gone: the command lines to type, the --rest switch it now turns on by itself, the address field the window does not show, and the firewall. Advanced says it once (the early warning gives way to the cover and stays gone), Simple and Quick lose their command line, and the footer and the log say "listener" where they said "agent". The README in the zip names Controller Configs and lists every file the listener creates beside itself. Page 2.66.59. | `0778b81`, `69b1370` |
 | 2026-10-05 | Fixes from a code review, tested by hand over Bluetooth. A DualSense Edge over Bluetooth is accepted (kind `ds5e`). The DualSense settings report (mic mute, trigger feel, routing) goes through the session's map, so a Bluetooth pad gets it in its own form. A reconnect sends its handshake before anything else and keeps the session's audio and latency, and the handshake's speaker, headset and mode start unset rather than zero. Config mode holds back the Edge's Fn buttons and back paddles. A trigger presses at 90 percent unless a config says otherwise, in the reader, the feel and the page alike. The control port waits at most a second for a command, and the tray icon comes back after Explorer restarts. Page 2.66.60: no Refresh button is mentioned, battery levels repaint, a tab lands on a section it has, and a trigger feel's blank says it leaves the trigger alone. | `26c12ef`, `297173d`, `450558f`, `f7a3639`, `044d958`, `5e69594`, `0b55e48`, `7853fc3`, `09ce5ea`, `77c6e53` |
+| 2026-10-06 | More fixes from the code review. The pad shortcut opens the window off the pad's own thread and is refused while the window it asked for is on its way, and each pad swallows only its own held buttons, from when the window drops behind. Held keys and clicks let go when the window goes behind, while Options steers it and when a binding is removed. A steady trigger takes any binding a button can, and a trigger bound to a key types nothing into the window. The stick mouse moves as fast on a diagonal as straight. Config files, the shared settings file and the gyro calibration are read without holding the input or the session lock, so a TV's command no longer waits behind a calibration. A session ended by the idle rule frees its microphone slot, an attach that fails says why in device.log, and an Xbox pad or any other device is named by how it reaches the TV, "Xbox Controller (USB)". Small mismatches: Advanced's Close, a preset key, REST's 403, the keyboard files, the README. Page 2.66.61. | `123b4a3`, `30a0666`, `5080dd5`, `b7d269b`, `316de3d`, `4be59f3`, `c998bcf`, `67122ae`, `83f1427`, `9e19239`, `f422a16`, `322d39b`, `bd2a936`, `7886a56`, `cda754b` |
+| 2026-10-06 | The settings page moves to port 48053, off the TV's first bridge port. The REST port refuses other sites, the page loads with a token, and the REST API doc lists every route and who may ask. The page's self-test runs once instead of reloading for ever. A new config is written with CRLF, not CR CR LF, and the settings window is found only by a title that ends with its marker. Unused protocol pieces say so, the old WinForms settings panels move to the attic, `src/capture` and `src/usbdisplay` say they are not part of the listener, and leftovers with no use are taken out. | `aa37e9d`, `65f5f7e`, `ba41608`, `6c691f1`, `088cb87`, `b5a89dd`, `b68da4e`, `5043669`, `7eaa2f6`, `687458b` |
+| 2026-10-06 | Fixes from the code review, run on the C1. The settings push keeps each backend alive and skips devices with no settings section, and the shared config is served section by section with the devices that read it. The rebinder's held-button flags live in one locked table that a departing pad clears, and the on-screen keyboard's shared state has one lock. The USB/IP server checks a submit's sizes before trusting them, and an unlink cancels what is queued. A timed-out Bluetooth write waits for its cancel, input waits for the device to be whole, and log lines are one record. Four costs that ran on every report or every frame are gone, and an edit is written with the value and config it was made in, however fast the tab moves on. Page 2.66.62: what nothing used is gone, and the self-test can read 0 failed again. | `ff256b1`, `464c883`, `c426c18`, `cf849c3`, `89811ec`, `3bae874`, `6626ca5`, `63ce9d3`, `867d080` |
+| 2026-10-07 | A device the TV sent no serial for gets its own USB serial, hashed from the TV's node for it and its ids, so two such pads bridged at once are two devices to Windows, and the same pad on the same node keeps its id. The bridge structures' sizes and later fields' offsets are asserted at compile time, matching the TV's own test. | `6deb8ff`, `702c623` |
 
 ## Files changed
 
@@ -141,21 +145,27 @@ upstream's release FFmpeg binaries replacing the repo's debug ones).
 ```
  .gitattributes                                |   48 +
  .gitignore                                    |   34 +-
- CHANGES.md                                    |  286 +
+ CHANGES.md                                    |  302 +
  LINK                                          |    0
  README.md                                     |  255 +-
- app/ctm-usbip-tests.vcxproj                   |  124 +
+ app/ctm-usbip-tests.vcxproj                   |  128 +
  app/ctm-usbip.ico                             |  Bin 156019 -> 174189 bytes
  app/ctm-usbip.rc                              |   18 +-
  app/ctm-usbip.vcxproj                         |   17 +-
+ attic/README.md                               |   24 +
+ attic/device-config-panel-edge.bat            |    9 +
+ attic/device-config-panel-edge.ps1            |  327 +
+ attic/device-config-panel.bat                 |    4 +
+ attic/device-config-panel.ps1                 |  303 +
  attic/flydigi_apex4_identity.map              |   58 +
  attic/flydigi_apex4_usb.profile               |   24 +
  build-tests.ps1                               |   86 +
- build.ps1                                     |   96 +-
+ build.ps1                                     |   99 +-
  device-config.md                              |  195 +
- docs/rest_api.md                              |  139 +
+ docs/rest_api.md                              |  210 +
  include/ctm/map/runtime.h                     |   34 +
  include/ctm/product.h                         |   32 +
+ include/ctm/protocol.h                        |   65 +-
  installer/make-icon-ds5.ps1                   |  210 +
  maps/ds4_usb_over_ds4_usb.map                 |   61 +
  maps/ds5_usb_over_ds5_usb.map                 |   61 +
@@ -165,24 +175,25 @@ upstream's release FFmpeg binaries replacing the repo's debug ones).
  profiles/descriptors/ds5e_composite.profile   |   30 +
  profiles/descriptors/virtual_keyboard.profile |   74 +
  profiles/descriptors/virtual_mouse.profile    |   59 +
- release.ps1                                   |  260 +
- src/app/agent.inl                             |  666 +-
- src/app/agent_session_sweep.inl               |  323 +
- src/app/cli.inl                               |   36 +-
+ release.ps1                                   |  262 +
+ src/app/agent.inl                             |  681 +-
+ src/app/agent_session_sweep.inl               |  333 +
+ src/app/cli.inl                               |   47 +-
  src/app/common.inl                            |   48 +-
  src/app/config_move.inl                       | 1112 +++
  src/app/console_attach.inl                    |   82 +
  src/app/device_capabilities.inl               |   75 +
- src/app/device_names.inl                      |   76 +
+ src/app/device_names.inl                      |   93 +
  src/app/device_type.inl                       |   70 +
  src/app/home_folder.inl                       |  110 +
  src/app/nickname.inl                          |   90 +
  src/app/open_ui.inl                           |  562 ++
- src/app/overlay_window.inl                    | 2263 ++++++
- src/app/rest.inl                              |  760 ++
- src/app/rest_config.inl                       | 1240 ++++
- src/app/rest_config_sessions.inl              |  204 +
+ src/app/overlay_window.inl                    | 2300 ++++++
+ src/app/rest.inl                              |  878 +++
+ src/app/rest_config.inl                       | 1277 ++++
+ src/app/rest_config_sessions.inl              |  205 +
  src/app/rest_sessions.inl                     |   33 +
+ src/app/rest_shared_section.inl               |   55 +
  src/app/same_controller.inl                   |   38 +
  src/app/same_device.inl                       |   79 +
  src/app/service.inl                           |   25 +-
@@ -192,7 +203,7 @@ upstream's release FFmpeg binaries replacing the repo's debug ones).
  src/app/tray_menu.inl                         |  157 +
  src/app/ui_page.inl                           |  114 +
  src/app/window_icon.inl                       |  242 +
- src/app/window_icon_rule.inl                  |   67 +
+ src/app/window_icon_rule.inl                  |   68 +
  src/app/window_move.inl                       |  245 +
  src/app/window_size_rule.inl                  |  101 +
  src/audio/audio_gain.inl                      |  178 +
@@ -203,14 +214,15 @@ upstream's release FFmpeg binaries replacing the repo's debug ones).
  src/audio/mic_ring.inl                        |  202 +
  src/audio/pcm_amplitude_log.inl               |  162 +
  src/audio/rumble_floor.inl                    |   58 +
- src/backend/backend.inl                       |   53 +
- src/backend/bridge.inl                        |  329 +-
- src/backend/bridge_enet.inl                   |   46 +-
- src/backend/bt.inl                            |   16 +-
+ src/backend/backend.inl                       |   56 +
+ src/backend/bridge.inl                        |  361 +-
+ src/backend/bridge_enet.inl                   |   49 +-
+ src/backend/bt.inl                            |   24 +-
+ src/capture/README.md                         |   14 +
  src/config/config_presets.inl                 |  475 ++
- src/config/config_store.inl                   |  820 +++
+ src/config/config_store.inl                   |  854 +++
  src/config/config_watcher.inl                 |  170 +
- src/config/device_config.inl                  |  218 +
+ src/config/device_config.inl                  |  271 +
  src/input/battery.inl                         |  105 +
  src/input/binding_names.inl                   |  244 +
  src/input/button_layout.inl                   | 1130 +++
@@ -219,35 +231,41 @@ upstream's release FFmpeg binaries replacing the repo's debug ones).
  src/input/gyro_calibration_fetch.inl          |   99 +
  src/input/gyro_hold.inl                       |   48 +
  src/input/gyro_mouse.inl                      | 1190 +++
+ src/input/held_edges.inl                      |   67 +
  src/input/key_pulse.inl                       |  106 +
- src/input/keyboard_device.inl                 |  366 +
+ src/input/keyboard_device.inl                 |  397 +
  src/input/mic_report.inl                      |   41 +
- src/input/mouse_device.inl                    |  304 +
+ src/input/mouse_device.inl                    |  319 +
  src/input/mouse_exclusive.inl                 |  122 +
  src/input/mouse_held.inl                      |   99 +
  src/input/osk.inl                             |  228 +
  src/input/pad_press.inl                       |  116 +
- src/input/rebind.inl                          | 1227 ++++
- src/input/stick_mouse.inl                     |  471 ++
+ src/input/rebind.inl                          | 1309 ++++
+ src/input/stick_mouse.inl                     |  474 ++
  src/input/touch_mouse.inl                     | 1346 ++++
- src/input/trigger_click.inl                   |  803 +++
+ src/input/trigger_click.inl                   |  857 +++
  src/input/trigger_effect.inl                  |  637 ++
  src/log/capped_log.inl                        |  117 +
  src/log/device_log.inl                        |  233 +
- src/main.cpp                                  |  713 +-
- src/map/runtime.cpp                           |   68 +-
- src/usbip/device.inl                          |  698 +-
- src/usbip/server.inl                          |   55 +-
+ src/main.cpp                                  |  717 +-
+ src/map/runtime.cpp                           |   90 +-
+ src/usbdisplay/README.md                      |   13 +
+ src/usbip/device.inl                          |  759 +-
+ src/usbip/fallback_serial.inl                 |   41 +
+ src/usbip/server.inl                          |  116 +-
+ src/usbip/submit_limits.inl                   |   54 +
  tests/binding_names_test.cpp                  |  200 +
  tests/button_layout_test.cpp                  | 1189 +++
  tests/capped_log_test.cpp                     |  140 +
- tests/config_store_test.cpp                   |  906 +++
+ tests/config_store_test.cpp                   |  909 +++
  tests/device_capabilities_test.cpp            |   75 +
  tests/device_config_test.cpp                  |  521 ++
- tests/device_names_test.cpp                   |   88 +
+ tests/device_names_test.cpp                   |  110 +
  tests/device_type_test.cpp                    |   89 +
+ tests/fallback_serial_test.cpp                |   50 +
  tests/gyro_mouse_test.cpp                     |  828 +++
  tests/harness.h                               |   55 +
+ tests/held_edges_test.cpp                     |   84 +
  tests/home_folder_test.cpp                    |  163 +
  tests/host_audio_settings_test.cpp            |  125 +
  tests/iso_in_pacing_test.cpp                  |  118 +
@@ -259,28 +277,26 @@ upstream's release FFmpeg binaries replacing the repo's debug ones).
  tests/osk_test.cpp                            |   81 +
  tests/pad_press_test.cpp                      |  117 +
  tests/product_version_test.cpp                |   33 +
- tests/rest_parser_test.cpp                    |  195 +
+ tests/rest_parser_test.cpp                    |  252 +
+ tests/rest_shared_section_test.cpp            |   79 +
  tests/rumble_floor_test.cpp                   |   87 +
  tests/same_controller_test.cpp                |   49 +
  tests/same_device_test.cpp                    |   95 +
  tests/schema_json_test.cpp                    |  158 +
- tests/stick_mouse_test.cpp                    |  715 ++
+ tests/stick_mouse_test.cpp                    |  735 ++
  tests/stop_wait_test.cpp                      |   93 +
- tests/tests_main.cpp                          |  136 +
+ tests/tests_main.cpp                          |  144 +
  tests/touch_mouse_test.cpp                    | 1654 +++++
  tests/tray_menu_test.cpp                      |  160 +
- tests/trigger_click_test.cpp                  |  835 +++
+ tests/trigger_click_test.cpp                  |  901 +++
  tests/trigger_effect_test.cpp                 |  529 ++
  tests/units.h                                 |   54 +
+ tests/usbip_limits_test.cpp                   |   73 +
  tests/window_icon_rule_test.cpp               |   86 +
  tests/window_size_rule_test.cpp               |  129 +
- tools/controller-config-test-client.html      | 9592 +++++++++++++++++++++++++
+ tools/controller-config-test-client.html      | 9603 +++++++++++++++++++++++++
  tools/create-desktop-shortcut.bat             |   46 +
  tools/create-desktop-shortcut.ps1             |  148 +
- tools/device-config-panel-edge.bat            |    9 +
- tools/device-config-panel-edge.ps1            |  327 +
- tools/device-config-panel.bat                 |    4 +
- tools/device-config-panel.ps1                 |  303 +
  tools/osk-mockups.py                          |  103 +
- 143 files changed, 47272 insertions(+), 298 deletions(-)
+ 155 files changed, 48800 insertions(+), 385 deletions(-)
 ```
