@@ -941,6 +941,20 @@ static void handle_agent_client(SOCKET client, const sockaddr_in &peer)
     std::istringstream input(line);
     std::string command;
     input >> command;
+
+    // ⛔ TWO COMMANDS ARE THIS PC'S ALONE (code review, 2026-10-05): importing
+    // a USB device from the caller's machine, and dropping every bridge. The
+    // TV sends neither, and this port is forwarded to the internet for remote
+    // play. control_caller.inl says why each one.
+    if (!control_caller::allowed(command, ntohl(peer.sin_addr.s_addr))) {
+        char peerIp[INET_ADDRSTRLEN] = {};
+        inet_ntop(AF_INET, &peer.sin_addr, peerIp, sizeof(peerIp));
+        device_log::session_s() << "control: refused " << command << " from " << peerIp
+                                << ": only this PC may send it";
+        send_text(client, "ERR only this PC may send " + command + "\n");
+        return;
+    }
+
     if (command == "STATUS") {
         send_text(client, "OK CTM_AGENT_V1\n");
         return;

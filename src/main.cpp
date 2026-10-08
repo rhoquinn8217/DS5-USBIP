@@ -255,6 +255,7 @@ namespace config_move { inline void state_load(); }
 #include "app/nickname.inl"      // controller nicknames; agent.inl assigns one per session
 #include "app/same_controller.inl"   // which older session a new bridge retires; agent.inl asks it
 #include "app/same_device.inl"       // which sessions are parts of ONE device; they share a nickname
+#include "app/control_caller.inl"    // which control commands only this PC may send; agent.inl asks it
 #include "app/agent.inl"
 #include "input/mouse_device.inl"      // needs g_agent_usbip_server, find_relative_asset, run_usbip_attach
 #include "input/keyboard_device.inl"   // same dependencies as the mouse above
