@@ -180,7 +180,18 @@ inline Pos &pos_slot()
     return g_quick.load() ? g_posQuick : g_posSimple;
 }
 
-inline void note_pos(int x, int y)
+// ⭐⭐ STEERING IS REMEMBERED IN MEMORY, AND WRITTEN DOWN ONCE (code review,
+// 2026-10-05). Holding Options moves the window a few pixels on almost every
+// report, and each move went through note_pos() and rewrote window-state.txt:
+// up to about 250 writes a second, on the pad's report thread, into a folder
+// OneDrive watches. ➡️ A move made while steering only marks the place as
+// unwritten, and the place is written once, when Options comes up or the
+// hold is dropped -- the rule the mouse drag below already follows.
+// ⓘ Anything else that saves writes the whole state, this place included,
+// so state_save() clears the mark itself.
+inline std::atomic_bool g_posUnsaved{false};
+
+inline void note_pos_quiet(int x, int y)
 {
     {
         std::lock_guard<std::mutex> lock(g_posMutex);
@@ -189,10 +200,23 @@ inline void note_pos(int x, int y)
         p.y = y;
         p.have = true;
     }
+    g_posUnsaved.store(true);
+}
+
+inline void note_pos(int x, int y)
+{
+    note_pos_quiet(x, y);
     // ⛔ OUTSIDE THE LOCK. state_save() takes g_posMutex itself, and this
     // mutex is not recursive -- saving from inside the guard would deadlock
     // the first time anyone moved the window.
     state_save();
+}
+
+// The place a steer left unwritten, written now. ⓘ Costs one atomic read when
+// there is nothing to write, which is every call but the last of a hold.
+inline void flush_pos()
+{
+    if (g_posUnsaved.load() && g_posUnsaved.exchange(false)) state_save();
 }
 
 inline bool last_pos(int *x, int *y)
@@ -769,6 +793,9 @@ inline const char *state_file() { return "window-state.txt"; }
 
 inline void state_save()
 {
+    // ⓘ Before the snapshot, not after: a place noted while this runs marks
+    // itself again and is written by the next save, rather than lost.
+    g_posUnsaved.store(false);
     std::ostringstream out;
     out << "# DS5-USBIP window state, written by config_move.inl (T-239).\n"
         << "# Safe to delete: the window then opens at its defaults.\n";
@@ -1051,7 +1078,10 @@ inline void nudge(HWND hwnd, int dx, int dy)
     int x = rc.left + dx;
     int y = rc.top + dy;
     clamp_into(work_area(), w, h, x, y);
-    place(hwnd, x, y);
+    // ⛔ NOT place(), which writes the state file: this runs on almost every
+    // report of a hold. handle_report() writes the place once at the end.
+    SetWindowPos(hwnd, nullptr, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+    note_pos_quiet(x, y);
 }
 
 // True when the report was consumed by the gesture and must be blanked, so
@@ -1071,6 +1101,9 @@ inline bool handle_report(const void *deviceKey, const ctm_rebind::Layout &lay,
         // read as a tap.
         g_movers.abandon_all();
         r3_edge(deviceKey, false);
+        // ⓘ A hold dropped this way never sees Options come up, so the place
+        // it steered to is written here instead.
+        flush_pos();
         return false;
     }
 
@@ -1095,6 +1128,10 @@ inline bool handle_report(const void *deviceKey, const ctm_rebind::Layout &lay,
     // the pad not being held -- cannot end this pad's hold (T-162).
     const window_move::Step mv =
         g_movers.for_key(deviceKey).step(ctm_overlay::button_down(lay, data, len, 9), lay, data, len);
+
+    // ⭐ The hold is over: where the steering left the window goes to disk now,
+    // once, rather than on every report of the hold.
+    if (mv.released) flush_pos();
 
     if (mv.tapped) {
         if (HWND h = page_window()) snap_next(h);

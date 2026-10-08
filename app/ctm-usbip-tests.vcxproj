@@ -117,6 +117,7 @@
     <ClCompile Include="..\tests\pad_press_test.cpp" />
     <ClCompile Include="..\tests\home_folder_test.cpp" />
     <ClCompile Include="..\tests\stop_wait_test.cpp" />
+    <ClCompile Include="..\tests\window_move_test.cpp" />
     <ClCompile Include="..\tests\tests_main.cpp" />
   </ItemGroup>
   <ItemGroup>

@@ -56,6 +56,10 @@ namespace window_move {
 struct Step {
     bool holding = false;   // Options is down: the caller swallows the report
     bool tapped  = false;   // released without steering: the caller snaps
+    // ⓘ Options came up on this report, after any hold, steered or not: the
+    // one moment a caller that moved its window quietly during the hold can
+    // write down where it ended up (code review, 2026-10-05).
+    bool released = false;
     int  dx = 0;            // steering delta this report, stick plus mouse
     int  dy = 0;
 };
@@ -103,6 +107,7 @@ struct Mover {
             lastTick = 0;
             accX = accY = 0.0;
             out.tapped = !moved.load();
+            out.released = true;
             return out;
         }
         if (!held.load()) return out;
