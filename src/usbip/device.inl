@@ -156,7 +156,10 @@ public:
             }
         }
         if (requestedSerial.empty()) {
-            requestedSerial = L"CTMUSBIP";
+            // ⛔ Not one constant for every such device (code review,
+            // 2026-10-05): two of them bridged at once were one device to
+            // Windows. fallback_serial.inl says how this one is made.
+            requestedSerial = usb_serial_fallback::make(caps.path, caps.vendorId, caps.productId);
         }
         if (!apply_virtual_serial_to_profile(&profile_, requestedSerial, &virtualSerial, error)) {
             return false;

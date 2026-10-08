@@ -151,6 +151,23 @@
         uint16_t report_desc_len;
     };
 #pragma pack(pop)
+
+    // ⛔ NOTHING PINNED THESE (code review, 2026-10-05). The TV copies each
+    // structure byte for byte, so a field added, moved or resized on one side
+    // reads as garbage on the other with no error anywhere. The TV's
+    // tests/test_protocol_messages.c checks the same numbers: change both ends
+    // together.
+    static_assert(sizeof(Header) == 32 && sizeof(DeviceCaps) == 272 &&
+                  sizeof(HidDescriptorInfo) == 32 && sizeof(HostConfig) == 58 &&
+                  sizeof(EnumInfo) == 32 && sizeof(EnumIface) == 4,
+                  "a bridge structure changed size: the TV must change with it");
+    static_assert(offsetof(Header, payload_len) == 28 &&
+                  offsetof(DeviceCaps, serial) == 80 &&
+                  offsetof(HostConfig, latency_ms) == 27 &&
+                  offsetof(HostConfig, speaker_volume_pct) == 29 &&
+                  offsetof(HostConfig, headset_volume_pct) == 30 &&
+                  offsetof(HostConfig, audio_mode) == 31,
+                  "a bridge field moved: the TV must move it too");
 }
 
 struct CtmBridgeMessage {

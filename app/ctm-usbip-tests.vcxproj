@@ -100,6 +100,7 @@
     <ClCompile Include="..\tests\rest_shared_section_test.cpp" />
     <ClCompile Include="..\tests\held_edges_test.cpp" />
     <ClCompile Include="..\tests\usbip_limits_test.cpp" />
+    <ClCompile Include="..\tests\fallback_serial_test.cpp" />
     <ClCompile Include="..\tests\device_names_test.cpp" />
     <ClCompile Include="..\tests\tray_menu_test.cpp" />
     <ClCompile Include="..\tests\same_controller_test.cpp" />
