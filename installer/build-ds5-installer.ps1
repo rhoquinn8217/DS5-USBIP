@@ -53,12 +53,19 @@ $version = $match.Matches[0].Groups[1].Value
 Write-Host "version: $version (from include/ctm/product.h)"
 
 # --- refuse while a person's files would be unwritable -----------------------
-# Read off the source rather than assumed: the listener has a per-user home
-# once home_folder knows about one. Crude on purpose -- a wrong YES here ships
-# an installer that loses settings, so it fails closed.
-$homeFolder = Join-Path $repo 'src\app\home_folder.inl'
-$perUserHome = (Test-Path $homeFolder) -and
-               (Select-String -Path $homeFolder -Pattern 'APPDATA' -Quiet)
+# Read off the source rather than assumed. Crude on purpose: a wrong YES here
+# ships an installer that loses settings, so it fails closed.
+#
+# IT LOOKS IN main.cpp, NOT IN home_folder.inl. This guard was first written
+# expecting the fix to land in home_folder.inl, which composes paths. It did
+# not: the answer turned out to be moving the WORKING DIRECTORY to the person's
+# folder in settle_home, so that every relative path follows it and no file
+# handling had to change. home_folder.inl still only finds the program's home
+# and says nothing about where a person's files go, so grepping it would refuse
+# for ever.
+$settleHome = Join-Path $repo 'src\main.cpp'
+$perUserHome = (Test-Path $settleHome) -and
+               (Select-String -Path $settleHome -Pattern 'LOCALAPPDATA' -Quiet)
 if (-not $perUserHome) {
     $msg = @(
         "The listener still keeps configs, device.log and the window state beside its exe."
