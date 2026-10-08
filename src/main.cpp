@@ -491,6 +491,12 @@ bool settle_home(const std::wstring &asked)
 
     std::wstring home;
     std::wstring passedOver;
+    // ⭐ Whether this run was PINNED to one folder on purpose: --home, or the
+    // file a build leaves beside its exe. A pinned run keeps a person's files
+    // beside the program, exactly as every run did before; an ordinary one
+    // puts them in their own folder. The block above SetCurrentDirectoryW
+    // below says why.
+    bool pinned = false;
     if (!asked.empty()) {
         if (!is_folder(asked)) {
             start_report::failed(L"DS5-USBIP cannot start: --home names a folder that does not exist.\n\n" + asked);
@@ -498,6 +504,7 @@ bool settle_home(const std::wstring &asked)
         }
         home = full(asked);
         home_folder::g_chosen_how = L"named with --home";
+        pinned = true;
     }
     if (home.empty()) {
         const std::wstring pointerPath = exeFolder + L"\\" + home_folder::kPointerFile;
@@ -508,6 +515,7 @@ bool settle_home(const std::wstring &asked)
             if (!named.empty() && is_folder(named)) {
                 home = full(named);
                 home_folder::g_chosen_how = std::wstring(L"named by ") + home_folder::kPointerFile + L" beside the exe";
+                pinned = true;
             } else if (!named.empty()) {
                 passedOver = std::wstring(L"; ") + home_folder::kPointerFile + L" beside the exe names a folder that is not there: " + named;
             }
@@ -539,9 +547,52 @@ bool settle_home(const std::wstring &asked)
         }
     }
 
-    if (!SetCurrentDirectoryW(home.c_str())) {
+    // ⭐⭐ WHERE A PERSON'S FILES LIVE, AND WHY IT IS NOT BESIDE THE PROGRAM.
+    //
+    // Everything a person owns -- configs\, device.log, the window's place and
+    // the keyboard's -- is opened by a relative path, so it lands in whatever
+    // the working directory is. That used to be the program's own folder,
+    // which is fine for a zip extracted somewhere writable and impossible once
+    // the program is installed: Program Files is not writable by a normal
+    // user, so every save fails and NOTHING SAYS SO. The settings just never
+    // come back.
+    //
+    // ⭐ So an ordinary run works from %LOCALAPPDATA%\DS5-USBIP, and the
+    // program's own files go on being found beside the exe: both asset
+    // look-ups already try the exe's folder (find_relative_asset in agent.inl,
+    // find_ds5_descriptor_profile in common.inl), so neither depends on the
+    // working directory.
+    //
+    // ⓘ ONE FOLDER, AND LOCAL RATHER THAN ROAMING. Local is the right kind of
+    // folder for a 20 MB log. Putting the configs in %APPDATA% as well, so
+    // they follow a person between domain machines, would mean handing the log
+    // writer an absolute path -- and it opens its file with a NARROW one,
+    // which breaks the moment a user name is not plain ASCII. A relative path
+    // has no such problem: Windows resolves it against the working directory
+    // itself, in wide form.
+    //
+    // ⓘ A PINNED RUN IS LEFT ALONE. --home, and a checkout whose build leaves
+    // home-folder.txt beside the exe, both keep everything together in the
+    // folder they named, exactly as before.
+    std::wstring working = home;
+    if (!pinned) {
+        wchar_t buf[MAX_PATH] = {};
+        const DWORD len = GetEnvironmentVariableW(L"LOCALAPPDATA", buf, ARRAYSIZE(buf));
+        if (len > 0 && len < ARRAYSIZE(buf)) {
+            const std::wstring folder = std::wstring(buf) + L"\\DS5-USBIP";
+            if (CreateDirectoryW(folder.c_str(), nullptr) || GetLastError() == ERROR_ALREADY_EXISTS) {
+                working = folder;
+                home_folder::g_chosen_how += L"; a person's files in " + folder;
+            }
+            // ⓘ Falling through when that fails is deliberate: a listener that
+            // runs from beside its program is worth more than one that refuses
+            // to start because a folder could not be made.
+        }
+    }
+
+    if (!SetCurrentDirectoryW(working.c_str())) {
         start_report::failed(last_error_message(L"DS5-USBIP cannot start: its folder could not be entered") +
-                             L"\n\n" + home);
+                             L"\n\n" + working);
         return false;
     }
     return true;
