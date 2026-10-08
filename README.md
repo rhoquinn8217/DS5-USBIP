@@ -37,7 +37,7 @@ TV is required to bridge DualSense controllers to DS5-USBIP.
 
 **Set up DS5-USBIP**
 
-1. Download DS5-USBIP from the [releases page](https://github.com/rhoquinn8217/CTM-USBIP/releases) (pending).
+1. Download DS5-USBIP from the [releases page](https://github.com/rhoquinn8217/DS5-USBIP/releases) (pending).
 2. Put the folder somewhere you have write access.
 3. Double-click `ctm-usbip.exe` in that folder. It runs in the background, with
    its icon in the tray: click the icon to open **Controller Configs**, the
