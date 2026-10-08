@@ -55,7 +55,7 @@ its icon.
 | `GET` | `/api/v1/configs` | all configs |
 | `POST` | `/api/v1/configs` | create one, `{"name":"<name>"}`, optionally with `"device"` to link and `"preset"` to start from |
 | `GET` | `/api/v1/configs/{name}` | one config |
-| `GET` | `/api/v1/configs/shared` | the shared section every unlinked device reads; read-only here (403 on a write) |
+| `GET` | `/api/v1/configs/shared` | the shared file, which unlinked devices read one section each (`ds5`, `ds5_edge`, `ds4`, `xbox`; keyboards and mice none): `[ds5]` at the top level, or the section `?kind=` names (a session kind or a section), and every section under `sections`, each with the devices that read it. Read-only here (403 on a write; 400 for a kind that reads no section) |
 | `POST` | `/api/v1/configs/{name}/settings` | set keys from a flat object; values are strings, and `""` leaves a key to the device's default |
 | `POST` | `/api/v1/configs/{name}/rename` | `{"name":"<new>"}` |
 | `POST` | `/api/v1/configs/{name}/copy` | copy to `{"name":"<new>"}`, linked to nothing |

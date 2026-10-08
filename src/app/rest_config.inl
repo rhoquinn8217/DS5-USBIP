@@ -176,20 +176,50 @@ static std::string rest_config_json(const config_store::ConfigFile &cfg,
 // So it is listed like any other config and its settings are readable, but the
 // API refuses to WRITE it: a change that affects every device should be a
 // deliberate hand edit, not something a UI can do by accident.
-static std::string rest_shared_json(const std::vector<RestDeviceView> &devices)
+//
+// ⛔⛔ AND IT IS SEVERAL SECTIONS, NOT ONE (code review, 2026-10-05). This
+// served [ds5] alone and listed EVERY unlinked device as reading it; the rules
+// that replace that are in rest_shared_section.inl, with their tests. Each
+// section now comes with the devices that really read it, under `sections`;
+// the top level is one of them, [ds5] unless the request names another kind
+// (`?kind=ds4`, a session kind or a section name).
+#include "rest_shared_section.inl"
+
+// "linked_by" and "settings" for one shared section. The caller holds
+// g_device_config_mutex.
+static std::string rest_shared_section_body(const std::vector<RestDeviceView> &devices,
+                                            const std::string &section)
 {
-    std::string out = "{\"name\":\"shared\",\"kind\":\"ds5\",\"read_only\":true";
-    out += ",\"note\":\"Applies to every device with no config linked. "
-           "Edit ctm-device-config.txt by hand.\"";
-    out += ",\"auto_link\":[],\"linked_by\":[";
+    std::string out = "\"linked_by\":[";
     bool first = true;
     for (const RestDeviceView &d : devices) {
-        if (!d.linkedConfig.empty()) continue;          // linked devices do not read it
+        if (!rest_shared::reads_section(d.linkedConfig, d.kind, section)) continue;
         if (!first) out += ",";
         first = false;
         out += "\"" + rest_json_escape(d.ordinal) + "\"";
     }
     out += "],\"settings\":{";
+    auto it = g_device_config.find(section);
+    bool firstKey = true;
+    if (it != g_device_config.end()) {
+        for (const auto &entry : it->second) {
+            if (!firstKey) out += ",";
+            firstKey = false;
+            out += "\"" + rest_json_escape(entry.first) + "\":\"" +
+                   rest_json_escape(entry.second) + "\"";
+        }
+    }
+    return out + "}";
+}
+
+static std::string rest_shared_json(const std::vector<RestDeviceView> &devices,
+                                    const std::string &section = "ds5")
+{
+    std::string out = "{\"name\":\"shared\",\"kind\":\"" + rest_json_escape(section) +
+                      "\",\"read_only\":true";
+    out += ",\"note\":\"Applies to every device with no config linked, each kind "
+           "reading its own section. Edit ctm-device-config.txt by hand.\"";
+    out += ",\"auto_link\":[]";
     {
         // ⭐ RELOAD, do not trust the cache.
         //
@@ -214,18 +244,18 @@ static std::string rest_shared_json(const std::vector<RestDeviceView> &devices)
         device_config_reload_shared();
         std::lock_guard<std::mutex> lock(g_device_config_mutex);
 
-        auto it = g_device_config.find("ds5");
-        bool firstKey = true;
-        if (it != g_device_config.end()) {
-            for (const auto &entry : it->second) {
-                if (!firstKey) out += ",";
-                firstKey = false;
-                out += "\"" + rest_json_escape(entry.first) + "\":\"" +
-                       rest_json_escape(entry.second) + "\"";
-            }
+        out += "," + rest_shared_section_body(devices, section);
+        out += ",\"sections\":{";
+        bool firstSection = true;
+        for (const char *name : rest_shared::kSections) {
+            if (!firstSection) out += ",";
+            firstSection = false;
+            out += "\"" + std::string(name) + "\":{" +
+                   rest_shared_section_body(devices, name) + "}";
         }
+        out += "}";
     }
-    return out + "}}";
+    return out + "}";
 }
 
 static std::string rest_configs_json()
@@ -1067,7 +1097,17 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
         // without being able to change something that affects every device.
         if (config_store::lower(name) == kSharedName) {
             if (req.method == "GET" && action.empty()) {
-                *out = rest_http_response(200, rest_shared_json(rest_collect_devices()));
+                // `?kind=` picks the section the top level shows; [ds5] by
+                // default, as it always was.
+                const std::string asked = rest_shared::query_value(req.query, "kind");
+                const std::string section = asked.empty() ? std::string("ds5")
+                                                          : rest_shared::section_for(asked);
+                if (section.empty()) {
+                    *out = rest_error_response(400, "no shared section for kind " + asked +
+                        " -- it reads none (a keyboard, a mouse or another part reads no section)");
+                } else {
+                    *out = rest_http_response(200, rest_shared_json(rest_collect_devices(), section));
+                }
             } else {
                 *out = rest_error_response(403,
                     "the shared section is read-only here -- edit ctm-device-config.txt "

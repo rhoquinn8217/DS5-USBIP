@@ -19,6 +19,7 @@
 #include "binding_names.inl"
 // ⓘ Buttons a touchpad gesture is pressing; apply() below presses them.
 #include "pad_press.inl"
+#include "held_edges.inl"
 
 namespace ctm_rebind {
 
@@ -647,11 +648,10 @@ inline void apply(const void *deviceKey,
         //
         // ⓘ Pressing it again closes the keyboard, because the overlay owns
         // Square while it is up. One button, both directions.
-        static std::map<std::pair<const void *, int>, bool> gateSquareHeld;
         {
             const bool sq = is_pressed(*layout, data, len, kBtnFaceLeft);
-            const bool fresh = sq && !gateSquareHeld[{deviceKey, kBtnFaceLeft}];
-            gateSquareHeld[{deviceKey, kBtnFaceLeft}] = sq;
+            const bool fresh =
+                !held_edges::exchange(held_edges::kGateSquare, deviceKey, kBtnFaceLeft, sq) && sq;
 
             if (ctm_rebind_editing_field()) {
                 clear_button(*layout, data, len, kBtnFaceLeft);
@@ -808,9 +808,8 @@ inline void apply(const void *deviceKey,
             const bool now = gatePressed[i];
 
             if (which >= 0) {
-                static std::map<std::pair<const void *, int>, bool> gateOskHeld;
-                if (now && !gateOskHeld[{deviceKey, i}]) ctm_osk_toggle(gateSection, i, which);
-                gateOskHeld[{deviceKey, i}] = now;
+                const bool was = held_edges::exchange(held_edges::kGateOsk, deviceKey, i, now);
+                if (now && !was) ctm_osk_toggle(gateSection, i, which);
                 clear_button(*layout, data, len, i);
                 continue;
             }
@@ -829,11 +828,10 @@ inline void apply(const void *deviceKey,
             if (gma != kMouseNone) {
                 gateAnyMouse = true;      // bound, whether or not it is held
                 if (gma == kMouseWheelUp || gma == kMouseWheelDown) {
-                    static std::map<std::pair<const void *, int>, bool> gateWheelHeld;
-                    if (now && !gateWheelHeld[{deviceKey, i}]) {
+                    const bool was = held_edges::exchange(held_edges::kGateWheel, deviceKey, i, now);
+                    if (now && !was) {
                         ctm_mouse_device::add_wheel(gma == kMouseWheelUp ? 1 : -1);
                     }
-                    gateWheelHeld[{deviceKey, i}] = now;
                 } else if (now) {
                     gateMouseButtons = static_cast<uint8_t>(
                         gateMouseButtons | (gma == kMouseLeft ? 0x01 :
@@ -1019,10 +1017,8 @@ inline void apply(const void *deviceKey,
         // whatever osk_program said.
         const int oskWhich = binding::osk_program_for(code);
         if (oskWhich >= 0) {
-            static std::map<std::pair<const void *, int>, bool> oskHeld;
-            const bool wasHeld = oskHeld[{deviceKey, i}];
+            const bool wasHeld = held_edges::exchange(held_edges::kOsk, deviceKey, i, active);
             if (active && !wasHeld) ctm_osk_toggle(section, i, oskWhich);
-            oskHeld[{deviceKey, i}] = active;
             continue;
         }
 
@@ -1031,12 +1027,10 @@ inline void apply(const void *deviceKey,
         const MouseAction ma = mouse_action_for(code);
         if (ma != kMouseNone) {
             if (ma == kMouseWheelUp || ma == kMouseWheelDown) {
-                static std::map<std::pair<const void *, int>, bool> wheelHeld;
-                const bool wasHeld = wheelHeld[{deviceKey, i}];
+                const bool wasHeld = held_edges::exchange(held_edges::kWheel, deviceKey, i, active);
                 if (active && !wasHeld) {
                     ctm_mouse_device::add_wheel(ma == kMouseWheelUp ? 1 : -1);
                 }
-                wheelHeld[{deviceKey, i}] = active;
             } else if (active) {
                 mouseButtons = static_cast<uint8_t>(
                     mouseButtons | (ma == kMouseLeft ? 0x01 :
@@ -1154,12 +1148,14 @@ void ctm_keyboard_forget_device(const void *deviceKey)
     ctm_keyboard_device::forget_device(deviceKey);
 }
 
-// ⓘ A pad going away takes its chord memory and its on-screen keyboard state with
-// it, so a later pad handed the same address starts clean.
+// ⓘ A pad going away takes its chord memory, its on-screen keyboard state and
+// its held-button flags with it, so a later pad handed the same address starts
+// clean.
 void rebind_forget_pad(const void *deviceKey)
 {
     ctm_rebind::forget_chord_pad(deviceKey);
     ctm_overlay::forget_device(deviceKey);
+    held_edges::forget(deviceKey);
 }
 
 bool ctm_rebind_config_mode()

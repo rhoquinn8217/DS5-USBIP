@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.61 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.62 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,14 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.62 An edit is written to the config it was made in, however fast
+            the tab moves on: it read the row when its timer fired, so a
+            switch inside 400 ms wrote the other config's value. The pad
+            bar's hint is written and measured only when it changes, not
+            every frame. One device lookup replaces fifteen copies. Seven
+            functions nothing called, three variables nothing read and a
+            CSS rule that matched nothing are gone, and the self-test's
+            redraw check measures a tab, so a clean run reads 0 failed.
     2.66.61 Advanced's Close asks the listener to close the window, as the
             other layouts' Close does; it called window.close(), which a
             browser refuses for a window it did not open. A preset's
@@ -1143,8 +1151,6 @@
   body.compact #downCover, body.compact #offlineHelp { display:none !important; }
   #compactBox .cbad { color:#ff8f8f; }
   #compactBox .csub { font-size:3vh; color:#c8c9ce; text-align:center; line-height:1.4; max-width:80vw; }
-  #compactBox .ccmd { font-family:ui-monospace, Consolas, monospace; font-size:3vh; color:#cfe0f5;
-    background:#1c1e26; padding:1vh 2vw; border-radius:1vh; }
   #compactBox { display:none; }
   /* ⭐ SIZED IN VIEWPORT UNITS, ON PURPOSE (rhoquinn8217, 2026-09-09: too much
      empty space; and R3 must change the text too). R3 lives in the listener and
@@ -1234,7 +1240,7 @@
     padding:1.5vh 2vw; min-width:0; }
   body.quick #compactBox .clegend { font-size:6.9vh; }
   body.quick #compactBox .cempty { font-size:13.5vh; }
-  body.quick #compactBox .csub, body.quick #compactBox .ccmd { font-size:9vh; }
+  body.quick #compactBox .csub { font-size:9vh; }
   body.quick #compactBox .cbig { font-size:15.75vh; padding:2.25vh 4vw; }
   body.quick #bubbles { display:none !important; }
   /* A screen that is only a message sits in the middle of the room
@@ -1989,7 +1995,7 @@
 // come back and you are someone new. That is deliberate, and it matches the
 // ordinal, which is never reused either.
 function nameFor(ordinal) {
-  var d = (LAST_DEVICES || []).filter(function(x) { return x.ordinal === ordinal; })[0];
+  var d = deviceByOrdinal(ordinal);
   // ⓘ Falls back to the ordinal rather than inventing anything: an older agent
   // sends no nickname, and a made-up one here would be the exact bug that was
   // just removed.
@@ -2042,6 +2048,17 @@ function groupDevices(list) {
 }
 
 function leadOf(ordinal) { return GROUP_OF[ordinal] || ordinal; }
+
+// ⓘ The device an ordinal names, or undefined. One loop, no array built: the
+// same filter was written out fifteen times, five of them for the active
+// tab, some on the pad's every frame (code review, 2026-10-05).
+function deviceByOrdinal(ordinal) {
+  var list = LAST_DEVICES || [];
+  for (var i = 0; i < list.length; i++) {
+    if (list[i].ordinal === ordinal) return list[i];
+  }
+  return undefined;
+}
 
 function partsOf(ordinal) {
   var parts = PARTS_OF[leadOf(ordinal)];
@@ -2794,10 +2811,6 @@ function batteryTag(d) {
          '</span>';
 }
 
-// The table cell: the same tag, and an EMPTY cell when there is no reading, so
-// a column reads as "these two have batteries" rather than as missing data.
-function batteryCell(d) { return batteryTag(d); }
-
 // ⓘ Every part's gauge, in order, for a device of several parts. Two pads
 // under one name have a battery each, and showing one would hide the other's;
 // most devices have one gauge or none.
@@ -3061,7 +3074,6 @@ function padLegendForKind(kind) {
 // config are mapped to keyboad keys."* ➡️ L1 and R1 are the two a config does
 // not claim, so they were the only two getting through.
 var LAST_PRESS_KIND = '';     // 'ds5', 'ds4', 'xbox', 'hid' ... '' until a press
-var LAST_PRESS_ORDINAL = '';
 // ⓘ Four times a second. The legend is meant to follow your hand, and
 // /devices at POLL_MS (four seconds) cannot do that. The reply is a few dozen
 // bytes to a loopback server, and it stops entirely when the window is behind.
@@ -3077,7 +3089,6 @@ function pollLastPress() {
   call('GET', '/api/v1/lastpress', undefined, true).then(function (r) {
     if (!r) return;
     var kind = r.kind || '';
-    LAST_PRESS_ORDINAL = r.ordinal || '';
     // ⭐ Only a change of KIND can change the legend. Two DualSenses passed
     // back and forth are still the PlayStation set, and repainting on every
     // press would rebuild the footer under someone's hand.
@@ -3155,7 +3166,7 @@ function padLegend() {
   // touched has no last press, and the legend still has to say something. The
   // shown controller is the sensible answer there, and a DualSense when
   // nothing is bridged, because that is this project's primary device.
-  var d = (LAST_DEVICES || []).filter(function (x) { return x.ordinal === ACTIVE; })[0];
+  var d = deviceByOrdinal(ACTIVE);
   if (!d) d = (LAST_DEVICES || []).filter(function (x) { return x.supports_config; })[0];
   return padLegendForKind(d ? d.kind : 'ds5');
 }
@@ -3317,7 +3328,7 @@ function nextCopyName(sourceName) {
 // offers gyro_to_mouse_config_3. This is a box around a decision the code
 // already made, not a new naming rule.
 function copyConfigFor(ordinal) {
-  var dev = LAST_DEVICES.filter(function(x) { return x.ordinal === ordinal; })[0];
+  var dev = deviceByOrdinal(ordinal);
   if (!dev || !dev.linked_config) return;
   openNameRow('copy', dev.linked_config, ordinal);
 }
@@ -3363,7 +3374,7 @@ function newConfigFor(ordinal) {
   // used to fall into the guard below and return, so New there did nothing at
   // all -- it was not offering too few presets, it was offering none.
   var dev = ordinal
-    ? (LAST_DEVICES.filter(function(x) { return x.ordinal === ordinal; })[0] || null)
+    ? (deviceByOrdinal(ordinal) || null)
     : null;
   if (ordinal && !dev) return;   // a named controller that has since gone
   // ⓘ The list comes from the agent, not from here: two places naming the same
@@ -3389,20 +3400,9 @@ function newConfigFor(ordinal) {
 // called presetMappings since, and the maps still named stick_to_mouse and
 // stick_to_scroll, which no longer exist either.
 //
-// ⚠️ buttonLabel and PRESET_VALUE_LABELS sat BETWEEN them and are very much
-// alive -- the preview's labels depend on buttonLabel.
-
-// ⚠️ RESTORED 2026-08-31. This was deleted with the old card layout while
-// presetInfoRows still used it, so opening the details window threw before it
-// could render -- which looked exactly like a button that did nothing.
-var PRESET_VALUE_LABELS = {
-  'OSKeyboard': 'on-screen keyboard',
-  'MouseLeft': 'left click', 'MouseRight': 'right click',
-  'MouseMiddle': 'middle click',
-  'MouseWheelUp': 'scroll up', 'MouseWheelDown': 'scroll down',
-  'ArrowUp': 'arrow up', 'ArrowDown': 'arrow down',
-  'ArrowLeft': 'arrow left', 'ArrowRight': 'arrow right'
-};
+// ⚠️ buttonLabel sat BETWEEN them and is very much alive -- the preview's
+// labels depend on it. (PRESET_VALUE_LABELS, beside it then, has not been
+// read since the preview began showing the real settings, and is gone.)
 
 
 // ⓘ Button labels come from /api/v1/keys, whose help opens with the button's
@@ -4016,7 +4016,7 @@ function createFromPreset(ordinal, preset) {
   // nothing, and open it. The API reads a body with no "device" as exactly
   // that, which is the same spelling unlink uses.
   var dev = ordinal
-    ? (LAST_DEVICES.filter(function(x) { return x.ordinal === ordinal; })[0] || null)
+    ? (deviceByOrdinal(ordinal) || null)
     : null;
   if (ordinal && !dev) { presetCancel(); return; }
   var name = nextConfigName(dev ? dev.kind : '', preset);
@@ -4675,7 +4675,7 @@ function renderConfigEditor(hostId, configName, prefix, ordinal) {
     // ⓘ Missing flags mean TRUE. An older agent sends none, and a page that
     // hid everything against it would be unusable rather than merely dated.
     var capDev = ordinal
-      ? (LAST_DEVICES || []).filter(function(x) { return x.ordinal === ordinal; })[0]
+      ? deviceByOrdinal(ordinal)
       : null;
     var can = function(flag) {
       if (!capDev) return true;
@@ -4770,7 +4770,7 @@ function renderConfigEditor(hostId, configName, prefix, ordinal) {
                        esc(configName) + '\',\'' + esc(meta.key) + '\')"';
         // Disabled below when the key cannot act on this controller.
         var dis = inertReason(meta.key, (ordinal
-          ? (LAST_DEVICES.filter(function(x) { return x.ordinal === ordinal; })[0] || {})
+          ? (deviceByOrdinal(ordinal) || {})
           : {}).kind) ? ' disabled' : '';
         var control;
         // ⭐ A rebind is a PICKER, not a text field. The names are
@@ -4864,7 +4864,7 @@ function renderConfigEditor(hostId, configName, prefix, ordinal) {
         // A controller tab knows its transport; Overview does not, so nothing is
         // marked there -- a config is not tied to one controller.
         var dev2 = ordinal
-          ? (LAST_DEVICES.filter(function(x) { return x.ordinal === ordinal; })[0] || {})
+          ? (deviceByOrdinal(ordinal) || {})
           : {};
         var inert = inertReason(meta.key, dev2.kind);
         // ⭐ And SAY the range, rather than only enforcing it. A box that
@@ -5000,25 +5000,40 @@ function openConfig(name) {
 // per increment, which can stutter audio while you drag a value.
 var WRITE_TIMERS = {};
 
+// ⛔⛔ THE VALUE AND THE CONFIG ARE TAKEN WHEN THE EDIT IS MADE, NOT WHEN THE
+// TIMER FIRES (code review, 2026-10-05). A row is found by an id that belongs
+// to the TAB, not to the config: switch the tab to another config within the
+// 400 ms and the row read at fire time held the OTHER config's value, which was
+// written into this one, and the edit was lost. And the pending write is keyed
+// by its config too, so an edit to the same setting in the next config cannot
+// cancel it.
 function writeOne(prefix, configName, key) {
-  var slot = prefix + '|' + key;
+  var value = settingValue(prefix, key);
+  if (value === null) return;
+  var slot = prefix + '|' + configName + '|' + key;
   if (WRITE_TIMERS[slot]) clearTimeout(WRITE_TIMERS[slot]);
   WRITE_TIMERS[slot] = setTimeout(function() {
     delete WRITE_TIMERS[slot];
-    writeOneNow(prefix, configName, key);
+    postSetting(configName, key, value);
   }, 400);
 }
 
-function writeOneNow(prefix, configName, key) {
+// What a row holds now: its value, or '' when its box says unmanaged. null
+// when the row is not on the page.
+function settingValue(prefix, key) {
   var id = 'dv-' + prefix + '-' + key;
   var el = document.getElementById(id);
   var box = document.getElementById('mg-' + id);
-  if (!el) return;
+  if (!el) return null;
+  return (box && !box.checked) ? '' : el.value;
+}
+
+function postSetting(configName, key, value) {
   var body = {};
-  body[key] = (box && !box.checked) ? '' : el.value;
+  body[key] = value;
   call('POST', '/api/v1/configs/' + encodeURIComponent(configName) + '/settings', body)
     .then(function() {
-      setConn(key + ' → ' + (body[key] === '' ? 'unmanaged' : body[key]), 'good');
+      setConn(key + ' → ' + (value === '' ? 'unmanaged' : value), 'good');
     }).catch(function(){});
 }
 
@@ -5041,28 +5056,6 @@ function gpToggleManaged() {
   if (!box) return;
   box.checked = !box.checked;
   box.dispatchEvent(new Event('change'));
-}
-
-// ◄ ► step a focused number.
-//
-// ⚠️ Without this a controller cannot change a numeric setting at all -- there
-// is no keyboard -- and px_per_360 is exactly the value you want to nudge while
-// holding the pad and feeling the result.
-function gpStepValue(dir) {
-  var el = GP_FOCUS[GP_INDEX];
-  if (!el || el.tagName !== 'INPUT' || el.type !== 'number') return;
-  var cur = parseFloat(el.value);
-  if (isNaN(cur)) cur = 0;
-  var min = el.min !== '' ? parseFloat(el.min) : -Infinity;
-  var max = el.max !== '' ? parseFloat(el.max) : Infinity;
-  // A percentage-ish step, so a range of 1000-200000 is crossable without
-  // holding the stick for a minute, and small values still move by one.
-  var span = (isFinite(max) && isFinite(min)) ? (max - min) : 100;
-  var step = Math.max(1, Math.round(span / 100));
-  var next = Math.min(max, Math.max(min, cur + dir * step));
-  if (next === cur) return;
-  el.value = next;
-  el.dispatchEvent(new Event('change'));
 }
 
 // ⭐ A redraw must not move the page under you. renderTabs rebuilds panes with
@@ -5331,23 +5324,6 @@ function unlinkConfirmed(ordinal) {
     .then(function() { loadDevices(); loadConfigs(); }).catch(function(){});
 }
 
-function createConfig() {
-  var name = document.getElementById('newName').value.trim();
-  if (!name) { setConn('name required', 'bad'); return; }
-  // ⭐ A name only. A config is not tied to a controller, nor since 2.65.0 to
-  // a TYPE of controller -- linking is a separate act, done from the
-  // controller's own tab, and requiring a bridged pad just to CREATE one meant
-  // you could not prepare a config in advance.
-  var body = { name: name };
-  call('POST', '/api/v1/configs', body).then(function() {
-    var box = document.getElementById('newName');
-    box.value = '';
-    box.dataset.suggested = '';
-    loadConfigs(); loadDevices();
-    openConfig(name);                 // straight into editing it
-  }).catch(function(){});
-}
-
 // ⛔ NOT prompt(). A native modal cannot be dismissed by a controller -- no
 // button reaches it and ○ does nothing, so pressing Rename from a pad left you
 // stuck. This is an inline row instead: the field and both buttons are ordinary
@@ -5529,10 +5505,6 @@ function commitNameRow() {
     }).catch(function(){ cancelRename(); });
 }
 
-// The old name, kept because it reads better at a call site that only ever
-// renames, and because the gate keys and the docs both say "rename".
-function commitRename() { commitNameRow(); }
-
 // ⛔ ASK FIRST. Archive and Remove auto link are one click each, sit next to
 // controls you press routinely, and there is nothing between the click and the
 // loss. A config takes real time to tune.
@@ -5551,7 +5523,7 @@ var CONFIRM_CB = null;
 // what the setting is keyed on, and a destructive confirmation should name its
 // target precisely.
 function whoIs(ordinal) {
-  var d = (LAST_DEVICES || []).filter(function(x) { return x.ordinal === ordinal; })[0];
+  var d = deviceByOrdinal(ordinal);
   var nick = nameFor(ordinal);
   return (d && d.serial) ? (nick + ' (' + d.serial + ')') : nick;
 }
@@ -5559,7 +5531,7 @@ function whoIs(ordinal) {
 // The same, for a question set as HTML: the serial as a name, the nickname
 // as text (rhoquinn8217, 2026-09-09).
 function whoIsHtml(ordinal) {
-  var d = (LAST_DEVICES || []).filter(function(x) { return x.ordinal === ordinal; })[0];
+  var d = deviceByOrdinal(ordinal);
   var nick = esc(nameFor(ordinal));
   return (d && d.serial) ? (nick + ' (<code>' + esc(d.serial) + '</code>)') : nick;
 }
@@ -5679,6 +5651,9 @@ var GP_REPEAT_AT = 0;
 // cannot see what is coming and you cannot back out.
 var GP_SELECTING = null;
 var GP_EDITING = null;   // a value box the pad is inside
+// ⓘ What the pad bar's hint shows now, so gpPoll writes it only when it changes
+// (code review, 2026-10-05). null after anything else writes the hint.
+var GP_HINT_SHOWN = null;
 var GP_SELECT_WAS = 0;
 
 // Everything focusable in the ACTIVE pane, in document order, plus the tab bar.
@@ -7053,9 +7028,6 @@ var RENAME_OPENER = null;
 // that runs on a timer checks it.
 var STOPPED = false;
 
-// Whether this is a plain tab. Measured once, because the test resizes.
-var IN_TAB = null;
-
 // The token this window was opened with, from ?app=<token>.
 var MY_TOKEN = (function () {
   var m = /[?&]app=([^&]*)/.exec(location.search);
@@ -7880,16 +7852,6 @@ function pickMode(v) {
   setMode(v);
 }
 
-// The visible Mode picker, for the pad to land on. ⓘ Both footers exist in
-// the DOM at once and CSS hides one, so offsetParent is what tells them apart.
-function visibleModePicker() {
-  var list = document.querySelectorAll('select.modepick');
-  for (var i = 0; i < list.length; ++i) {
-    if (list[i].offsetParent !== null) return list[i];
-  }
-  return null;
-}
-
 function setMode(m, restore) {
   var quick = (m === 'quick');
   var compact = (m !== 'advanced');
@@ -8064,11 +8026,6 @@ function setCompact(on, restore) {
     gpPaint();
   }
 }
-// The whole tool, from the top: the full page on its Overview.
-function openConfigurator() { 
-  setMode('advanced');
-  showTab('overview');
-}
 // Create used to reach the page as KeyC and, since T-233, only moved focus
 // onto the Mode picker. It resizes the window now (rhoquinn8217,
 // 2026-09-20) and sends no key, so toggleCompact had no caller left and is
@@ -8147,7 +8104,7 @@ function compactAskExit(title, buttons) {
 // setAutoLink does the asking when another config holds the claim, and the
 // claiming; the repaint that follows lights the 🗘.
 function compactAutoLink() {
-  var d = (LAST_DEVICES || []).filter(function (x) { return x.ordinal === ACTIVE; })[0];
+  var d = deviceByOrdinal(ACTIVE);
   if (!d || !d.linked_config) return;
   var mySerial = normSerial(d.serial);
   if (!mySerial) return;
@@ -8168,7 +8125,7 @@ function compactAutoLink() {
 // while the button is lit -- but NOT when no config is linked at all, which is
 // now a state this button can act in. Reading the claim itself is right in both.
 function compactAutoUnlink() {
-  var d = (LAST_DEVICES || []).filter(function (x) { return x.ordinal === ACTIVE; })[0];
+  var d = deviceByOrdinal(ACTIVE);
   if (!d) return;
   var mySerial = normSerial(d.serial);
   if (!mySerial) return;
@@ -8185,7 +8142,7 @@ function compactAutoUnlink() {
 
 // The compact views' Unlink: the same call the picker's "(no config)" makes.
 function compactUnlink() {
-  var d = (LAST_DEVICES || []).filter(function (x) { return x.ordinal === ACTIVE; })[0];
+  var d = deviceByOrdinal(ACTIVE);
   if (!d || !d.linked_config) return;
   unlinkConfirmed(d.ordinal);
 }
@@ -8326,7 +8283,7 @@ function paintCompact() {
     // legend doesn't update with the correct text after switching to a
     // different mode"*). A collapsed picker has nothing to protect.
   if (GP_SELECTING && box.contains(GP_SELECTING) && GP_SELECTING.size > 1) return;
-  var d = (LAST_DEVICES || []).filter(function (x) { return x.ordinal === ACTIVE; })[0];
+  var d = deviceByOrdinal(ACTIVE);
   // T-240: the legend's glyphs, for the pad this window is showing.
   var LG = padLegend();
   // The listener remembers which controller was on screen, for the next
@@ -8380,7 +8337,7 @@ function paintCompact() {
     var next = many ? ring[(at + 1) % ring.length] : '';
     var side = function (ord, cls, key) {
       if (!ord) return '<div class="cside ' + cls + '"></div>';
-      var od = (LAST_DEVICES || []).filter(function (x) { return x.ordinal === ord; })[0];
+      var od = deviceByOrdinal(ord);
       // ⓘ Quick shows the key alone -- "◂ L1", "R1 ▸" -- the neighbour's name
       // and kind will not fit its width (rhoquinn8217, 2026-09-09).
       if (QUICK) {
@@ -8619,6 +8576,7 @@ function gpPoll() {
     // and someone would go looking for one.
     var hintOff = document.getElementById('gphint');
     if (hintOff) hintOff.textContent = 'controller ignored while this window is behind — click it to use the pad';
+    GP_HINT_SHOWN = null;
     requestAnimationFrame(gpPoll);
     return;
   }
@@ -8650,6 +8608,7 @@ function gpPoll() {
     // this one says what is reaching the page; this says only how to drive it.
     hint.textContent = 'arrows move, Enter select, Esc back, Space on/off' +
                        '   ·   press a controller button to use a pad';
+    GP_HINT_SHOWN = null;
     bar.className = '';
     requestAnimationFrame(gpPoll);
     return;
@@ -8691,12 +8650,25 @@ function gpPoll() {
   // announced; if that is wanted back it belongs on the destination line,
   // which owns this question now, and from LAST_DEVICES rather than the
   // browser's view -- that mismatch is what T-240 had to be rebuilt for.
-  hint.innerHTML = LGA.shoulder + ' controller | ' + LGA.select +
-                     ' select | ' + LGA.dpad + ' move | ' + LGA.toggle + ' on/off | ' +
-                     LGA.position + ' position | ' + LGA.resize + ' resize | ' +
-                     LGA.close + ' footer/close';
-  bar.className = 'live';
-  measureGpBar();
+  // ⓘ WRITTEN AND MEASURED ONLY WHEN SOMETHING CHANGED (code review,
+  // 2026-10-05). This runs every frame a pad is live, and rewriting the line
+  // and then reading the bar's height forced a layout of the whole page sixty
+  // times a second. While a value is being edited, its own hint (below) stands.
+  var barChanged = false;
+  var legend = LGA.shoulder + ' controller | ' + LGA.select +
+               ' select | ' + LGA.dpad + ' move | ' + LGA.toggle + ' on/off | ' +
+               LGA.position + ' position | ' + LGA.resize + ' resize | ' +
+               LGA.close + ' footer/close';
+  if (!GP_EDITING && GP_HINT_SHOWN !== legend) {
+    hint.innerHTML = legend;
+    GP_HINT_SHOWN = legend;
+    barChanged = true;
+  }
+  if (bar.className !== 'live') {
+    bar.className = 'live';
+    barChanged = true;
+  }
+  if (barChanged) measureGpBar();
 
   var now = performance.now();
 
@@ -8790,8 +8762,11 @@ function gpPoll() {
     // ⭐ SAY SO, in the footer. A mode you cannot tell you are in is worse than
     // no mode: every other button stops working and the pad just feels broken.
     var hintEd = document.getElementById('gphint');
-    if (hintEd) {
-      hintEd.textContent = '▲▼ 1, ◄► 10, L1/R1 100 — ✕ or ○ to leave';
+    var editHint = '▲▼ 1, ◄► 10, L1/R1 100 — ✕ or ○ to leave';
+    if (hintEd && GP_HINT_SHOWN !== editHint) {
+      hintEd.textContent = editHint;
+      GP_HINT_SHOWN = editHint;
+      measureGpBar();
     }
 
     if (edge(0) || edge(1)) {
@@ -9525,7 +9500,7 @@ function selfTest() {
   //    landing on an element that was no longer in the page.
   renderTabs(fake);
   gpCollect();
-  var before = GP_FOCUS[0];
+  var tabBefore = document.querySelector('#tabs button');
   renderTabs(fake);                        // redraw: every element is replaced
   ok('focus list is not stale after a redraw',
      !GP_FOCUS.length || GP_FOCUS[0].isConnected,
@@ -9533,7 +9508,12 @@ function selfTest() {
   ok('every focus target is in the document',
      GP_FOCUS.every(function(e) { return e.isConnected; }));
   ok('index is within the list', GP_INDEX < Math.max(1, GP_FOCUS.length));
-  ok('redraw really did replace elements', before !== GP_FOCUS[0] || !before);
+  // ⓘ Measured on a TAB, which is what renderTabs draws (code review,
+  // 2026-10-05). It was measured on the first focus target, and where the
+  // page's own address box comes first -- in a tab, with pads bridged -- the
+  // check failed on a redraw that had worked, so a clean run never read 0.
+  ok('redraw really did replace elements',
+     !!tabBefore && tabBefore !== document.querySelector('#tabs button'));
 
   // 9. ⭐ A CONFIG IS FOR ANY CONTROLLER THAT TAKES ONE (2.65.0). Both pickers
   //    were a filter on kind, so an Xbox pad was offered nothing a DualSense

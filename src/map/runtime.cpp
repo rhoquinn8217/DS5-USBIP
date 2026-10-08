@@ -10,7 +10,9 @@
 #include <iomanip>
 #include <iostream>
 #include <map>
+#include <mutex>
 #include <sstream>
+#include <unordered_map>
 
 #include <opus/opus.h>
 
@@ -209,6 +211,24 @@ static std::map<std::string, std::string> parse_op_args(const std::string &op)
         args[token.substr(0, equals)] = token.substr(equals + 1);
     }
     return args;
+}
+
+// The parsed form of an op, kept for the life of the process (code review,
+// 2026-10-05). execute_stream_op runs for every report, and parsing the same
+// text into a fresh map each time was most of its cost; an Xbox pad's map runs
+// several ops per report. A loaded map's ops are a fixed set, so this stays
+// small, and nothing is ever erased, so the reference handed back stays valid
+// (an unordered_map's elements do not move when it grows).
+static const std::map<std::string, std::string> &cached_op_args(const std::string &op)
+{
+    static std::mutex cacheMutex;
+    static std::unordered_map<std::string, std::map<std::string, std::string>> cache;
+    std::lock_guard<std::mutex> lock(cacheMutex);
+    auto it = cache.find(op);
+    if (it == cache.end()) {
+        it = cache.emplace(op, parse_op_args(op)).first;
+    }
+    return it->second;
 }
 
 static std::string first_positional_arg(const std::string &op, const char *primitive)
@@ -2194,7 +2214,7 @@ bool CtmMapRuntime::execute_stream_op(
     const CTM_USB_EVENT &source,
     std::vector<uint8_t> *destination)
 {
-    const auto args = parse_op_args(op);
+    const auto &args = cached_op_args(op);
     auto get = [&](const char *key) -> std::string {
         auto it = args.find(key);
         return it == args.end() ? std::string() : it->second;

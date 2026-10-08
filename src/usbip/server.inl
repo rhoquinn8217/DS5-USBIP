@@ -1,4 +1,6 @@
-﻿class CtmUsbipServer {
+﻿#include "submit_limits.inl"   // what a submit may ask for, and what an unlink cancels
+
+class CtmUsbipServer {
     struct UsbipExportedDevice {
         std::shared_ptr<CtmUsbipDevice> device;
         std::string busId;
@@ -657,9 +659,29 @@ private:
             const uint32_t direction = read_be32(header + 12);
             const uint32_t ep = read_be32(header + 16);
             if (command == kCmdUnlink) {
+                // ⛔ CANCEL WHAT IS STILL QUEUED (code review, 2026-10-05). This
+                // answered "already done" every time, and the request stayed
+                // queued and was served later, eating an input report. A queued
+                // interrupt-IN request is removed and answered as unlinked, and
+                // gets no RET_SUBMIT; one being served now completes as before.
+                // ⓘ The table's lock, then a worker's: nothing takes them the
+                // other way round (close_session takes the table's alone).
+                const uint32_t victim = read_be32(header + 20);
+                bool cancelled = false;
+                {
+                    std::lock_guard<std::mutex> lock(interruptInWorkersMutex);
+                    for (auto &kv : interruptInWorkers) {
+                        std::lock_guard<std::mutex> queueLock(kv.second->mutex);
+                        if (usbip_limits::cancel_queued(kv.second->queue, victim)) {
+                            cancelled = true;
+                            break;
+                        }
+                    }
+                }
                 {
                     std::lock_guard<std::mutex> lock(sendMutex);
-                    (void)send_ret_unlink(client, seqnum, kStatusOk);
+                    (void)send_ret_unlink(client, seqnum,
+                                          cancelled ? usbip_limits::kStatusUnlinked : kStatusOk);
                 }
                 continue;
             }
@@ -670,6 +692,18 @@ private:
             const uint32_t startFrame = read_be32(header + 28);
             const uint32_t packets = read_be32(header + 32);
             const uint32_t interval = read_be32(header + 36);
+            // ⛔ Before anything is allocated or read on their word (code
+            // review, 2026-10-05): a near-4 GB length aborted the process, and
+            // 1024+ ISO packets left their descriptors unread and the stream
+            // out of step. Either one closes this import, with a line saying so.
+            if (!usbip_limits::submit_sizes_ok(transferLength, packets, kNonIsoPackets)) {
+                device_log::usb(device_log::msg()
+                    << "usbip import closed: a submit asked for length=" << transferLength
+                    << " packets=" << packets << " (limits "
+                    << usbip_limits::kMaxTransferLength << " bytes, "
+                    << usbip_limits::kMaxIsoPackets << " packets)");
+                break;
+            }
             uint8_t setup[8] = {};
             memcpy(setup, header + 40, sizeof(setup));
             ++urbCount;
@@ -707,7 +741,7 @@ private:
                 }
             }
             std::vector<uint8_t> isoDescriptors;
-            if (packets != kNonIsoPackets && packets < 1024) {
+            if (packets != kNonIsoPackets) {   // at most kMaxIsoPackets, checked above
                 isoDescriptors.resize(static_cast<size_t>(packets) * 16);
                 if (!recv_all(client, isoDescriptors.data(), isoDescriptors.size())) {
                     break;
@@ -785,20 +819,23 @@ private:
             if (status != kStatusOk) {
                 record_error();
                 if (ctm_verbose_logs()) {
-                    device_log::usb_s() << "usbip issue"
-                              << " seq=" << seqnum
-                              << " status=" << status
-                              << " dir=" << (direction == kUsbipDirIn ? "in" : "out")
-                              << " ep=0x" << std::hex << std::setw(2) << std::setfill('0')
-                              << static_cast<unsigned int>((ep & 0x0f) | (direction == kUsbipDirIn ? 0x80 : 0x00))
-                              << std::dec << std::setfill(' ')
-                              << " len=" << transferLength
-                              << " start_frame=" << startFrame
-                              << " interval=" << interval;
+                    // ⓘ One record (code review, 2026-10-05): the setup bytes
+                    // and the line's end were records of their own.
+                    std::ostringstream line;
+                    line << "usbip issue"
+                         << " seq=" << seqnum
+                         << " status=" << status
+                         << " dir=" << (direction == kUsbipDirIn ? "in" : "out")
+                         << " ep=0x" << std::hex << std::setw(2) << std::setfill('0')
+                         << static_cast<unsigned int>((ep & 0x0f) | (direction == kUsbipDirIn ? 0x80 : 0x00))
+                         << std::dec << std::setfill(' ')
+                         << " len=" << transferLength
+                         << " start_frame=" << startFrame
+                         << " interval=" << interval;
                     if (isControl) {
-                        device_log::usb_s() << " setup=" << hex_span(setup, 8);
+                        line << " setup=" << hex_span(setup, 8);
                     }
-                    device_log::usb_s() << std::endl;
+                    device_log::usb(line.str());
                 }
             }
 
