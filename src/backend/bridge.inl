@@ -218,6 +218,15 @@ public:
         gamepadIdleTimeoutMs_ = gamepadIdleMs;
     }
 
+    // ⓘ Which address the port listens on, in host byte order; every address
+    // unless this is called. The handshake's tests listen on loopback only: a
+    // test that listened on every address would raise Windows' firewall prompt
+    // the first time each new build of it ran.
+    void set_listen_address(uint32_t hostOrderAddress)
+    {
+        listenAddress_ = hostOrderAddress;
+    }
+
     bool start(RawInputCallback callback, std::wstring *error) override
     {
         callback_ = std::move(callback);
@@ -238,7 +247,7 @@ public:
         setsockopt(listenSocket_, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char *>(&reuse), sizeof(reuse));
         sockaddr_in addr = {};
         addr.sin_family = AF_INET;
-        addr.sin_addr.s_addr = htonl(INADDR_ANY);
+        addr.sin_addr.s_addr = htonl(listenAddress_);
         addr.sin_port = htons(port_);
         if (bind(listenSocket_, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) == SOCKET_ERROR) {
             if (error) *error = wsa_error_message(L"bridge bind failed");
@@ -1199,6 +1208,8 @@ private:
     }
 
     uint16_t port_ = 0;
+    // Every address, which a TV needs. See set_listen_address().
+    uint32_t listenAddress_ = INADDR_ANY;
     double btPaceMs_ = 10.0;
     // The last host config sent, kept so a live latency change can re-send the
     // whole thing rather than reconstruct it from scratch and risk drifting
