@@ -47,6 +47,7 @@ int run_key_pulse_tests();
 int run_pad_press_tests();
 int run_home_folder_tests();
 int run_stop_wait_tests();
+int run_paired_tv_tests();
 int run_usb_descriptors_tests();
 int run_bridge_handshake_tests();
 int run_mic_ring_tests();
@@ -146,6 +147,7 @@ int main(int argc, char **argv)
     run_pad_press_tests();
     run_home_folder_tests();
     run_stop_wait_tests();
+    run_paired_tv_tests();
     run_usb_descriptors_tests();
     run_bridge_handshake_tests();
     run_mic_ring_tests();
