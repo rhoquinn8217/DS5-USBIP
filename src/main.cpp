@@ -37,6 +37,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <set>         // usbip/server.inl lists its connections' sockets
 #include <sstream>
 #include <string>
 #include <system_error>

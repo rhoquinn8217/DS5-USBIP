@@ -5,6 +5,20 @@ class CtmUsbipServer {
         std::shared_ptr<CtmUsbipDevice> device;
         std::string busId;
         std::string devicePath;
+        // ⭐⭐ WHAT THE DEVICE CALLS INTO, KEPT ALIVE FOR AS LONG AS WINDOWS
+        // IS STILL TALKING TO IT (code review, 2026-10-05). The device reaches
+        // its backend through a plain pointer, and an import thread serving
+        // Windows is detached: it can be in the middle of a feature request,
+        // waiting on the backend's own lock, when the bridge stops and its
+        // session -- the backend's owner -- is freed. That was a likely crash,
+        // and one with no Quit line in the log.
+        // ➡️ So the bridge hands its backend in here with the device, and every
+        // import thread holds a copy of the slot for as long as it runs. A
+        // stopped backend answers no one, but it is still THERE until the last
+        // thread that could reach it has finished.
+        // ⓘ Empty for a device with no backend to keep: the CLI's single
+        // device, and the synthetic mouse and keyboard.
+        std::shared_ptr<void> keepAlive;
     };
 
 public:
@@ -21,7 +35,10 @@ public:
         return add_device(std::shared_ptr<CtmUsbipDevice>(device, [](CtmUsbipDevice *) {}), std::move(busId), error);
     }
 
-    bool add_device(std::shared_ptr<CtmUsbipDevice> device, std::string busId, std::wstring *error)
+    // ⓘ keepAlive: what the device calls into, held until every import of it
+    // has ended. See UsbipExportedDevice.
+    bool add_device(std::shared_ptr<CtmUsbipDevice> device, std::string busId, std::wstring *error,
+                    std::shared_ptr<void> keepAlive = nullptr)
     {
         if (!device || busId.empty() || busId.size() > 31) {
             if (error) *error = L"invalid USB/IP device export";
@@ -32,6 +49,7 @@ public:
             if (slot.busId == busId) {
                 slot.device = std::move(device);
                 slot.devicePath = "/ctm/usbip/" + busId;
+                slot.keepAlive = std::move(keepAlive);
                 return true;
             }
         }
@@ -39,6 +57,7 @@ public:
         slot.device = std::move(device);
         slot.busId = std::move(busId);
         slot.devicePath = "/ctm/usbip/" + slot.busId;
+        slot.keepAlive = std::move(keepAlive);
         devices_.push_back(std::move(slot));
         return true;
     }
@@ -116,6 +135,14 @@ public:
         if (thread_.joinable()) {
             thread_.join();
         }
+        // ⭐ AND EVERY CONNECTION'S THREAD, before the server may go (code
+        // review, 2026-10-05). Each is detached and works through `this` to its
+        // last line, so a server freed while one still ran -- which is what the
+        // program's own way out does -- crashed it on the way out. Their sockets
+        // are shut here so a thread waiting for Windows' next request wakes.
+        // ⓘ Bounded: a thread still inside a device call after two seconds is
+        // logged and left, rather than holding the program open.
+        close_client_threads(std::chrono::milliseconds(2000));
         if (wsaStarted_) {
             WSACleanup();
             wsaStarted_ = false;
@@ -123,6 +150,18 @@ public:
     }
 
 private:
+    void close_client_threads(std::chrono::milliseconds timeout)
+    {
+        std::unique_lock<std::mutex> lock(clientThreadsMutex_);
+        for (SOCKET s : clientSockets_) {
+            shutdown(s, SD_BOTH);
+        }
+        if (!clientThreadsCv_.wait_for(lock, timeout, [this]() { return clientSockets_.empty(); })) {
+            device_log::usb_s() << "usbip server stopping with " << clientSockets_.size()
+                                << " connection thread(s) still running";
+        }
+    }
+
     std::vector<UsbipExportedDevice> snapshot_devices()
     {
         std::lock_guard<std::mutex> lock(devicesMutex_);
@@ -178,8 +217,24 @@ private:
             }
             int noDelay = 1;
             setsockopt(client, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<const char *>(&noDelay), sizeof(noDelay));
+            // ⓘ Listed before the thread exists, so stop() cannot miss one that
+            // has not started yet.
+            {
+                std::lock_guard<std::mutex> lock(clientThreadsMutex_);
+                clientSockets_.insert(client);
+            }
             std::thread([this, client]() {
                 handle_client(client);
+                // ⛔ Off the list BEFORE the socket is closed: a closed socket's
+                // number can go to the next connection at once, and that one
+                // must not lose its place or be shut by a stop meant for this.
+                // ⛔⛔ AND NOTHING OF `this` AFTER THIS BLOCK. Once the list is
+                // empty stop() may return and the server be freed.
+                {
+                    std::lock_guard<std::mutex> lock(clientThreadsMutex_);
+                    clientSockets_.erase(client);
+                    clientThreadsCv_.notify_all();
+                }
                 closesocket(client);
             }).detach();
         }
@@ -1067,6 +1122,10 @@ private:
     std::vector<UsbipExportedDevice> devices_;
     std::mutex activeClientsMutex_;
     std::map<std::string, std::vector<SOCKET>> activeClients_;
+    // Every connection whose thread is still running, imports or not.
+    std::mutex clientThreadsMutex_;
+    std::condition_variable clientThreadsCv_;
+    std::set<SOCKET> clientSockets_;
     bool wsaStarted_ = false;
     SOCKET listenSocket_ = INVALID_SOCKET;
     std::atomic_bool running_{false};

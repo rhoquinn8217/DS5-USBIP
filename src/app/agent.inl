@@ -331,8 +331,16 @@ static void bridge_session_worker(AgentBridgeSession *session)
         return;
     }
 
+    // ⭐ The backend goes in WITH the device, so an import thread still serving
+    // Windows when this bridge stops keeps the backend it may be inside (code
+    // review, 2026-10-05). server.inl, UsbipExportedDevice, says why.
+    std::shared_ptr<CtmBackend> backendForExport;
+    {
+        std::lock_guard<std::mutex> lock(session->mutex);
+        backendForExport = session->backend;
+    }
     if (!g_agent_usbip_server ||
-        !g_agent_usbip_server->add_device(session->device, session->busIdAscii, &error)) {
+        !g_agent_usbip_server->add_device(session->device, session->busIdAscii, &error, backendForExport)) {
         set_bridge_session_error(session, error);
         backendPtr->stop();
         std::wcerr << L"agent USB/IP export failed busid=" << session->busId << L": " << error << L"\n";
@@ -348,6 +356,9 @@ static void bridge_session_worker(AgentBridgeSession *session)
         const std::wstring busId = session->busId;
         const std::string busIdAscii = session->busIdAscii;
         const std::shared_ptr<CtmUsbipDevice> sessionDevice = session->device;
+        // ⓘ Weak: this callback lives inside the backend, and a strong copy
+        // there would keep the backend alive for ever.
+        const std::weak_ptr<CtmBackend> weakBackend = backendForExport;
         enetBackendPtr->set_disconnect_callback([busId, busIdAscii]() {
             device_log::session_w() << L"agent bridge link down busid=" << busId
                        << L" -> virtual device UNPLUGGED";
@@ -355,12 +366,12 @@ static void bridge_session_worker(AgentBridgeSession *session)
                 g_agent_usbip_server->remove_device(busIdAscii);
             }
         });
-        enetBackendPtr->set_reconnect_callback([busId, busIdAscii, sessionDevice]() {
+        enetBackendPtr->set_reconnect_callback([busId, busIdAscii, sessionDevice, weakBackend]() {
             device_log::session_w() << L"agent bridge link up busid=" << busId
                        << L" -> virtual device PLUGGED IN";
             std::wstring reAddError;
             if (g_agent_usbip_server &&
-                g_agent_usbip_server->add_device(sessionDevice, busIdAscii, &reAddError)) {
+                g_agent_usbip_server->add_device(sessionDevice, busIdAscii, &reAddError, weakBackend.lock())) {
                 if (!run_usbip_attach(busId, kDefaultUsbipPort)) {
                     std::wcerr << L"agent re-attach failed busid=" << busId << L"\n";
                 }
