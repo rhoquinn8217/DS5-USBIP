@@ -47,6 +47,7 @@ int run_key_pulse_tests();
 int run_pad_press_tests();
 int run_home_folder_tests();
 int run_stop_wait_tests();
+int run_device_config_cache_tests();
 int run_control_caller_tests();
 int run_window_move_tests();
 
@@ -142,6 +143,7 @@ int main(int argc, char **argv)
     run_pad_press_tests();
     run_home_folder_tests();
     run_stop_wait_tests();
+    run_device_config_cache_tests();
     run_control_caller_tests();
     run_window_move_tests();
     return ctmtest::summary();
