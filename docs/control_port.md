@@ -11,8 +11,8 @@ some callers and why a TV calling from the internet proves who it is.
 |---|---|---|
 | `STATUS` | `OK CTM_AGENT_V1` | anyone: it is the TV's probe |
 | `PROOF_CHALLENGE` | `OK NONCE <32 hex>` | anyone: see "The pairing proof" |
-| `BRIDGE_START <kind> <port> <busid> [PROOF=...]` | `OK bridge starting` | anyone on this PC or the home network; from the internet, a TV that proves it is paired (see below) |
-| `BRIDGE_STOP <busid> [PROOF=...]` | `OK bridge stopped`, or `OK no such bridge` | the same as `BRIDGE_START` |
+| `BRIDGE_START <kind> <port> <busid> [PROOF=...]` | `OK bridge starting`; with port 0, `OK bridge starting port=<n>` | anyone on this PC or the home network; from the internet, a TV that proves it is paired (see below) |
+| `BRIDGE_STOP <busid> [PROOF=...]` | `OK bridge stopped`, `OK no such bridge`, or `ERR that bridge belongs to another TV` | the same as `BRIDGE_START`, and only for its own bridges |
 | `USBIP_ATTACH <busid>` | `OK usbip attached` | this PC only |
 | `RESTART [hard]` | `OK bridges reset` | this PC only |
 
@@ -63,6 +63,28 @@ the TV then sends its command plainly; one that does not know `PROOF=` reads
 the command's own words and ignores the last one. So a new TV works with an
 old listener, and an old TV with a new one wherever no proof is needed.
 
+## Two TVs at once
+
+Two TVs can stream from this PC and bridge their controllers at the same
+time. A bridge belongs to the TV that started it, known by the fingerprint its
+pairing proof proved; a TV that sent no proof, or one that was not proven,
+counts as one more "unproven" TV, as every TV did before.
+
+- A TV asks for port 0 and the listener gives it the lowest free port in
+  `bridge_port_range`, in its answer. An older TV chooses its own port, as
+  before.
+- A busid or a port already used by another TV's bridge is refused, never
+  taken over. The TV's own older bridge on the port it asked for is replaced,
+  as before.
+- A TV stops only its own bridges, and a new bridge retires only the same TV's
+  older one for the same pad.
+- A device the TV sent no serial for gets one that also depends on the TV, so
+  two TVs' pads of one model are two devices to Windows.
+
+ⓘ For a TV at another site, forward the whole of `bridge_port_range` on the
+router to this PC, beside the control port: each bridged controller, and the
+TV's remote, uses one port of it.
+
 ## Settings
 
 In `ctm-device-config.txt`, section `[global]`:
@@ -74,3 +96,4 @@ In `ctm-device-config.txt`, section `[global]`:
 | `paired_tv_proof = off` | nothing is checked, and a bridge port takes a connection from anywhere |
 | `paired_tv_proof_at_home = true` | the home network must prove it too |
 | `streaming_host_state_file = <path>` | where the host's state file is, when it is not Apollo's or Sunshine's in Program Files |
+| `bridge_port_range = 48055-48074` | the ports the listener hands out for bridges, the default; at most 1000 of them |

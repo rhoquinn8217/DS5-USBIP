@@ -29,6 +29,15 @@ int run_fallback_serial_tests()
                   make(L"/dev/hidraw3", 0x045e, 0x02ea));     // another model on that node
     }
 
+    section("fallback serial: two TVs' pads on one node number are two devices");
+    {
+        // ⭐ Two TVs at once (tv_sessions.inl): the same model on /dev/hidraw3
+        // on each is two pads, so two serials. Blank is every serial as it was.
+        CTM_CHECK(make(L"/dev/hidraw3", 0x045e, 0x028e, L"0123456789abcdef0123456789abcdef") !=
+                  make(L"/dev/hidraw3", 0x045e, 0x028e, L"fedcba9876543210fedcba9876543210"));
+        CTM_CHECK(make(L"/dev/hidraw3", 0x045e, 0x028e, L"") == make(L"/dev/hidraw3", 0x045e, 0x028e));
+    }
+
     section("fallback serial: the same pad bridged again keeps its id");
     {
         CTM_CHECK(make(L"/dev/hidraw3", 0x045e, 0x028e) == make(L"/dev/hidraw3", 0x045e, 0x028e));
