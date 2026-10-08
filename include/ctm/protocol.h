@@ -18,11 +18,11 @@ typedef uint64_t CTM_UINT64;
 #define CTM_MAX_PATH_CHARS 260u
 #define CTM_MAX_BT_DEVICES 32u
 
-#define CTM_SHARED_CHANNEL_MAGIC 0x314D5543u
-#define CTM_SHARED_CHANNEL_VERSION 3u
-#define CTM_SHARED_USB_EVENT_CAPACITY 64u
-#define CTM_SHARED_USB_RESPONSE_CAPACITY 64u
-#define CTM_SHARED_FEATURE_REPORT_CAPACITY 32u
+// The shared-memory channel to a kernel driver that the first import
+// described (CTM_SHARED_CHANNEL, its rings and its register call) is not used
+// by this listener, which serves USB/IP instead, and its definitions were
+// taken out (code review, 2026-10-05). The feature report size below kept its
+// name from it.
 #define CTM_SHARED_FEATURE_REPORT_BYTES 64u
 #define CTM_USB_RESPONSE_DATA_BYTES 4096u
 
@@ -81,15 +81,6 @@ typedef struct CTM_INPUT_REPORT {
     CTM_UINT8 data[1024];
 } CTM_INPUT_REPORT;
 
-typedef struct CTM_SHARED_INPUT_STATE {
-    volatile CTM_UINT32 sequence;
-    CTM_UINT32 instance_id;
-    CTM_UINT8 endpoint_address;
-    CTM_UINT8 reserved0;
-    CTM_UINT16 length;
-    CTM_UINT8 data[1024];
-} CTM_SHARED_INPUT_STATE;
-
 typedef struct CTM_USB_EVENT {
     CTM_UINT32 instance_id;
     CTM_UINT32 event_type;
@@ -100,14 +91,6 @@ typedef struct CTM_USB_EVENT {
     CTM_UINT8 data[4096];
 } CTM_USB_EVENT;
 
-typedef struct CTM_SHARED_USB_EVENT_RING {
-    volatile CTM_UINT32 write_sequence;
-    volatile CTM_UINT32 read_sequence;
-    volatile CTM_UINT32 dropped_events;
-    CTM_UINT32 capacity;
-    CTM_USB_EVENT entries[CTM_SHARED_USB_EVENT_CAPACITY];
-} CTM_SHARED_USB_EVENT_RING;
-
 typedef struct CTM_USB_RESPONSE {
     CTM_UINT32 request_id;
     CTM_UINT32 status;
@@ -115,44 +98,6 @@ typedef struct CTM_USB_RESPONSE {
     CTM_UINT16 reserved;
     CTM_UINT8 data[CTM_USB_RESPONSE_DATA_BYTES];
 } CTM_USB_RESPONSE;
-
-typedef struct CTM_SHARED_USB_RESPONSE_RING {
-    volatile CTM_UINT32 write_sequence;
-    volatile CTM_UINT32 read_sequence;
-    volatile CTM_UINT32 dropped_responses;
-    CTM_UINT32 capacity;
-    CTM_USB_RESPONSE entries[CTM_SHARED_USB_RESPONSE_CAPACITY];
-} CTM_SHARED_USB_RESPONSE_RING;
-
-typedef struct CTM_SHARED_FEATURE_REPORT {
-    volatile CTM_UINT32 sequence;
-    CTM_UINT8 report_id;
-    CTM_UINT8 reserved0;
-    CTM_UINT16 length;
-    CTM_UINT8 data[CTM_SHARED_FEATURE_REPORT_BYTES];
-} CTM_SHARED_FEATURE_REPORT;
-
-typedef struct CTM_SHARED_CHANNEL {
-    CTM_UINT32 magic;
-    CTM_UINT32 version;
-    CTM_UINT32 size;
-    CTM_UINT32 flags;
-    CTM_UINT32 usb_in_wait_timeout_ms;
-    CTM_UINT32 iso_out_completion_delay_ms;
-    CTM_UINT32 iso_out_completion_delay_us;
-    CTM_UINT32 usb_response_timeout_ms;
-    CTM_UINT32 feature_report_count;
-    CTM_SHARED_FEATURE_REPORT feature_reports[CTM_SHARED_FEATURE_REPORT_CAPACITY];
-    CTM_SHARED_INPUT_STATE input;
-    CTM_SHARED_USB_EVENT_RING usb_events;
-    CTM_SHARED_USB_RESPONSE_RING usb_responses;
-} CTM_SHARED_CHANNEL;
-
-typedef struct CTM_SHARED_CHANNEL_REGISTER {
-    CTM_UINT64 user_address;
-    CTM_UINT32 size;
-    CTM_UINT32 reserved;
-} CTM_SHARED_CHANNEL_REGISTER;
 
 typedef struct CTM_CONTROLLER_STATUS {
     CTM_UINT32 status;

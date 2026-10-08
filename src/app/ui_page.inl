@@ -6,7 +6,7 @@
 //
 // Three things fall out of it that were awkward before:
 //   - the page cannot go stale against the agent, because the agent serves it
-//   - same-origin, so the CORS handling exists only for other callers now
+//   - same-origin, so no CORS header is sent at all (rest.inl says why)
 //   - a phone on the LAN reaches it by browsing to the address, with no file
 //     to copy onto the device
 //

@@ -52,10 +52,11 @@ inline int small_px(unsigned dpi) { return scaled(kSmallAt96, dpi); }
 // the same page in a tab reads "... [ctm-app] - Google Chrome": the marker is
 // there, and something follows it.
 //
-// ⛔ STRICTER THAN FINDING THE WINDOW, ON PURPOSE. Finding it asks only whether
-// the marker is anywhere in the title. An icon put on someone's own browser
-// window is a fault they would see on their taskbar for as long as this
-// listener ran, so here the marker has to be the last thing in the title.
+// ⛔ FINDING THE WINDOW ASKS THIS TOO, since the code review of 2026-10-05
+// (open_ui.inl). It used to ask only whether the marker was anywhere in the
+// title, which found an ordinary browser window holding the page in a tab,
+// and closing "our" window then closed that whole browser. An icon put on
+// someone's own browser window would be the same fault on their taskbar.
 inline bool is_app_window_title(const wchar_t *title, const wchar_t *marker)
 {
     if (title == nullptr || marker == nullptr) return false;

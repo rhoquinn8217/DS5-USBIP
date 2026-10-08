@@ -445,7 +445,7 @@ private:
             hostConfig.feature_report_len = capsRaw_.feature_report_len;
             hostConfig.paced_report_count = 2;
             hostConfig.paced_report_ids[0] = 0x36;
-            hostConfig.paced_report_ids[1] = 0x15;
+            hostConfig.paced_report_ids[1] = 0x15;   // stale: see bridge.inl
 
             // The host config goes out on the same reliable channel; flush it
             // immediately so the client can start sending input.

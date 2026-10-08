@@ -9,11 +9,15 @@
   a usable SERIAL. The whole auto_link design rests on that and it has never
   been observed.
 
-  HOW TO RUN IT. Save the file and open it in a browser. No server, no build:
-  it is one file that talks to the agent over fetch(). The agent sends
-  Access-Control-Allow-Origin, so a file:// page can reach it.
+  HOW TO RUN IT. The listener serves this page: start it, and the window
+  opens on http://127.0.0.1:48053/ (the settings port since 2026-10-06; it
+  was 48055, which is also the TV's first bridge port).
 
-    ctm-usbip.exe agent 48054 --rest 48055
+    ctm-usbip.exe agent 48054 --ui        (or double-click the exe)
+
+  ⛔ Not as a file. Opened from disk it cannot reach the listener: no CORS
+  header is sent, and a page from a file (Origin "null") is refused (code
+  review, 2026-10-05).
 
   ⚠️ NOT A PRODUCT. This is a probe -- deliberately plain, deliberately shows
   the raw response for every call, and does not try to hide errors. When
@@ -1828,7 +1832,7 @@
        at 2.66.4 for thirty-four versions while VERSION moved on. -->
   <span class="muted" style="font-size:12px">v2.66.61</span>
   <label class="muted">agent</label>
-  <input id="base" value="http://127.0.0.1:48055" size="26">
+  <input id="base" value="http://127.0.0.1:48053" size="26">
   <label class="muted">bearer</label>
   <input id="token" placeholder="leave empty unless you set one" size="16"
     title="A password for the listener. Leave this empty -- almost everyone should. The listener normally only answers programs on this same PC, so it needs no password. If you start it with --rest-lan it answers other machines on your network too, and then anyone on your wifi could send it commands. --rest-token sets a password to stop that, and this box is where you type the same password back so this page is still allowed in.">
@@ -5537,7 +5541,7 @@ function commitRename() { commitNameRow(); }
 // rename row, which had to become inline for that reason. These are keyboard
 // and mouse actions in practice, and the alternative is losing work silently.
 // ⛔ NOT confirm(). Chrome titles a native dialog with the ORIGIN --
-// "127.0.0.1:48055 says" -- and a page cannot change that. It also cannot be
+// "127.0.0.1:48053 says" -- and a page cannot change that. It also cannot be
 // dismissed by a controller, which is why the rename row had to become inline.
 //
 // ⭐ This is ordinary markup, so it takes a real title, and ○ backs out of it.
@@ -6654,13 +6658,20 @@ function showListenerNotice(text) {
 //
 // ⓘ Both events, because pagehide does not always fire when a process is torn
 // down, and a duplicate release costs nothing.
+// ⛔ WITH A TOKEN, NOT A BEACON (code review, 2026-10-05). sendBeacon cannot
+// carry a header, so with --rest-token the listener refused it while
+// sendBeacon still said it was queued, and the window's going was never heard.
+// A keepalive fetch outlives the page the same way, and carries the token.
 function reportClosing() {
   try {
+    var tokenBox = document.getElementById('token');
+    var hasToken = !!tokenBox && tokenBox.value.trim() !== '';
     var body = new Blob(['{"closed":true}'], { type: 'application/json' });
-    if (!navigator.sendBeacon(base() + '/api/v1/ui/closed', body)) {
-      // ⓘ Last resort. keepalive lets a fetch outlive the page, which is the
-      // same promise sendBeacon makes.
-      fetch(base() + '/api/v1/ui/closed', { method: 'POST', keepalive: true })
+    if (hasToken || !navigator.sendBeacon(base() + '/api/v1/ui/closed', body)) {
+      // ⓘ keepalive lets a fetch outlive the page, which is the same promise
+      // sendBeacon makes.
+      fetch(base() + '/api/v1/ui/closed',
+            { method: 'POST', keepalive: true, headers: headers(), body: '{"closed":true}' })
         .catch(function () {});
     }
   } catch (e) {}
@@ -9343,7 +9354,7 @@ function selfTest() {
   ['renderTabs','buildDevicePane','setStickyHead','paintStickyHead','measureSticky',
    'nameFor','deviceLabelShort','settingsKindOf',
    'askConfirm','confirmYes','confirmNo','whoIs','setAutoLink','claimAutoLink',
-   'stopAutoLink','archive','unlink','renameConfig','copyConfigFor','createFromPreset','presetCancel','openPresetInfo','closePresetInfo','renameKey','loadConfigs','loadDevices',
+   'stopAutoLink','archive','unlinkConfirmed','renameConfig','copyConfigFor','createFromPreset','presetCancel','openPresetInfo','closePresetInfo','renameKey','loadConfigs','loadDevices',
    'openConfig','applyPick','newConfigFor','preserveScroll','setDown','gpCollect'
   ].forEach(function(n) {
     ok('function ' + n, typeof window[n] === 'function');
@@ -9481,12 +9492,22 @@ function selfTest() {
 
   // 6. Down and back. DEVICE_SIG = null once meant "redraw next time" AND
   //    "never loaded", so the redraw never happened.
+  //    ⛔ WITHOUT RELOADING (code review, 2026-10-05). Coming back up reloads
+  //    the page once the listener has ever been down, which is right in use --
+  //    and here it reloaded the page with ?selftest still on, which ran this
+  //    again, for ever, each reload telling the listener the window had closed.
+  //    So the flag is cleared before coming back up and put back after.
+  var wasDownEver = IS_DOWN_EVER;
   setDown(true);
-  ok('tabs cleared when down', document.querySelectorAll('#tabs button').length <= 1);
+  // ⓘ Device tabs: the Editor tab stays whatever the listener's state.
+  ok('tabs cleared when down',
+     document.querySelectorAll('#tabs button:not(.editortab)').length <= 1);
   ok('header cleared when down',
      document.getElementById('stickyHead').innerHTML === '');
   ok('signature is not the never-loaded sentinel', DEVICE_SIG !== null);
+  IS_DOWN_EVER = false;
   setDown(false);
+  IS_DOWN_EVER = wasDownEver;
 
   // 7. The dialog opens, traps the pad, and closes.
   askConfirm('self test', 'self test', function(){});
@@ -9535,9 +9556,14 @@ function selfTest() {
   var head = (fail ? 'FAILED' : 'PASSED') + ' — ' + pass + ' passed, ' + fail + ' failed';
   console.log('%c' + head, 'font-weight:bold;color:' + (fail ? '#ff8f8f' : '#7fd18c'));
   console.log(out.join('\n'));
-  document.body.innerHTML =
-    '<pre style="padding:20px;font:13px ui-monospace,monospace">' +
-    esc(head) + '\n\n' + esc(out.join('\n')) + '</pre>';
+  // ⓘ OVER the page, not instead of it (code review, 2026-10-05). Replacing
+  // the body took away the elements the page's own timers go on reading, and
+  // once step 6 stopped reloading the page they threw every second.
+  var report = document.createElement('pre');
+  report.style.cssText = 'position:fixed;inset:0;z-index:100;margin:0;overflow:auto;' +
+    'background:#15161a;padding:20px;font:13px ui-monospace,monospace';
+  report.textContent = head + '\n\n' + out.join('\n');
+  document.body.appendChild(report);
   return fail === 0;
 }
 

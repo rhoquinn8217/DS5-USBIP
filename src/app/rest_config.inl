@@ -554,8 +554,12 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
     // window work throws or hangs, the release has already happened -- the gate
     // is what can strand someone mid-game; a leftover window is only untidy.
     //
-    // ⓘ The TV drives these. Until the TV side exists they are called by hand
-    // with curl, which is deliberate: it lets both halves be proven separately.
+    // ⓘ The TV does NOT drive these: it asks for the window over the agent
+    // port. The page uses the rest. `reset` and `open`, which nothing calls,
+    // are kept as test levers: a POST does exactly what the pad
+    // shortcut and the tray do, with nobody holding a pad, which is how the
+    // window's remembered place was measured on 2026-09-21 (code review,
+    // 2026-10-05, asked whether anything still used them).
     if (req.path.rfind("/api/v1/ui/", 0) == 0) {
         const std::string what = req.path.substr(11);
 

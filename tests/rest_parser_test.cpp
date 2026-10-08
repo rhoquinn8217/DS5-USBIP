@@ -171,6 +171,9 @@ static void test_response_format()
     CTM_CHECK(ok.find("Content-Length: 7\r\n") != std::string::npos);
     CTM_CHECK(ok.find("Connection: close\r\n") != std::string::npos);
     CTM_CHECK_EQ(ok.substr(ok.size() - 7), "{\"a\":1}");
+    // ⛔ No CORS header on any answer: the page is same-origin, and the header
+    // only let other sites' pages read the answers.
+    CTM_CHECK(ok.find("Access-Control") == std::string::npos);
 
     const std::string noContent = rest_http_response(204, "", "Allow: GET\r\n");
     CTM_CHECK(noContent.rfind("HTTP/1.1 204 No Content\r\n", 0) == 0);
@@ -179,6 +182,59 @@ static void test_response_format()
 
     const std::string err = rest_error_response(404, "no such \"thing\"");
     CTM_CHECK(err.find("{\"error\":\"no such \\\"thing\\\"\"}") != std::string::npos);
+}
+
+// ⭐ Who may ask. The Host and the Origin a browser sends, checked before the
+// token on every request; curl and scripts send no Origin and an address.
+static void test_who_may_ask()
+{
+    ctmtest::section("rest: who may ask (Host and Origin)");
+    const std::vector<std::string> own = {"studio-pc", "studio-pc.local"};
+
+    // An address, localhost, or this PC's own name.
+    CTM_CHECK(rest_host_allowed("127.0.0.1:48053", own));
+    CTM_CHECK(rest_host_allowed("127.0.0.1", own));
+    CTM_CHECK(rest_host_allowed("localhost:48053", own));
+    CTM_CHECK(rest_host_allowed("LocalHost:48053", own));
+    CTM_CHECK(rest_host_allowed("[::1]:48053", own));
+    CTM_CHECK(rest_host_allowed("[::1]", own));
+    CTM_CHECK(rest_host_allowed("192.168.1.88:48053", own));      // --rest-lan, by address
+    CTM_CHECK(rest_host_allowed("studio-pc:48053", own));         // ... and by the PC's name
+    CTM_CHECK(rest_host_allowed("Studio-PC.local:48053", own));
+
+    // ⛔ Any other name: the shape of a page DNS has pointed at 127.0.0.1.
+    CTM_CHECK(!rest_host_allowed("evil.example:48053", own));
+    CTM_CHECK(!rest_host_allowed("evil.example", own));
+    CTM_CHECK(!rest_host_allowed("127.0.0.1.evil.example:48053", own));
+    CTM_CHECK(!rest_host_allowed("localhost.evil.example:48053", own));
+    CTM_CHECK(!rest_host_allowed("studio-pc.evil.example:48053", own));
+    CTM_CHECK(!rest_host_allowed("other-pc:48053", own));
+    // and anything that is not a well-formed address
+    CTM_CHECK(!rest_host_allowed("256.1.1.1:48053", own));
+    CTM_CHECK(!rest_host_allowed("1.2.3:48053", own));
+    CTM_CHECK(!rest_host_allowed("1.2.3.4.5:48053", own));
+    CTM_CHECK(!rest_host_allowed("1234.1.1.1:48053", own));
+    CTM_CHECK(!rest_host_allowed("::1:48053", own));
+    CTM_CHECK(!rest_host_allowed("[::1", own));
+    CTM_CHECK(!rest_host_allowed("[::1]x", own));
+    CTM_CHECK(!rest_host_allowed("[evil]:48053", own));
+    CTM_CHECK(!rest_host_allowed("", own));
+    // an own name only counts when it is given
+    CTM_CHECK(!rest_host_allowed("studio-pc:48053", std::vector<std::string>()));
+
+    // An Origin is absent, or exactly this listener.
+    CTM_CHECK(rest_origin_allowed("", "127.0.0.1:48053"));
+    CTM_CHECK(rest_origin_allowed("http://127.0.0.1:48053", "127.0.0.1:48053"));
+    CTM_CHECK(rest_origin_allowed("HTTP://LOCALHOST:48053", "localhost:48053"));
+    CTM_CHECK(rest_origin_allowed("http://127.0.0.1:48053/", "127.0.0.1:48053"));
+    // ⛔ Another site, another port, another scheme, another spelling of this
+    // one, a page from a file, or an Origin with no Host to compare it to.
+    CTM_CHECK(!rest_origin_allowed("http://evil.example", "127.0.0.1:48053"));
+    CTM_CHECK(!rest_origin_allowed("http://127.0.0.1:48054", "127.0.0.1:48053"));
+    CTM_CHECK(!rest_origin_allowed("https://127.0.0.1:48053", "127.0.0.1:48053"));
+    CTM_CHECK(!rest_origin_allowed("http://localhost:48053", "127.0.0.1:48053"));
+    CTM_CHECK(!rest_origin_allowed("null", "127.0.0.1:48053"));
+    CTM_CHECK(!rest_origin_allowed("http://127.0.0.1:48053", ""));
 }
 
 int run_rest_parser_tests()
@@ -191,5 +247,6 @@ int run_rest_parser_tests()
     test_busid_and_kind();
     test_bearer();
     test_response_format();
+    test_who_may_ask();
     return 0;
 }

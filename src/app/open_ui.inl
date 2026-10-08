@@ -22,6 +22,10 @@
 // because nothing else in the project launches another program.
 #include <shellapi.h>
 
+// The rule that tells our app window from a browser window showing the page in
+// a tab. The icon needed it first; every lookup here uses it too.
+#include "window_icon_rule.inl"
+
 namespace ctm_open_ui {
 
 inline bool g_open_ui = false;              // set by --ui
@@ -33,9 +37,15 @@ inline bool g_ui_already_focused = false;   // main focused one before starting
 // the page in a TAB, which is how "Open it properly" closed someone entire
 // browser.
 //
-// ⭐ The page appends this marker to its own title ONLY when it was opened by
-// us, which it knows from ?app on the URL. A tab never does, so it is never
-// matched.
+// ⭐ The page appends this marker to the END of its own title only when it was
+// opened with ?app on the URL, which is how we open it.
+// ⛔⛔ AND THE MARKER MUST END THE WINDOW'S TITLE, not merely be in it
+// (window_icon_rule::is_app_window_title). A tab opened on a URL that carries
+// ?app -- an address copied out of the window, a closed window reopened as a
+// tab -- puts the marker on too, and its browser window then reads
+// "... [ctm-app] - Google Chrome". Matched anywhere, that window was found,
+// and close_existing() closed the whole browser (code review, 2026-10-05).
+// In the window we open, the page's title is the whole title.
 inline const wchar_t *kTitleMarker = L"[ctm-app]";
 
 inline const wchar_t *kRelativePage = L"tools\\controller-config-test-client.html";
@@ -49,7 +59,7 @@ inline BOOL CALLBACK find_window_proc(HWND hwnd, LPARAM param)
     if (!IsWindowVisible(hwnd)) return TRUE;
     wchar_t title[512] = {};
     if (GetWindowTextW(hwnd, title, 511) <= 0) return TRUE;
-    if (wcsstr(title, kTitleMarker) == nullptr) return TRUE;
+    if (!window_icon_rule::is_app_window_title(title, kTitleMarker)) return TRUE;
     reinterpret_cast<FindState *>(param)->found = hwnd;
     return FALSE;                                   // stop at the first match
 }
@@ -256,7 +266,7 @@ inline bool window_has_foreground()
     if (fg == nullptr) return false;
     wchar_t title[512] = {};
     if (GetWindowTextW(fg, title, 511) <= 0) return false;
-    return wcsstr(title, kTitleMarker) != nullptr;
+    return window_icon_rule::is_app_window_title(title, kTitleMarker);
 }
 
 inline bool window_exists()
@@ -373,7 +383,7 @@ inline void raise_when_ready(bool release_claim = false)
     HWND before = GetForegroundWindow();
     wchar_t title[512] = {};
     if (before != nullptr && GetWindowTextW(before, title, 511) > 0 &&
-        wcsstr(title, kTitleMarker) != nullptr) {
+        window_icon_rule::is_app_window_title(title, kTitleMarker)) {
         before = nullptr;
     }
     std::thread([release_claim, before]() {
@@ -409,16 +419,6 @@ inline bool close_existing()
     PostMessageW(state.found, WM_CLOSE, 0, 0);
     return true;
 }
-
-// ⭐ Show the settings window and take the controllers. One implementation for
-// the REST endpoint and the chord, so they cannot drift apart.
-//
-// ⛔ Kill and recreate rather than focusing an existing window: every call then
-// lands in a known state, with nothing carried over from one left mid-edit.
-//
-// ⚠️ Declared here and defined in main.cpp, because this needs the gate --
-// which lives in rebind.inl, included long after this file.
-void ctm_show_settings_window();
 
 // Opens the settings page, or focuses the one already open.
 //

@@ -12,10 +12,15 @@
 // session lifecycle changes back through the loop.
 //
 // Security posture: binds 127.0.0.1 unless --rest-lan; optional bearer token
-// via --rest-token. No CORS headers are sent on purpose — without them a
-// browser cannot make cross-origin JSON POSTs or DELETEs to this port, which
-// blocks drive-by CSRF against a loopback listener. Same-origin tooling and
-// anything that isn't a browser (curl, scripts) is unaffected.
+// via --rest-token. No CORS headers are sent: the settings page is served from
+// this port, so it is same-origin and needs none, and without them no other
+// site's page can read an answer. ⛔ That alone does not stop another site
+// SENDING a request -- a form post needs no permission -- so rest_route refuses
+// any request whose Origin is another site, and any whose Host is a name other
+// than localhost or this PC's own, which is how a page that DNS has pointed at
+// 127.0.0.1 would reach it (code review, 2026-10-05: this said no CORS was
+// sent while every answer allowed any origin, and nothing checked who was
+// asking). curl and scripts send no Origin and use an address: unaffected.
 //
 // The parser half of this file is host-testable: tests/rest_parser_test.cpp
 // (a suite in the build-tests.ps1 harness) compiles it with
@@ -372,6 +377,88 @@ static bool rest_bearer_matches(const std::string &headerValue, const std::strin
     return diff == 0;
 }
 
+// ⭐⭐ WHO MAY ASK (code review, 2026-10-05). The checks below run on every
+// request, before the token. Neither touches curl or a script: those send no
+// Origin, and an address as their Host.
+
+// The host part of a Host header, or of an Origin's authority: lowercased and
+// without the port. An IPv6 literal keeps its brackets. Empty when malformed.
+static std::string rest_host_only(const std::string &hostPort)
+{
+    std::string h;
+    for (const char c : hostPort) h += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    if (h.empty()) return h;
+    if (h[0] == '[') {
+        const size_t close = h.find(']');
+        if (close == std::string::npos) return std::string();
+        for (size_t i = 1; i < close; ++i) {
+            const char c = h[i];
+            if (!(std::isxdigit(static_cast<unsigned char>(c)) || c == ':' || c == '.')) return std::string();
+        }
+        if (close + 1 < h.size() && h[close + 1] != ':') return std::string();
+        return h.substr(0, close + 1);
+    }
+    const size_t colon = h.find(':');
+    if (colon == std::string::npos) return h;
+    if (h.find(':', colon + 1) != std::string::npos) return std::string();   // IPv6 needs brackets
+    return h.substr(0, colon);
+}
+
+// Four decimal parts from 0 to 255, and nothing else.
+static bool rest_is_ipv4_literal(const std::string &h)
+{
+    int parts = 0;
+    size_t i = 0;
+    for (;;) {
+        const size_t start = i;
+        int value = 0;
+        while (i < h.size() && h[i] >= '0' && h[i] <= '9' && i - start < 3) {
+            value = value * 10 + (h[i] - '0');
+            ++i;
+        }
+        if (i == start || value > 255) return false;
+        ++parts;
+        if (i == h.size()) return parts == 4;
+        if (h[i] != '.' || parts == 4) return false;
+        ++i;
+    }
+}
+
+// ⭐ A Host this listener answers to: an address, localhost, or one of this
+// PC's own names (ownNames, lowercased).
+// ⛔ ANY OTHER NAME IS REFUSED. A page whose name a DNS server has pointed at
+// 127.0.0.1 reaches this port as a page of its own site ("DNS rebinding"), so
+// the Origin check below passes it -- but its requests carry its own name.
+static bool rest_host_allowed(const std::string &hostHeader, const std::vector<std::string> &ownNames)
+{
+    const std::string h = rest_host_only(hostHeader);
+    if (h.empty()) return false;
+    if (h == "localhost" || h[0] == '[' || rest_is_ipv4_literal(h)) return true;
+    for (const std::string &name : ownNames) {
+        if (!name.empty() && h == name) return true;
+    }
+    return false;
+}
+
+// ⭐ An Origin is absent, or it is this listener itself: "http://" and exactly
+// the Host the request was sent to.
+// ⛔ A browser sends one with every POST from another site, a plain form post
+// included, which needs no permission from this side -- so a foreign one is
+// refused before anything is done. "null" (a page opened from a file, a
+// sandboxed frame) is foreign too.
+static bool rest_origin_allowed(const std::string &origin, const std::string &hostHeader)
+{
+    if (origin.empty()) return true;
+    std::string o, host;
+    for (const char c : origin) o += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    for (const char c : hostHeader) host += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    static const std::string kScheme = "http://";
+    if (host.empty() || o.compare(0, kScheme.size(), kScheme) != 0) return false;
+    std::string authority = o.substr(kScheme.size());
+    if (!authority.empty() && authority.back() == '/') authority.pop_back();
+    return authority == host;
+}
+
 static const char *rest_reason_phrase(int status)
 {
     switch (status) {
@@ -395,25 +482,10 @@ static std::string rest_http_response(int status, const std::string &jsonBody,
 {
     std::string out = "HTTP/1.1 " + std::to_string(status) + " " + rest_reason_phrase(status) + "\r\n";
     out += "Connection: close\r\n";
-    // ⭐ CORS, on every response including errors.
-    //
-    // A browser is the intended caller -- that is the whole point of serving
-    // HTTP rather than only the line protocol. Without these headers a page
-    // makes the request, receives the response, and DISCARDS it, surfacing as
-    // an opaque "Failed to fetch" with the real reason invisible. The
-    // connection succeeds, so it looks like the agent is unreachable when it
-    // is answering perfectly.
-    //
-    // "*" rather than a specific origin because a page opened from disk sends
-    // Origin: null, and the useful callers here are local files and LAN pages.
-    //
-    // !! This is NOT an authentication decision. The API is already
-    // !! unauthenticated unless --rest-token is passed, and CORS never
-    // !! protected anything: curl and every non-browser client ignore it
-    // !! entirely. Loopback-unless---rest-lan is what limits exposure.
-    out += "Access-Control-Allow-Origin: *\r\n";
-    out += "Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS\r\n";
-    out += "Access-Control-Allow-Headers: Content-Type, Authorization\r\n";
+    // ⓘ NO CORS HEADERS (code review, 2026-10-05). "Access-Control-Allow-Origin:
+    // *" went on every answer from when the page was opened as a file; it is
+    // served from this port now, same-origin, and the header did nothing but
+    // let any other site's page read the answers. See the top of this file.
     out += extraHeaders;
     if (status == 204) {
         out += "Content-Length: 0\r\n\r\n";
@@ -441,6 +513,31 @@ static std::string rest_error_response(int status, const std::string &message,
 static uint16_t g_rest_port = 0;          // 0 = REST disabled
 static bool g_rest_bind_lan = false;      // default loopback-only
 static std::string g_rest_token;          // empty = no auth
+
+// This PC's own names, lowercased: its DNS host name, that name with ".local"
+// (mDNS), the fully qualified name and the NetBIOS name. A Host of one of these
+// is accepted beside an address and localhost (rest_host_allowed), so with
+// --rest-lan a phone that browses to the PC by its name is still answered.
+static const std::vector<std::string> &rest_own_names()
+{
+    static const std::vector<std::string> names = [] {
+        std::vector<std::string> out;
+        const COMPUTER_NAME_FORMAT kinds[] = {
+            ComputerNameDnsHostname, ComputerNameDnsFullyQualified, ComputerNameNetBIOS,
+        };
+        for (const COMPUTER_NAME_FORMAT kind : kinds) {
+            char buf[256] = {};
+            DWORD size = sizeof buf;
+            if (!GetComputerNameExA(kind, buf, &size) || size == 0) continue;
+            std::string name(buf, size);
+            for (char &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            out.push_back(name);
+            if (kind == ComputerNameDnsHostname) out.push_back(name + ".local");
+        }
+        return out;
+    }();
+    return names;
+}
 
 static std::chrono::steady_clock::time_point g_rest_agent_start;
 
@@ -560,15 +657,35 @@ static bool rest_route_config(const RestRequest &req, std::string *out);
 
 static std::string rest_route(const RestRequest &req, uint16_t agentPort)
 {
-    // ⚠️ ANSWER PREFLIGHT BEFORE THE AUTH CHECK. A CORS preflight is sent by
-    // the browser, not by the page, and never carries an Authorization header
-    // -- so with --rest-token set it would 401 and the browser would abandon
-    // the real request before making it. It carries no data and reveals
-    // nothing, so answering it unauthenticated costs nothing.
+    // ⛔⛔ WHO IS ASKING, before anything else, OPTIONS included: a Host that is
+    // a name other than localhost or this PC's, or an Origin that is another
+    // site, is refused here (rest_host_allowed, rest_origin_allowed). ⓘ A
+    // request with no Host at all comes from no browser, and goes on.
+    {
+        const auto hostIt = req.headers.find("host");
+        const auto originIt = req.headers.find("origin");
+        const std::string host = hostIt == req.headers.end() ? std::string() : hostIt->second;
+        const std::string origin = originIt == req.headers.end() ? std::string() : originIt->second;
+        if (!host.empty() && !rest_host_allowed(host, rest_own_names())) {
+            return rest_error_response(403, "this listener answers to an address, localhost or this PC's own name");
+        }
+        if (!rest_origin_allowed(origin, host)) {
+            return rest_error_response(403, "a request from another site is refused");
+        }
+    }
+    // ⓘ OPTIONS before the token. A browser's preflight comes only from another
+    // site's page, which the check above has refused, so what is left is a
+    // client asking what is allowed, and the answer carries no data.
     if (req.method == "OPTIONS") {
         return rest_http_response(204, "", "Allow: GET, POST, DELETE, OPTIONS\r\n");
     }
-    if (!g_rest_token.empty()) {
+    // ⭐ THE PAGE AND ITS ICON NEED NO TOKEN (code review, 2026-10-05). Opening
+    // an address in a browser sends no bearer header, so with --rest-token the
+    // page could not load at all -- and the page is where the token is typed
+    // in. Neither holds anything private; every /api/ route still asks for it.
+    const bool pageOrIcon = req.method == "GET" &&
+        (req.path == "/" || req.path == "/index.html" || req.path == "/favicon.ico");
+    if (!g_rest_token.empty() && !pageOrIcon) {
         const auto authIt = req.headers.find("authorization");
         if (authIt == req.headers.end() || !rest_bearer_matches(authIt->second, g_rest_token)) {
             return rest_error_response(401, "missing or invalid bearer token",

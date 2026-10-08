@@ -323,6 +323,9 @@ int run_config_store_tests()
         // ⭐ Deliberately empty: "all settings at defaults" and "nothing
         // overridden" are the same thing when an absent key is left alone.
         CTM_CHECK(!contains(body, "speaker_volume"));
+        // ⛔ CRLF once, never CR CR LF: a text stream doubled the CR.
+        CTM_CHECK(contains(body, "[config]\r\n"));
+        CTM_CHECK(!contains(body, "\r\r"));
         // and a second create with the same name is refused
         CTM_CHECK(!cs::create_config("fresh", &error));
         CTM_CHECK(contains(error, "already exists"));

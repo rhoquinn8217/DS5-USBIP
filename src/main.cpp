@@ -296,7 +296,7 @@ void synthetic_devices_stop()
 // Asked by the stick-to-mouse hook, included further down: is this pad steering
 // a window with Options? Its test stubs this the way it stubs the gate.
 static bool ctm_window_steering(const void *deviceKey) { return window_move::steering(deviceKey); }
-#include "app/overlay_window.inl"  // --overlay-test: the always-on-top, never-focused window
+#include "app/overlay_window.inl"  // the on-screen keyboard: the always-on-top, never-focused window
 // ⚠️ AFTER keyboard_device: rebind pushes key state into it, so it must be
 // defined first. And after gyro_mouse, for device_section_for and the config
 // helpers.
@@ -716,12 +716,6 @@ int wmain(int argc, wchar_t **argv)
                 // ⛔ It is STARTED further down, though, once this process
                 // knows it is the listener. See there for what starting it
                 // here left behind.
-            } else if (arg == L"--overlay-test") {
-                // ⓘ TEMPORARY, and named so. Step one of the overlay keyboard
-                // is a window with the right styles and a placeholder inside;
-                // this flag is how it gets looked at before anything is wired
-                // to it. It goes when the OSKeyboard action opens the real one.
-                ctm_overlay::show();
             } else if (arg == L"--rest-lan") {
                 g_rest_bind_lan = true;
             } else if (arg == L"--rest-token" && i + 1 < argc) {
@@ -755,7 +749,13 @@ int wmain(int argc, wchar_t **argv)
             // could only fail silently. Turning the port on is the useful
             // reading of "give me the settings page".
             if (g_rest_port == 0) {
-                g_rest_port = 48055;
+                // ⭐ 48053, NOT 48055 (code review, 2026-10-05; chosen by
+                // rhoquinn8217, 2026-10-06). 48055 is also the TV's first
+                // bridge port: with --rest-lan the page held it on every
+                // address, so the first device bridged could not open its
+                // port and the TV kept dialling the page. 48053 sits beside
+                // the agent's 48054, below every bridge port.
+                g_rest_port = 48053;
                 device_log::config_w() << L"--ui needs the settings API; enabling it on port "
                            << g_rest_port ;
             }
