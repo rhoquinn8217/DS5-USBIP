@@ -74,10 +74,13 @@ Bytes dualsense_like_configuration(uint8_t numInterfaces)
     return c;
 }
 
-Bytes dualsense_device_descriptor()
+// ⛔ NOT a DualSense's ids (an independent review, 2026-10-07): those are
+// UsbDeviceInfo's defaults, so a descriptor never read at all would have
+// passed. Every field read here differs from its default.
+Bytes other_device_descriptor()
 {
     return Bytes{0x12, 0x01, 0x00, 0x02, 0x00, 0x00, 0x00, 0x40,
-                 0x4C, 0x05, 0xE6, 0x0C, 0x00, 0x01, 0x01, 0x02, 0x00, 0x01};
+                 0x5E, 0x04, 0x12, 0x0B, 0x07, 0x05, 0x01, 0x02, 0x00, 0x02};
 }
 
 } // namespace
@@ -87,14 +90,15 @@ int run_usb_descriptors_tests()
     section("usb descriptors: the device descriptor's ids are read little-endian");
     {
         CtmDescriptorProfile p;
-        p.device_descriptor = dualsense_device_descriptor();
+        p.device_descriptor = other_device_descriptor();
         p.configuration_descriptor = dualsense_like_configuration(4);
+        p.configuration_descriptor[5] = 0x03;          // bConfigurationValue
         const usbdesc::UsbDeviceInfo info = usbdesc::parse_usb_info(p);
-        CTM_CHECK_EQ(static_cast<int>(info.vid), 0x054C);
-        CTM_CHECK_EQ(static_cast<int>(info.pid), 0x0CE6);
-        CTM_CHECK_EQ(static_cast<int>(info.bcdDevice), 0x0100);
-        CTM_CHECK_EQ(static_cast<int>(info.numConfigurations), 1);
-        CTM_CHECK_EQ(static_cast<int>(info.configurationValue), 1);
+        CTM_CHECK_EQ(static_cast<int>(info.vid), 0x045E);
+        CTM_CHECK_EQ(static_cast<int>(info.pid), 0x0B12);
+        CTM_CHECK_EQ(static_cast<int>(info.bcdDevice), 0x0507);
+        CTM_CHECK_EQ(static_cast<int>(info.numConfigurations), 2);
+        CTM_CHECK_EQ(static_cast<int>(info.configurationValue), 3);
         CTM_CHECK_EQ(static_cast<int>(info.numInterfaces), 4);
     }
 
