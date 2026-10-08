@@ -218,7 +218,10 @@ struct Started {
     std::condition_variable inputCv;
     std::vector<std::pair<std::vector<uint8_t>, uint8_t>> inputs;
 
-    void launch(uint16_t candidate)
+    // ⓘ `configure` runs before the backend starts, so nothing set there
+    // races its threads (an independent review, 2026-10-07).
+    void launch(uint16_t candidate,
+                const std::function<void(bridgetest::BridgeBackend &)> &configure = {})
     {
         port = candidate;
         // ⛔ Each try starts clean: a stale result read as this try's would
@@ -228,6 +231,7 @@ struct Started {
         backend.reset(new bridgetest::BridgeBackend(port, 10.0));
         backend->set_listen_address(INADDR_LOOPBACK);
         backend->set_session_timeouts(5000, 500);
+        if (configure) configure(*backend);
         thread = std::thread([this]() {
             const bool ok = backend->start([this](const uint8_t *data, size_t len, uint8_t endpoint) {
                 std::lock_guard<std::mutex> lock(inputMutex);
@@ -300,9 +304,15 @@ int run_bridge_handshake_tests()
         Started b;
         FakeTv tv;
         bool connected = false;
+        std::atomic<int> opened{0};
         for (int attempt = 0; attempt < 5 && !connected; ++attempt) {
             b.finish();
-            b.launch(pick_port(attempt));
+            // ⓘ Held to the loopback caller it really is, which must change
+            // nothing; and the open-config callback set before it starts.
+            b.launch(pick_port(attempt), [&opened](bridgetest::BridgeBackend &backend) {
+                backend.set_only_peer(INADDR_LOOPBACK);
+                backend.set_open_config_callback([&opened]() { opened.fetch_add(1); });
+            });
             // ⛔ Output from the PC before any TV is there is dropped, not
             // queued for the handshake to trip over.
             std::wstring err;
@@ -401,8 +411,6 @@ int run_bridge_handshake_tests()
 
         section("bridge handshake: the TV's open-the-settings-window message fires its callback");
         {
-            std::atomic<int> opened{0};
-            b.backend->set_open_config_callback([&opened]() { opened.fetch_add(1); });
             CTM_CHECK(tv.send_msg(proto::MsgOpenConfig, 0, 0, {}));
             const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
             while (opened.load() == 0 && std::chrono::steady_clock::now() < deadline) {
@@ -434,8 +442,9 @@ int run_bridge_handshake_tests()
         bool connected = false;
         for (int attempt = 30; attempt < 35 && !connected; ++attempt) {
             b.finish();
-            b.launch(pick_port(attempt));
-            b.backend->set_session_timeouts(5000, 3000);
+            b.launch(pick_port(attempt), [](bridgetest::BridgeBackend &backend) {
+                backend.set_session_timeouts(5000, 3000);
+            });
             connected = tv.connect_to(b.port, 1500);
         }
         CTM_CHECK(connected);
@@ -467,6 +476,37 @@ int run_bridge_handshake_tests()
         asker.join();
         b.finish();
         again.close();
+    }
+
+    section("bridge handshake: a port held for one caller turns another away, and keeps waiting");
+    {
+        // ⭐ A TV that proved over the internet that it is paired gets its
+        // bridge port to itself (the agent's paired_tv.inl): a connection from
+        // any other address is closed, and the port waits on for the right one.
+        // ⓘ This test can only call from loopback, so the port is held for an
+        // address that is not it.
+        Started b;
+        FakeTv stranger;
+        bool connected = false;
+        for (int attempt = 40; attempt < 45 && !connected; ++attempt) {
+            b.finish();
+            b.launch(pick_port(attempt), [](bridgetest::BridgeBackend &backend) {
+                backend.set_only_peer((203u << 24) | (0u << 16) | (113u << 8) | 7u);
+                backend.set_session_timeouts(1500, 500);
+            });
+            connected = stranger.connect_to(b.port, 1000);
+        }
+        CTM_CHECK(connected);
+        CTM_CHECK(stranger.sees_close());              // turned away, not handshaken
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(4);
+        while (b.result.load() < 0 && std::chrono::steady_clock::now() < deadline) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+        // ⓘ It waited out its first-connection window for the right caller.
+        CTM_CHECK_EQ(b.result.load(), 0);
+        CTM_CHECK(b.error == L"bridge initial accept timed out");
+        b.finish();
+        stranger.close();
     }
 
     section("bridge handshake: an enumeration sent ahead of HELLO is kept, and the handshake still completes");

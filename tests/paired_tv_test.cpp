@@ -237,6 +237,7 @@ int run_paired_tv_tests()
 
     section("paired tv: the whole check, for a caller from the internet");
     {
+        using paired_tv::Need;
         using paired_tv::Verdict;
         using Clock = paired_tv::Nonces::Clock;
         const Clock::time_point t0 = Clock::now();
@@ -247,35 +248,42 @@ int run_paired_tv_tests()
         std::string who;
 
         nonces.issue(kNonce, tv, t0);
-        CTM_CHECK(paired_tv::check(good, tv, paired_tv::Need::Required, &nonces, &devices, &who, t0) == Verdict::Proven);
+        const Verdict proven = paired_tv::check(good, tv, &nonces, &devices, &who, t0);
+        CTM_CHECK(proven == Verdict::Proven);
+        CTM_CHECK(paired_tv::lets_in(proven, Need::Required));
         CTM_CHECK_EQ(who, std::string("C1"));
         // The same line again: its challenge is spent.
-        CTM_CHECK(paired_tv::check(good, tv, paired_tv::Need::Required, &nonces, &devices, &who, t0) == Verdict::StaleChallenge);
+        CTM_CHECK(paired_tv::check(good, tv, &nonces, &devices, &who, t0) == Verdict::StaleChallenge);
         // From another address, with the challenge given to this one.
         nonces.issue(kNonce, tv, t0);
-        CTM_CHECK(paired_tv::check(good, ip(198, 51, 100, 9), paired_tv::Need::Required, &nonces, &devices, &who, t0) == Verdict::StaleChallenge);
+        CTM_CHECK(paired_tv::check(good, ip(198, 51, 100, 9), &nonces, &devices, &who, t0) == Verdict::StaleChallenge);
         // A stranger's signature under C1's name.
         nonces.issue(kNonce, tv, t0);
         const std::string forged = std::string(kCommand) + " PROOF=" + kNonce + ":" + kFpA + ":" + kSigByB;
-        CTM_CHECK(paired_tv::check(forged, tv, paired_tv::Need::Required, &nonces, &devices, &who, t0) == Verdict::BadSignature);
+        CTM_CHECK(paired_tv::check(forged, tv, &nonces, &devices, &who, t0) == Verdict::BadSignature);
         // A device the host never paired.
         nonces.issue(kNonce, tv, t0);
         const std::string unknown = std::string(kCommand) + " PROOF=" + kNonce + ":ffffffffffffffffffffffffffffffff:" + kSigByA;
-        CTM_CHECK(paired_tv::check(unknown, tv, paired_tv::Need::Required, &nonces, &devices, &who, t0) == Verdict::UnknownDevice);
+        CTM_CHECK(paired_tv::check(unknown, tv, &nonces, &devices, &who, t0) == Verdict::UnknownDevice);
         // A command changed after it was signed.
         nonces.issue(kNonce, tv, t0);
         const std::string changed = std::string("BRIDGE_START hid 48056 ctm-ds5-3 PROOF=") + kNonce + ":" + kFpA + ":" + kSigByA;
-        CTM_CHECK(paired_tv::check(changed, tv, paired_tv::Need::Required, &nonces, &devices, &who, t0) == Verdict::BadSignature);
+        CTM_CHECK(paired_tv::check(changed, tv, &nonces, &devices, &who, t0) == Verdict::BadSignature);
         // No proof at all, a malformed one, and no list from the host.
-        CTM_CHECK(paired_tv::check(kCommand, tv, paired_tv::Need::Required, &nonces, &devices, &who, t0) == Verdict::Missing);
-        CTM_CHECK(paired_tv::check(std::string(kCommand) + " PROOF=x:y:z", tv, paired_tv::Need::Required, &nonces, &devices, &who, t0) == Verdict::Malformed);
+        CTM_CHECK(paired_tv::check(kCommand, tv, &nonces, &devices, &who, t0) == Verdict::Missing);
+        CTM_CHECK(paired_tv::check(std::string(kCommand) + " PROOF=x:y:z", tv, &nonces, &devices, &who, t0) == Verdict::Malformed);
         nonces.issue(kNonce, tv, t0);
-        CTM_CHECK(paired_tv::check(good, tv, paired_tv::Need::Required, &nonces, nullptr, &who, t0) == Verdict::NoHostState);
-        CTM_CHECK(!paired_tv::lets_in(Verdict::NoHostState));
+        CTM_CHECK(paired_tv::check(good, tv, &nonces, nullptr, &who, t0) == Verdict::NoHostState);
+        // From the internet, none of those lets anyone in.
+        for (const Verdict v : { Verdict::Missing, Verdict::Malformed, Verdict::StaleChallenge,
+                                 Verdict::UnknownDevice, Verdict::BadSignature, Verdict::NoHostState }) {
+            CTM_CHECK(!paired_tv::lets_in(v, Need::Required));
+        }
     }
 
-    section("paired tv: from the home network a proof is checked, and only logged");
+    section("paired tv: from the home network a proof is checked and reported, and nobody is turned away");
     {
+        using paired_tv::Need;
         using paired_tv::Verdict;
         using Clock = paired_tv::Nonces::Clock;
         const Clock::time_point t0 = Clock::now();
@@ -283,16 +291,20 @@ int run_paired_tv_tests()
         const std::vector<paired_tv::Device> devices = paired_tv::devices_from_state(state_file());
         paired_tv::Nonces nonces;
         std::string who;
-        // No proof: in, as before.
-        CTM_CHECK(paired_tv::check(kCommand, home, paired_tv::Need::NotNeeded, &nonces, &devices, &who, t0) == Verdict::NotNeeded);
-        // A bad one: still in, since none was needed.
+        // No proof: reported as none, and in, as before.
+        const Verdict none = paired_tv::check(kCommand, home, &nonces, &devices, &who, t0);
+        CTM_CHECK(none == Verdict::Missing);
+        CTM_CHECK(paired_tv::lets_in(none, Need::NotNeeded));
+        // A bad one: reported for what it is, so the log shows it -- and still in.
         const std::string forged = std::string(kCommand) + " PROOF=" + kNonce + ":" + kFpA + ":" + kSigByB;
         nonces.issue(kNonce, home, t0);
-        CTM_CHECK(paired_tv::check(forged, home, paired_tv::Need::NotNeeded, &nonces, &devices, &who, t0) == Verdict::NotNeeded);
+        const Verdict bad = paired_tv::check(forged, home, &nonces, &devices, &who, t0);
+        CTM_CHECK(bad == Verdict::BadSignature);
+        CTM_CHECK(paired_tv::lets_in(bad, Need::NotNeeded));
         // A good one: proven, so the log can say who.
         const std::string good = std::string(kCommand) + " PROOF=" + kNonce + ":" + kFpA + ":" + kSigByA;
         nonces.issue(kNonce, home, t0);
-        CTM_CHECK(paired_tv::check(good, home, paired_tv::Need::NotNeeded, &nonces, &devices, &who, t0) == Verdict::Proven);
+        CTM_CHECK(paired_tv::check(good, home, &nonces, &devices, &who, t0) == Verdict::Proven);
     }
 
     section("paired tv: challenges are random, and the right length");

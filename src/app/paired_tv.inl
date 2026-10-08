@@ -424,9 +424,8 @@ inline std::string new_nonce()
 // ---------------------------------------------------------------- the check --
 
 enum class Verdict {
-    NotNeeded,      // this PC or the home network: let in, as before
+    Missing,        // no proof was sent
     Proven,         // a paired device, proven
-    Missing,        // needed, and none was sent
     Malformed,      // a proof that is not one
     StaleChallenge, // a nonce never given to this caller, used, or too old
     UnknownDevice,  // no paired device has that fingerprint
@@ -434,14 +433,18 @@ enum class Verdict {
     NoHostState,    // the host's list of paired devices could not be read
 };
 
-inline bool lets_in(Verdict v) { return v == Verdict::NotNeeded || v == Verdict::Proven; }
+// ⓘ Whether this verdict lets the caller in, where a proof is or is not
+// needed. Where one is not, nothing about a proof turns anyone away.
+inline bool lets_in(Verdict v, Need need)
+{
+    return need == Need::NotNeeded || v == Verdict::Proven;
+}
 
 inline const char *describe(Verdict v)
 {
     switch (v) {
-    case Verdict::NotNeeded:      return "no proof needed from this network";
+    case Verdict::Missing:        return "no pairing proof was sent";
     case Verdict::Proven:         return "proven by a TV paired with this PC";
-    case Verdict::Missing:        return "this TV did not prove it is paired with this PC";
     case Verdict::Malformed:      return "the pairing proof was malformed";
     case Verdict::StaleChallenge: return "the pairing proof's challenge was not this caller's, was used, or expired";
     case Verdict::UnknownDevice:  return "no device paired with this PC has that certificate";
@@ -451,19 +454,18 @@ inline const char *describe(Verdict v)
     return "?";
 }
 
-// The whole decision for one line, given what it needs from outside: the
-// caller, the policy, the challenges given out, and the host's devices.
-// ⓘ A proof that is SENT is always checked, even where none is needed, so a
-// TV at home exercises the path and a wrong one shows in the log. It decides
-// only where one is needed.
-inline Verdict check(const std::string &line, uint32_t peer, Need need, Nonces *nonces,
+// What the proof on one line amounts to, given the caller, the challenges
+// given out and the host's devices. ⓘ The real verdict, always: a TV at home
+// that sends a wrong proof is reported as wrong, so the log shows it, and
+// lets_in() decides separately whether that matters for this caller.
+inline Verdict check(const std::string &line, uint32_t peer, Nonces *nonces,
                      const std::vector<Device> *devices, std::string *who,
                      Nonces::Clock::time_point now)
 {
     std::string command;
     Proof proof;
     const bool hadProof = split(line, &command, &proof);
-    if (!hadProof) return need == Need::Required ? Verdict::Missing : Verdict::NotNeeded;
+    if (!hadProof) return Verdict::Missing;
 
     Verdict verdict = Verdict::Proven;
     std::vector<uint8_t> signature;
@@ -487,8 +489,7 @@ inline Verdict check(const std::string &line, uint32_t peer, Need need, Nonces *
             *who = match->name;
         }
     }
-    if (verdict == Verdict::Proven || need == Need::Required) return verdict;
-    return Verdict::NotNeeded;      // checked and logged by the caller, not enforced here
+    return verdict;
 }
 
 } // namespace paired_tv

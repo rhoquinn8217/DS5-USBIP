@@ -1,10 +1,11 @@
 # Agent REST API
 
 Optional HTTP/JSON API for the agent, enabled with `--rest <port>`. It is a
-*sibling* of the plaintext control channel on the agent port (the `STATUS` /
-`BRIDGE_START` / `BRIDGE_STOP` / `RESTART` line protocol the TV speaks). The TV
-keeps using that channel; REST serves the settings page and tooling: curl,
-scripts, health checks.
+*sibling* of the plaintext control channel on the agent port, the line
+protocol the TV speaks (`STATUS`, `PROOF_CHALLENGE`, `BRIDGE_START`,
+`BRIDGE_STOP`; `RESTART` and `USBIP_ATTACH` are this PC's alone):
+[control_port.md](control_port.md). The TV keeps using that channel; REST
+serves the settings page and tooling: curl, scripts, health checks.
 
 ```powershell
 ctm-usbip agent --rest 48053                      # loopback-only, no auth
