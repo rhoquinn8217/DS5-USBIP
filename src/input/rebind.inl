@@ -106,6 +106,10 @@ struct ChordPad {
     bool lastOptions = false;
     bool passOptions = false;
     int  lastDebugState = -1;
+    // The swallow below, per pad: the arming this pad has seen, and which of its
+    // buttons are still waiting to be seen released.
+    uint32_t swallowGeneration = 0;
+    uint32_t swallowMask = 0;
 };
 
 inline std::mutex g_chordMutex;
@@ -145,7 +149,14 @@ inline void set_gate_hold(bool hold)
 // ⓘ Cleared per button as each is released, not on a timer: a button held
 // deliberately across the transition should start working when it is next
 // pressed, not after an arbitrary wait.
-inline uint32_t g_swallowUntilReleased = 0;
+//
+// ⭐⭐ ARMED FOR EVERY PAD, CLEARED BY EACH PAD FOR ITSELF (code review,
+// 2026-10-05). This was one mask for all pads, so with two bridged the other
+// pad's next report, 4 ms later, cleared the buttons IT was not holding: close
+// the window with Cross on pad A and A's still-held Cross reached the game.
+// ➡️ Arming now counts up; each pad, at its next report, takes its own copy of
+// the mask (in ChordPad) and clears only its own released buttons.
+inline std::atomic<uint32_t> g_swallowGeneration{0};
 
 // ⭐ THE GATE IS PROVISIONAL UNTIL THE PAGE CONFIRMS IT.
 //
@@ -176,7 +187,7 @@ inline void set_config_mode(bool on)
     // Leaving the gate: whatever is down now must be released before the game
     // hears it.
     if (!on && g_configMode.load(std::memory_order_relaxed)) {
-        g_swallowUntilReleased = 0xffffffffu;
+        g_swallowGeneration.fetch_add(1);
     }
 
     const bool was = g_configMode.exchange(on);
@@ -190,6 +201,16 @@ inline void set_config_mode(bool on)
 }
 
 inline bool config_mode() { return g_configMode.load(std::memory_order_relaxed); }
+
+// ⭐ Everything this pad's rebinding is holding, let go: its keys and its mouse
+// buttons. For a report the rebinder does not see, so would not release.
+inline void let_go(const void *deviceKey)
+{
+    if (ctm_keyboard_device::holds_for(deviceKey)) {
+        ctm_keyboard_device::set_state_for(deviceKey, 0, nullptr, 0);
+    }
+    ctm_mouse_device::set_buttons_for(deviceKey, 0);
+}
 
 // ⭐⭐ IS THE PAGE'S CURSOR IN A TEXT FIELD? (T-141, 2026-09-03.)
 //
@@ -363,7 +384,16 @@ inline void apply(const void *deviceKey,
         // paused for no reason.
         //
         // ⓘ Options is then gated normally, like every other button.
-        if (f1 && f2 && optionsPressedNow && !config_mode()) {
+        // ⭐ "On" as it APPLIES, the flag and the window in front (code review,
+        // 2026-10-05). The flag alone refused the chord with the window left
+        // behind the game, which is when the chord is the way back to it.
+        // ⛔ And still refused while the window the last chord asked for is on
+        // its way (the four seconds below), as the flag alone refused it
+        // before: a second chord then would close the opening window, open
+        // another, and give the game a second Options, unpausing it.
+        const bool windowComing = chord_now_ms() < g_gateProvisionalUntil.load();
+        if (f1 && f2 && optionsPressedNow && !windowComing &&
+            !(config_mode() && ctm_ui_has_foreground())) {
             device_log::input(device_log::msg()
                 << "chord: two fingers + Options -- showing the settings window");
             {
@@ -377,7 +407,11 @@ inline void apply(const void *deviceKey,
             // ⓘ Four seconds: long enough for a browser to start cold, short
             // enough that being locked out is a blip rather than a problem.
             g_gateProvisionalUntil.store(chord_now_ms() + 4000);
-            ctm_chord_show_ui(chordOrdinal);
+            // ⭐ OFF THIS THREAD, as every other caller does (code review,
+            // 2026-10-05). This is the pad's own report thread, and opening the
+            // window can take a second and a browser start: this pad's presses
+            // were lost meanwhile and then burst out together.
+            std::thread([chordOrdinal]() { ctm_chord_show_ui(chordOrdinal); }).detach();
         }
 
         if (device_config_bool("global", "chord_debug", false)) {
@@ -514,17 +548,33 @@ inline void apply(const void *deviceKey,
     // ⚠️ EDGE-TRIGGERED (2026-08-31): this was a 2-second heartbeat, and any
     // config session that left the flag set had it drumming into the log
     // indefinitely. Transitions speak; steady state is silent.
+    //
+    // ⭐⭐ AND NOT GATING MEANS THE PAD WORKS AS IT DOES IN A GAME (code review,
+    // 2026-10-05). This returned here, before the bindings, so the game behind
+    // got the raw pad with none of them, and every key the gate had down stayed
+    // down. ➡️ Only the gate is skipped now; the bindings below run as they do
+    // with the window closed. ⓘ What is held as the window drops behind is
+    // swallowed until released, as on leaving the gate, so a press meant for
+    // the page does not land in the game.
+    // ⛔ ONLY A WINDOW THAT WAS IN FRONT DROPS BEHIND. The pad shortcut turns
+    // config mode on before its window exists, and its own Options is passed
+    // through, held, so the game pauses: swallowing there would cut that press
+    // to one report. So the swallow is armed on gating -> not gating alone,
+    // and the exchange makes exactly one report see that edge.
     static bool g_saidNotInFront = false;
-    if (config_mode() && !ctm_ui_has_foreground()) {
+    static std::atomic<bool> g_wasGating{false};
+    const bool gating = config_mode() && ctm_ui_has_foreground();
+    if (g_wasGating.exchange(gating) && !gating && config_mode()) {
+        g_swallowGeneration.fetch_add(1);
+    }
+    if (config_mode() && !gating) {
         if (!g_saidNotInFront) {
             g_saidNotInFront = true;
             device_log::input(device_log::msg()
                 << "config mode: our window is not in front -- not gating"
                 << " (silent until that changes)");
         }
-        return;
-    }
-    if (g_saidNotInFront) {
+    } else if (g_saidNotInFront) {
         g_saidNotInFront = false;
         if (config_mode()) {
             device_log::input(device_log::msg()
@@ -543,19 +593,32 @@ inline void apply(const void *deviceKey,
     // ⓘ A held button is blanked until it is seen RELEASED. Whatever armed it
     // -- hide(), a keyboard close, a mode change -- gets the same protection,
     // and it has to be applied before anything can consume the report.
-    if (g_swallowUntilReleased != 0 && len > 10) {
+    uint32_t swallow = 0;
+    {
+        const uint32_t generation = g_swallowGeneration.load();
+        std::lock_guard<std::mutex> lock(g_chordMutex);
+        ChordPad &pad = g_chordPads[deviceKey];
+        if (pad.swallowGeneration != generation) {
+            pad.swallowGeneration = generation;
+            pad.swallowMask = 0xffffffffu;
+        }
+        swallow = pad.swallowMask;
+    }
+    if (swallow != 0 && len > 10) {
         for (int i = 0; i < kButtonCount; ++i) {
             const uint32_t bit = 1u << i;
-            if ((g_swallowUntilReleased & bit) == 0) continue;
+            if ((swallow & bit) == 0) continue;
             if (is_pressed(*layout, data, len, i)) {
                 clear_button(*layout, data, len, i);
             } else {
-                g_swallowUntilReleased &= ~bit;
+                swallow &= ~bit;
             }
         }
+        std::lock_guard<std::mutex> lock(g_chordMutex);
+        g_chordPads[deviceKey].swallowMask = swallow;
     }
 
-    if (config_mode()) {
+    if (gating) {
         // ⛔ BUILT HERE, not borrowed. `section` is not created until well
         // below this branch -- after the gate has already returned -- so
         // reaching for it compiled nowhere. ⓘ At the TOP, because the Square
@@ -1016,12 +1079,24 @@ inline void apply(const void *deviceKey,
     for (int i = 0; touchPressed != 0 && i < kButtonCount; ++i) {
         if ((touchPressed & (1u << i)) != 0) set_button(*layout, data, len, i);
     }
+    // ⭐ And the buttons a steady trigger is pressing (trigger_click.inl), for
+    // the same reason and in the same place: a trigger bound to a pad button
+    // presses it at the trigger's own depth (code review, 2026-10-05).
+    const uint32_t triggerPressed = trigger_click_pad_buttons(deviceKey);
+    for (int i = 0; triggerPressed != 0 && i < kButtonCount; ++i) {
+        if ((triggerPressed & (1u << i)) != 0) set_button(*layout, data, len, i);
+    }
 
-    if (anyBound) {
+    // ⭐ AND WHILE THIS PAD STILL HOLDS SOMETHING, bound or not (code review,
+    // 2026-10-05). Publishing only while a binding exists left a key down for
+    // good once its last binding was taken away mid-press, or when the gate's
+    // keys were still down as the window dropped behind.
+    if (anyBound || ctm_keyboard_device::holds_for(deviceKey)) {
         ctm_keyboard_device::set_state_for(deviceKey, modifiers, keys, keyCount);
     }
-    // ⓘ Only when something is bound to a mouse button, so a controller with no
-    // mouse bindings never touches the mouse's state.
+    // ⓘ This once ran only when something was bound to a mouse button, so a
+    // controller with no mouse bindings never touched the mouse; the last note
+    // below says why it runs on every report now.
     // ⭐ PUBLISH WHENEVER WE HAVE AN OPINION, which includes "this trigger is
     // not mine any more" -- that is precisely when the bit needs clearing.
     // ⓘ Starting the mouse is a separate question: a suppressed trigger may be
@@ -1033,8 +1108,12 @@ inline void apply(const void *deviceKey,
     // released the Xbox pad's held RT between its reports, and a drag became
     // *"double or multi clicking"*. Each pad's mask is kept apart now and the
     // mouse sends the union (mouse_held.inl).
+    // ⭐ ON EVERY REPORT NOW (code review, 2026-10-05), for the reason the keys
+    // above give: a mouse binding taken away mid-press left its button down.
+    // ⓘ Safe for a pad with no mouse binding: the level is this pad's own and
+    // the rebinder's alone, so "nothing" clears only what this wrote.
+    ctm_mouse_device::set_buttons_for(deviceKey, mouseButtons);
     if (anyMouse || gaveUpATrigger) {
-        ctm_mouse_device::set_buttons_for(deviceKey, mouseButtons);
         if (device_config_bool(section.c_str(), "trigger_probe", false)) {
             static uint8_t lastPublished = 0xff;
             if (mouseButtons != lastPublished) {
@@ -1067,7 +1146,7 @@ inline void apply(const void *deviceKey,
 // problem for the same reason.
 void ctm_rebind_swallow_held()
 {
-    ctm_rebind::g_swallowUntilReleased = 0xffffffffu;
+    ctm_rebind::g_swallowGeneration.fetch_add(1);
 }
 
 void ctm_keyboard_forget_device(const void *deviceKey)
@@ -1220,6 +1299,13 @@ void ctm_rebind_apply(const void *deviceKey,
     // both are showing, the keyboard has the pad, as it always has.
         if (config_move::handle_report(deviceKey, overlayLayout, data, len)) {
             ctm_overlay::blank_report(overlayLayout, data, len);
+            // ⭐ AND THE REBINDER'S KEYS AND CLICKS LET GO (code review,
+            // 2026-10-05). The rebinder is skipped while Options steers, so
+            // whatever it had down stayed down: a d-pad held into the steer
+            // kept its arrow key held, and Windows repeated it.
+            // ⓘ Not for the keyboard above, which owns this pad's keys while
+            // it is up.
+            ctm_rebind::let_go(deviceKey);
             return;
         }
     }

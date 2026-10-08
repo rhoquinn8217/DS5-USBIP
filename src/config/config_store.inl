@@ -260,9 +260,10 @@ inline bool ensure_dir(const char *dir)
     return GetLastError() == ERROR_ALREADY_EXISTS;
 }
 
-// Parses one file and pushes its settings into g_device_config under the
-// namespaced section. Caller holds g_mutex.
-inline bool load_one_locked(const std::string &name, ConfigFile *out)
+// Parses one file: its settings block into *settings, the rest into *out.
+// ⓘ Touches nothing shared, so it runs with no lock held; reload_all() says why.
+inline bool parse_one(const std::string &name, ConfigFile *out,
+                      std::map<std::string, std::string> *settings)
 {
     std::ifstream file(path_for(name));
     if (!file.is_open()) return false;
@@ -330,8 +331,7 @@ inline bool load_one_locked(const std::string &name, ConfigFile *out)
     for (const auto &entry : pending) {
         if (entry.first != out->settingsBlock) continue;
         const size_t eq = entry.second.find('=');
-        g_device_config[config_section(name)][entry.second.substr(0, eq)] =
-            entry.second.substr(eq + 1);
+        (*settings)[entry.second.substr(0, eq)] = entry.second.substr(eq + 1);
     }
     return true;
 }
@@ -352,8 +352,49 @@ inline void notify_changed()
     if (g_on_change) g_on_change();
 }
 
+// ⓘ Held across one whole reload, the reading and the swap, so two reloads
+// cannot cross and leave an older read in place of a newer one. Nothing on the
+// input path takes it.
+inline std::mutex g_reloadMutex;
+
 inline void reload_all()
 {
+    // ⭐⭐ READ FIRST, LOCK AFTER (code review, 2026-10-05). Every file was read
+    // with g_device_config_mutex held -- the lock every input hook takes, on
+    // every report -- and the files sit on OneDrive, where a read can wait.
+    // This runs on every BRIDGE_START before its reply, on every page poll and
+    // once per key in a save, so every pad's input waited on the disk. The
+    // files are parsed with no shared lock now, and the locks below are held
+    // only to swap the result in.
+    std::lock_guard<std::mutex> reloading(g_reloadMutex);
+
+    struct Loaded {
+        std::string key;
+        ConfigFile cfg;
+        std::map<std::string, std::string> settings;
+    };
+    std::vector<Loaded> loaded;
+    const std::wstring pattern = std::wstring(kDir, kDir + strlen(kDir)) + L"\\*.txt";
+    WIN32_FIND_DATAW find = {};
+    HANDLE handle = FindFirstFileW(pattern.c_str(), &find);
+    const bool dirFound = handle != INVALID_HANDLE_VALUE;
+    if (dirFound) {
+        do {
+            if (find.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) continue;
+            const std::wstring wname(find.cFileName);
+            const std::string fname(wname.begin(), wname.end());
+            if (fname.size() < 5) continue;
+            const std::string stem = fname.substr(0, fname.size() - 4);
+            if (!valid_name(stem)) continue;
+            Loaded one;
+            if (parse_one(stem, &one.cfg, &one.settings)) {
+                one.key = lower(stem);
+                loaded.push_back(std::move(one));
+            }
+        } while (FindNextFileW(handle, &find));
+        FindClose(handle);
+    }
+
     // ⚠️ LOCK ORDER: g_mutex, then g_device_config_mutex. Never the reverse.
     // g_device_config is read by device_config_str/int/bool from the input
     // path at ~250 reports/sec per controller, while this runs on the agent
@@ -370,22 +411,12 @@ inline void reload_all()
         else ++it;
     }
     g_files.clear();
-
-    const std::wstring pattern = std::wstring(kDir, kDir + strlen(kDir)) + L"\\*.txt";
-    WIN32_FIND_DATAW find = {};
-    HANDLE handle = FindFirstFileW(pattern.c_str(), &find);
-    if (handle == INVALID_HANDLE_VALUE) return;
-    do {
-        if (find.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) continue;
-        const std::wstring wname(find.cFileName);
-        const std::string fname(wname.begin(), wname.end());
-        if (fname.size() < 5) continue;
-        const std::string stem = fname.substr(0, fname.size() - 4);
-        if (!valid_name(stem)) continue;
-        ConfigFile cfg;
-        if (load_one_locked(stem, &cfg)) g_files[lower(stem)] = cfg;
-    } while (FindNextFileW(handle, &find));
-    FindClose(handle);
+    for (Loaded &one : loaded) {
+        auto &section = g_device_config[config_section(one.cfg.name)];
+        for (const auto &setting : one.settings) section[setting.first] = setting.second;
+        g_files[one.key] = std::move(one.cfg);
+    }
+    if (!dirFound) return;
 
     // ⭐ ONLY WHEN IT CHANGED. The settings page polls the configs endpoint
     // every ten seconds and each poll reloads, so an unconditional line here

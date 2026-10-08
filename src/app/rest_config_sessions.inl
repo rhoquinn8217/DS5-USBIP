@@ -102,6 +102,7 @@ static std::vector<RestDeviceView> rest_collect_devices()
         if (session->device) {
             view.product = session->device->product_name();
             view.deviceType = session->device->device_kind_by_descriptor();
+            view.link = session->device->link_by_bus();
             // ⭐ What the pad last said about its own charge (T-195). Left at
             // -1 for a pad with no battery byte, so the JSON omits it.
             const ctm_rebind::BatteryReading battery =

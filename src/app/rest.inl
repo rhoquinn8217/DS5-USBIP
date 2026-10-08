@@ -380,6 +380,7 @@ static const char *rest_reason_phrase(int status)
     case 204: return "No Content";
     case 400: return "Bad Request";
     case 401: return "Unauthorized";
+    case 403: return "Forbidden";
     case 404: return "Not Found";
     case 405: return "Method Not Allowed";
     case 408: return "Request Timeout";
@@ -411,7 +412,7 @@ static std::string rest_http_response(int status, const std::string &jsonBody,
     // !! protected anything: curl and every non-browser client ignore it
     // !! entirely. Loopback-unless---rest-lan is what limits exposure.
     out += "Access-Control-Allow-Origin: *\r\n";
-    out += "Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n";
+    out += "Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS\r\n";
     out += "Access-Control-Allow-Headers: Content-Type, Authorization\r\n";
     out += extraHeaders;
     if (status == 204) {

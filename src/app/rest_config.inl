@@ -28,6 +28,7 @@ struct RestDeviceView {
     bool ready = false;         // false = still starting or tearing down
     std::string product;        // the device's own name, from the TV at HELLO
     std::string deviceType;     // "controller", "keyboard", "mouse" or ""
+    std::string link;           // "USB" or "BT" by the TV's HELLO, or ""
     // ⛔ -1 is "the pad did not say", which is NOT zero percent: a flat pad and
     // a pad with no battery byte are opposite facts and must not share a value
     // (T-195). A kind with nothing to report carries no field at all.
@@ -80,7 +81,7 @@ static std::string rest_device_json(const RestDeviceView &d)
     // (device_names.inl). The page shows this, and the tray icon's menu shows
     // the same words because it asks the same function.
     out += ",\"label\":\"" +
-           rest_json_escape(device_names::label(d.kind, d.product, d.deviceType)) + "\"";
+           rest_json_escape(device_names::label(d.kind, d.product, d.deviceType, d.link)) + "\"";
     // ⭐ Only when the pad actually said. Absent means the page draws nothing;
     // it must never be able to read a missing battery as an empty one.
     if (d.batteryPercent >= 0) {
@@ -203,23 +204,15 @@ static std::string rest_shared_json(const std::vector<RestDeviceView> &devices)
         // can itself be stale is worse than no diagnostic, because it is
         // believed. This is a human-paced call -- rereading a small file costs
         // nothing next to being wrong.
+        // ⚠️ ERASE FIRST, which the reload does: loading alone only INSERTS,
+        // so it would keep a key that had been DELETED from the file. That
+        // is precisely the case this fix exists for: an emptied file still
+        // reporting speaker_volume=33. Only the sections this file owns are
+        // dropped; the "cfg:" sections belong to config_store.
+        // ⭐ And the file is read before the input lock is taken, not under it
+        // (code review, 2026-10-05): this runs on every page poll.
+        device_config_reload_shared();
         std::lock_guard<std::mutex> lock(g_device_config_mutex);
-
-        // ⚠️ ERASE FIRST. device_config_load_locked() only INSERTS -- it never
-        // clears -- so reloading alone would keep a key that had been DELETED
-        // from the file. That is precisely the case this fix exists for: an
-        // emptied file still reporting speaker_volume=33.
-        //
-        // Only the sections this file owns are dropped. The "cfg:" sections
-        // belong to config_store and are not reloaded here; clearing them
-        // would blank every linked controller's settings until something
-        // reloaded them.
-        for (auto it = g_device_config.begin(); it != g_device_config.end(); ) {
-            if (it->first.rfind("cfg:", 0) == 0) ++it;
-            else it = g_device_config.erase(it);
-        }
-        g_device_config_loaded = false;
-        device_config_load_locked();
 
         auto it = g_device_config.find("ds5");
         bool firstKey = true;

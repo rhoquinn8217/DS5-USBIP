@@ -254,6 +254,26 @@ int run_stick_mouse_tests()
         CTM_CHECK_EQ(g_pushedY, 0);
     }
 
+    section("stick: a corner moves no faster than straight");
+    {
+        // ⓘ Code review, 2026-10-05: clamped before its direction was taken, a
+        // corner's direction came out 1.41 long, and diagonals ran 1.4 times
+        // as fast as straight lines. 50 ms at 1000 px/s is ~50 px ALONG the
+        // diagonal: ~35 on each axis, not 50.
+        reset_stubs();
+        fresh_device();
+        g_cfg["right_stick_mode"] = "mouse";
+        g_cfg["right_stick_mouse_speed"] = "1000";
+        g_cfg["right_stick_mouse_curve"] = "linear";
+        auto r = rest_report();
+        r[3] = 255;                        // hard right
+        r[4] = 255;                        // and hard down: a corner
+        run_step(r, 0);
+        run_step(r, 50);
+        CTM_CHECK(g_pushedX >= 33 && g_pushedX <= 38);
+        CTM_CHECK(g_pushedY >= 33 && g_pushedY <= 38);
+    }
+
     section("stick: speed is time-based, not per-report");
     {
         // ⭐ The property that matters: the same held stick over the same

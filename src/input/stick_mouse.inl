@@ -287,9 +287,12 @@ inline void step(const void *deviceKey, const std::string &section,
         st.carryY = 0.0f;
         return;
     }
-    if (mag > 1.0f) mag = 1.0f;                       // corners exceed 1
+    // ⓘ The direction from the real length, THEN the clamp (code review,
+    // 2026-10-05): clamped first, a corner's direction came out 1.41 long and
+    // diagonals moved 1.4 times as fast as straight lines.
     const float dirX = x / mag;
     const float dirY = y / mag;
+    if (mag > 1.0f) mag = 1.0f;                       // corners exceed 1
     float t = (mag - deadzone) / (1.0f - deadzone);
     if (t > 1.0f) t = 1.0f;
 

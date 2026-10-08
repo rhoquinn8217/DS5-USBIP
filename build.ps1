@@ -152,6 +152,9 @@ Copy-Item -Force -Path (Join-Path $Root 'maps\hid_identity.map') -Destination (J
 # the device fails to start and nothing moves.
 Copy-Item -Force -Path (Join-Path $Root 'profiles\descriptors\virtual_mouse.profile') -Destination (Join-Path $out 'profiles\descriptors\virtual_mouse.profile')
 Copy-Item -Force -Path (Join-Path $Root 'maps\virtual_mouse.map') -Destination (Join-Path $out 'maps\virtual_mouse.map')
+# And the synthetic keyboard the rebinder types with, for the same reason.
+Copy-Item -Force -Path (Join-Path $Root 'profiles\descriptors\virtual_keyboard.profile') -Destination (Join-Path $out 'profiles\descriptors\virtual_keyboard.profile')
+Copy-Item -Force -Path (Join-Path $Root 'maps\virtual_keyboard.map') -Destination (Join-Path $out 'maps\virtual_keyboard.map')
 Copy-Item -Force -Path (Join-Path $Root 'profiles\descriptors\xbox_gip_usb.profile') -Destination (Join-Path $out 'profiles\descriptors\xbox_gip_usb.profile')
 Copy-Item -Force -Path (Join-Path $Root 'maps\xbox_gip_usb_over_xbox_bt.map') -Destination (Join-Path $out 'maps\xbox_gip_usb_over_xbox_bt.map')
 Copy-Item -Force -Path (Join-Path $Root 'third_party\ffmpeg\x64\release\bin\*.dll') -Destination $out

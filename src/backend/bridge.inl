@@ -281,6 +281,7 @@ public:
         }
         caps.product = widen_ascii(capsRaw_.product, sizeof(capsRaw_.product));
         caps.path = widen_ascii(capsRaw_.path, sizeof(capsRaw_.path));
+        caps.bus = capsRaw_.bus;
         caps.hidReportDescriptor = hidReportDescriptor_;
         return caps;
     }
@@ -922,6 +923,11 @@ private:
                         std::wcerr << L"bridge idle timeout (" << idleMs
                                    << L" ms without input) on port " << port_ << L"\n";
                         close_client_socket();
+                        // ⓘ As the disconnect below does (code review,
+                        // 2026-10-05): without it this session kept its mic
+                        // slot, and after four such endings every later
+                        // session's microphone was dropped.
+                        mic_ring_reset(this);
                         fire_closed_callback();
                         return;
                     }

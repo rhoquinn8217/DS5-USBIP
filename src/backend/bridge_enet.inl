@@ -100,6 +100,7 @@ public:
         }
         caps.product = widen_ascii(capsRaw_.product, sizeof(capsRaw_.product));
         caps.path = widen_ascii(capsRaw_.path, sizeof(capsRaw_.path));
+        caps.bus = capsRaw_.bus;
         caps.hidReportDescriptor = hidReportDescriptor_;
         return caps;
     }

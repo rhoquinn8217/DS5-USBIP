@@ -222,13 +222,29 @@ inline void set_state_locked_from_devices()
 // ⭐ Everything up. Called when a controller unbridges and when rebinds are
 // turned off -- a key left down would repeat forever and look like a stuck
 // keyboard, which is the same class of fault as a stuck mouse button.
+// ⛔ THROUGH THE MERGE, like every other change (code review, 2026-10-05). It
+// cleared the rebinders' slots and then wrote "nothing held" straight over the
+// report, so a key the trigger or the touchpad was still holding went up and,
+// at that pad's next report, down again: a release and a press nobody made.
 inline void release_all()
 {
-    {
-        std::lock_guard<std::mutex> lock(g_stateMutex);
-        g_perDevice.clear();
+    std::lock_guard<std::mutex> lock(g_stateMutex);
+    g_perDevice.clear();
+    set_state_locked_from_devices();
+}
+
+// Whether this pad's own slot -- the rebinder's, which the on-screen keyboard
+// shares -- has anything down right now.
+inline bool holds_for(const void *deviceKey)
+{
+    std::lock_guard<std::mutex> lock(g_stateMutex);
+    const auto it = g_perDevice.find(deviceKey);
+    if (it == g_perDevice.end()) return false;
+    if (it->second.first != 0) return true;
+    for (uint8_t k : it->second.second) {
+        if (k != 0) return true;
     }
-    set_state(0, nullptr, 0);
+    return false;
 }
 
 inline long long pump_now_ms()

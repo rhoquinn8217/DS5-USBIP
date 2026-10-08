@@ -8,6 +8,9 @@
     std::wstring serial;
     std::wstring product;
     std::wstring path;
+    // How the device reaches the TV, as Linux numbers a bus: 3 USB, 5
+    // Bluetooth; 0 before the TV's HELLO, and for a backend with no TV.
+    uint16_t bus = 0;
     std::vector<uint8_t> hidReportDescriptor;
 };
 

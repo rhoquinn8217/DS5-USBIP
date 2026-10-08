@@ -246,6 +246,20 @@ public:
         return backend_ != nullptr ? backend_->caps().productId : 0;
     }
 
+    // ⭐ How the device reaches the TV, from the bus the TV sent at HELLO:
+    // "USB", "BT", or empty when it did not say (code review, 2026-10-05: the
+    // TV sent it all along and nothing kept it, so an Xbox pad or a Pro
+    // Controller could never be named by its link as a DualSense is).
+    // ⓘ Empty for the TV pointer, which the TV makes up and calls USB only so
+    // that Windows takes it as an ordinary mouse.
+    std::string link_by_bus() const
+    {
+        if (backend_ == nullptr) return std::string();
+        const BackendCaps caps = backend_->caps();
+        if (caps.path == L"virtual") return std::string();
+        return device_names::link_for_bus(caps.bus);
+    }
+
     // ⭐ What the device is by its report descriptor: "controller", "keyboard",
     // "mouse", or empty (device_type.inl).
     std::string device_kind_by_descriptor() const
