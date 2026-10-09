@@ -46,6 +46,8 @@ inline const wchar_t *const kTitle = L"DS5-USBIP";
 inline const wchar_t *const kDevices = L"Devices";
 inline const wchar_t *const kOpenConfig = L"Open Controller Configs";
 inline const wchar_t *const kConfigMode = L"Window Mode";
+// ⓘ The settings page's switch says the same words.
+inline const wchar_t *const kOpenOnBridge = L"Open on bridge";
 inline const wchar_t *const kQuit = L"Quit";
 
 // ⓘ By code point, so no editor and no compiler setting can turn it into

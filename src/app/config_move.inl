@@ -791,6 +791,10 @@ inline void snap_next(HWND hwnd)
 // the edge of another.
 inline const char *state_file() { return "window-state.txt"; }
 
+// ⭐ OPEN ON BRIDGE (rhoquinn8217, 2026-10-09), kept with the window's place
+// and size; open_on_bridge.inl says what it means. On until it is turned off.
+inline std::atomic_bool g_openOnBridge{true};
+
 inline void state_save()
 {
     // ⓘ Before the snapshot, not after: a place noted while this runs marks
@@ -808,6 +812,7 @@ inline void state_save()
         << "size_advanced = " << g_size.load() << "\n"
         << "size_simple = " << g_sizeCompact.load() << "\n"
         << "size_quick = " << g_sizeQuick.load() << "\n";
+    out << open_on_bridge::line(g_openOnBridge.load());
     {
         std::lock_guard<std::mutex> lock(g_ordinalMutex);
         if (!g_ordinal.empty()) out << "ordinal = " << g_ordinal << "\n";
@@ -860,6 +865,10 @@ inline void state_load()
         if (key == "ordinal") {
             std::lock_guard<std::mutex> lock(g_ordinalMutex);
             g_ordinal = val;
+            continue;
+        }
+        if (key == open_on_bridge::kKey) {
+            g_openOnBridge.store(open_on_bridge::parse(val));
             continue;
         }
         // ⚠️ T-253: this must sit ABOVE the atoi fallback -- these values
@@ -919,7 +928,18 @@ inline void state_load()
         << " simple=" << g_sizeCompact.load()
         << " quick=" << g_sizeQuick.load()
         << " posQuick=" << (g_posQuick.have ? 1 : 0)
-        << " " << g_posQuick.x << "," << g_posQuick.y);
+        << " " << g_posQuick.x << "," << g_posQuick.y
+        << " open_on_bridge=" << (g_openOnBridge.load() ? 1 : 0));
+}
+
+// The "Open on bridge" switch: read by the bridge, set by the tray and the
+// settings page, and written with the rest of the window's state at once, so
+// a restart keeps it.
+inline bool open_on_bridge() { return g_openOnBridge.load(); }
+inline void set_open_on_bridge(bool on)
+{
+    g_openOnBridge.store(on);
+    state_save();
 }
 
 // This layout's slot, and the table it indexes.
