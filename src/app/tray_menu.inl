@@ -154,4 +154,17 @@ inline std::wstring mode_line(int index, int current)
     return line;
 }
 
+// ⭐ WHAT A PICK IN THE WINDOW MODE MENU DOES (rhoquinn8217, 2026-10-09: "if
+// you select a window mode in the task bar that is already set, the window
+// should come in focus"). Another mode changes the layout. The mode the window
+// is already in brings an open window forward -- it did nothing at all -- and
+// with no window open still does nothing (their word, the same day: "leave it
+// as it is").
+enum class ModePick { ChangeLayout, BringForward, Nothing };
+inline ModePick mode_pick(int picked, int current, bool windowOpen)
+{
+    if (picked != current) return ModePick::ChangeLayout;
+    return windowOpen ? ModePick::BringForward : ModePick::Nothing;
+}
+
 } // namespace tray_menu

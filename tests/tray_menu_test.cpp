@@ -34,6 +34,17 @@ std::string narrow(const std::wstring &w)
 
 int run_tray_menu_tests()
 {
+    section("tray menu: picking a mode in Window Mode");
+    {
+        using tray_menu::mode_pick;
+        using tray_menu::ModePick;
+        CTM_CHECK(mode_pick(1, 0, true) == ModePick::ChangeLayout);    // another mode, window open
+        CTM_CHECK(mode_pick(1, 0, false) == ModePick::ChangeLayout);   // another mode, none open
+        CTM_CHECK(mode_pick(2, 2, true) == ModePick::BringForward);    // the one it is in: forward
+        CTM_CHECK(mode_pick(2, 2, false) == ModePick::Nothing);        // ... and none open: as before
+        CTM_CHECK(mode_pick(0, -1, true) == ModePick::ChangeLayout);   // no layout known yet
+    }
+
     section("tray menu: the count under the title");
     {
         using tray_menu::count_line;

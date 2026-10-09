@@ -257,7 +257,24 @@ inline void change_layout(int index)
     bool compact = false, quick = false;
     std::string ordinal;
     const bool known = ui_view_get(&compact, &quick, &ordinal);
-    if (tray_menu::mode_index(known, compact, quick) == index) return;   // it is in that one
+    ctm_open_ui::FindState open;
+    EnumWindows(ctm_open_ui::find_window_proc, reinterpret_cast<LPARAM>(&open));
+    switch (tray_menu::mode_pick(index, tray_menu::mode_index(known, compact, quick),
+                                 open.found != nullptr)) {
+    case tray_menu::ModePick::Nothing:
+        return;
+    case tray_menu::ModePick::BringForward:
+        // ⛔ THE PLAIN RAISE, NOT raise_when_ready. That one watches the front
+        // afterwards and raises again when the window that had it takes it
+        // back -- and from this menu, that window is the tray's own, so the
+        // next click on the tray icon would have its menu shut.
+        ctm_open_ui::raise_now(open.found);
+        device_log::session_w() << L"tray: the config window is " << tray_menu::kModes[index].name
+                                << L" already; brought it to the front";
+        return;
+    case tray_menu::ModePick::ChangeLayout:
+        break;
+    }
 
     const bool wasOpen = ui_close_window();
     if (wasOpen) {
