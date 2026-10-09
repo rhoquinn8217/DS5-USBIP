@@ -582,7 +582,9 @@ static std::string rest_handle_status(uint16_t agentPort)
     // no copy of its own.
     body += ",\"product\":\"" + rest_json_escape(PRODUCT_NAME) + "\"";
     body += ",\"product_version\":\"" + rest_json_escape(PRODUCT_VERSION) + "\"";
-    body += ",\"transport\":\"" + std::string(g_use_enet.load() ? "enet" : "tcp") + "\"";
+    // ⓘ Always "tcp" since the ENet transport went (2026-10-08); kept so a
+    // client reading it still finds it.
+    body += ",\"transport\":\"tcp\"";
     body += ",\"control_port\":" + std::to_string(agentPort);
     body += ",\"usbip_port\":" + std::to_string(kDefaultUsbipPort);
     body += ",\"uptime_seconds\":" + std::to_string(uptime);

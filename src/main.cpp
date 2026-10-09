@@ -21,8 +21,6 @@
 
 #include <hidsdi.h>
 
-#include <enet/enet.h>
-
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -82,7 +80,6 @@ bool ctm_rebind_config_mode_effective();
 static void mic_ring_push(const CtmBackend *owner, const uint8_t *data, size_t len);
 static void mic_ring_reset(const CtmBackend *owner);
 #include "backend/bridge.inl"
-#include "backend/bridge_enet.inl"
 #include "audio/mic_ring.inl"
 #include "audio/audio_gain.inl"
 #include "audio/pcm_amplitude_log.inl"  // needs monotonic_us from backend/bridge.inl; must precede its caller
@@ -571,11 +568,6 @@ int wmain(int argc, wchar_t **argv)
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
 
     SetConsoleCtrlHandler(console_ctrl_handler, TRUE);
-    EnetGlobalGuard enetGuard;
-    if (!enetGuard.ok) {
-        std::wcerr << L"enet_initialize failed\n";
-        return 2;
-    }
     // ⭐⭐ DOUBLE-CLICKED, IT IS THE LISTENER. No arguments and nobody reading
     // is a double-click on the exe, or a shortcut straight to it: the one way
     // most people will ever start it. That used to print the usage into a
@@ -693,9 +685,7 @@ int wmain(int argc, wchar_t **argv)
         }
         for (int i = argIndex; i < argc; ++i) {
             const std::wstring arg = argv[i];
-            if (arg == L"--enet") {
-                g_use_enet.store(true);
-            } else if (arg == L"--home" && i + 1 < argc) {
+            if (arg == L"--home" && i + 1 < argc) {
                 ++i;   // already taken, above
             } else if (arg == L"--rest" && i + 1 < argc) {
                 unsigned long value = 0;
@@ -843,9 +833,7 @@ int wmain(int argc, wchar_t **argv)
         }
         for (int i = argIndex; i < argc; ++i) {
             const std::wstring arg = argv[i];
-            if (arg == L"--enet") {
-                g_use_enet.store(true);
-            } else if (arg == L"--rest" && i + 1 < argc) {
+            if (arg == L"--rest" && i + 1 < argc) {
                 unsigned long value = 0;
                 if (!parse_uint_arg(argv[++i], 65535, &value) || value < 1024) {
                     print_usage();
@@ -877,7 +865,6 @@ int wmain(int argc, wchar_t **argv)
             return service_uninstall();
         }
         unsigned long port = kAgentDefaultPort;
-        bool useEnet = false;
         unsigned long restPort = 0;
         bool restLan = false;
         std::wstring restToken;
@@ -891,9 +878,7 @@ int wmain(int argc, wchar_t **argv)
         }
         for (int i = argIndex; i < argc; ++i) {
             const std::wstring arg = argv[i];
-            if (arg == L"--enet") {
-                useEnet = true;
-            } else if (arg == L"--rest" && i + 1 < argc) {
+            if (arg == L"--rest" && i + 1 < argc) {
                 if (!parse_uint_arg(argv[++i], 65535, &restPort) || restPort < 1024) {
                     print_usage();
                     return 2;
@@ -914,7 +899,7 @@ int wmain(int argc, wchar_t **argv)
                 return 2;
             }
         }
-        return service_install(static_cast<uint16_t>(port), useEnet,
+        return service_install(static_cast<uint16_t>(port),
                                static_cast<uint16_t>(restPort), restLan, restToken);
     }
 
@@ -937,8 +922,6 @@ int wmain(int argc, wchar_t **argv)
         std::wstring arg = argv[i];
         if (arg == L"--no-attach") {
             noAttach = true;
-        } else if (arg == L"--enet") {
-            g_use_enet.store(true);
         } else if (arg == L"--profile" && i + 1 < argc) {
             profileOverride = argv[++i];
         } else if (arg == L"--map" && i + 1 < argc) {
@@ -1000,14 +983,8 @@ int wmain(int argc, wchar_t **argv)
     std::wcout << L"map: " << mapPath << L"\n";
 
     std::unique_ptr<CtmBackend> backend;
-    EnetBridgeBackend *enetBackend = nullptr;
     if (mode == L"bt") {
         backend = std::make_unique<LocalBtBackend>(number, device.bt_audio_pace_ms());
-    } else if (g_use_enet.load()) {
-        auto enet = std::make_unique<EnetBridgeBackend>(static_cast<uint16_t>(number), device.bt_audio_pace_ms());
-        enetBackend = enet.get();
-        backend = std::move(enet);
-        std::wcout << L"transport: ENet/UDP (--enet)\n";
     } else {
         backend = std::make_unique<BridgeBackend>(static_cast<uint16_t>(number), device.bt_audio_pace_ms());
     }
@@ -1047,29 +1024,6 @@ int wmain(int argc, wchar_t **argv)
         backend->stop();
         std::wcerr << L"usbip server start failed: " << error << L"\n";
         return 6;
-    }
-
-    // Explicit plug-out / plug-in for the ENet transport on link transitions:
-    // on link loss detach the virtual USB device (Windows sees an unplug) and
-    // log the unplugged state; on reconnect re-attach it. The TCP BridgeBackend
-    // keeps its existing reconnect-in-place behavior and sets no callbacks.
-    if (enetBackend != nullptr) {
-        const std::wstring attachBusId = busId;
-        const uint16_t attachPort = usbipPort;
-        const std::string detachBusId = busIdAscii;
-        const bool autoAttach = !noAttach;
-        enetBackend->set_disconnect_callback([&server, detachBusId]() {
-            const bool detached = server.detach_device(detachBusId);
-            device_log::session_w() << L"bridge link down: virtual device UNPLUGGED busid="
-                       << widen_ascii(detachBusId.c_str(), detachBusId.size())
-                       << (detached ? L" (usb/ip client detached)" : L" (no active import)");
-        });
-        enetBackend->set_reconnect_callback([attachBusId, attachPort, autoAttach]() {
-            device_log::session_w() << L"bridge link up: virtual device PLUGGED IN busid=" << attachBusId;
-            if (autoAttach && !run_usbip_attach(attachBusId, attachPort)) {
-                std::wcerr << L"re-attach failed; server remains running for manual attach\n";
-            }
-        });
     }
 
     if (!noAttach) {

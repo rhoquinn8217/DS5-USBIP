@@ -165,9 +165,8 @@ routing (resolved the `02 a3` feature storm).
 - **DON'T add TV-side gamepad-mode/lizard init (`on_plug_init`).** Putting puck
   protocol on the TV breaks "TV is blind" + clean-room. Activation comes from
   Steam through the bridge.
-- **ENet (`--enet`) composite is a latent bug:** `bridge_enet.inl` does not store
-  the forwarded enum and expects HELLO first, so composite fails over ENet. TCP
-  (the default/test path) is unaffected. Fix later.
+- ~~**ENet (`--enet`) composite is a latent bug**~~: gone with the ENet transport
+  itself, removed 2026-10-08. TCP is the one transport.
 - `full_speed` flag is vestigial (superseded by the bulk-patch + `usb_speed_for`).
 
 ---

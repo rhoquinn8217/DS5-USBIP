@@ -94,7 +94,8 @@ mode").
  "uptime_seconds":812,"session_count":1}
 ```
 
-`transport` is `"enet"` when the agent runs with `--enet`, else `"tcp"`.
+`transport` is always `"tcp"`. It read `"enet"` under the `--enet` flag until
+2026-10-08, when that transport was removed.
 
 ### GET /api/v1/sessions
 

@@ -76,8 +76,7 @@
     </Link>
   </ItemDefinitionGroup>
   <!-- Code under test. runtime.cpp only; main.cpp is excluded because the test
-       binary provides its own main(). Intentionally no ENet: runtime.cpp does
-       not depend on it. -->
+       binary provides its own main(). -->
   <ItemGroup>
     <ClCompile Include="..\src\map\runtime.cpp" />
     <ClCompile Include="..\tests\map_defaults_test.cpp" />

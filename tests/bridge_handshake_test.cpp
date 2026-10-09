@@ -56,7 +56,7 @@ using namespace ctmtest;
 namespace bridgetest {
 
 // ⓘ What the bridge takes from common.inl, copied as it is there: common.inl
-// itself needs ENet and the USB profiles, which nothing here uses.
+// itself needs the USB profiles, which nothing here uses.
 std::atomic_bool g_stop(false);
 
 static bool ctm_verbose_logs() { return false; }

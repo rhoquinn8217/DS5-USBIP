@@ -234,16 +234,13 @@ static void remove_firewall_rules()
                      kFirewallRuleName + L"\"");
 }
 
-static std::wstring service_image_path(uint16_t port, bool useEnet,
+static std::wstring service_image_path(uint16_t port,
                                        uint16_t restPort, bool restLan,
                                        const std::wstring &restToken)
 {
     wchar_t self[MAX_PATH] = {};
     GetModuleFileNameW(nullptr, self, ARRAYSIZE(self));
     std::wstring command = std::wstring(L"\"") + self + L"\" service-run " + std::to_wstring(port);
-    if (useEnet) {
-        command += L" --enet";
-    }
     if (restPort != 0) {
         command += L" --rest " + std::to_wstring(restPort);
         if (restLan) {
@@ -256,7 +253,7 @@ static std::wstring service_image_path(uint16_t port, bool useEnet,
     return command;
 }
 
-static int service_install(uint16_t port, bool useEnet,
+static int service_install(uint16_t port,
                            uint16_t restPort, bool restLan,
                            const std::wstring &restToken)
 {
@@ -270,7 +267,7 @@ static int service_install(uint16_t port, bool useEnet,
         return 1;
     }
 
-    const std::wstring image = service_image_path(port, useEnet, restPort, restLan, restToken);
+    const std::wstring image = service_image_path(port, restPort, restLan, restToken);
     SC_HANDLE svc = CreateServiceW(
         scm, kServiceName, kServiceDisplayName,
         SERVICE_ALL_ACCESS, SERVICE_WIN32_OWN_PROCESS, SERVICE_AUTO_START,
@@ -314,8 +311,7 @@ static int service_install(uint16_t port, bool useEnet,
 
     CloseServiceHandle(svc);
     CloseServiceHandle(scm);
-    std::wcout << L"installed and started service '" << kServiceName << L"' on port " << port
-               << (useEnet ? L" (--enet)" : L"");
+    std::wcout << L"installed and started service '" << kServiceName << L"' on port " << port;
     if (restPort != 0) {
         std::wcout << L" (REST " << (restLan ? L"0.0.0.0" : L"127.0.0.1") << L":" << restPort << L")";
     }

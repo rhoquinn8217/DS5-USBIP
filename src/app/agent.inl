@@ -16,9 +16,6 @@ struct AgentBridgeSession {
     // a stop on another thread -- a worker retiring an older session for the
     // same pad, or the REST API -- must not free it under that send.
     std::shared_ptr<CtmBackend> backend;
-    // Non-owning view of backend when it is the ENet transport, used to wire the
-    // plug-out/plug-in callbacks. nullptr for the TCP BridgeBackend.
-    EnetBridgeBackend *enetBackend = nullptr;
     std::thread worker;
     std::atomic_bool stopping{false};
     std::atomic_bool ready{false};
@@ -258,21 +255,11 @@ static void bridge_session_worker(AgentBridgeSession *session)
         return;
     }
 
-    // Transport selection: ENet/UDP when the agent was started with --enet,
-    // otherwise the unchanged TCP BridgeBackend. Both bind the same port number.
+    // ⓘ TCP is the one transport. An ENet/UDP one was offered with --enet until
+    // 2026-10-08 and removed: it had drifted from the protocol and the TV no
+    // longer spoke it (code review, 2026-10-05).
     CtmBackend *backendPtr = nullptr;
-    EnetBridgeBackend *enetBackendPtr = nullptr;
-    if (g_use_enet.load()) {
-        auto backend = std::make_unique<EnetBridgeBackend>(session->port, session->device->bt_audio_pace_ms());
-        enetBackendPtr = backend.get();
-        backendPtr = backend.get();
-        std::lock_guard<std::mutex> lock(session->mutex);
-        if (session->stopping.load()) {
-            return;
-        }
-        session->enetBackend = enetBackendPtr;
-        session->backend = std::move(backend);
-    } else {
+    {
         auto backend = std::make_unique<BridgeBackend>(session->port, session->device->bt_audio_pace_ms());
         backendPtr = backend.get();
         backend->set_only_peer(session->onlyPeer);
@@ -291,12 +278,12 @@ static void bridge_session_worker(AgentBridgeSession *session)
                                  session->kind == "ds5e" ||
                                  session->kind == "xbox" || session->kind == "puck";
         backend->set_idle_timeouts(gamepadKind ? 15000 : 0, 15000);
-        // TCP path: when the TV client vanishes and the reconnect grace runs
-        // out (or the idle rule fires), unplug the virtual device and reap the
-        // session (mirrors the ENet link-down behavior; a reaped port also
-        // can't hijack the next plug's handshake). The reap is queued to the
-        // agent loop: stop() joins the reader thread that fires this callback,
-        // so reaping inline here would self-join.
+        // When the TV client vanishes and the reconnect grace runs out (or
+        // the idle rule fires), unplug the virtual device and reap the
+        // session (a reaped port also can't hijack the next plug's
+        // handshake). The reap is queued to the agent loop: stop() joins the
+        // reader thread that fires this callback, so reaping inline here
+        // would self-join.
         {
             const std::wstring busId = session->busId;
             backend->set_closed_callback([busId]() {
@@ -419,40 +406,6 @@ static void bridge_session_worker(AgentBridgeSession *session)
         backendPtr->stop();
         std::wcerr << L"agent USB/IP export failed busid=" << session->busId << L": " << error << L"\n";
         return;
-    }
-
-    // For the ENet transport, surface an explicit plug-out on link loss and a
-    // plug-in on reconnect. Detach mirrors BRIDGE_STOP: remove the export from
-    // the shared USB/IP server (Windows sees an unplug). Reconnect re-exports
-    // and re-attaches the same device. The TCP path sets no callbacks and keeps
-    // its reconnect-in-place behavior unchanged.
-    if (enetBackendPtr != nullptr) {
-        const std::wstring busId = session->busId;
-        const std::string busIdAscii = session->busIdAscii;
-        const std::shared_ptr<CtmUsbipDevice> sessionDevice = session->device;
-        // ⓘ Weak: this callback lives inside the backend, and a strong copy
-        // there would keep the backend alive for ever.
-        const std::weak_ptr<CtmBackend> weakBackend = backendForExport;
-        enetBackendPtr->set_disconnect_callback([busId, busIdAscii]() {
-            device_log::session_w() << L"agent bridge link down busid=" << busId
-                       << L" -> virtual device UNPLUGGED";
-            if (g_agent_usbip_server) {
-                g_agent_usbip_server->remove_device(busIdAscii);
-            }
-        });
-        enetBackendPtr->set_reconnect_callback([busId, busIdAscii, sessionDevice, weakBackend]() {
-            device_log::session_w() << L"agent bridge link up busid=" << busId
-                       << L" -> virtual device PLUGGED IN";
-            std::wstring reAddError;
-            if (g_agent_usbip_server &&
-                g_agent_usbip_server->add_device(sessionDevice, busIdAscii, &reAddError, weakBackend.lock())) {
-                if (!run_usbip_attach(busId, kDefaultUsbipPort)) {
-                    std::wcerr << L"agent re-attach failed busid=" << busId << L"\n";
-                }
-            } else {
-                std::wcerr << L"agent re-export failed busid=" << busId << L": " << reAddError << L"\n";
-            }
-        });
     }
 
     // ⛔ RETIRE AN OLDER SESSION FOR THE SAME PHYSICAL CONTROLLER.

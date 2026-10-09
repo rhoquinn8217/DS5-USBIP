@@ -75,22 +75,6 @@ public:
         shutdown_active_clients(busId);
     }
 
-    // Force any active USB/IP import of this busid to disconnect (Windows sees
-    // an unplug) WITHOUT removing the export, so a later re-attach succeeds.
-    // Used by the ENet transport to surface an explicit plug-out on link loss
-    // while keeping the device available for reconnect. Returns true if a live
-    // client was torn down.
-    bool detach_device(const std::string &busId)
-    {
-        bool hadClient;
-        {
-            std::lock_guard<std::mutex> lock(activeClientsMutex_);
-            hadClient = activeClients_.find(busId) != activeClients_.end();
-        }
-        shutdown_active_clients(busId);
-        return hadClient;
-    }
-
     bool start(uint16_t port, std::wstring *error)
     {
         WSADATA data = {};

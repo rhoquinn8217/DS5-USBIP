@@ -34,32 +34,6 @@ std::atomic_bool g_restart_requested(false);
 // handler can call it before service.inl is included.
 static bool request_service_restart();
 
-// Runtime selection of the additive ENet/UDP transport. Off by default so the
-// process behaves byte-identically to the TCP-only build; set true only when
-// the --enet flag is passed. Read by the agent session worker and bridge mode
-// to choose EnetBridgeBackend over the TCP BridgeBackend.
-std::atomic_bool g_use_enet(false);
-
-// RAII guard for ENet's process-global init/deinit. enet_initialize() is called
-// once at startup and enet_deinitialize() once at exit, regardless of which
-// transport is actually selected (cheap, and keeps the lifetime trivially
-// correct across every wmain exit path including the early agent return).
-struct EnetGlobalGuard {
-    bool ok = false;
-    EnetGlobalGuard()
-    {
-        ok = enet_initialize() == 0;
-    }
-    ~EnetGlobalGuard()
-    {
-        if (ok) {
-            enet_deinitialize();
-        }
-    }
-    EnetGlobalGuard(const EnetGlobalGuard &) = delete;
-    EnetGlobalGuard &operator=(const EnetGlobalGuard &) = delete;
-};
-
 // ⭐ Set by --verbose, or by CTM_USBIP_VERBOSE for a shell that wants it.
 //
 // ⛔ The environment variable alone was not enough. A released user runs a

@@ -18,8 +18,8 @@
 // WHAT IS DELIBERATELY ABSENT. Only files with no dependency on the earlier
 // include chain are here. ds5_apply_settings.inl needs the backend type,
 // agent_session_sweep.inl needs the agent's session list, and config_watcher
-// .inl spawns a thread -- pulling any of them in would drag in ENet, sockets
-// and the map runtime, i.e. most of the program, to test a few dozen lines.
+// .inl spawns a thread -- pulling any of them in would drag in sockets and
+// the map runtime, i.e. most of the program, to test a few dozen lines.
 //
 // If a needed header is ever added to main.cpp and not here, this file fails
 // to compile with a plain missing-symbol error. Noisy, not silent.
