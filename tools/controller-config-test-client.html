@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.62 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.63 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,10 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.63 In Advanced's footer, up on the Mode picker or on Close leaves
+            the footer as Esc does, back to where you were; it only stepped
+            between the two. The version on the Overview tab reads this one;
+            it was a version behind.
     2.66.62 An edit is written to the config it was made in, however fast
             the tab moves on: it read the row when its timer fired, so a
             switch inside 400 ms wrote the other config's value. The pad
@@ -1836,7 +1840,7 @@
 <div class="bar">
   <!-- ⓘ The same number as VERSION at the top of this file, by hand. It sat
        at 2.66.4 for thirty-four versions while VERSION moved on. -->
-  <span class="muted" style="font-size:12px">v2.66.61</span>
+  <span class="muted" style="font-size:12px">v2.66.63</span>
   <label class="muted">agent</label>
   <input id="base" value="http://127.0.0.1:48053" size="26">
   <label class="muted">bearer</label>
@@ -6695,6 +6699,22 @@ function gpEditStep(dir, mult) {
 
 // ⓘ Up/down has three meanings depending on what is open, exactly as the pad
 // does -- so it routes the same way rather than duplicating the logic.
+// ⭐ UP LEAVES THE FOOTER (rhoquinn8217, 2026-10-09: *"when you are locked in
+// the footer sections in advance mode, pressing up on when you are on the mode
+// selector or close, should have the same affect as esc"*). The footer is one
+// row, so up had nowhere to go but the other control. ➡️ It does what ○ / Esc
+// does there: back to where you were.
+// ⚠️ Not while the Mode picker's list is open (GP_SELECTING): up walks its
+// modes there, and Esc would close the list first too.
+// ⛔ Called from the VERTICAL routes only -- gpKeyMove for the keys and the
+// gated pad, gpPoll for a pad the page reads itself -- never from gpMove, which
+// ◄ ► share: left from Close is the way to the Mode picker.
+function footerUpLeaves(delta) {
+  if (!FOOTER_MODE || delta >= 0 || GP_SELECTING) return false;
+  setFooterMode(false);
+  return true;
+}
+
 function gpKeyMove(delta) {
   // ⚠️ INVERTED for an editor. Moving a halo DOWN is delta +1, but pressing up
   // on a value must INCREASE it -- measured: up was decrementing.
@@ -6704,6 +6724,7 @@ function gpKeyMove(delta) {
     GP_SELECTING.selectedIndex = (GP_SELECTING.selectedIndex + delta + n) % n;
     return;
   }
+  if (footerUpLeaves(delta)) return;
   if (COMPACT && compactMove(0, delta)) return;
   gpMove(delta);
 }
@@ -8886,10 +8907,13 @@ function gpPoll() {
   else if (edge(15)) { gpKeyStep(1); GP_REPEAT_AT = now + 400; }
 
   // D-pad: fire on the edge, then repeat while held after a short delay.
-  else if (edge(12)) { gpMove(-1); GP_REPEAT_AT = now + 400; }
+  // ⓘ Up goes by footerUpLeaves first, as the keys' up does in gpKeyMove.
+  else if (edge(12)) { if (!footerUpLeaves(-1)) gpMove(-1); GP_REPEAT_AT = now + 400; }
   else if (edge(13)) { gpMove(1); GP_REPEAT_AT = now + 400; }
   else if ((pressed(12) || pressed(13)) && now >= GP_REPEAT_AT) {
-    gpMove(pressed(12) ? -1 : 1); GP_REPEAT_AT = now + 90;
+    var vert = pressed(12) ? -1 : 1;
+    if (!footerUpLeaves(vert)) gpMove(vert);
+    GP_REPEAT_AT = now + 90;
   }
 
   requestAnimationFrame(gpPoll);
