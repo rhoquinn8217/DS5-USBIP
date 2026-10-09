@@ -63,9 +63,10 @@ those, or a [DS5Dongle](https://github.com/awalol/DS5Dongle) to stay wireless.
 
 ## Why this exists
 
-Before Ciprianmisaila's ctm-bridge-webos/CTM-USBIP, a DualSense connected to a
-webOS TV could already send its input to a PC through the streaming software,
-and Windows saw it as a device with gyro, touchpad and adaptive triggers.
+Before ciprianmisaila's ctm-bridge-webos/CTM-USBIP, a DualSense connected to a
+USB port on a webOS TV could already send its input to a PC through the
+streaming software, and Windows saw it as a device with gyro, touchpad and
+adaptive triggers.
 However, it is limited in that it does not support audio-based rumble, speaker
 audio or microphone.
 
@@ -93,7 +94,7 @@ rebindings could be stored and managed.
 In [ciprianmisaila](https://github.com/ciprianmisaila)'s Bluetooth path, report
 packets are tunnelled over the network and straight to the controller, bypassing
 the TV's own audio pathways, so a DualSense reaches the PC with its speaker,
-haptics and adaptive triggers. Ciprianmisaila's Bluetooth solution works cleanly
+haptics and adaptive triggers. ciprianmisaila's Bluetooth solution works cleanly
 with the exception of the microphone, which is a limitation of webOS rather than
 anything in that design.
 
