@@ -6,8 +6,9 @@ struct AgentBridgeSession {
     std::string busIdAscii;
     uint16_t port = 0;
     // ⭐ The only address its bridge port takes a connection from, in host
-    // byte order; 0 for any. Set when a TV calling from the internet proved
-    // it is paired (paired_tv.inl), so nobody else can take its port first.
+    // byte order; 0 for any. The control port sets it to whoever asked for
+    // the bridge (unless paired_tv_proof = off), so nobody else can take its
+    // port; a session started over the REST API has none.
     uint32_t onlyPeer = 0;
     std::shared_ptr<CtmUsbipDevice> device;
     // ⛔ SHARED, NOT UNIQUE (code review, 2026-10-05). The settings push sends
@@ -54,7 +55,8 @@ static paired_tv::Nonces g_paired_tv_nonces;
 // updated"):
 //   log -- the default for now: checked and written down, nobody turned away;
 //   on  -- a TV calling from the internet without a good proof is refused;
-//   off -- not checked at all.
+//   off -- not checked at all, and a bridge port takes a connection from
+//          anywhere, as it did before.
 // ⭐ "log" until the TVs at the remote site run a build that sends the proof;
 // then the default becomes "on".
 enum class PairedTvMode { Off, Log, On };
@@ -1123,10 +1125,14 @@ static void handle_agent_client(SOCKET client, const sockaddr_in &peer)
                     send_text(client, std::string("ERR ") + paired_tv::describe(verdict) + "\n");
                     return;
                 }
-                if (mode == PairedTvMode::On && need == paired_tv::Need::Required) {
-                    onlyPeer = peerAddr;
-                }
             }
+            // ⭐ AND THE BRIDGE PORT IS THE CALLER'S ALONE, from home as from
+            // the internet, in "log" as in "on". The bridge ports are forwarded
+            // for remote play like this one, so a port that took anyone could
+            // be reached from the internet in the 30 s before its TV connects,
+            // or the 15 s after it drops, and typed through. It turns no TV
+            // away: a TV connects from the address it asked from.
+            onlyPeer = peerAddr;
         }
     }
 

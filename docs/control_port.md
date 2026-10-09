@@ -38,8 +38,22 @@ host (Apollo or Sunshine) with the key it paired with:
 
 The listener finds the certificate among the host's paired devices, in the
 host's `sunshine_state.json` (`root.named_devices`), and checks the signature
-with it. A proven `BRIDGE_START` from the internet also holds its bridge port
-for that caller's address: a connection from anywhere else is closed.
+with it.
+
+## The bridge port is the caller's
+
+Every `BRIDGE_START` holds its bridge port for the address that sent it, from
+the home network as from the internet: a connection from anywhere else is
+closed, and device.log says so (`bridge port <n>: refused a connection from
+...`). The bridge ports are forwarded for remote play like the control port,
+so a port that took anyone could be reached from the internet in the 30
+seconds before its TV connects, or the 15 after it drops. No TV is turned
+away by it, since a TV connects from the address it asked from. Only
+`paired_tv_proof = off` lets a bridge port take anyone again. ⓘ A session
+started over the REST API is held for nobody; REST is this PC's alone unless
+it runs with `--rest-lan`.
+
+## Who needs a proof
 
 A TV on the home network (the private address ranges, Tailscale's included)
 or on this PC needs no proof. One it sends anyway is checked and logged.
@@ -55,8 +69,8 @@ In `ctm-device-config.txt`, section `[global]`:
 
 | Setting | Meaning |
 |---|---|
-| `paired_tv_proof = log` | the default for now: proofs are checked and logged, and nobody is turned away |
+| `paired_tv_proof = log` | the default for now: proofs are checked and logged, and no TV is turned away |
 | `paired_tv_proof = on` | a TV calling from the internet without a good proof is refused |
-| `paired_tv_proof = off` | nothing is checked |
+| `paired_tv_proof = off` | nothing is checked, and a bridge port takes a connection from anywhere |
 | `paired_tv_proof_at_home = true` | the home network must prove it too |
 | `streaming_host_state_file = <path>` | where the host's state file is, when it is not Apollo's or Sunshine's in Program Files |
