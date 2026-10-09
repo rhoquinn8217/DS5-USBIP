@@ -277,7 +277,18 @@ static void bridge_session_worker(AgentBridgeSession *session)
         // that has gone is still caught by the keepalive and the reconnect
         // grace. Generic "hid" whose HELLO descriptor is a gamepad still gets
         // the 15 s window, which the backend detects and applies itself.
-        backend->set_session_timeouts(30000, 15000);
+        //
+        // ⭐ A RECONNECT GETS FIVE SECONDS (fifteen until 2026-10-08). The TV
+        // redials a dropped bridge for three seconds and then takes the pad
+        // back for its own use, so the port is held a little longer than the
+        // TV dials and no longer: past that, the pad here is one that does
+        // nothing. At fifteen, with the TV dialling as long, a quit
+        // listener's pads lay dead on the TV for sixteen seconds, and in
+        // every log on record a bridge that came back did so within half a
+        // second. ⛔ The two numbers move together: the TV's is
+        // CTM_HOST_GONE_MS in the bridge core, and a TV that dials longer
+        // than this holds the port is dialling for nothing.
+        backend->set_session_timeouts(30000, 5000);
         const bool gamepadKind = session->kind == "ds4" || session->kind == "ds5" ||
                                  session->kind == "ds5e" ||
                                  session->kind == "xbox" || session->kind == "puck";
@@ -1156,7 +1167,7 @@ static void handle_agent_client(SOCKET client, const sockaddr_in &peer)
             // the internet, in "log" as in "on". The bridge ports are forwarded
             // for remote play like this one, so a port that took anyone could
             // be reached from the internet in the 30 s before its TV connects,
-            // or the 15 s after it drops, and typed through. It turns no TV
+            // or the 5 s after it drops, and typed through. It turns no TV
             // away: a TV connects from the address it asked from.
             onlyPeer = peerAddr;
         }
