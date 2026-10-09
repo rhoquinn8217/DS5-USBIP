@@ -9,9 +9,9 @@ some callers and why a TV calling from the internet proves who it is.
 
 | Command | Answer | Who may send it |
 |---|---|---|
-| `STATUS` | `OK CTM_AGENT_V1` | anyone: it is the TV's probe |
+| `STATUS` | `OK CTM_AGENT_V1 level=<n> min_tv=<n>` | anyone: it is the TV's probe |
 | `PROOF_CHALLENGE` | `OK NONCE <32 hex>` | anyone: see "The pairing proof" |
-| `BRIDGE_START <kind> <port> <busid> [PROOF=...]` | `OK bridge starting`; with port 0, `OK bridge starting port=<n>` | anyone on this PC or the home network; from the internet, a TV that proves it is paired (see below) |
+| `BRIDGE_START <kind> <port> <busid> [level=<n>] [PROOF=...]` | `OK bridge starting`; with port 0, `OK bridge starting port=<n>` | anyone on this PC or the home network; from the internet, a TV that proves it is paired (see below) |
 | `BRIDGE_STOP <busid> [PROOF=...]` | `OK bridge stopped`, `OK no such bridge`, or `ERR that bridge belongs to another TV` | the same as `BRIDGE_START`, and only for its own bridges |
 | `USBIP_ATTACH <busid>` | `OK usbip attached` | this PC only |
 | `RESTART [hard]` | `OK bridges reset` | this PC only |
@@ -20,6 +20,18 @@ A refused command is answered `ERR` and a reason, and device.log has a
 `control:` line saying who was refused and why. `USBIP_ATTACH` makes this PC
 import a USB device from the caller's own USB/IP server, and `RESTART` drops
 every bridge, so neither is the TV's to send.
+
+## Protocol levels
+
+Each side has a protocol level, a number that goes up only when the way the
+TV and the listener talk changes, so an ordinary update on one side keeps
+working with the other. `STATUS` answers with this listener's level and the
+oldest TV level it works with, `level=1 min_tv=1` today, and a TV refuses to
+bridge to a listener below the level it needs, with "Update DS5-USBIP on the
+PC" in its bridge panel. A `BRIDGE_START` carries the TV's own level as
+`level=<n>`; one below `min_tv` is answered `ERR update the TV app: ...`, and
+the panel says "Update the TV app". A side that names no level is level 1,
+the level of every TV and listener from before there were levels.
 
 ## The pairing proof
 

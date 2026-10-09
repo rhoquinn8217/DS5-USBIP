@@ -121,6 +121,7 @@
     <ClCompile Include="..\tests\usbip_server_test.cpp" />
     <ClCompile Include="..\tests\paired_tv_test.cpp" />
     <ClCompile Include="..\tests\tv_sessions_test.cpp" />
+    <ClCompile Include="..\tests\protocol_level_test.cpp" />
     <ClCompile Include="..\tests\usb_descriptors_test.cpp" />
     <ClCompile Include="..\tests\bridge_handshake_test.cpp" />
     <ClCompile Include="..\tests\mic_ring_test.cpp" />
