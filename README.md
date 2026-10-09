@@ -98,8 +98,9 @@ haptics and adaptive triggers. ciprianmisaila's Bluetooth solution works cleanly
 with the exception of the microphone, which is a limitation of webOS rather than
 anything in that design.
 
-This fork's goal is to expand DualSense support and provide a controller
-rebinder that gives you the ability to drive the stream with only a controller.
+This fork's goal is to build out the USB path, expand DualSense support and
+provide a controller rebinder that gives you the ability to drive the stream
+with only a controller.
 
 | Addition | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; What it does |
 |---|---|
@@ -156,8 +157,3 @@ honours: if you integrate CTM Bridge into your own app or fork, overlay the CTM
 Bridge badge on your app's icon, the way the
 [aurora-tv](https://github.com/CTM-Bridge/aurora-tv) and
 [moonlight-tv](https://github.com/CTM-Bridge/moonlight-tv) forks do.
-
-<a
-href="https://github.com/CTM-Bridge/ctm-bridge-webos/blob/main/icon_extra_large.png"><img
-src="https://raw.githubusercontent.com/CTM-Bridge/ctm-bridge-webos/main/icon_extra_large.png"
-width="96" alt="CTM Bridge badge"></a>
