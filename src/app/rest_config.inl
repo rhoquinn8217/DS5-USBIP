@@ -902,6 +902,17 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
             // worth having.
             ui_view_remember_pos();
             ctm_rebind_set_config_mode(false);
+            // ⭐ AND A FULL-SCREEN GAME GETS THE FRONT BACK (rhoquinn8217,
+            // 2026-10-09), when the window had the front as it went -- the
+            // page says so -- and was raised over one. open_ui.inl.
+            RestJson closing;
+            std::string closingError;
+            bool hadFront = false;
+            if (rest_parse_flat_json(req.body, &closing, &closingError)) {
+                auto hf = closing.bools.find("had_focus");
+                hadFront = hf != closing.bools.end() && hf->second;
+            }
+            ctm_open_ui::give_front_back(hadFront);
             *out = rest_http_response(200, R"({"ok":true,"config_mode":false})");
             return true;
         }
