@@ -414,6 +414,48 @@ inline void give_front_back(bool hadFront)
     }).detach();
 }
 
+// ⭐ FOLLOW THE LAST GAME (rhoquinn8217, 2026-10-09: *"follow the last game I
+// was in"*). While a window stands, the front is looked at four times a
+// second, and a full-screen game coming to it becomes the one to give the
+// front back to (front_rule::on_front_change). ⓘ One follower at a time, for
+// as long as a window stands: a reopen hands over to the new window without a
+// gap, and two seconds with none ends it. Our own window is never the game.
+inline std::atomic_bool g_followingFront{false};
+
+inline void follow_front()
+{
+    bool expected = false;
+    if (!g_followingFront.compare_exchange_strong(expected, true)) return;
+    std::thread([]() {
+        HWND last = nullptr;
+        int goneMs = 0;
+        while (goneMs < 2000) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(250));
+            if (!window_exists()) {
+                goneMs += 250;
+                continue;
+            }
+            goneMs = 0;
+            const HWND fg = GetForegroundWindow();
+            if (fg == nullptr || fg == last) continue;
+            last = fg;
+            wchar_t title[512] = {};
+            if (GetWindowTextW(fg, title, 511) > 0 &&
+                window_icon_rule::is_app_window_title(title, kTitleMarker)) {
+                continue;
+            }
+            if (front_rule::on_front_change(is_full_screen_game(fg)) != front_rule::Remember::Set) continue;
+            std::lock_guard<std::mutex> lock(g_gameMutex);
+            if (g_raisedOverGame != fg) {
+                g_raisedOverGame = fg;
+                device_log::input_w() << L"ui: " << exe_of(fg)
+                                      << L" is the game now: the front goes back to it when the window closes";
+            }
+        }
+        g_followingFront.store(false);
+    }).detach();
+}
+
 // ⭐⭐ A FULL-SCREEN GAME TAKES THE FRONT BACK (rhoquinn8217, 2026-10-03, in The
 // Witcher 3: "chord take 2 or 3 times to push through full screen on this
 // game"). The log showed it the same way every time: the window raised and in
@@ -492,6 +534,7 @@ inline void raise_when_ready(bool release_claim = false)
             device_log::input_w() << L"ui: raised the window above the game (the front was "
                                   << (before != nullptr ? exe_of(before) : std::wstring(L"nothing")) << L")";
             remember_front(before, beforeIsGame);
+            follow_front();
             // ⭐ ONLY A FULL-SCREEN GAME IS WATCHED (rhoquinn8217, 2026-10-09).
             // ⛔ Opened from the tray, the window that had the front was the
             // tray's own, and opening its menu again raised this window over

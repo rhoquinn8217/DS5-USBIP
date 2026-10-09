@@ -75,4 +75,15 @@ inline Remember on_raise(bool frontKnown, bool frontIsGame)
     return frontIsGame ? Remember::Set : Remember::Clear;
 }
 
+// ⭐ AND WHILE THE WINDOW IS OPEN, THE LAST GAME SOMEONE WAS IN (rhoquinn8217,
+// 2026-10-09: *"follow the last game I was in"*). The front moving to a
+// full-screen game makes that game the one to give the front back to: open
+// the window over one game, Alt+Tab into another, come back and close it, and
+// the front goes to the second. Any other window leaves it be -- a click on
+// an ordinary program is not a game someone was in.
+inline Remember on_front_change(bool frontIsGame)
+{
+    return frontIsGame ? Remember::Set : Remember::Keep;
+}
+
 }  // namespace front_rule

@@ -59,5 +59,11 @@ int run_front_rule_tests()
         CTM_CHECK(on_raise(false, false) == Remember::Keep);   // our own window had it: mid-reopen
     }
 
+    section("front rule: the last game someone was in, while the window is open");
+    {
+        CTM_CHECK(on_front_change(true) == Remember::Set);     // into another game: that one now
+        CTM_CHECK(on_front_change(false) == Remember::Keep);   // an ordinary program: the game stays
+    }
+
     return 0;
 }
