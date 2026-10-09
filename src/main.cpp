@@ -56,6 +56,7 @@
 namespace {
 
 #include "app/stop_wait.inl"        // a closing console waits here for the stop to finish; pure
+#include "usbip/wire.inl"           // the USB/IP protocol's numbers and byte helpers; pure
 #include "app/common.inl"
 #include "app/console_attach.inl"   // the parent's console, when the exe was typed into one
 #include "app/start_report.inl"     // how a listener that could not start says so
@@ -223,6 +224,7 @@ void ctm_osk_toggle(const std::string &section, int button, int program);
 #include "app/device_type.inl"   // controller, keyboard or mouse by descriptor; device.inl asks it
 #include "app/device_names.inl"  // what a device is listed by; pure; device.inl asks it for the link
 #include "usbip/fallback_serial.inl"   // the serial of a device the TV sent none for
+#include "usbip/submit_info.inl"    // what a submit reports back; pure
 #include "usbip/device.inl"
 #include "audio/iso_in_pacing.inl"
 #include "usbip/server.inl"

@@ -1,8 +1,13 @@
 ﻿#include "submit_limits.inl"   // what a submit may ask for, and what an unlink cancels
 
-class CtmUsbipServer {
+// ⭐ A TEMPLATE OVER THE DEVICE IT SERVES, so a test can serve one of its own
+// over a real socket and read back what Windows would (code review,
+// 2026-10-05: nothing tested this server). The program serves one kind,
+// CtmUsbipDevice, and names that server CtmUsbipServer, below.
+template <class Device>
+class UsbipServerFor {
     struct UsbipExportedDevice {
-        std::shared_ptr<CtmUsbipDevice> device;
+        std::shared_ptr<Device> device;
         std::string busId;
         std::string devicePath;
         // ⭐⭐ WHAT THE DEVICE CALLS INTO, KEPT ALIVE FOR AS LONG AS WINDOWS
@@ -22,22 +27,22 @@ class CtmUsbipServer {
     };
 
 public:
-    CtmUsbipServer() = default;
+    UsbipServerFor() = default;
 
-    CtmUsbipServer(CtmUsbipDevice *device, std::string busId)
+    UsbipServerFor(Device *device, std::string busId)
     {
         std::wstring ignored;
         (void)add_device(device, std::move(busId), &ignored);
     }
 
-    bool add_device(CtmUsbipDevice *device, std::string busId, std::wstring *error)
+    bool add_device(Device *device, std::string busId, std::wstring *error)
     {
-        return add_device(std::shared_ptr<CtmUsbipDevice>(device, [](CtmUsbipDevice *) {}), std::move(busId), error);
+        return add_device(std::shared_ptr<Device>(device, [](Device *) {}), std::move(busId), error);
     }
 
     // ⓘ keepAlive: what the device calls into, held until every import of it
     // has ended. See UsbipExportedDevice.
-    bool add_device(std::shared_ptr<CtmUsbipDevice> device, std::string busId, std::wstring *error,
+    bool add_device(std::shared_ptr<Device> device, std::string busId, std::wstring *error,
                     std::shared_ptr<void> keepAlive = nullptr)
     {
         if (!device || busId.empty() || busId.size() > 31) {
@@ -123,7 +128,9 @@ public:
         // review, 2026-10-05). Each is detached and works through `this` to its
         // last line, so a server freed while one still ran -- which is what the
         // program's own way out does -- crashed it on the way out. Their sockets
-        // are shut here so a thread waiting for Windows' next request wakes.
+        // are shut, and their waits cancelled, so a thread waiting for Windows'
+        // next request wakes whether or not Windows closes its side
+        // (close_client_threads says why both).
         // ⓘ Bounded: a thread still inside a device call after two seconds is
         // logged and left, rather than holding the program open.
         close_client_threads(std::chrono::milliseconds(2000));
@@ -139,6 +146,13 @@ private:
         std::unique_lock<std::mutex> lock(clientThreadsMutex_);
         for (SOCKET s : clientSockets_) {
             shutdown(s, SD_BOTH);
+            // ⭐⭐ AND THE WAIT CANCELLED (2026-10-08, found by the server's
+            // tests). On Windows a shutdown does not end a recv another thread
+            // is already blocked in: it returns only once Windows closes its own
+            // side, and a wedged USB/IP host controller never does. So this
+            // waited out its two seconds and let the server be freed under a
+            // thread that woke later, the crash this wait exists to prevent.
+            CancelIoEx(reinterpret_cast<HANDLE>(s), nullptr);
         }
         if (!clientThreadsCv_.wait_for(lock, timeout, [this]() { return clientSockets_.empty(); })) {
             device_log::usb_s() << "usbip server stopping with " << clientSockets_.size()
@@ -174,19 +188,21 @@ private:
 
     void shutdown_active_clients(const std::string &busId)
     {
-        std::vector<SOCKET> clients;
-        {
-            std::lock_guard<std::mutex> lock(activeClientsMutex_);
-            auto it = activeClients_.find(busId);
-            if (it == activeClients_.end()) {
-                return;
-            }
-            clients = it->second;
-            activeClients_.erase(it);
+        // ⓘ Shut while the list is held: a connection cannot leave it, and so
+        // cannot close its socket and hand the number to a new connection,
+        // until this is done. Shut outside it, a stop could land on the next
+        // connection's socket.
+        std::lock_guard<std::mutex> lock(activeClientsMutex_);
+        auto it = activeClients_.find(busId);
+        if (it == activeClients_.end()) {
+            return;
         }
-        for (SOCKET client : clients) {
+        for (SOCKET client : it->second) {
             shutdown(client, SD_BOTH);
+            // ⓘ And its wait cancelled: see close_client_threads.
+            CancelIoEx(reinterpret_cast<HANDLE>(client), nullptr);
         }
+        activeClients_.erase(it);
     }
 
     void accept_loop()
@@ -297,6 +313,15 @@ private:
             if (!recv_all(client, busid, sizeof(busid))) {
                 return;
             }
+            const std::string wanted(reinterpret_cast<const char *>(busid),
+                                     strnlen(reinterpret_cast<const char *>(busid), sizeof(busid)));
+            // ⭐⭐ LISTED BEFORE THE DEVICE IS LOOKED UP (2026-10-08, found by the
+            // server's tests). Listed after the reply, as it was, a device
+            // removed in between was shut on nobody's connection, and this one
+            // then served a device that was gone for as long as Windows kept
+            // it: a ghost pad. Listed first, a removal either finds the device
+            // already gone or finds this connection to shut.
+            register_active_client(wanted, client);
             UsbipExportedDevice match;
             bool ok = false;
             for (const UsbipExportedDevice &slot : snapshot_devices()) {
@@ -307,10 +332,10 @@ private:
                 }
             }
             if (!send_import(client, ok ? &match : nullptr) || !ok) {
+                unregister_active_client(wanted, client);
                 return;
             }
             device_log::usb_s() << "usbip imported busid=" << match.busId << std::endl;
-            register_active_client(match.busId, client);
             urb_loop(client, match.device, match.busId);
             unregister_active_client(match.busId, client);
         }
@@ -390,7 +415,7 @@ private:
         return send_all(client, out.data(), out.size());
     }
 
-    void urb_loop(SOCKET client, std::shared_ptr<CtmUsbipDevice> device, const std::string &busId)
+    void urb_loop(SOCKET client, std::shared_ptr<Device> device, const std::string &busId)
     {
         using clock = std::chrono::steady_clock;
         uint64_t urbCount = 0;
@@ -1115,3 +1140,5 @@ private:
     std::atomic_bool running_{false};
     std::thread thread_;
 };
+
+using CtmUsbipServer = UsbipServerFor<CtmUsbipDevice>;
