@@ -1,4 +1,4 @@
-# DS5-USBIP - Remote DualSense Bridge
+# DS5-USBIP
 
 ![platform](https://img.shields.io/badge/platform-Windows%2010%2F11%20x64-0078D6?logo=windows&logoColor=white)
 ![language](https://img.shields.io/badge/C%2B%2B-17-00599C?logo=cplusplus&logoColor=white)
