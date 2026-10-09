@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.63 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.64 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,10 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.64 A 🗗 button beside the Mode picker, in all three layouts, steps
+            the window through its sizes as Create does on the pad. It sits
+            flush against the picker at its height, and Close comes a
+            little closer.
     2.66.63 In Advanced's footer, up on the Mode picker or on Close leaves
             the footer as Esc does, back to where you were; it only stepped
             between the two. The version on the Overview tab reads this one;
@@ -1240,7 +1244,7 @@
      reported, but its picker fell to the 12.6vh config-selector rule in
      exactly the same way, and leaving it would be the next report. */
   body.quick #compactBox .cbar > button,
-  body.quick #compactBox .cbar > select.modepick { font-size:6.9vh;
+  body.quick #compactBox .cbar select.modepick { font-size:6.9vh;
     padding:1.5vh 2vw; min-width:0; }
   body.quick #compactBox .clegend { font-size:6.9vh; }
   body.quick #compactBox .cempty { font-size:13.5vh; }
@@ -1366,7 +1370,7 @@
      ⚠️ `min-width:0` is load-bearing: without it the 47vw from that rule
      still wins on width even though everything else here overrides. */
   #compactBox .cbar > button,
-  #compactBox .cbar > select.modepick { flex:0 0 auto; font-size:3.4vh;
+  #compactBox .cbar select.modepick { flex:0 0 auto; font-size:3.4vh;
     padding:1.2vh 2.6vw; min-width:0; }
   /* THE PICKER IS TRIMMED ON PADDING, NOT FORCED TO A HEIGHT, AND THAT IS
      WHAT LETS ITS TEXT SIT CENTRED (rhoquinn8217, 2026-09-20: *"The text in
@@ -1382,7 +1386,7 @@
      Solved, not guessed: bare select + 2 x padding = the button's height.
      Simple 27 + 2 x 0.79vh = 35.2; Quick 20 + 2 x 0.31vh = 21.1.
      Both move if the font or the button's padding above changes. */
-  #compactBox .cbar > select.modepick { padding-top:0.79vh; padding-bottom:0.79vh; }
+  #compactBox .cbar select.modepick { padding-top:0.79vh; padding-bottom:0.79vh; }
   /* ⭐⭐ THE MODE IDENTIFIER NOW LIVES ON THE PICKER ITSELF (rhoquinn8217,
      2026-09-20): *"The Mode select clearly show what mode the window is in so
      we don't need the Yellow Bolded mode title in the legend for each mode
@@ -1397,12 +1401,27 @@
      `option` leaves the list plain and the collapsed value yellow.
      ⚠️ Uppercase plus letter-spacing makes the box WIDER -- 168 px to 194 in
      Simple -- so the gap to the Close button beside it grows. */
-  #compactBox .cbar > select.modepick { color:#ffd166; font-weight:700;
+  #compactBox .cbar select.modepick { color:#ffd166; font-weight:700;
     letter-spacing:.08em; text-transform:uppercase; }
-  #compactBox .cbar > select.modepick option { color:#e8e8ea; font-weight:400;
+  #compactBox .cbar select.modepick option { color:#e8e8ea; font-weight:400;
     letter-spacing:normal; text-transform:none; }
-  body.quick #compactBox .cbar > select.modepick { padding-top:0.31vh;
+  body.quick #compactBox .cbar select.modepick { padding-top:0.31vh;
     padding-bottom:0.31vh; }
+  /* ⭐ THE SIZE BUTTON, FLUSH AGAINST THE PICKER HERE TOO (rhoquinn8217,
+     2026-10-09), as in Advanced's footer: the two share .cgroup, which
+     stretches the button to the picker's height, so the two cannot differ
+     (a sibling sized by its own font and padding stood 4.4 px taller in
+     Quick). Close comes 1.2vw after the group rather than the bar's 3vw.
+     ⚠️ The picker's rules above find it inside the group (`.cbar select`),
+     and so does the bar's grid walk in compactMove. */
+  #compactBox .cbar > .cgroup { flex:0 0 auto; display:inline-flex; align-items:stretch; }
+  #compactBox .cbar .cgroup > select.modepick { border-top-right-radius:0; border-bottom-right-radius:0; }
+  #compactBox .cbar .cgroup > button.csize { flex:0 0 auto; font-size:3.4vh; line-height:1;
+    padding:0 1.2vw; min-width:0; color:#ffd166; background:#1d1f26; border-color:#2c2e36;
+    border-left-width:0; border-top-left-radius:0; border-bottom-left-radius:0; }
+  body.quick #compactBox .cbar .cgroup > button.csize { font-size:6.9vh; }
+  #compactBox .cbar .cgroup > button.csize:hover { background:#262833; }
+  #compactBox .cbar > .cgroup + button.cclose { margin-left:-1.8vw; }
   body.compact #confirmBox .confirmCard { font-size:5.1vh; max-width:86vw; }
   body.compact #confirmBox .confirmCard h2 { font-size:6.3vh; }
   body.compact #confirmBox .confirmCard p { font-size:5.1vh; }
@@ -1575,6 +1594,21 @@
   #gpend { margin-left:auto; display:flex; align-items:center;
            justify-content:flex-end; flex-wrap:wrap; gap:16px; }
   #modePick, #closeBtn { padding:2px 8px; font-size:11px; margin-left:8px; }
+  /* ⭐ THE SIZE BUTTON SITS FLUSH AGAINST THE MODE PICKER (rhoquinn8217,
+     2026-10-09: *"match the mode selector button size. Let the button be
+     flush against the mode selector and reduce to space between it a the
+     close button"*). The picker and 🗗 are one group, the seam squared on
+     both sides, in the picker's own colours; Close comes 7px after it rather
+     than the cluster's 16 and its own 8. ⓘ The picker sets the group's
+     height and the button stretches to it, so the two cannot drift apart. */
+  .modeclose { display:inline-flex; align-items:center; gap:7px; margin-left:8px; }
+  .modegroup { display:inline-flex; align-items:stretch; }
+  .modeclose #modePick, .modeclose #closeBtn { margin-left:0; }
+  .modegroup #modePick { border-top-right-radius:0; border-bottom-right-radius:0; }
+  #sizeBtn { padding:0 6px; font-size:13px; line-height:1; color:#ffd166;
+    background:#1d1f26; border-color:#2c2e36; border-left-width:0;
+    border-top-left-radius:0; border-bottom-left-radius:0; }
+  #sizeBtn:hover { background:#262833; }
   /* The same treatment the compact pickers get, for the same reason: the mode
      identifier is ON the picker now rather than in the legend beside it. The
      options are reset or the yellow bleeds into the open list -- see the
@@ -1840,7 +1874,7 @@
 <div class="bar">
   <!-- ⓘ The same number as VERSION at the top of this file, by hand. It sat
        at 2.66.4 for thirty-four versions while VERSION moved on. -->
-  <span class="muted" style="font-size:12px">v2.66.63</span>
+  <span class="muted" style="font-size:12px">v2.66.64</span>
   <label class="muted">agent</label>
   <input id="base" value="http://127.0.0.1:48053" size="26">
   <label class="muted">bearer</label>
@@ -1965,14 +1999,23 @@
   <!-- T-233: one Mode picker replaces the Simple and Quick buttons. It is
        filled by paintModePickers(), which runs on every mode change, and it
        carries the padlock beside whichever mode is current. -->
+  <!-- ⭐ THE PICKER, THE SIZE BUTTON AND CLOSE (rhoquinn8217, 2026-10-09):
+       the 🗗 sits flush against the picker at its height, and Close comes a
+       little closer than the cluster's own gap. See .modeclose in the style. -->
+  <span class="modeclose">
+  <span class="modegroup">
   <select class="modepick" id="modePick" size="1"
           title="which layout this window opens in"
           onmousedown="pickerActivate(event,this)"
           onclick="pickerClickEnd(this)"
           onchange="pickMode(this.value)"></select>
+  <button id="sizeBtn" onclick="sizeNext()"
+          title="the next size for this window, as Create does on the pad">&#x1F5D7;</button>
+  </span>
   <!-- ⓘ Closing releases the gate on the way out, via the pagehide beacon, so
        this is a safe exit rather than a way to strand yourself. -->
   <button id="closeBtn" onclick="closeWindow()" title="close this window">Close</button>
+  </span>
   </span>
 </div>
 
@@ -6783,7 +6826,8 @@ function compactMove(dx, dy) {
   // ⓘ The selector row above got this right, and is the precedent:
   // `selRow.querySelectorAll('select, button')`.
   var bar = Array.prototype.slice.call(
-    box.querySelectorAll('.cbar > button, .cbar > select'));
+    box.querySelectorAll('.cbar > button, .cbar > select, .cbar > .cgroup > select, ' +
+                         '.cbar > .cgroup > button'));
   if (bar.length) rows.push(bar);
   if (!rows.length) return false;
   var cur = GP_FOCUS[GP_INDEX];
@@ -6983,7 +7027,9 @@ function gpKeyBack() {
   // kept closing outright as the mid-game view. One press no longer ends the
   // session by itself -- the second press, on the button, does.
   if (COMPACT) {
-    var closeBtn = document.querySelector('#compactBox .cbar > button');
+    // ⛔ BY ITS CLASS: the size button is a button in this bar too, and comes
+    // first (2026-10-09).
+    var closeBtn = document.querySelector('#compactBox .cbar > button.cclose');
     if (closeBtn && focusElement(closeBtn)) return;
     // ⓘ Only when there is no Close to go to: close, as before.
     closeWindow();
@@ -7558,6 +7604,19 @@ var PLAIN_KEYS = {
 // the page into its "cannot reach the agent" state over a keypress.
 function uiAsk(what) {
   call('POST', '/api/v1/ui/' + what, undefined, true).catch(function () {});
+}
+
+// ⭐ THE 🗗 BUTTON BESIDE THE MODE PICKER (rhoquinn8217, 2026-10-09): the next
+// size for this window, the same request R makes and the same step Create
+// takes on the pad (ui/resize), for the mouse. In all three layouts.
+function sizeNext() { uiAsk('resize'); }
+function sizeButtonHtml() {
+  return '<button class="csize" onclick="sizeNext()" ' +
+         'title="the next size for this window, as Create does on the pad">&#x1F5D7;</button>';
+}
+// The compact bars' Mode picker with the 🗗 against it, one group.
+function modeGroupHtml() {
+  return '<span class="cgroup">' + modePickerHtml('cselMode') + sizeButtonHtml() + '</span>';
 }
 
 document.addEventListener('keydown', function (ev) {
@@ -8498,7 +8557,7 @@ function paintCompact() {
             // ⓘ "to close", as Simple's says: Circle goes to Close now
             // (2026-10-02) rather than closing.
             LG.close + ' to close</div></div>' +
-            modePickerHtml('cselMode') +
+            modeGroupHtml() +
             '<button class="cclose" onclick="closeWindow()">Close</button></div>';
   } else {
     html += '<div class="cbar">' +
@@ -8512,7 +8571,7 @@ function paintCompact() {
             'onmouseenter="HINT_HELD = true" onmouseleave="HINT_HELD = false" ' +
             'onmousedown="hintPressed(event)" onmouseup="hintReleased(event)">' +
             hintHtml(HINT_AT) + '</div>' +
-            '</div>' + modePickerHtml('cselMode') +
+            '</div>' + modeGroupHtml() +
             '<button class="cclose" onclick="closeWindow()">Close</button></div>';
   }
   box.innerHTML = html;
@@ -8525,7 +8584,9 @@ function paintCompact() {
   // there is something to pick, the big button when there is not.
   var have = GP_FOCUS[GP_INDEX];
   if (!(have && box.contains(have) && focusKeyOf(have) === GP_WANT)) {
-    var want = document.getElementById('cpick') || box.querySelector('button.cbig') || box.querySelector('button');
+    // ⓘ Close by its class: the 🗗 is the bar's first button now (2026-10-09).
+    var want = document.getElementById('cpick') || box.querySelector('button.cbig') ||
+               box.querySelector('button.cclose') || box.querySelector('button');
     if (!focusElement(want)) { GP_INDEX = 0; gpPaint(); }
   }
 }
