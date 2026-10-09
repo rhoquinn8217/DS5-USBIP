@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.67 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.68 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,9 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.68 Open on bridge follows a change made in the tray within a
+            second while this window is on screen; it waited for the
+            window to be clicked.
     2.66.67 The pad's halo on the Mode picker shows whole: the 🗗 beside
             it covered its right edge.
     2.66.66 Closing this window says whether it had the front, so a
@@ -1893,7 +1896,7 @@
 <div class="bar">
   <!-- ⓘ The same number as VERSION at the top of this file, by hand. It sat
        at 2.66.4 for thirty-four versions while VERSION moved on. -->
-  <span class="muted" style="font-size:12px">v2.66.67</span>
+  <span class="muted" style="font-size:12px">v2.66.68</span>
   <label class="muted">agent</label>
   <input id="base" value="http://127.0.0.1:48053" size="26">
   <label class="muted">bearer</label>
@@ -7685,6 +7688,15 @@ function toggleOpenOnBridge() {
 }
 window.addEventListener('load', loadOpenOnBridge);
 window.addEventListener('focus', loadOpenOnBridge);
+// ⭐ AND EACH SECOND WHILE THIS WINDOW CAN BE SEEN (rhoquinn8217, 2026-10-09:
+// *"toggling on the Open on bridge in the tray doesn't immediately show in
+// the configs window until you click on it"*). The tray's switch changes it
+// with this window in view but not in front, so focus alone came too late.
+// ⓘ One small GET a second, and none while the window is minimised or
+// covered: the browser calls it hidden then, and focus catches it up.
+setInterval(function () {
+  if (!STOPPED && document.visibilityState === 'visible') loadOpenOnBridge();
+}, 1000);
 
 document.addEventListener('keydown', function (ev) {
   if (STOPPED) return;
