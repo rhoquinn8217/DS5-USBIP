@@ -798,10 +798,11 @@ static void bridge_session_worker(AgentBridgeSession *session)
 // ⓘ onlyPeer: the only address the bridge port then takes a connection from,
 // in host byte order; 0 for any. See AgentBridgeSession.
 // ⓘ owner: the TV asking, as tv_sessions.inl names it. `port` 0 asks for one
-// from [global] bridge_port_range, and the session's port goes back in
-// *startedPort either way.
+// from [global] bridge_port_range -- from its top for a caller at home
+// (`fromHome`), from its bottom for one at another site -- and the session's
+// port goes back in *startedPort either way.
 static bool start_bridge_session_for(const std::string &kind, uint16_t port, const std::wstring &busId,
-                                     uint32_t onlyPeer, const std::string &owner,
+                                     uint32_t onlyPeer, const std::string &owner, bool fromHome,
                                      std::wstring *error, uint16_t *startedPort)
 {
     const std::string busIdAscii = narrow_ascii(busId);
@@ -837,7 +838,8 @@ static bool start_bridge_session_for(const std::string &kind, uint16_t port, con
         for (const auto &existing : g_agent_sessions) {
             held.push_back({existing->busIdAscii, existing->port, existing->owner});
         }
-        plan = tv_sessions::plan_start(held, busIdAscii, port, owner, firstPort, lastPort, reserved);
+        plan = tv_sessions::plan_start(held, busIdAscii, port, owner, firstPort, lastPort, reserved,
+                                       fromHome);
         if (plan.what != tv_sessions::Start::ReplaceStale || pass > 0) break;
         lock.unlock();
         const std::wstring staleBusId = widen_ascii(plan.stale.c_str(), plan.stale.size());
@@ -932,7 +934,7 @@ static bool start_bridge_session_for(const std::string &kind, uint16_t port, con
 // REST API, which answers this PC alone.
 static bool start_bridge_session(const std::string &kind, uint16_t port, const std::wstring &busId, std::wstring *error)
 {
-    return start_bridge_session_for(kind, port, busId, 0, std::string(), error, nullptr);
+    return start_bridge_session_for(kind, port, busId, 0, std::string(), true, error, nullptr);
 }
 
 static bool stop_bridge_session(const std::wstring &busId)
@@ -1196,8 +1198,11 @@ static void handle_agent_client(SOCKET client, const sockaddr_in &peer)
         }
         std::wstring error;
         uint16_t startedPort = 0;
+        // ⓘ Home is this PC or the home network, as the proof reads it
+        // (paired_tv.inl): no router between, so no forwarded port needed.
+        const bool fromHome = paired_tv::is_this_pc(peerAddr) || paired_tv::is_home_network(peerAddr);
         if (start_bridge_session_for(kind, static_cast<uint16_t>(port), widen_ascii(busIdAscii.c_str(), busIdAscii.size()),
-                                     onlyPeer, owner, &error, &startedPort)) {
+                                     onlyPeer, owner, fromHome, &error, &startedPort)) {
             // ⭐ The port it was given, to a TV that asked for one with port 0;
             // an older TV chose its own and reads only the OK.
             send_text(client, port == 0 ? "OK bridge starting port=" + std::to_string(startedPort) + "\n"

@@ -70,9 +70,11 @@ time. A bridge belongs to the TV that started it, known by the fingerprint its
 pairing proof proved; a TV that sent no proof, or one that was not proven,
 counts as one more "unproven" TV, as every TV did before.
 
-- A TV asks for port 0 and the listener gives it the lowest free port in
-  `bridge_port_range`, in its answer. An older TV chooses its own port, as
-  before.
+- A TV asks for port 0 and the listener gives it a free port from
+  `bridge_port_range`, in its answer: a TV at another site the LOWEST, the
+  ports it always used and the router already forwards; a TV at home (or on
+  this PC) the HIGHEST, so it never takes those first. An older TV chooses its
+  own port, as before.
 - A busid or a port already used by another TV's bridge is refused, never
   taken over. The TV's own older bridge on the port it asked for is replaced,
   as before.
@@ -81,9 +83,11 @@ counts as one more "unproven" TV, as every TV did before.
 - A device the TV sent no serial for gets one that also depends on the TV, so
   two TVs' pads of one model are two devices to Windows.
 
-ⓘ For a TV at another site, forward the whole of `bridge_port_range` on the
-router to this PC, beside the control port: each bridged controller, and the
-TV's remote, uses one port of it.
+ⓘ A TV at another site reaches this PC at the home's public address, through
+ports the router forwards: the control port, and from the bottom of
+`bridge_port_range` one port per bridged controller and one for the TV's
+remote. A TV at home needs no forwarding. Two TVs at other sites at once use
+more of the low ports than one did, so the router has to forward that many.
 
 ## Settings
 

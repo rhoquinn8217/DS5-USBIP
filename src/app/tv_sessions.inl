@@ -22,6 +22,14 @@
 // ⚠️ Only a PROVEN fingerprint: in the proof's log mode a failed proof still
 // gets in, and its fingerprint is only a claim, which would let one TV stop
 // another's pads by naming its fingerprint.
+//
+// ⭐⭐ HOME TVS FROM THE TOP, REMOTE TVS FROM THE BOTTOM (rhoquinn8217,
+// 2026-10-08: "yes make the split"). A TV at another site reaches this PC at
+// the home's public address, through ports the router forwards, and it has
+// always used the lowest ones: 48055 and up, one per controller. So a remote
+// TV is handed the lowest free ports, the ones already forwarded, and a TV at
+// home -- which needs no forwarding at all -- the highest, so it never takes
+// them first. The router then needs nothing new for one remote TV.
 // ⓘ Its own file so the test binary can reach it.
 
 #pragma once
@@ -75,12 +83,14 @@ inline bool parse_range(const std::string &text, uint16_t *first, uint16_t *last
     return true;
 }
 
-// The lowest port in [first, last] that no session holds and nothing else of
-// the listener's uses. 0 when there is none.
+// A port in [first, last] that no session holds and nothing else of the
+// listener's uses: the lowest, or with `fromTop` the highest. 0 when there is
+// none.
 inline uint16_t pick_port(const std::vector<Held> &held, uint16_t first, uint16_t last,
-                          const std::vector<uint16_t> &reserved)
+                          const std::vector<uint16_t> &reserved, bool fromTop)
 {
-    for (uint32_t p = first; p <= last; ++p) {
+    for (uint32_t i = 0; i <= static_cast<uint32_t>(last - first); ++i) {
+        const uint32_t p = fromTop ? last - i : first + i;
         bool used = false;
         for (uint16_t r : reserved) used = used || r == p;
         for (const Held &h : held) used = used || h.port == p;
@@ -90,10 +100,11 @@ inline uint16_t pick_port(const std::vector<Held> &held, uint16_t first, uint16_
 }
 
 // What a BRIDGE_START for `busId` from TV `owner` does. `port` 0 asks the
-// listener to choose one.
+// listener to choose one: from the top of the range for a TV at home
+// (`fromHome`), from the bottom for one at another site.
 inline Plan plan_start(const std::vector<Held> &held, const std::string &busId, uint16_t port,
                        const std::string &owner, uint16_t first, uint16_t last,
-                       const std::vector<uint16_t> &reserved)
+                       const std::vector<uint16_t> &reserved, bool fromHome)
 {
     Plan plan;
     for (const Held &h : held) {
@@ -103,7 +114,7 @@ inline Plan plan_start(const std::vector<Held> &held, const std::string &busId, 
         return plan;
     }
     if (port == 0) {
-        plan.port = pick_port(held, first, last, reserved);
+        plan.port = pick_port(held, first, last, reserved, fromHome);
         plan.what = plan.port ? Start::Create : Start::NoFreePort;
         return plan;
     }
