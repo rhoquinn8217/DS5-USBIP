@@ -560,6 +560,72 @@ int run_bridge_handshake_tests()
         tv.close();
     }
 
+    section("bridge handshake: a session ended by the idle rule gives back its microphone slot");
+    {
+        // ⓘ There are four slots, and a session that went quiet and was
+        // ended by the idle rule kept its own: after four such endings every
+        // later session's microphone was dropped until a restart (code
+        // review, 2026-10-05). So four sessions with a microphone end that
+        // way here, and a fifth must still be heard.
+        // ⛔ EVERY BACKEND KEPT TO THE END. A slot is found by its backend's
+        // address, and a fifth backend made where a freed one stood would
+        // take that one's stale slot for its own and pass with the leak still
+        // in place.
+        // ⓘ Slots left by the sections above are cleared first, so this
+        // counts only its own.
+        {
+            std::lock_guard<std::mutex> lock(bridgetest::g_micRingMutex);
+            for (auto &slot : bridgetest::g_micRings) slot = bridgetest::MicRingSlot();
+        }
+        std::vector<std::unique_ptr<Started>> sessions;
+        for (int i = 0; i < 5; ++i) {
+            sessions.push_back(std::make_unique<Started>());
+            Started &b = *sessions.back();
+            // ⓘ Shared with the backend's callback, which may outlive this pass.
+            auto closed = std::make_shared<std::atomic<bool>>(false);
+            FakeTv tv;
+            bool connected = false;
+            for (int attempt = 0; attempt < 5 && !connected; ++attempt) {
+                b.finish();
+                b.launch(pick_port(attempt), [closed](bridgetest::BridgeBackend &backend) {
+                    backend.set_idle_timeouts(800, 800);
+                    backend.set_closed_callback([closed]() { closed->store(true); });
+                });
+                connected = tv.connect_to(b.port, 1500);
+            }
+            CTM_CHECK(connected);
+            CTM_CHECK(tv.send_msg(proto::MsgHello, 0, 0, hello_payload()));
+            proto::Header h = {};
+            std::vector<uint8_t> payload;
+            CTM_CHECK(tv.recv_msg(&h, &payload));
+            CTM_CHECK(b.wait_started(2000));
+            const uint8_t mark = static_cast<uint8_t>(0x10 + i);
+            CTM_CHECK(tv.send_msg(proto::MsgMicAudio, 0, 0, {mark, mark, mark, mark}));
+            std::vector<uint8_t> mic;
+            const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+            while (mic.empty() && std::chrono::steady_clock::now() < deadline) {
+                bridgetest::mic_ring_pop_fill(b.backend.get(), &mic, 64);
+                if (mic.empty()) std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            }
+            // ⭐ The check: every session is heard, the fifth included.
+            CTM_CHECK(mic == std::vector<uint8_t>({mark, mark, mark, mark}));
+            if (i < 4) {
+                // Then quiet, until the idle rule ends it.
+                const auto idleBy = std::chrono::steady_clock::now() + std::chrono::seconds(4);
+                while (!closed->load() && std::chrono::steady_clock::now() < idleBy) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                }
+                CTM_CHECK(closed->load());
+                CTM_CHECK(tv.sees_close());
+            }
+            tv.close();
+        }
+        for (auto &b : sessions) {
+            bridgetest::mic_ring_reset(b->backend.get());
+            b->finish();
+        }
+    }
+
     WSACleanup();
     return 0;
 }
