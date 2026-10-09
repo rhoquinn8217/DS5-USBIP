@@ -25,14 +25,12 @@ TV is required to bridge DualSense controllers to DS5-USBIP.
 Some webOS TVs do not support DualSense over Bluetooth. Use a USB port on
 those, or a [DS5Dongle](https://github.com/awalol/DS5Dongle) to stay wireless.
 
----
-
 ## Start up guide
 
 **Prerequisites**
 
 | Requirement | Notes |
-|---|---|
+|:---|:---|
 | **DualSense** | Your controller |
 | **Windows** | Your host machine's operating system |
 | **Moonlight-compatible host** | Streaming software on that Windows machine:<br>[Sunshine](https://github.com/LizardByte/Sunshine), [Apollo](https://github.com/ClassicOldSong/Apollo), [Vibepollo](https://github.com/Nonary/Vibepollo), [Vibeshine](https://github.com/Nonary/vibeshine), etc. |
@@ -42,9 +40,9 @@ those, or a [DS5Dongle](https://github.com/awalol/DS5Dongle) to stay wireless.
 
 1. Download the installer from the [releases page](https://github.com/rhoquinn8217/DS5-USBIP/releases) (pending).
 2. Run the installer. It is unsigned, so you need to select **Run anyway**.<br>
-   Note: installation includes the required
+   *Note: installation includes the required
    [usbip-win2](https://github.com/vadimgrn/usbip-win2/releases) driver and will
-   require a restart.
+   require a restart.*
 3. Start DS5-USBIP from the Start menu. It lives in the tray.
 
 **Bridge and play**
@@ -54,12 +52,15 @@ those, or a [DS5Dongle](https://github.com/awalol/DS5Dongle) to stay wireless.
 3. Turn on **Enable Device Bridging** in **Settings (⚙️) → USB Bridge**.
 4. Start the stream to the host.
 5. Press and hold the touchpad with two fingers for a second.
+6. DS5-USBIP will open showing that the DualSense is natively connected.
 
-**DualSense is ready to use with its full feature set (microphone over USB only).**
+*Optional (Recommended): Create and set a new "DS5-DS4-touchpad-to-mouse"
+pre-set and try it out.*
+
+**Start using the DualSense with gyro, touchpad, audio-based rumble and
+speaker audio (microphone on USB only).**
 
 *Note: DS5-USBIP can be set up, stopped and started through the same stream.*
-
----
 
 ## Why this exists
 
@@ -87,14 +88,12 @@ add. Every report already passes through DS5-USBIP, so rebinding needed no new
 plumbing. Having it run on the Windows host machine meant custom controller
 rebindings could be stored and managed.
 
----
-
 ## What this fork adds
 
 In [ciprianmisaila](https://github.com/ciprianmisaila)'s Bluetooth path, report
 packets are tunnelled over the network and straight to the controller, bypassing
 the TV's own audio pathways, so a DualSense reaches the PC with its speaker,
-haptics and adaptive triggers. ciprianmisaila's Bluetooth solution works cleanly
+rumble and adaptive triggers. ciprianmisaila's Bluetooth solution works cleanly
 with the exception of the microphone, which is a limitation of webOS rather than
 anything in that design.
 
@@ -103,10 +102,10 @@ provide a controller rebinder that gives you the ability to drive the stream
 with only a controller.
 
 | Addition | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; What it does |
-|---|---|
-| **DualSense audio over the TV's USB port** | A DualSense's speaker, audio-based haptics and microphone travel as isochronous audio on the controller's own audio interfaces, not as HID traffic. Bluetooth carries input and audio in one report stream that can be forwarded whole; USB splits the audio onto endpoints of its own. This fork rebuilds the pad as the composite device presenting those interfaces and carries the streams both ways, so the speaker, haptics and microphone behave as they would on a cable. |
+|:---|:---|
+| **DualSense audio over the TV's USB port** | A DualSense's speaker, audio-based rumble and microphone travel as isochronous audio on the controller's own audio interfaces, not as HID traffic. Bluetooth carries input and audio in one report stream that can be forwarded whole; USB splits the audio onto endpoints of its own. This fork rebuilds the pad as the composite device presenting those interfaces and carries the streams both ways, so the speaker, rumble and microphone behave as they would on a cable. |
 | **DualSense Edge support** | The Edge's product ID was already recognised when listing devices, but DS5-USBIP rebuilt every DualSense from the same descriptor, so Windows saw a plain DualSense. The Edge differs by more than its product ID: a larger HID report descriptor, extra feature reports and different endpoint polling. This fork adds a descriptor for it, captured from the hardware's own kernel descriptor files, so Windows sees a DualSense Edge. |
-| **DS5Dongle support** | A DS5Dongle presents itself over USB as a DualSense or DualSense Edge, so a wireless controller still reaches the PC with its speaker, haptics, adaptive triggers and microphone. Using a DS5Dongle is also an alternative to a wireless DualSense connected over Bluetooth; the difference is that over Bluetooth the microphone doesn't work, while through a DS5Dongle it does, since it connects through the TV's USB path. You also have access to the DS5Dongle features from various [community forks](https://github.com/awalol/DS5Dongle#community-fork). |
+| **DS5Dongle support** | A DS5Dongle presents itself over USB as a DualSense or DualSense Edge, so a wireless controller still reaches the PC with its speaker, rumble, adaptive triggers and microphone. Using a DS5Dongle is also an alternative to a wireless DualSense connected over Bluetooth; the difference is that over Bluetooth the microphone doesn't work, while through a DS5Dongle it does, since it connects through the TV's USB path. You also have access to the DS5Dongle features from various [community forks](https://github.com/awalol/DS5Dongle#community-fork). |
 | **Optional: controller rebinder and virtual keyboard** | A controller rebinder with stick, gyro and touchpad to mouse pre-sets. The pre-sets can be modified and saved, and a built-in virtual keyboard is available to the controller. The rebinder and the virtual keyboard both isolate the controller's input so a game does not receive it at the same time. |
 
 > The webOS limitation: its input driver reads Bluetooth microphone audio from the
@@ -117,16 +116,12 @@ with only a controller.
 > endpoint rather than inside the report stream, so nothing reads it as button
 > presses.
 
----
-
 ## Clean-room
 
 **Load-bearing, not a formality.** All controller protocol here is derived from
 this project's own observation (sysfs reads and on-wire captures), **not** from
 third-party or kernel driver sources. ciprianmisaila's CTM-USBIP holds the same
 line, and this fork continues it.
-
----
 
 ## Acknowledgements
 
@@ -142,8 +137,6 @@ line, and this fork continues it.
   bundled in `third_party/`.
 - **[DS5Dongle](https://github.com/awalol/DS5Dongle)** by **awalol**: the
   on-hardware reference the gyro report offsets and gate logic were ported from.
-
----
 
 ## License
 
