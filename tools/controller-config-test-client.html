@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.66 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.67 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,8 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.67 The pad's halo on the Mode picker shows whole: the 🗗 beside
+            it covered its right edge.
     2.66.66 Closing this window says whether it had the front, so a
             full-screen game it was raised over gets the front back.
     2.66.65 Open on bridge, on the Overview after the bearer box: whether a
@@ -1615,6 +1617,14 @@
     background:#1d1f26; border-color:#2c2e36; border-left-width:0;
     border-top-left-radius:0; border-bottom-left-radius:0; }
   #sizeBtn:hover { background:#262833; }
+  /* ⭐ THE HALO SHOWS WHOLE ON THE PICKER (rhoquinn8217, 2026-10-09: *"halo is
+     cut off by the resize button on the mode selector"*). The halo is an
+     outline drawn outside the box, and the 🗗, painted after the picker,
+     covered its right edge. ➡️ Whichever of the two has it sits above the
+     other, here and in the compact bars' group. ⓘ The picker's open list
+     sets its own position and layer inline, which outrank this. */
+  .modegroup > .gp-focus, .cgroup > .gp-focus,
+  .modegroup > :focus-visible, .cgroup > :focus-visible { position:relative; z-index:1; }
   /* The same treatment the compact pickers get, for the same reason: the mode
      identifier is ON the picker now rather than in the legend beside it. The
      options are reset or the yellow bleeds into the open list -- see the
@@ -1883,7 +1893,7 @@
 <div class="bar">
   <!-- ⓘ The same number as VERSION at the top of this file, by hand. It sat
        at 2.66.4 for thirty-four versions while VERSION moved on. -->
-  <span class="muted" style="font-size:12px">v2.66.66</span>
+  <span class="muted" style="font-size:12px">v2.66.67</span>
   <label class="muted">agent</label>
   <input id="base" value="http://127.0.0.1:48053" size="26">
   <label class="muted">bearer</label>
