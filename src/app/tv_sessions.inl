@@ -143,4 +143,20 @@ inline bool same_tv(const std::string &sessionOwner, const std::string &owner)
     return sessionOwner == owner;
 }
 
+// May a BRIDGE_STOP from TV `owner`, calling from `peer`, stop a session of TV
+// `sessionOwner` started from `sessionPeer`? Its own, as same_tv says -- and
+// ⭐ ONE WITH NO PROOF, FROM THE ADDRESS THE SESSION WAS STARTED FROM (code
+// review, 2026-10-09). A TV sends its stop plainly when its proof's challenge
+// goes unanswered for a second, a busy listener, and its own proven session
+// then refused it: one that never connected held its port for good, and one
+// that had kept its last input on Windows for 5 s. ⓘ A stranger elsewhere
+// still cannot; a second TV behind the same router can, as any stop without a
+// proof always could. Addresses in host byte order; 0 is none.
+inline bool may_stop(const std::string &sessionOwner, uint32_t sessionPeer,
+                     const std::string &owner, uint32_t peer)
+{
+    if (same_tv(sessionOwner, owner)) return true;
+    return owner.empty() && sessionPeer != 0 && sessionPeer == peer;
+}
+
 } // namespace tv_sessions

@@ -86,14 +86,20 @@ counts as one more "unproven" TV, as every TV did before.
   `bridge_port_range`, in its answer: a TV at another site the LOWEST, the
   ports it always used and the router already forwards; a TV at home (or on
   this PC) the HIGHEST, so it never takes those first. An older TV chooses its
-  own port, as before.
+  own port, as before, and asks for 48055 first: with a new TV at another site
+  already on 48055, the older TV is refused there every time, and its app
+  needs updating.
 - A busid or a port already used by another TV's bridge is refused, never
   taken over. The TV's own older bridge on the port it asked for is replaced,
   as before.
 - A TV stops only its own bridges, and a new bridge retires only the same TV's
-  older one for the same pad.
+  older one for the same pad. A stop with no proof is let through from the
+  address its bridge was started from: a TV sends its stop plainly when the
+  listener is too busy to answer the proof's challenge in time.
 - A device the TV sent no serial for gets one that also depends on the TV, so
-  two TVs' pads of one model are two devices to Windows.
+  two TVs' pads of one model are two devices to Windows when both TVs proved
+  their pairing. Two TVs that proved nothing still share one, and a pad's
+  Windows identity differs with and without its TV's proof.
 
 ⓘ A TV at another site reaches this PC at the home's public address, through
 ports the router forwards: the control port, and from the bottom of
