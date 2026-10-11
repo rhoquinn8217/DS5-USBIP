@@ -48,7 +48,7 @@ struct Preset {
     // then *"when named, replace with"* a second list). The NAME is what the
     // API finds it by and what a config made from it is named after, so it
     // keeps to letters, digits and hyphens: touchpad-to-mouse makes
-    // touchpad_to_mouse_config. The LABEL is only what the picker shows, and
+    // touchpad_to_mouse. The LABEL is only what the picker shows, and
     // may hold anything: "touchpad-to-mouse (DS5|DS4)".
     const char *name;
     const char *label;

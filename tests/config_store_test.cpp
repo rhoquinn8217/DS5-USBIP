@@ -521,7 +521,9 @@ int run_config_store_tests()
             return out;
         };
         for (size_t i = 0; i < ctm_presets::preset_count(); ++i) {
-            CTM_CHECK(cs::valid_name(pageStem(ctm_presets::kPresets[i].name) + "_config_99"));
+            // The name itself, and the 99th of them (no "_config" since 2026-10-11).
+            CTM_CHECK(cs::valid_name(pageStem(ctm_presets::kPresets[i].name)));
+            CTM_CHECK(cs::valid_name(pageStem(ctm_presets::kPresets[i].name) + "_99"));
             // Every preset shows something in the picker.
             CTM_CHECK(ctm_presets::kPresets[i].label != nullptr && *ctm_presets::kPresets[i].label);
         }
@@ -529,7 +531,7 @@ int run_config_store_tests()
         CTM_CHECK(pageStem("gyro-to-mouse (DS5)") == "gyro_to_mouse_DS5");
         CTM_CHECK(pageStem("stick-to-mouse") == "stick_to_mouse");
         // ⛔ The control: the old rule, hyphens only, makes a name the store refuses.
-        CTM_CHECK(!cs::valid_name("touchpad_to_mouse (DS5|DS4)_config"));
+        CTM_CHECK(!cs::valid_name("touchpad_to_mouse (DS5|DS4)"));
     }
 
     section("presets: which pads each mouse preset suits");

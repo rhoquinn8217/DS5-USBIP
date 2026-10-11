@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.71 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.72 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,9 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.72 A config made from a preset is named without "_config":
+            touchpad_to_mouse, then touchpad_to_mouse_2. One made without
+            a preset is still ds5_config and the like.
     2.66.71 The preset picker shows each preset's label, and a config made
             from one is named after its name: the picker shows
             "touchpad-to-mouse (DS5|DS4)", and its configs are
@@ -1907,7 +1910,7 @@
 <div class="bar">
   <!-- ⓘ The same number as VERSION at the top of this file, by hand. It sat
        at 2.66.4 for thirty-four versions while VERSION moved on. -->
-  <span class="muted" style="font-size:12px">v2.66.71</span>
+  <span class="muted" style="font-size:12px">v2.66.72</span>
   <label class="muted">agent</label>
   <input id="base" value="http://127.0.0.1:48053" size="26">
   <label class="muted">bearer</label>
@@ -3344,8 +3347,10 @@ function nextNameFrom(base) {
 
 // ⭐ THE NAME SAYS WHAT THE CONFIG DOES (rhoquinn8217, 2026-08-31). A list of
 // ds5_config_2, ds5_config_3, ds5_config_4 tells you nothing about which is
-// which, so a preset names its own configs: gyro-to-mouse makes
-// gyro_to_mouse_config, then _2, _3.
+// which, so a preset names its own configs: gyro-to-mouse-always-on makes
+// gyro_to_mouse_always_on, then _2, _3. ⓘ With no "_config" since 2026-10-11
+// (rhoquinn8217: *"remove the _config from the names. They aren't needed."*).
+// A config made without a preset is still ds5_config and the like, below.
 //
 // ⓘ Everything but letters and digits becomes an underscore, a run of them
 // one, because a config name is also a FILENAME and a section name: the store
@@ -3393,7 +3398,7 @@ function presetLabelOf(name) {
 
 function nextConfigName(sessionKind, presetName) {
   var base = presetName
-    ? configStemOf(presetName) + '_config'
+    ? configStemOf(presetName)
     : customConfigBase(sessionKind);
   return nextNameFrom(base);
 }
