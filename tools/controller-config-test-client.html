@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.62 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.68 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,25 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.68 Open on bridge follows a change made in the tray within a
+            second while this window is on screen; it waited for the
+            window to be clicked.
+    2.66.67 The pad's halo on the Mode picker shows whole: the 🗗 beside
+            it covered its right edge.
+    2.66.66 Closing this window says whether it had the front, so a
+            full-screen game it was raised over gets the front back.
+    2.66.65 Open on bridge, on the Overview after the bearer box: whether a
+            bridge brings this window up by itself. On until turned off;
+            the tray menu's item under Window Mode is the same switch, and
+            the page reads it again whenever it is in front.
+    2.66.64 A 🗗 button beside the Mode picker, in all three layouts, steps
+            the window through its sizes as Create does on the pad. It sits
+            flush against the picker at its height, and Close comes a
+            little closer.
+    2.66.63 In Advanced's footer, up on the Mode picker or on Close leaves
+            the footer as Esc does, back to where you were; it only stepped
+            between the two. The version on the Overview tab reads this one;
+            it was a version behind.
     2.66.62 An edit is written to the config it was made in, however fast
             the tab moves on: it read the row when its timer fired, so a
             switch inside 400 ms wrote the other config's value. The pad
@@ -1236,7 +1255,7 @@
      reported, but its picker fell to the 12.6vh config-selector rule in
      exactly the same way, and leaving it would be the next report. */
   body.quick #compactBox .cbar > button,
-  body.quick #compactBox .cbar > select.modepick { font-size:6.9vh;
+  body.quick #compactBox .cbar select.modepick { font-size:6.9vh;
     padding:1.5vh 2vw; min-width:0; }
   body.quick #compactBox .clegend { font-size:6.9vh; }
   body.quick #compactBox .cempty { font-size:13.5vh; }
@@ -1362,7 +1381,7 @@
      ⚠️ `min-width:0` is load-bearing: without it the 47vw from that rule
      still wins on width even though everything else here overrides. */
   #compactBox .cbar > button,
-  #compactBox .cbar > select.modepick { flex:0 0 auto; font-size:3.4vh;
+  #compactBox .cbar select.modepick { flex:0 0 auto; font-size:3.4vh;
     padding:1.2vh 2.6vw; min-width:0; }
   /* THE PICKER IS TRIMMED ON PADDING, NOT FORCED TO A HEIGHT, AND THAT IS
      WHAT LETS ITS TEXT SIT CENTRED (rhoquinn8217, 2026-09-20: *"The text in
@@ -1378,7 +1397,7 @@
      Solved, not guessed: bare select + 2 x padding = the button's height.
      Simple 27 + 2 x 0.79vh = 35.2; Quick 20 + 2 x 0.31vh = 21.1.
      Both move if the font or the button's padding above changes. */
-  #compactBox .cbar > select.modepick { padding-top:0.79vh; padding-bottom:0.79vh; }
+  #compactBox .cbar select.modepick { padding-top:0.79vh; padding-bottom:0.79vh; }
   /* ⭐⭐ THE MODE IDENTIFIER NOW LIVES ON THE PICKER ITSELF (rhoquinn8217,
      2026-09-20): *"The Mode select clearly show what mode the window is in so
      we don't need the Yellow Bolded mode title in the legend for each mode
@@ -1393,12 +1412,27 @@
      `option` leaves the list plain and the collapsed value yellow.
      ⚠️ Uppercase plus letter-spacing makes the box WIDER -- 168 px to 194 in
      Simple -- so the gap to the Close button beside it grows. */
-  #compactBox .cbar > select.modepick { color:#ffd166; font-weight:700;
+  #compactBox .cbar select.modepick { color:#ffd166; font-weight:700;
     letter-spacing:.08em; text-transform:uppercase; }
-  #compactBox .cbar > select.modepick option { color:#e8e8ea; font-weight:400;
+  #compactBox .cbar select.modepick option { color:#e8e8ea; font-weight:400;
     letter-spacing:normal; text-transform:none; }
-  body.quick #compactBox .cbar > select.modepick { padding-top:0.31vh;
+  body.quick #compactBox .cbar select.modepick { padding-top:0.31vh;
     padding-bottom:0.31vh; }
+  /* ⭐ THE SIZE BUTTON, FLUSH AGAINST THE PICKER HERE TOO (rhoquinn8217,
+     2026-10-09), as in Advanced's footer: the two share .cgroup, which
+     stretches the button to the picker's height, so the two cannot differ
+     (a sibling sized by its own font and padding stood 4.4 px taller in
+     Quick). Close comes 1.2vw after the group rather than the bar's 3vw.
+     ⚠️ The picker's rules above find it inside the group (`.cbar select`),
+     and so does the bar's grid walk in compactMove. */
+  #compactBox .cbar > .cgroup { flex:0 0 auto; display:inline-flex; align-items:stretch; }
+  #compactBox .cbar .cgroup > select.modepick { border-top-right-radius:0; border-bottom-right-radius:0; }
+  #compactBox .cbar .cgroup > button.csize { flex:0 0 auto; font-size:3.4vh; line-height:1;
+    padding:0 1.2vw; min-width:0; color:#ffd166; background:#1d1f26; border-color:#2c2e36;
+    border-left-width:0; border-top-left-radius:0; border-bottom-left-radius:0; }
+  body.quick #compactBox .cbar .cgroup > button.csize { font-size:6.9vh; }
+  #compactBox .cbar .cgroup > button.csize:hover { background:#262833; }
+  #compactBox .cbar > .cgroup + button.cclose { margin-left:-1.8vw; }
   body.compact #confirmBox .confirmCard { font-size:5.1vh; max-width:86vw; }
   body.compact #confirmBox .confirmCard h2 { font-size:6.3vh; }
   body.compact #confirmBox .confirmCard p { font-size:5.1vh; }
@@ -1571,6 +1605,29 @@
   #gpend { margin-left:auto; display:flex; align-items:center;
            justify-content:flex-end; flex-wrap:wrap; gap:16px; }
   #modePick, #closeBtn { padding:2px 8px; font-size:11px; margin-left:8px; }
+  /* ⭐ THE SIZE BUTTON SITS FLUSH AGAINST THE MODE PICKER (rhoquinn8217,
+     2026-10-09: *"match the mode selector button size. Let the button be
+     flush against the mode selector and reduce to space between it a the
+     close button"*). The picker and 🗗 are one group, the seam squared on
+     both sides, in the picker's own colours; Close comes 7px after it rather
+     than the cluster's 16 and its own 8. ⓘ The picker sets the group's
+     height and the button stretches to it, so the two cannot drift apart. */
+  .modeclose { display:inline-flex; align-items:center; gap:7px; margin-left:8px; }
+  .modegroup { display:inline-flex; align-items:stretch; }
+  .modeclose #modePick, .modeclose #closeBtn { margin-left:0; }
+  .modegroup #modePick { border-top-right-radius:0; border-bottom-right-radius:0; }
+  #sizeBtn { padding:0 6px; font-size:13px; line-height:1; color:#ffd166;
+    background:#1d1f26; border-color:#2c2e36; border-left-width:0;
+    border-top-left-radius:0; border-bottom-left-radius:0; }
+  #sizeBtn:hover { background:#262833; }
+  /* ⭐ THE HALO SHOWS WHOLE ON THE PICKER (rhoquinn8217, 2026-10-09: *"halo is
+     cut off by the resize button on the mode selector"*). The halo is an
+     outline drawn outside the box, and the 🗗, painted after the picker,
+     covered its right edge. ➡️ Whichever of the two has it sits above the
+     other, here and in the compact bars' group. ⓘ The picker's open list
+     sets its own position and layer inline, which outrank this. */
+  .modegroup > .gp-focus, .cgroup > .gp-focus,
+  .modegroup > :focus-visible, .cgroup > :focus-visible { position:relative; z-index:1; }
   /* The same treatment the compact pickers get, for the same reason: the mode
      identifier is ON the picker now rather than in the legend beside it. The
      options are reset or the yellow bleeds into the open list -- see the
@@ -1594,6 +1651,9 @@
   .holdBtnCopy { font-weight:600; }
   #holdBtn.on, .holdBtnCopy.on { background:#3a3320; border-color:#e0c07a; color:#e8cf92; }
   #holdBtn.safe, .holdBtnCopy.safe { background:#1f3325; border-color:#7fd18c; color:#a9e3b5; }
+  /* ⭐ OPEN ON BRIDGE (rhoquinn8217, 2026-10-09): green with a tick while a
+     bridge brings this window up by itself, plain while it does not. */
+  #openOnBridge.on { background:#1f3325; border-color:#7fd18c; color:#a9e3b5; }
   #padDest.on { color:#7fd18c; }
   /* Lit while ○ has backed out into it, so it is clear where focus went. */
   #gpbar.gp-zone { background:#22252e; border-top-color:#6c8cff; }
@@ -1836,12 +1896,17 @@
 <div class="bar">
   <!-- ⓘ The same number as VERSION at the top of this file, by hand. It sat
        at 2.66.4 for thirty-four versions while VERSION moved on. -->
-  <span class="muted" style="font-size:12px">v2.66.61</span>
+  <span class="muted" style="font-size:12px">v2.66.68</span>
   <label class="muted">agent</label>
   <input id="base" value="http://127.0.0.1:48053" size="26">
   <label class="muted">bearer</label>
   <input id="token" placeholder="leave empty unless you set one" size="16"
     title="A password for the listener. Leave this empty -- almost everyone should. The listener normally only answers programs on this same PC, so it needs no password. If you start it with --rest-lan it answers other machines on your network too, and then anyone on your wifi could send it commands. --rest-token sets a password to stop that, and this box is where you type the same password back so this page is still allowed in.">
+  <!-- ⭐ OPEN ON BRIDGE (rhoquinn8217, 2026-10-09): whether a bridge brings
+       this window up by itself. The tray menu's item under Window Mode is the
+       same switch; the listener keeps it. Painted by paintOpenOnBridge(). -->
+  <button id="openOnBridge" class="on" aria-pressed="true" onclick="toggleOpenOnBridge()"
+    title="On: a bridge brings this window up by itself. Click to turn it off.">✓ Open on bridge</button>
   <!-- ⛔ RELOAD REMOVED 2026-09-01. rhoquinn8217: "Using it means the page is
        broken." Its last purpose was noticing a config edited outside this
        page, and that is covered twice over now -- the page reloads configs
@@ -1961,14 +2026,23 @@
   <!-- T-233: one Mode picker replaces the Simple and Quick buttons. It is
        filled by paintModePickers(), which runs on every mode change, and it
        carries the padlock beside whichever mode is current. -->
+  <!-- ⭐ THE PICKER, THE SIZE BUTTON AND CLOSE (rhoquinn8217, 2026-10-09):
+       the 🗗 sits flush against the picker at its height, and Close comes a
+       little closer than the cluster's own gap. See .modeclose in the style. -->
+  <span class="modeclose">
+  <span class="modegroup">
   <select class="modepick" id="modePick" size="1"
           title="which layout this window opens in"
           onmousedown="pickerActivate(event,this)"
           onclick="pickerClickEnd(this)"
           onchange="pickMode(this.value)"></select>
+  <button id="sizeBtn" onclick="sizeNext()"
+          title="the next size for this window, as Create does on the pad">&#x1F5D7;</button>
+  </span>
   <!-- ⓘ Closing releases the gate on the way out, via the pagehide beacon, so
        this is a safe exit rather than a way to strand yourself. -->
   <button id="closeBtn" onclick="closeWindow()" title="close this window">Close</button>
+  </span>
   </span>
 </div>
 
@@ -6637,16 +6711,28 @@ function showListenerNotice(text) {
 // carry a header, so with --rest-token the listener refused it while
 // sendBeacon still said it was queued, and the window's going was never heard.
 // A keepalive fetch outlives the page the same way, and carries the token.
+// ⭐ WHETHER THIS WINDOW HAD THE FRONT AS IT CLOSED (rhoquinn8217,
+// 2026-10-09): a full-screen game it was raised over gets the front back when
+// it did -- a Close, a Circle, its X. ⓘ Closing also BLURS the window (the
+// note above), possibly before pagehide, so a blur in the last 600 ms counts
+// as having had it.
+var LAST_BLUR_AT = 0;
+window.addEventListener('blur', function () { LAST_BLUR_AT = Date.now(); });
+function hadFocusAtClose() {
+  return document.hasFocus() || (Date.now() - LAST_BLUR_AT < 600);
+}
+
 function reportClosing() {
   try {
     var tokenBox = document.getElementById('token');
     var hasToken = !!tokenBox && tokenBox.value.trim() !== '';
-    var body = new Blob(['{"closed":true}'], { type: 'application/json' });
+    var said = '{"closed":true,"had_focus":' + (hadFocusAtClose() ? 'true' : 'false') + '}';
+    var body = new Blob([said], { type: 'application/json' });
     if (hasToken || !navigator.sendBeacon(base() + '/api/v1/ui/closed', body)) {
       // ⓘ keepalive lets a fetch outlive the page, which is the same promise
       // sendBeacon makes.
       fetch(base() + '/api/v1/ui/closed',
-            { method: 'POST', keepalive: true, headers: headers(), body: '{"closed":true}' })
+            { method: 'POST', keepalive: true, headers: headers(), body: said })
         .catch(function () {});
     }
   } catch (e) {}
@@ -6695,6 +6781,22 @@ function gpEditStep(dir, mult) {
 
 // ⓘ Up/down has three meanings depending on what is open, exactly as the pad
 // does -- so it routes the same way rather than duplicating the logic.
+// ⭐ UP LEAVES THE FOOTER (rhoquinn8217, 2026-10-09: *"when you are locked in
+// the footer sections in advance mode, pressing up on when you are on the mode
+// selector or close, should have the same affect as esc"*). The footer is one
+// row, so up had nowhere to go but the other control. ➡️ It does what ○ / Esc
+// does there: back to where you were.
+// ⚠️ Not while the Mode picker's list is open (GP_SELECTING): up walks its
+// modes there, and Esc would close the list first too.
+// ⛔ Called from the VERTICAL routes only -- gpKeyMove for the keys and the
+// gated pad, gpPoll for a pad the page reads itself -- never from gpMove, which
+// ◄ ► share: left from Close is the way to the Mode picker.
+function footerUpLeaves(delta) {
+  if (!FOOTER_MODE || delta >= 0 || GP_SELECTING) return false;
+  setFooterMode(false);
+  return true;
+}
+
 function gpKeyMove(delta) {
   // ⚠️ INVERTED for an editor. Moving a halo DOWN is delta +1, but pressing up
   // on a value must INCREASE it -- measured: up was decrementing.
@@ -6704,6 +6806,7 @@ function gpKeyMove(delta) {
     GP_SELECTING.selectedIndex = (GP_SELECTING.selectedIndex + delta + n) % n;
     return;
   }
+  if (footerUpLeaves(delta)) return;
   if (COMPACT && compactMove(0, delta)) return;
   gpMove(delta);
 }
@@ -6762,7 +6865,8 @@ function compactMove(dx, dy) {
   // ⓘ The selector row above got this right, and is the precedent:
   // `selRow.querySelectorAll('select, button')`.
   var bar = Array.prototype.slice.call(
-    box.querySelectorAll('.cbar > button, .cbar > select'));
+    box.querySelectorAll('.cbar > button, .cbar > select, .cbar > .cgroup > select, ' +
+                         '.cbar > .cgroup > button'));
   if (bar.length) rows.push(bar);
   if (!rows.length) return false;
   var cur = GP_FOCUS[GP_INDEX];
@@ -6962,7 +7066,9 @@ function gpKeyBack() {
   // kept closing outright as the mid-game view. One press no longer ends the
   // session by itself -- the second press, on the button, does.
   if (COMPACT) {
-    var closeBtn = document.querySelector('#compactBox .cbar > button');
+    // ⛔ BY ITS CLASS: the size button is a button in this bar too, and comes
+    // first (2026-10-09).
+    var closeBtn = document.querySelector('#compactBox .cbar > button.cclose');
     if (closeBtn && focusElement(closeBtn)) return;
     // ⓘ Only when there is no Close to go to: close, as before.
     closeWindow();
@@ -7538,6 +7644,59 @@ var PLAIN_KEYS = {
 function uiAsk(what) {
   call('POST', '/api/v1/ui/' + what, undefined, true).catch(function () {});
 }
+
+// ⭐ THE 🗗 BUTTON BESIDE THE MODE PICKER (rhoquinn8217, 2026-10-09): the next
+// size for this window, the same request R makes and the same step Create
+// takes on the pad (ui/resize), for the mouse. In all three layouts.
+function sizeNext() { uiAsk('resize'); }
+function sizeButtonHtml() {
+  return '<button class="csize" onclick="sizeNext()" ' +
+         'title="the next size for this window, as Create does on the pad">&#x1F5D7;</button>';
+}
+// The compact bars' Mode picker with the 🗗 against it, one group.
+function modeGroupHtml() {
+  return '<span class="cgroup">' + modePickerHtml('cselMode') + sizeButtonHtml() + '</span>';
+}
+
+// ⭐ OPEN ON BRIDGE (rhoquinn8217, 2026-10-09): whether a bridge brings this
+// window up by itself. The listener keeps it, and the tray menu's item under
+// Window Mode is the same switch, so it is read as the page opens and again
+// whenever the page regains focus -- after a change in the tray, say.
+// ⓘ Shown on until the listener says otherwise: that is what it does when
+// nothing has been chosen, and a listener too old to know the switch opens
+// the window on every bridge.
+var OPEN_ON_BRIDGE = true;
+function paintOpenOnBridge() {
+  var b = document.getElementById('openOnBridge');
+  if (!b) return;
+  b.classList.toggle('on', OPEN_ON_BRIDGE);
+  b.setAttribute('aria-pressed', OPEN_ON_BRIDGE ? 'true' : 'false');
+  b.textContent = (OPEN_ON_BRIDGE ? '✓ ' : '') + 'Open on bridge';
+  b.title = OPEN_ON_BRIDGE
+    ? 'On: a bridge brings this window up by itself. Click to turn it off.'
+    : 'Off: a bridge leaves this window alone. Click to turn it on.';
+}
+function takeOpenOnBridge(r) {
+  if (r && typeof r.on === 'boolean') { OPEN_ON_BRIDGE = r.on; paintOpenOnBridge(); }
+}
+function loadOpenOnBridge() {
+  call('GET', '/api/v1/ui/open-on-bridge', undefined, true).then(takeOpenOnBridge).catch(function () {});
+}
+function toggleOpenOnBridge() {
+  call('POST', '/api/v1/ui/open-on-bridge', { on: !OPEN_ON_BRIDGE }, true)
+    .then(takeOpenOnBridge).catch(function () {});
+}
+window.addEventListener('load', loadOpenOnBridge);
+window.addEventListener('focus', loadOpenOnBridge);
+// ⭐ AND EACH SECOND WHILE THIS WINDOW CAN BE SEEN (rhoquinn8217, 2026-10-09:
+// *"toggling on the Open on bridge in the tray doesn't immediately show in
+// the configs window until you click on it"*). The tray's switch changes it
+// with this window in view but not in front, so focus alone came too late.
+// ⓘ One small GET a second, and none while the window is minimised or
+// covered: the browser calls it hidden then, and focus catches it up.
+setInterval(function () {
+  if (!STOPPED && document.visibilityState === 'visible') loadOpenOnBridge();
+}, 1000);
 
 document.addEventListener('keydown', function (ev) {
   if (STOPPED) return;
@@ -8477,7 +8636,7 @@ function paintCompact() {
             // ⓘ "to close", as Simple's says: Circle goes to Close now
             // (2026-10-02) rather than closing.
             LG.close + ' to close</div></div>' +
-            modePickerHtml('cselMode') +
+            modeGroupHtml() +
             '<button class="cclose" onclick="closeWindow()">Close</button></div>';
   } else {
     html += '<div class="cbar">' +
@@ -8491,7 +8650,7 @@ function paintCompact() {
             'onmouseenter="HINT_HELD = true" onmouseleave="HINT_HELD = false" ' +
             'onmousedown="hintPressed(event)" onmouseup="hintReleased(event)">' +
             hintHtml(HINT_AT) + '</div>' +
-            '</div>' + modePickerHtml('cselMode') +
+            '</div>' + modeGroupHtml() +
             '<button class="cclose" onclick="closeWindow()">Close</button></div>';
   }
   box.innerHTML = html;
@@ -8504,7 +8663,9 @@ function paintCompact() {
   // there is something to pick, the big button when there is not.
   var have = GP_FOCUS[GP_INDEX];
   if (!(have && box.contains(have) && focusKeyOf(have) === GP_WANT)) {
-    var want = document.getElementById('cpick') || box.querySelector('button.cbig') || box.querySelector('button');
+    // ⓘ Close by its class: the 🗗 is the bar's first button now (2026-10-09).
+    var want = document.getElementById('cpick') || box.querySelector('button.cbig') ||
+               box.querySelector('button.cclose') || box.querySelector('button');
     if (!focusElement(want)) { GP_INDEX = 0; gpPaint(); }
   }
 }
@@ -8886,10 +9047,13 @@ function gpPoll() {
   else if (edge(15)) { gpKeyStep(1); GP_REPEAT_AT = now + 400; }
 
   // D-pad: fire on the edge, then repeat while held after a short delay.
-  else if (edge(12)) { gpMove(-1); GP_REPEAT_AT = now + 400; }
+  // ⓘ Up goes by footerUpLeaves first, as the keys' up does in gpKeyMove.
+  else if (edge(12)) { if (!footerUpLeaves(-1)) gpMove(-1); GP_REPEAT_AT = now + 400; }
   else if (edge(13)) { gpMove(1); GP_REPEAT_AT = now + 400; }
   else if ((pressed(12) || pressed(13)) && now >= GP_REPEAT_AT) {
-    gpMove(pressed(12) ? -1 : 1); GP_REPEAT_AT = now + 90;
+    var vert = pressed(12) ? -1 : 1;
+    if (!footerUpLeaves(vert)) gpMove(vert);
+    GP_REPEAT_AT = now + 90;
   }
 
   requestAnimationFrame(gpPoll);

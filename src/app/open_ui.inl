@@ -25,6 +25,7 @@
 // The rule that tells our app window from a browser window showing the page in
 // a tab. The icon needed it first; every lookup here uses it too.
 #include "window_icon_rule.inl"
+#include "front_rule.inl"
 
 namespace ctm_open_ui {
 
@@ -324,6 +325,137 @@ inline std::wstring exe_of(HWND hwnd)
     return name;
 }
 
+// ⭐ IS THE WINDOW THAT HAD THE FRONT A FULL-SCREEN GAME? front_rule.inl holds
+// the rule (rhoquinn8217, 2026-10-09); this reads the window it is asked about.
+inline bool is_full_screen_game(HWND hwnd)
+{
+    if (hwnd == nullptr || !IsWindow(hwnd)) return false;
+    RECT wr = {};
+    if (!GetWindowRect(hwnd, &wr)) return false;
+    MONITORINFO mi = {};
+    mi.cbSize = sizeof(mi);
+    if (!GetMonitorInfoW(MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST), &mi)) return false;
+    DWORD pid = 0;
+    GetWindowThreadProcessId(hwnd, &pid);
+    wchar_t cls[128] = {};
+    GetClassNameW(hwnd, cls, 127);
+    return front_rule::is_full_screen_game(
+        front_rule::covers(wr.left, wr.top, wr.right, wr.bottom,
+                           mi.rcMonitor.left, mi.rcMonitor.top, mi.rcMonitor.right, mi.rcMonitor.bottom),
+        pid == GetCurrentProcessId(), cls);
+}
+
+// ⭐ THE GAME THE WINDOW WAS RAISED OVER, to give the front back to as it
+// closes (rhoquinn8217, 2026-10-09). front_rule::on_raise says when it changes.
+inline std::mutex g_gameMutex;
+inline HWND g_raisedOverGame = nullptr;
+
+inline void remember_front(HWND before, bool beforeIsGame)
+{
+    std::lock_guard<std::mutex> lock(g_gameMutex);
+    switch (front_rule::on_raise(before != nullptr, beforeIsGame)) {
+    case front_rule::Remember::Set:   g_raisedOverGame = before;  break;
+    case front_rule::Remember::Clear: g_raisedOverGame = nullptr; break;
+    case front_rule::Remember::Keep:  break;
+    }
+}
+
+// ⭐ THE WINDOW HAS CLOSED: give the full-screen game it was raised over the
+// front back (rhoquinn8217, 2026-10-09: *"restore focus on the full screen mode
+// game when the configs window closes"*). `hadFront` is the page's word that it
+// had the front as it went. ⓘ On its own thread, once the window is gone: the
+// page says it is closing while its window still stands, and a window still
+// there after a second was reloaded, not closed.
+// ⚠️ An exclusive full-screen game minimises when it loses the front, so it is
+// restored first. The Alt key is focus_existing's, for the same reason.
+inline void give_front_back(bool hadFront)
+{
+    std::thread([hadFront]() {
+        for (int waited = 0; waited < 1000 && window_exists(); waited += 50) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        }
+        if (window_exists()) {
+            device_log::input_w() << L"ui: the page went but its window is still there (a reload): the front stays";
+            return;
+        }
+        HWND game = nullptr;
+        {
+            std::lock_guard<std::mutex> lock(g_gameMutex);
+            game = g_raisedOverGame;
+        }
+        bool reopening = false;
+        {
+            std::lock_guard<std::mutex> lock(g_open_mutex);
+            reopening = g_open_in_flight;
+        }
+        const bool there = game != nullptr && IsWindow(game);
+        if (!front_rule::give_front_back(game != nullptr, there, hadFront, reopening)) {
+            if (game != nullptr) {
+                device_log::input_w() << L"ui: the window closed; the front stays where it is ("
+                                      << (!there ? L"the game has gone" : !hadFront ? L"it did not have the front"
+                                                                       : L"a new window is on its way")
+                                      << L")";
+            }
+            return;
+        }
+        {
+            std::lock_guard<std::mutex> lock(g_gameMutex);
+            if (g_raisedOverGame == game) g_raisedOverGame = nullptr;
+        }
+        if (IsIconic(game)) ShowWindow(game, SW_RESTORE);
+        INPUT alt = {};
+        alt.type = INPUT_KEYBOARD;
+        alt.ki.wVk = VK_MENU;
+        SendInput(1, &alt, sizeof(alt));
+        SetForegroundWindow(game);
+        alt.ki.dwFlags = KEYEVENTF_KEYUP;
+        SendInput(1, &alt, sizeof(alt));
+        device_log::input_w() << L"ui: the window closed; gave the front back to " << exe_of(game);
+    }).detach();
+}
+
+// ⭐ FOLLOW THE LAST GAME (rhoquinn8217, 2026-10-09: *"follow the last game I
+// was in"*). While a window stands, the front is looked at four times a
+// second, and a full-screen game coming to it becomes the one to give the
+// front back to (front_rule::on_front_change). ⓘ One follower at a time, for
+// as long as a window stands: a reopen hands over to the new window without a
+// gap, and two seconds with none ends it. Our own window is never the game.
+inline std::atomic_bool g_followingFront{false};
+
+inline void follow_front()
+{
+    bool expected = false;
+    if (!g_followingFront.compare_exchange_strong(expected, true)) return;
+    std::thread([]() {
+        HWND last = nullptr;
+        int goneMs = 0;
+        while (goneMs < 2000) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(250));
+            if (!window_exists()) {
+                goneMs += 250;
+                continue;
+            }
+            goneMs = 0;
+            const HWND fg = GetForegroundWindow();
+            if (fg == nullptr || fg == last) continue;
+            last = fg;
+            wchar_t title[512] = {};
+            if (GetWindowTextW(fg, title, 511) > 0 &&
+                window_icon_rule::is_app_window_title(title, kTitleMarker)) {
+                continue;
+            }
+            if (front_rule::on_front_change(is_full_screen_game(fg)) != front_rule::Remember::Set) continue;
+            std::lock_guard<std::mutex> lock(g_gameMutex);
+            if (g_raisedOverGame != fg) {
+                g_raisedOverGame = fg;
+                device_log::input_w() << L"ui: " << exe_of(fg)
+                                      << L" is the game now: the front goes back to it when the window closes";
+            }
+        }
+        g_followingFront.store(false);
+    }).detach();
+}
+
 // ⭐⭐ A FULL-SCREEN GAME TAKES THE FRONT BACK (rhoquinn8217, 2026-10-03, in The
 // Witcher 3: "chord take 2 or 3 times to push through full screen on this
 // game"). The log showed it the same way every time: the window raised and in
@@ -386,7 +518,8 @@ inline void raise_when_ready(bool release_claim = false)
         window_icon_rule::is_app_window_title(title, kTitleMarker)) {
         before = nullptr;
     }
-    std::thread([release_claim, before]() {
+    const bool beforeIsGame = is_full_screen_game(before);
+    std::thread([release_claim, before, beforeIsGame]() {
         struct Done {
             bool release;
             ~Done() { if (release) release_open(); }
@@ -400,7 +533,18 @@ inline void raise_when_ready(bool release_claim = false)
             raise_now(state.found);
             device_log::input_w() << L"ui: raised the window above the game (the front was "
                                   << (before != nullptr ? exe_of(before) : std::wstring(L"nothing")) << L")";
-            keep_front_from(before);
+            remember_front(before, beforeIsGame);
+            follow_front();
+            // ⭐ ONLY A FULL-SCREEN GAME IS WATCHED (rhoquinn8217, 2026-10-09).
+            // ⛔ Opened from the tray, the window that had the front was the
+            // tray's own, and opening its menu again raised this window over
+            // the menu, which shut. front_rule.inl.
+            if (beforeIsGame) {
+                keep_front_from(before);
+            } else if (before != nullptr) {
+                device_log::input_w() << L"ui: " << exe_of(before)
+                                      << L" had the front and is not a full-screen game: not watching it";
+            }
             return;
         }
         device_log::input_w() << L"ui: no window appeared to raise";

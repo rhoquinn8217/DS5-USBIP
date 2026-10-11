@@ -46,6 +46,8 @@ inline const wchar_t *const kTitle = L"DS5-USBIP";
 inline const wchar_t *const kDevices = L"Devices";
 inline const wchar_t *const kOpenConfig = L"Open Controller Configs";
 inline const wchar_t *const kConfigMode = L"Window Mode";
+// ⓘ The settings page's switch says the same words.
+inline const wchar_t *const kOpenOnBridge = L"Open on bridge";
 inline const wchar_t *const kQuit = L"Quit";
 
 // ⓘ By code point, so no editor and no compiler setting can turn it into
@@ -152,6 +154,19 @@ inline std::wstring mode_line(int index, int current)
     std::wstring line = kModes[index].name;
     if (index == current) { line += L" "; line += kPadlock; }
     return line;
+}
+
+// ⭐ WHAT A PICK IN THE WINDOW MODE MENU DOES (rhoquinn8217, 2026-10-09: "if
+// you select a window mode in the task bar that is already set, the window
+// should come in focus"). Another mode changes the layout. The mode the window
+// is already in brings an open window forward -- it did nothing at all -- and
+// with no window open still does nothing (their word, the same day: "leave it
+// as it is").
+enum class ModePick { ChangeLayout, BringForward, Nothing };
+inline ModePick mode_pick(int picked, int current, bool windowOpen)
+{
+    if (picked != current) return ModePick::ChangeLayout;
+    return windowOpen ? ModePick::BringForward : ModePick::Nothing;
 }
 
 } // namespace tray_menu

@@ -546,7 +546,10 @@ inline constexpr Key kTabSub[] = {
     { L"\u2699", nullptr, ACT_CONFIG, 0, KK_ACTION, 0.67f },
     { L"\u2328", nullptr, ACT_LAYOUT, 0, KK_ACTION, 0.67f },
     { L"\u21f3", nullptr, ACT_MOVE,   0, KK_ACTION, 0.67f },
-    { L"\u2197", nullptr, ACT_SIZE,   0, KK_ACTION, 0.66f },
+    // ⓘ 🗗 for the size, by code point: the settings page's own size
+    // button beside its Mode picker (rhoquinn8217, 2026-10-09: "for
+    // consistency"). It was ↗. The same in all three tabs below.
+    { L"\U0001F5D7", nullptr, ACT_SIZE,   0, KK_ACTION, 0.66f },
     { L"x", nullptr, ACT_CLOSE, 0, KK_ACTION, 0.66f },
 };
 
@@ -558,7 +561,7 @@ inline constexpr Key kTabCompact[] = {
     { L"\u2699", nullptr, ACT_CONFIG, 0, KK_ACTION, 0.67f },
     { L"\u2328", nullptr, ACT_LAYOUT, 0, KK_ACTION, 0.67f },
     { L"\u21f3", nullptr, ACT_MOVE,   0, KK_ACTION, 0.67f },
-    { L"\u2197", nullptr, ACT_SIZE,   0, KK_ACTION, 0.66f },
+    { L"\U0001F5D7", nullptr, ACT_SIZE,   0, KK_ACTION, 0.66f },
     // ⭐ Close here TOO, not instead. rhoquinn8217, 2026-09-02:
     // top-right is where a pointer goes to shut a window, and the
     // key on the face is where a thumb already is. Two ways out of
@@ -582,7 +585,7 @@ inline constexpr Key kTabFull[] = {
     { L"\u2699", nullptr, ACT_CONFIG, 0, KK_ACTION, 0.67f },
     { L"\u2328", nullptr, ACT_LAYOUT, 0, KK_ACTION, 0.67f },
     { L"\u21f3", nullptr, ACT_MOVE,   0, KK_ACTION, 0.67f },
-    { L"\u2197", nullptr, ACT_SIZE,   0, KK_ACTION, 0.66f },
+    { L"\U0001F5D7", nullptr, ACT_SIZE,   0, KK_ACTION, 0.66f },
     // ⭐ Close here TOO, not instead. rhoquinn8217, 2026-09-02:
     // top-right is where a pointer goes to shut a window, and the
     // key on the face is where a thumb already is. Two ways out of
@@ -1042,7 +1045,7 @@ inline void move_v(int dir)
     // directly above the space bar. A key you are standing over is zero away.
     // ⓘ MEASURED against the pixel walk at twelve window sizes (2026-10-02):
     // COMPACT and FULL land where they did, except going down from the tab's
-    // ⚙ and ↗. Those buttons are thirds of a key written as 0.67, so their
+    // ⚙ and the size key. Those buttons are thirds of a key written as 0.67, so their
     // middles sit 0.005 off a boundary, and the pixel walk settled them by
     // rounding -- one key at some window sizes, its neighbour at others. Now it
     // is always the key under the button's middle.

@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "app/tray_menu.inl"
+#include "app/open_on_bridge.inl"
 
 using namespace ctmtest;
 
@@ -34,6 +35,36 @@ std::string narrow(const std::wstring &w)
 
 int run_tray_menu_tests()
 {
+    section("open on bridge: kept in window-state.txt, on unless it says 0");
+    {
+        CTM_CHECK(open_on_bridge::parse("1"));
+        CTM_CHECK(!open_on_bridge::parse("0"));
+        CTM_CHECK(open_on_bridge::parse(""));       // junk reads as on, as before the switch
+        CTM_CHECK(open_on_bridge::parse("yes"));
+        CTM_CHECK_EQ(open_on_bridge::line(true), std::string("open_on_bridge = 1\n"));
+        CTM_CHECK_EQ(open_on_bridge::line(false), std::string("open_on_bridge = 0\n"));
+    }
+
+    section("open on bridge: whether a bridge opens the window");
+    {
+        using open_on_bridge::opens_window;
+        CTM_CHECK(opens_window(true, true, false));     // on, not in front: it opens
+        CTM_CHECK(!opens_window(true, false, false));   // switched off: never
+        CTM_CHECK(!opens_window(true, true, true));     // already in front: left alone
+        CTM_CHECK(!opens_window(false, true, false));   // no --ui: no window at all
+    }
+
+    section("tray menu: picking a mode in Window Mode");
+    {
+        using tray_menu::mode_pick;
+        using tray_menu::ModePick;
+        CTM_CHECK(mode_pick(1, 0, true) == ModePick::ChangeLayout);    // another mode, window open
+        CTM_CHECK(mode_pick(1, 0, false) == ModePick::ChangeLayout);   // another mode, none open
+        CTM_CHECK(mode_pick(2, 2, true) == ModePick::BringForward);    // the one it is in: forward
+        CTM_CHECK(mode_pick(2, 2, false) == ModePick::Nothing);        // ... and none open: as before
+        CTM_CHECK(mode_pick(0, -1, true) == ModePick::ChangeLayout);   // no layout known yet
+    }
+
     section("tray menu: the count under the title");
     {
         using tray_menu::count_line;
@@ -152,6 +183,8 @@ int run_tray_menu_tests()
         // ⓘ The swap tool opens this side menu by its words.
         CTM_CHECK_EQ(narrow(tray_menu::kDevices), std::string("Devices"));
         CTM_CHECK_EQ(narrow(tray_menu::kConfigMode), std::string("Window Mode"));
+        // ⓘ The settings page's switch says the same words.
+        CTM_CHECK_EQ(narrow(tray_menu::kOpenOnBridge), std::string("Open on bridge"));
         CTM_CHECK_EQ(narrow(tray_menu::kTitle), std::string("DS5-USBIP"));
         CTM_CHECK_EQ(narrow(tray_menu::kQuit), std::string("Quit"));
     }

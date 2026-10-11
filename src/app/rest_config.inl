@@ -593,7 +593,8 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
     if (req.path.rfind("/api/v1/ui/", 0) == 0) {
         const std::string what = req.path.substr(11);
 
-        // ⭐ THE ONE GET HERE: the page, freshly made by the chord, asking what
+        // ⭐ ONE OF TWO GETS HERE (the other is open-on-bridge, below): the
+        // page, freshly made by the chord, asking what
         // it was showing when it last went away -- which layout, and which
         // controller. The SIZE and the PLACE are not in the answer: the page
         // cannot set them in its own coordinates at every display scaling, so
@@ -609,6 +610,35 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
                 ",\"compact\":" + (compact ? "true" : "false") +
                 ",\"quick\":" + (quick ? "true" : "false") +
                 ",\"ordinal\":\"" + rest_json_escape(ordinal) + "\"}");
+            return true;
+        }
+
+        // ⭐ OPEN ON BRIDGE (rhoquinn8217, 2026-10-09): whether a bridge brings
+        // this window up by itself. A GET reads it, as the page opens and each
+        // time it regains focus, so a change made in the tray shows there; a
+        // POST of {"on": true or false} sets it and is kept at once.
+        if (what == "open-on-bridge") {
+            if (req.method == "POST") {
+                RestJson json;
+                std::string parseError;
+                if (!rest_parse_flat_json(req.body, &json, &parseError)) {
+                    *out = rest_error_response(400, parseError);
+                    return true;
+                }
+                auto on = json.bools.find("on");
+                if (on == json.bools.end()) {
+                    *out = rest_error_response(400, "say on, true or false");
+                    return true;
+                }
+                ui_set_open_on_bridge(on->second);
+                device_log::session_w() << L"settings page: Open on bridge is "
+                                        << (on->second ? L"on" : L"off") << L" now";
+            } else if (req.method != "GET") {
+                *out = rest_error_response(405, "method not allowed", "Allow: GET, POST, OPTIONS\r\n");
+                return true;
+            }
+            *out = rest_http_response(200, std::string(R"({"on":)") +
+                                           (ui_open_on_bridge() ? "true" : "false") + "}");
             return true;
         }
 
@@ -872,6 +902,17 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
             // worth having.
             ui_view_remember_pos();
             ctm_rebind_set_config_mode(false);
+            // ⭐ AND A FULL-SCREEN GAME GETS THE FRONT BACK (rhoquinn8217,
+            // 2026-10-09), when the window had the front as it went -- the
+            // page says so -- and was raised over one. open_ui.inl.
+            RestJson closing;
+            std::string closingError;
+            bool hadFront = false;
+            if (rest_parse_flat_json(req.body, &closing, &closingError)) {
+                auto hf = closing.bools.find("had_focus");
+                hadFront = hf != closing.bools.end() && hf->second;
+            }
+            ctm_open_ui::give_front_back(hadFront);
             *out = rest_http_response(200, R"({"ok":true,"config_mode":false})");
             return true;
         }

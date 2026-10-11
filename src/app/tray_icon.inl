@@ -34,6 +34,7 @@ inline const UINT WM_CTM_TRAY = WM_APP + 20;
 inline const UINT kIdToggle   = 1;
 inline const UINT kIdSettings = 2;
 inline const UINT kIdQuit     = 3;
+inline const UINT kIdOpenOnBridge = 4;
 // ⓘ The title's line. Choosing it closes the menu and does nothing else.
 inline const UINT kIdHeader   = 10;
 // ⓘ One id for each line of the Controllers list, in the order it was read as
@@ -257,7 +258,24 @@ inline void change_layout(int index)
     bool compact = false, quick = false;
     std::string ordinal;
     const bool known = ui_view_get(&compact, &quick, &ordinal);
-    if (tray_menu::mode_index(known, compact, quick) == index) return;   // it is in that one
+    ctm_open_ui::FindState open;
+    EnumWindows(ctm_open_ui::find_window_proc, reinterpret_cast<LPARAM>(&open));
+    switch (tray_menu::mode_pick(index, tray_menu::mode_index(known, compact, quick),
+                                 open.found != nullptr)) {
+    case tray_menu::ModePick::Nothing:
+        return;
+    case tray_menu::ModePick::BringForward:
+        // ⛔ THE PLAIN RAISE, NOT raise_when_ready. That one watches the front
+        // afterwards and raises again when the window that had it takes it
+        // back -- and from this menu, that window is the tray's own, so the
+        // next click on the tray icon would have its menu shut.
+        ctm_open_ui::raise_now(open.found);
+        device_log::session_w() << L"tray: the config window is " << tray_menu::kModes[index].name
+                                << L" already; brought it to the front";
+        return;
+    case tray_menu::ModePick::ChangeLayout:
+        break;
+    }
 
     const bool wasOpen = ui_close_window();
     if (wasOpen) {
@@ -371,6 +389,11 @@ inline void show_menu(HWND hwnd)
                     tray_menu::mode_line(i, current).c_str());
     }
     AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(modes), tray_menu::kConfigMode);
+    // ⭐ OPEN ON BRIDGE, right under Window Mode (rhoquinn8217, 2026-10-09):
+    // ticked while a bridge brings the window up by itself. The settings page
+    // has the same switch on its Overview; the listener keeps it.
+    AppendMenuW(menu, MF_STRING | (ui_open_on_bridge() ? MF_CHECKED : MF_UNCHECKED),
+                kIdOpenOnBridge, tray_menu::kOpenOnBridge);
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
 
     // ⓘ "Quit", not "Exit" (rhoquinn8217, 2026-10-01). It ends the whole
@@ -411,6 +434,14 @@ inline void show_menu(HWND hwnd)
     case kIdToggle:
         toggle_keyboard();
         break;
+    case kIdOpenOnBridge: {
+        // ⓘ Flipped and kept at once; the settings page shows it the next time
+        // it is in front.
+        const bool on = !ui_open_on_bridge();
+        ui_set_open_on_bridge(on);
+        device_log::session_w() << L"tray: Open on bridge is " << (on ? L"on" : L"off") << L" now";
+        break;
+    }
     case kIdSettings:
         // ⓘ The same path the chord takes, with no controller in hand.
         ctm_chord_show_ui(std::string());

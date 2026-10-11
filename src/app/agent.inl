@@ -646,7 +646,12 @@ static void bridge_session_worker(AgentBridgeSession *session)
     // ⭐ EVERY KIND, a keyboard or a mouse as much as a controller (rhoquinn8217,
     // 2026-09-15): "I want this to be a confirmation for the user that the device
     // they wanted to bridge has." A device that takes no config still opens it.
-    if (ctm_open_ui::g_open_ui && !ctm_open_ui::window_has_foreground()) {
+    //
+    // ⭐ AND ONLY WHILE "Open on bridge" IS ON (rhoquinn8217, 2026-10-09): a
+    // switch in the tray menu and on the settings page's Overview, on until it
+    // is turned off (open_on_bridge.inl).
+    if (open_on_bridge::opens_window(ctm_open_ui::g_open_ui, ui_open_on_bridge(),
+                                     ctm_open_ui::window_has_foreground())) {
         device_log::session_w() << L"bridge: opening the settings window on "
                    << widen_ascii(session->ordinal.c_str(), session->ordinal.size());
         // ⛔⛔ ON ITS OWN THREAD, NEVER THIS ONE (rhoquinn8217, 2026-09-01:
@@ -679,6 +684,10 @@ static void bridge_session_worker(AgentBridgeSession *session)
         // launched for (see the note beside claim_open_on).
         const std::string target = session->ordinal;
         std::thread([target]() { ctm_chord_show_ui(target); }).detach();
+    } else if (ctm_open_ui::g_open_ui && !ui_open_on_bridge()) {
+        device_log::session_w() << L"bridge: not opening the settings window on "
+                   << widen_ascii(session->ordinal.c_str(), session->ordinal.size())
+                   << L": Open on bridge is off";
     }
     // Bring up the synthetic gyro mouse the first time a DualSense session is
     // ready. Idempotent -- later sessions are no-ops. Always-present by design:
