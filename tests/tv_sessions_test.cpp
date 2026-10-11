@@ -13,6 +13,8 @@
 #include "harness.h"
 
 #include <cstdint>
+#include <fstream>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -25,6 +27,25 @@ namespace {
 const std::string kTvA = "0123456789abcdef0123456789abcdef";
 const std::string kTvB = "fedcba9876543210fedcba9876543210";
 const std::vector<uint16_t> kReserved = {48053, 48054, 3240};
+
+std::string read_agent_text()
+{
+    const char *candidates[] = {
+        "src/app/agent.inl",
+        "../src/app/agent.inl",
+        "../../src/app/agent.inl",
+        "../../../src/app/agent.inl",
+        "../../../../src/app/agent.inl",
+    };
+    for (const char *where : candidates) {
+        std::ifstream in(where, std::ios::binary);
+        if (!in) continue;
+        std::stringstream buffer;
+        buffer << in.rdbuf();
+        return buffer.str();
+    }
+    return "";
+}
 
 } // namespace
 
@@ -129,6 +150,42 @@ int run_tv_sessions_tests()
         CTM_CHECK(!tv_sessions::same_tv(kTvA, kTvB));
         CTM_CHECK(!tv_sessions::same_tv(kTvA, ""));    // no proof is not TV A
         CTM_CHECK(tv_sessions::same_tv("", ""));       // two older apps, as before
+    }
+
+    section("tv sessions: a TV's own stop sent without its proof");
+    {
+        const uint32_t kHere = 0xC0A80114;    // 192.168.1.20: where the bridge was started from
+        const uint32_t kElsewhere = 0xCB007107;   // 203.0.113.7, a documentation address
+        // ⛔ The fault: its challenge went unanswered, so its stop went plainly.
+        CTM_CHECK(tv_sessions::may_stop(kTvA, kHere, "", kHere));
+        CTM_CHECK(!tv_sessions::may_stop(kTvA, kHere, "", kElsewhere));   // not from anywhere else
+        CTM_CHECK(!tv_sessions::may_stop(kTvA, kHere, kTvB, kHere));      // nor by another TV's proof
+        CTM_CHECK(!tv_sessions::may_stop(kTvA, 0, "", 0));                // nor with no address kept
+        CTM_CHECK(tv_sessions::may_stop(kTvA, kHere, kTvA, kElsewhere));  // its proof, from anywhere
+        CTM_CHECK(tv_sessions::may_stop("", kHere, "", kElsewhere));      // two older apps, as before
+    }
+
+    section("tv sessions: where agent.inl asks");
+    {
+        const std::string agent = read_agent_text();
+        CTM_CHECK(!agent.empty());
+        CTM_CHECK(agent.find("tv_sessions::may_stop(session->owner, session->onlyPeer, owner, peer)") !=
+                  std::string::npos);
+        CTM_CHECK(agent.find("stop_bridge_session_for(busId, owner, peerAddr, &notYours)") != std::string::npos);
+        // A session whose TV never connected goes, and frees its port.
+        const size_t failed = agent.find("if (!backendPtr->start(");
+        const size_t reap = agent.find("request_bridge_session_reap(session->busId);", failed);
+        CTM_CHECK(failed != std::string::npos && reap != std::string::npos && reap - failed < 1500);
+        // The control port actually listened on is never handed out.
+        CTM_CHECK(agent.find("const std::vector<uint16_t> reserved = {g_agent_control_port,") !=
+                  std::string::npos);
+        CTM_CHECK(agent.find("g_agent_control_port = port;") != std::string::npos);
+        // A nickname is adopted only from the same TV's pads.
+        const size_t adopt = agent.find("ONE DEVICE, ONE NICKNAME");
+        const size_t sameTv = agent.find("if (!tv_sessions::same_tv(other->owner, session->owner)) continue;", adopt);
+        const size_t match = agent.find("same_device::matches(", adopt);
+        CTM_CHECK(adopt != std::string::npos && sameTv != std::string::npos && match != std::string::npos &&
+                  sameTv < match);
     }
     return 0;
 }

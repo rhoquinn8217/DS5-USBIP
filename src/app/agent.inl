@@ -1,4 +1,7 @@
 ﻿constexpr uint16_t kAgentDefaultPort = 48054;
+// The control port this agent actually listens on (run_agent), which `agent
+// <port>` or the service may move off the default: no bridge may be handed it.
+static uint16_t g_agent_control_port = kAgentDefaultPort;
 
 struct AgentBridgeSession {
     std::string kind;
@@ -356,6 +359,13 @@ static void bridge_session_worker(AgentBridgeSession *session)
         set_bridge_session_error(session, error);
         if (!session->stopping.load()) {
             std::wcerr << L"agent bridge backend failed busid=" << session->busId << L": " << error << L"\n";
+            // ⭐ AND THE SESSION GOES (code review, 2026-10-09). A TV that never
+            // connected -- it vanished, or its own stop was refused -- left
+            // the session holding its port and its listening socket until the
+            // listener restarted: a port-0 request never picks a held port,
+            // and a remote TV's are the forwarded ones. Queued to the agent
+            // loop, as the closed callback's reap is.
+            request_bridge_session_reap(session->busId);
         }
         return;
     }
@@ -509,6 +519,11 @@ static void bridge_session_worker(AgentBridgeSession *session)
             for (const auto &other : g_agent_sessions) {
                 if (other->busId == session->busId) continue;
                 if (!other->device) continue;
+                // ⓘ Never another TV's, as the retire block above (code
+                // review, 2026-10-09): two TVs' identical pads with no serial
+                // shared one nickname, and the tabs and the tray, which group
+                // by nickname, showed them as one device.
+                if (!tv_sessions::same_tv(other->owner, session->owner)) continue;
                 std::lock_guard<std::mutex> otherLock(other->mutex);
                 if (other->nickname.empty()) continue;
                 // ⓘ Read live from the other device rather than from its
@@ -839,7 +854,10 @@ static bool start_bridge_session_for(const std::string &kind, uint16_t port, con
         device_log::session_s() << "agent bridge: [global] bridge_port_range = " << range
                                 << " is not a range like 48055-48074, so 48055-48074 is used";
     }
-    const std::vector<uint16_t> reserved = {kAgentDefaultPort, g_rest_port, kDefaultUsbipPort};
+    // ⓘ The control port this agent listens on, not the default (code review,
+    // 2026-10-09): one set inside the range was handed out, and the bridge's
+    // SO_REUSEADDR bind on top of it stole the control port's connections.
+    const std::vector<uint16_t> reserved = {g_agent_control_port, g_rest_port, kDefaultUsbipPort};
     const std::wstring tvForLog = owner.empty() ? std::wstring(L"unproven")
                                                 : widen_ascii(owner.c_str(), owner.size()).substr(0, 8);
     std::unique_lock<std::mutex> lock(g_agent_sessions_mutex);
@@ -992,19 +1010,27 @@ static bool stop_bridge_session(const std::wstring &busId)
     return true;
 }
 
-// BRIDGE_STOP from TV `owner`: only its own sessions (tv_sessions.inl). False
-// with *notYours set when the session is another TV's.
-static bool stop_bridge_session_for(const std::wstring &busId, const std::string &owner, bool *notYours)
+// BRIDGE_STOP from TV `owner`, calling from `peer`: only its own sessions, or
+// one with no proof from the address it was started from (tv_sessions.inl's
+// may_stop). False with *notYours set when the session is another TV's.
+static bool stop_bridge_session_for(const std::wstring &busId, const std::string &owner, uint32_t peer,
+                                    bool *notYours)
 {
     if (notYours) *notYours = false;
+    bool byAddress = false;
     {
         std::lock_guard<std::mutex> lock(g_agent_sessions_mutex);
         const AgentBridgeSession *session = find_bridge_session_locked(busId);
         if (!session) return false;
-        if (!tv_sessions::same_tv(session->owner, owner)) {
+        if (!tv_sessions::may_stop(session->owner, session->onlyPeer, owner, peer)) {
             if (notYours) *notYours = true;
             return false;
         }
+        byAddress = !tv_sessions::same_tv(session->owner, owner);
+    }
+    if (byAddress) {
+        device_log::session_w() << L"agent bridge stop without a proof busid=" << busId
+                                << L": let through, it comes from the address the bridge was started from";
     }
     return stop_bridge_session(busId);
 }
@@ -1253,7 +1279,7 @@ static void handle_agent_client(SOCKET client, const sockaddr_in &peer)
         // remove the virtual device instead of leaving a stale export.
         const std::wstring busId = widen_ascii(busIdAscii.c_str(), busIdAscii.size());
         bool notYours = false;
-        if (stop_bridge_session_for(busId, owner, &notYours)) {
+        if (stop_bridge_session_for(busId, owner, peerAddr, &notYours)) {
             send_text(client, "OK bridge stopped\n");
         } else if (notYours) {
             device_log::session_w() << L"agent bridge stop refused busid=" << busId
@@ -1292,6 +1318,7 @@ static void handle_agent_client(SOCKET client, const sockaddr_in &peer)
 
 static int run_agent(uint16_t port)
 {
+    g_agent_control_port = port;
     device_log::session_w() << L"ctm-usbip " << widen_ascii(CTM_VERSION_DISPLAY, strlen(CTM_VERSION_DISPLAY))
                << L" agent starting";
     WSADATA data = {};
