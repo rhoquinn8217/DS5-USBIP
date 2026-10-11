@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.70 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.71 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,10 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.71 Two presets renamed: touchpad-to-mouse (DS5|DS4) and
+            gyro-to-mouse (DS5). A config made from a preset is named with
+            every character a config name cannot hold turned into _, so
+            touchpad_to_mouse_DS5_DS4_config.
     2.66.70 Advanced's small is wider: 0.4334 x 0.622 of the screen, the
             size this window was then set to by hand (2.66.69's was a
             third too narrow).
@@ -1902,7 +1906,7 @@
 <div class="bar">
   <!-- ⓘ The same number as VERSION at the top of this file, by hand. It sat
        at 2.66.4 for thirty-four versions while VERSION moved on. -->
-  <span class="muted" style="font-size:12px">v2.66.70</span>
+  <span class="muted" style="font-size:12px">v2.66.71</span>
   <label class="muted">agent</label>
   <input id="base" value="http://127.0.0.1:48053" size="26">
   <label class="muted">bearer</label>
@@ -3342,8 +3346,13 @@ function nextNameFrom(base) {
 // which, so a preset names its own configs: gyro-to-mouse makes
 // gyro_to_mouse_config, then _2, _3.
 //
-// ⓘ Hyphens become underscores because a config name is also a FILENAME and a
-// section name; the preset keeps the hyphens because it is only ever a label.
+// ⓘ Everything but letters and digits becomes an underscore, a run of them
+// one, because a config name is also a FILENAME and a section name: the store
+// takes letters, digits, _ and - alone. The preset keeps its own characters
+// because it is only ever a label (rhoquinn8217, 2026-10-11: *"since it can be
+// anything lets show it like this touchpad-to-mouse (DS5|DS4)"*). Until then
+// only the hyphens were swapped, and a preset named with a "/" or a bracket
+// would have made a name the store refuses.
 // ⭐⭐ AND A CONFIG WITH NO PRESET IS NAMED AFTER THE PAD (rhoquinn8217,
 // 2026-09-19): ds5_config, ds4_config, xbox_config, or pad_config.
 //
@@ -3373,9 +3382,15 @@ function customConfigBase(sessionKind) {
 
 function nextConfigName(sessionKind, presetName) {
   var base = presetName
-    ? presetName.replace(/-/g, '_') + '_config'
+    ? configStemOf(presetName) + '_config'
     : customConfigBase(sessionKind);
   return nextNameFrom(base);
+}
+
+// touchpad-to-mouse (DS5|DS4) -> touchpad_to_mouse_DS5_DS4. The listener's
+// config_store_test holds every preset's name to it.
+function configStemOf(presetName) {
+  return String(presetName).replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
 }
 
 // A copy keeps its source's base name and takes the next number, so copying

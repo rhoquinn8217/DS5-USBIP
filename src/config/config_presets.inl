@@ -115,7 +115,7 @@ inline const Setting kGyroMouseMode[] = {
        Enter and the d-pad to the arrows, so there is no game to protect a stick
        for. The pad-specific shapes name their pads instead.
        ⛔ So do not "restore" the touchpad here. The pad-specific version of this
-       idea is DS5-gyro-to-mouse, which uses the touchpad because it can. */
+       idea is gyro-to-mouse (DS5), which uses the touchpad because it can. */
     { "left_stick_mode", "scroll" },
     { "left_stick_no_passthrough", "true" },
     // ⓘ Recentring belongs HERE and only here: it points the gyro back at the
@@ -369,6 +369,8 @@ inline const Setting kL2GyroStickAiming[] = {
 // THE EXACT ORDER IS rhoquinn8217'S, GIVEN 2026-09-20 and listed in full:
 // stick-to-mouse, gyro-to-mouse-always-on, gyro-to-mouse-on-r3,
 // gyro-to-mouse-on-L2-aiming, DS5-gyro-to-mouse, DS5-DS4-touchpad-to-mouse.
+// ⓘ The last two are gyro-to-mouse (DS5) and touchpad-to-mouse (DS5|DS4) since
+// 2026-10-11 (their names; see the touchpad's entry).
 // It still honours the rule above -- the two DualSense-only shapes are last --
 // and it opens on the stick, which is the one every pad can use.
 // ⓘ gyro-to-stick-on-L2-aiming came later (2026-10-03) and sits straight after
@@ -414,7 +416,7 @@ inline const Preset kPresets[] = {
       "Nothing else is bound.",
       // The same pads as its mouse twin, for the same reasons.
       true, true, true, false, kL2GyroStickAiming, CTM_PRESET_COUNT_OF(kL2GyroStickAiming) },
-    { "DS5-gyro-to-mouse",
+    { "gyro-to-mouse (DS5)",
       "The gyro moves the cursor and a trigger holds it still. Start to pull "
       "and the cursor stops; push past the break and it clicks. Keep holding "
       "to drag. R2 is left click, L2 is right click, one finger scrolls.",
@@ -423,18 +425,23 @@ inline const Preset kPresets[] = {
       // adaptive trigger. It would still click on travel there, but not as this
       // describes, so it is not offered.
       true, true, false, false, kSteadyGyroMouseMode, CTM_PRESET_COUNT_OF(kSteadyGyroMouseMode) },
-    { "DS5-DS4-touchpad-to-mouse",
+    { "touchpad-to-mouse (DS5|DS4)",
       "The touchpad behaves like a laptop trackpad: one finger moves the "
       "cursor, two fingers scroll the page with them, and a tap clicks. The "
       "most familiar of the three, and the easiest to pick up, but your hand "
       "leaves the sticks to use it. Square opens the on-screen keyboard.",
       // A two-finger touchpad: DualSense, Edge, DS4, and the name says both
       // (rhoquinn8217, 2026-09-15).
-      // ⛔ A HYPHEN, NOT "DS5/DS4", which was the first choice. The page names
-      // every config made from a preset after it (nextConfigName swaps only the
-      // hyphens), and config_store::valid_name() takes letters, digits, _ and -
-      // alone, because a config name is a filename and a URL path segment. A "/"
-      // here would refuse every attempt to use the preset with a 409.
+      // ⭐ AND SAYS IT THE WAY THEY ASKED (rhoquinn8217, 2026-10-11: *"since it
+      // can be anything lets show it like this touchpad-to-mouse (DS5|DS4)"*);
+      // it was DS5-DS4-touchpad-to-mouse, and gyro-to-mouse (DS5) was
+      // DS5-gyro-to-mouse. ⓘ A name may hold anything now. config_store::
+      // valid_name() still takes letters, digits, _ and - alone, because a
+      // config name is a filename and a URL path segment; the page used to name
+      // a config from its preset by swapping only the hyphens, so "DS5/DS4", the
+      // first choice, refused every use of the preset with a 409. Its
+      // configStemOf() now turns every other character into _, and the test
+      // "presets: every name makes a config name the store accepts" holds both.
       // ⓘ The description needs no change: it names no controller.
       true, true, true, false, kTouchpadMouseMode, CTM_PRESET_COUNT_OF(kTouchpadMouseMode) },
 };
