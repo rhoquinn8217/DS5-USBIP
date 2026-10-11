@@ -629,8 +629,10 @@ inline void open_new(uint16_t restPort, bool withToken = true)
     RECT wa = { 0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN) };
     SystemParametersInfoW(SPI_GETWORKAREA, 0, &wa, 0);
     const int waW = wa.right - wa.left, waH = wa.bottom - wa.top;
-    const int winW = (int)(waW * 0.68);   // Advanced's medium, its opening size
-    const int winH = (int)(waH * 0.73);
+    // ⓘ Advanced's small since 2026-10-09 (kSizes in config_move.inl, where
+    // the reason is): 0.4334 x 0.622, with the old small, 0.68 x 0.73, its large.
+    const int winW = (int)(waW * 0.4334);   // Advanced's small, its opening size
+    const int winH = (int)(waH * 0.622);
     const std::wstring args = L"--app=" + url +
                               L" --user-data-dir=\"" + dataDir + L"\"" +
                               L" --no-first-run --no-default-browser-check" +

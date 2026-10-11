@@ -79,8 +79,25 @@ inline window_move::Movers g_movers;
 // what Advanced opens at, large is index 1, and every layout cycles two.
 // ⓘ A window-state.txt from before counted three, so state_load() moves its
 // index down one; `advanced_sizes = 2` marks a file written since.
+// ⭐⭐ AND BOTH SMALLER SINCE 2026-10-09: THE WINDOW THEY USE IS THE SMALL, AND
+// THE OLD SMALL IS THE LARGE (rhoquinn8217: *"I want the current size of the
+// configs window to be the small size. I want the previous small size to be
+// the large size."*). The small is the window as they then set it by hand,
+// 1664 x 1298 on a work area of 3840 x 2088 (*"The small size was not
+// correct. Please look at the size the window is now I use that."*): a first
+// try at 0.286 x 0.622, a size it had been dragged to earlier, was a third too
+// narrow. So:
+//
+//   small   0.4334 x 0.622   what Advanced opens at; 1664 x 1298 there
+//   large   0.68   x 0.73    the small until then
+//
+// ⓘ 0.90 x 0.94 went with it: two sizes still. A saved index keeps its slot,
+// so a window left at the small opens at the new small, and a dragged size of
+// 1664 x 1298 is that preset now, so the next close drops it.
+// ⛔ The opening size is written twice more, and the three move together:
+// the page's wantSize() and the browser window's size in open_ui.inl.
 struct SizeShare { double w; double h; };
-inline const SizeShare kSizes[2] = { { 0.68, 0.73 }, { 0.90, 0.94 } };
+inline const SizeShare kSizes[2] = { { 0.4334, 0.622 }, { 0.68, 0.73 } };
 inline std::atomic_int g_size{0};
 
 // ⭐ COMPACT HAS SIZES OF ITS OWN (rhoquinn8217, 2026-09-09): at 250% scaling on
