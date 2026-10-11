@@ -218,6 +218,23 @@ public:
         gamepadIdleTimeoutMs_ = gamepadIdleMs;
     }
 
+    // ⓘ Which address the port listens on, in host byte order; every address
+    // unless this is called. The handshake's tests listen on loopback only: a
+    // test that listened on every address would raise Windows' firewall prompt
+    // the first time each new build of it ran.
+    void set_listen_address(uint32_t hostOrderAddress)
+    {
+        listenAddress_ = hostOrderAddress;
+    }
+
+    // ⓘ The only address a connection is taken from, in host byte order; 0
+    // for any. Set for a TV that proved over the internet that it is paired
+    // (the agent's paired_tv.inl), so nobody else can take its port first.
+    void set_only_peer(uint32_t hostOrderAddress)
+    {
+        onlyPeer_ = hostOrderAddress;
+    }
+
     bool start(RawInputCallback callback, std::wstring *error) override
     {
         callback_ = std::move(callback);
@@ -238,7 +255,7 @@ public:
         setsockopt(listenSocket_, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char *>(&reuse), sizeof(reuse));
         sockaddr_in addr = {};
         addr.sin_family = AF_INET;
-        addr.sin_addr.s_addr = htonl(INADDR_ANY);
+        addr.sin_addr.s_addr = htonl(listenAddress_);
         addr.sin_port = htons(port_);
         if (bind(listenSocket_, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) == SOCKET_ERROR) {
             if (error) *error = wsa_error_message(L"bridge bind failed");
@@ -591,7 +608,9 @@ private:
                 }
             }
             (void)pending;
-            SOCKET client = accept(listenSocket_, nullptr, nullptr);
+            sockaddr_in from = {};
+            int fromLen = sizeof(from);
+            SOCKET client = accept(listenSocket_, reinterpret_cast<sockaddr *>(&from), &fromLen);
             if (client == INVALID_SOCKET) {
                 if (!initial && (!running_.load() || g_stop.load())) {
                     return false;
@@ -608,6 +627,14 @@ private:
             if (!initial && (!running_.load() || g_stop.load())) {
                 closesocket(client);
                 return false;
+            }
+            if (onlyPeer_ != 0 && ntohl(from.sin_addr.s_addr) != onlyPeer_) {
+                char ip[INET_ADDRSTRLEN] = {};
+                inet_ntop(AF_INET, &from.sin_addr, ip, sizeof(ip));
+                device_log::bridge_s() << "bridge port " << port_ << ": refused a connection from " << ip
+                                       << ", not the TV that asked for this bridge";
+                closesocket(client);
+                continue;
             }
             int noDelay = 1;
             setsockopt(client, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<const char *>(&noDelay), sizeof(noDelay));
@@ -1199,6 +1226,10 @@ private:
     }
 
     uint16_t port_ = 0;
+    // Every address, which a TV needs. See set_listen_address().
+    uint32_t listenAddress_ = INADDR_ANY;
+    // See set_only_peer().
+    uint32_t onlyPeer_ = 0;
     double btPaceMs_ = 10.0;
     // The last host config sent, kept so a live latency change can re-send the
     // whole thing rather than reconstruct it from scratch and risk drifting

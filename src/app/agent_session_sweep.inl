@@ -159,8 +159,8 @@ static void sweep_bridge_sessions()
 // !! and the REST API stops one too, both through stop_bridge_session(). A raw
 // !! pointer copied here could be freed in the middle of a send. The reference
 // !! keeps the backend alive until this loop is done with it, and a backend
-// !! stopped meanwhile refuses the send ("bridge socket closed", or the ENet
-// !! peer gone), which is safe.
+// !! stopped meanwhile refuses the send ("bridge socket closed"), which is
+// !! safe.
 //
 // A stall here delays the agent loop -- no new sessions, no reaps -- until the
 // send returns. That is the least-bad place for it: one thread waiting rather

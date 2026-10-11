@@ -416,6 +416,8 @@ inline void reload_all()
         for (const auto &setting : one.settings) section[setting.first] = setting.second;
         g_files[one.key] = std::move(one.cfg);
     }
+    // ⛔ Every input thread's copy of the answers goes with it: device_config.inl.
+    device_config_changed_locked();
     if (!dirFound) return;
 
     // ⭐ ONLY WHEN IT CHANGED. The settings page polls the configs endpoint

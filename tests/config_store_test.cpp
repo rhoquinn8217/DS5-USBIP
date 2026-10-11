@@ -904,6 +904,39 @@ int run_config_store_tests()
         CTM_CHECK_EQ(units::device_config_int("cfg:vanish", "headset_volume", -1), -1);
     }
 
+    section("config store: a config changed is read at once, on the thread that read it before");
+    {
+        // ⭐ Each thread keeps a copy of the settings it has looked up (code
+        // review, 2026-10-05), and every reload here must drop it, or a pad
+        // would keep answering with what it read before the change: a file
+        // rewritten, a setting written by the store as the page does, and a
+        // thread that read before the change reading after it.
+        write_config("cached",
+            "[config]\r\nauto_link =\r\n\r\n[settings]\r\nspeaker_volume = 65\r\n");
+        CTM_CHECK_EQ(units::device_config_int("cfg:cached", "speaker_volume", -1), 65);
+        write_config("cached",
+            "[config]\r\nauto_link =\r\n\r\n[settings]\r\nspeaker_volume = 70\r\n");
+        CTM_CHECK_EQ(units::device_config_int("cfg:cached", "speaker_volume", -1), 70);
+        std::string error;
+        CTM_CHECK(cs::set_setting("cached", "speaker_volume", "75", &error));
+        CTM_CHECK_EQ(units::device_config_int("cfg:cached", "speaker_volume", -1), 75);
+
+        std::atomic<int> phase{0};
+        int before = 0, after = 0;
+        std::thread reader([&]() {
+            before = units::device_config_int("cfg:cached", "speaker_volume", -1);
+            phase.store(1);
+            while (phase.load() != 2) std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            after = units::device_config_int("cfg:cached", "speaker_volume", -1);
+        });
+        while (phase.load() != 1) std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        CTM_CHECK(cs::set_setting("cached", "speaker_volume", "80", &error));
+        phase.store(2);
+        reader.join();
+        CTM_CHECK_EQ(before, 75);
+        CTM_CHECK_EQ(after, 80);
+    }
+
     wipe_configs();
     return 0;
 }

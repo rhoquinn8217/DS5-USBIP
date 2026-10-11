@@ -37,6 +37,21 @@ static std::mutex g_device_config_mutex;
 static bool g_device_config_loaded = false;
 static std::map<std::string, std::map<std::string, std::string>> g_device_config;
 
+// ⭐⭐ EVERY CHANGE TO THE MAP ABOVE IS COUNTED (code review, 2026-10-05), so a
+// thread can keep its own copy of the answers it has asked for and know, from
+// one number, when they have gone stale. See device_config_lookup() below.
+// ⛔ So anything that writes g_device_config calls device_config_changed_locked()
+// in the same breath, under the same lock. A write that forgets leaves every
+// input thread answering from what it read before, which looks exactly like a
+// setting that does nothing.
+static std::atomic<uint64_t> g_device_config_generation{1};
+
+// Caller must hold g_device_config_mutex.
+static void device_config_changed_locked()
+{
+    g_device_config_generation.fetch_add(1, std::memory_order_release);
+}
+
 static std::string device_config_trim(const std::string &text)
 {
     const size_t begin = text.find_first_not_of(" \t\r\n");
@@ -132,6 +147,7 @@ static void device_config_load_locked()
             g_device_config[section.first][setting.first] = setting.second;
         }
     }
+    device_config_changed_locked();
     device_config_say_locked(entries);
 }
 
@@ -161,6 +177,7 @@ static void device_config_reload_shared()
         g_device_config[section.first] = std::move(section.second);
     }
     g_device_config_loaded = true;
+    device_config_changed_locked();
     device_config_say_locked(entries);
 }
 
@@ -181,6 +198,87 @@ static void device_config_invalidate()
     device_config_reload_shared();
 }
 
+// ⭐⭐ ONE THREAD'S ANSWERS, KEPT UNTIL ANYTHING CHANGES (code review,
+// 2026-10-05). The input hooks look up 75 to 80 settings on every report of
+// every pad, and each lookup took the one lock every pad shares, lowercased
+// two strings and searched two maps: about 20,000 locked lookups a second per
+// pad, with the pads waiting on each other for the lock.
+// ➡️ Each thread now keeps what it has looked up, word for word as it was
+// asked, and answers from that with no lock until the map changes. A change
+// is seen from g_device_config_generation alone, and drops the whole copy, so
+// the next report asks the map again.
+// ⓘ "Not there" is kept too: most of what a hook asks for is a setting nobody
+// set, and that is the answer that was costing the most.
+struct DeviceConfigCached {
+    bool present = false;
+    std::string text;       // as written in the file
+    std::string lowered;    // the same, lowercased, for the text and on/off readers
+};
+// ⓘ std::less<> so a lookup can search by the caller's own const char* and
+// allocate nothing.
+using DeviceConfigCachedKeys = std::map<std::string, DeviceConfigCached, std::less<>>;
+struct DeviceConfigThreadCache {
+    uint64_t generation = 0;
+    std::map<std::string, DeviceConfigCachedKeys, std::less<>> sections;
+};
+
+static DeviceConfigThreadCache &device_config_thread_cache()
+{
+    thread_local DeviceConfigThreadCache cache;
+    return cache;
+}
+
+// How many lookups had to go to the map, over every thread: what the tests
+// read to show a repeated lookup is answered from the thread's copy.
+static std::atomic<uint64_t> g_device_config_map_lookups{0};
+
+// The setting as written, or nullptr when the file, section or key is missing.
+// ⓘ Valid until this thread's next lookup.
+static const DeviceConfigCached *device_config_lookup(const char *section, const char *key)
+{
+    DeviceConfigThreadCache &cache = device_config_thread_cache();
+    // ⛔ READ BEFORE THE MAP, never after: an answer read from the map is then
+    // stamped with a count no newer than itself, so a change made meanwhile
+    // drops it at the next lookup rather than hiding behind it.
+    const uint64_t generation = g_device_config_generation.load(std::memory_order_acquire);
+    if (cache.generation != generation) {
+        cache.sections.clear();
+        cache.generation = generation;
+    }
+    auto sectionIt = cache.sections.find(section);
+    if (sectionIt != cache.sections.end()) {
+        const auto keyIt = sectionIt->second.find(key);
+        if (keyIt != sectionIt->second.end()) {
+            return keyIt->second.present ? &keyIt->second : nullptr;
+        }
+    }
+
+    DeviceConfigCached fresh;
+    g_device_config_map_lookups.fetch_add(1, std::memory_order_relaxed);
+    {
+        std::lock_guard<std::mutex> guard(g_device_config_mutex);
+        if (!g_device_config_loaded) {
+            device_config_load_locked();
+        }
+        const auto mapSection = g_device_config.find(device_config_lower(section));
+        if (mapSection != g_device_config.end()) {
+            const auto mapKey = mapSection->second.find(device_config_lower(key));
+            if (mapKey != mapSection->second.end()) {
+                fresh.present = true;
+                fresh.text = mapKey->second;
+            }
+        }
+    }
+    if (fresh.present) {
+        fresh.lowered = device_config_lower(fresh.text);
+    }
+    if (sectionIt == cache.sections.end()) {
+        sectionIt = cache.sections.emplace(section, DeviceConfigCachedKeys()).first;
+    }
+    const DeviceConfigCached &kept = sectionIt->second.emplace(key, std::move(fresh)).first->second;
+    return kept.present ? &kept : nullptr;
+}
+
 // Look up a text setting. Returns an empty string when the file, section, key
 // or value is missing, so callers can treat empty as "not configured".
 static std::string device_config_str(const char *section, const char *key)
@@ -188,19 +286,8 @@ static std::string device_config_str(const char *section, const char *key)
     if (section == nullptr || key == nullptr) {
         return std::string();
     }
-    std::lock_guard<std::mutex> guard(g_device_config_mutex);
-    if (!g_device_config_loaded) {
-        device_config_load_locked();
-    }
-    const auto sectionIt = g_device_config.find(device_config_lower(section));
-    if (sectionIt == g_device_config.end()) {
-        return std::string();
-    }
-    const auto keyIt = sectionIt->second.find(device_config_lower(key));
-    if (keyIt == sectionIt->second.end()) {
-        return std::string();
-    }
-    return device_config_lower(keyIt->second);
+    const DeviceConfigCached *found = device_config_lookup(section, key);
+    return found != nullptr ? found->lowered : std::string();
 }
 
 // Look up a whole-number setting. Returns fallback when the file, section, key
@@ -211,23 +298,15 @@ static int device_config_int(const char *section, const char *key, int fallback)
     if (section == nullptr || key == nullptr) {
         return fallback;
     }
-    std::lock_guard<std::mutex> guard(g_device_config_mutex);
-    if (!g_device_config_loaded) {
-        device_config_load_locked();
-    }
-    const auto sectionIt = g_device_config.find(device_config_lower(section));
-    if (sectionIt == g_device_config.end()) {
-        return fallback;
-    }
-    const auto keyIt = sectionIt->second.find(device_config_lower(key));
-    if (keyIt == sectionIt->second.end()) {
+    const DeviceConfigCached *found = device_config_lookup(section, key);
+    if (found == nullptr) {
         return fallback;
     }
     // The WHOLE value must be a number. Checking only that parsing got
     // started is not enough: std::stoi reads as far as it can, so the typo
     // "5O" (five, letter O) parses as 5 and looks like a deliberate setting.
     // Caught by device_config_test.cpp on its first run, 2026-08-01.
-    const std::string &text = keyIt->second;
+    const std::string &text = found->text;
     try {
         size_t consumed = 0;
         const int parsed = std::stoi(text, &consumed);
@@ -248,19 +327,11 @@ static bool device_config_bool(const char *section, const char *key, bool fallba
     if (section == nullptr || key == nullptr) {
         return fallback;
     }
-    std::lock_guard<std::mutex> guard(g_device_config_mutex);
-    if (!g_device_config_loaded) {
-        device_config_load_locked();
-    }
-    const auto sectionIt = g_device_config.find(device_config_lower(section));
-    if (sectionIt == g_device_config.end()) {
+    const DeviceConfigCached *found = device_config_lookup(section, key);
+    if (found == nullptr) {
         return fallback;
     }
-    const auto keyIt = sectionIt->second.find(device_config_lower(key));
-    if (keyIt == sectionIt->second.end()) {
-        return fallback;
-    }
-    const std::string value = device_config_lower(keyIt->second);
+    const std::string &value = found->lowered;
     if (value == "true" || value == "1" || value == "yes" || value == "on") {
         return true;
     }

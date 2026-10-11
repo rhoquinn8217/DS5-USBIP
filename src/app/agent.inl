@@ -5,15 +5,17 @@ struct AgentBridgeSession {
     std::wstring busId;
     std::string busIdAscii;
     uint16_t port = 0;
+    // ⭐ The only address its bridge port takes a connection from, in host
+    // byte order; 0 for any. The control port sets it to whoever asked for
+    // the bridge (unless paired_tv_proof = off), so nobody else can take its
+    // port; a session started over the REST API has none.
+    uint32_t onlyPeer = 0;
     std::shared_ptr<CtmUsbipDevice> device;
     // ⛔ SHARED, NOT UNIQUE (code review, 2026-10-05). The settings push sends
     // on it from the agent loop after letting go of the session list lock, and
     // a stop on another thread -- a worker retiring an older session for the
     // same pad, or the REST API -- must not free it under that send.
     std::shared_ptr<CtmBackend> backend;
-    // Non-owning view of backend when it is the ENet transport, used to wire the
-    // plug-out/plug-in callbacks. nullptr for the TCP BridgeBackend.
-    EnetBridgeBackend *enetBackend = nullptr;
     std::thread worker;
     std::atomic_bool stopping{false};
     std::atomic_bool ready{false};
@@ -37,6 +39,64 @@ struct AgentBridgeSession {
 static std::mutex g_agent_sessions_mutex;
 static std::vector<std::unique_ptr<AgentBridgeSession>> g_agent_sessions;
 static std::unique_ptr<CtmUsbipServer> g_agent_usbip_server;
+
+// ⭐⭐ THE PAIRING PROOF (code review, 2026-10-05; rhoquinn8217's choice,
+// 2026-10-07). paired_tv.inl has the whole rule; these are what the control
+// port keeps for it.
+// ⓘ The challenges given out. handle_agent_client runs on the agent loop
+// alone, but the lock costs nothing and keeps that true if it ever moves.
+static std::mutex g_paired_tv_mutex;
+static paired_tv::Nonces g_paired_tv_nonces;
+
+// [global] paired_tv_proof (rhoquinn8217, 2026-10-08: "log only until
+// updated"):
+//   log -- the default for now: checked and written down, nobody turned away;
+//   on  -- a TV calling from the internet without a good proof is refused;
+//   off -- not checked at all, and a bridge port takes a connection from
+//          anywhere, as it did before.
+// ⭐ "log" until the TVs at the remote site run a build that sends the proof;
+// then the default becomes "on".
+enum class PairedTvMode { Off, Log, On };
+
+static PairedTvMode paired_tv_mode()
+{
+    const std::string mode = device_config_str("global", "paired_tv_proof");
+    if (mode == "on") return PairedTvMode::On;
+    if (mode == "off") return PairedTvMode::Off;
+    return PairedTvMode::Log;
+}
+
+// The streaming host's paired devices, read from its state file each time a
+// proof is checked, so a TV paired a minute ago is let in with no restart.
+// ⓘ [global] streaming_host_state_file names the file; otherwise Apollo's,
+// then Sunshine's, under Program Files. `where` says which was read, or
+// tried first when none could be.
+static bool load_paired_devices(std::vector<paired_tv::Device> *out, std::wstring *where)
+{
+    std::vector<std::wstring> candidates;
+    const std::string named = device_config_str("global", "streaming_host_state_file");
+    if (!named.empty()) {
+        candidates.push_back(widen_ascii(named.c_str(), named.size()));
+    } else {
+        wchar_t programFiles[MAX_PATH] = {};
+        const DWORD got = GetEnvironmentVariableW(L"ProgramFiles", programFiles, MAX_PATH);
+        const std::wstring base = (got > 0 && got < MAX_PATH) ? std::wstring(programFiles)
+                                                              : std::wstring(L"C:/Program Files");
+        candidates.push_back(base + L"/Apollo/config/sunshine_state.json");
+        candidates.push_back(base + L"/Sunshine/config/sunshine_state.json");
+    }
+    for (const std::wstring &path : candidates) {
+        std::ifstream f(path, std::ios::binary);
+        if (!f) continue;
+        std::ostringstream text;
+        text << f.rdbuf();
+        *out = paired_tv::devices_from_state(text.str());
+        if (where) *where = path;
+        return true;
+    }
+    if (where) *where = candidates.front();
+    return false;
+}
 
 // Reap requests from bridge reader threads (client lost / idle expired). The
 // run_agent loop drains this on its own thread — the only thread that starts
@@ -195,23 +255,14 @@ static void bridge_session_worker(AgentBridgeSession *session)
         return;
     }
 
-    // Transport selection: ENet/UDP when the agent was started with --enet,
-    // otherwise the unchanged TCP BridgeBackend. Both bind the same port number.
+    // ⓘ TCP is the one transport. An ENet/UDP one was offered with --enet until
+    // 2026-10-08 and removed: it had drifted from the protocol and the TV no
+    // longer spoke it (code review, 2026-10-05).
     CtmBackend *backendPtr = nullptr;
-    EnetBridgeBackend *enetBackendPtr = nullptr;
-    if (g_use_enet.load()) {
-        auto backend = std::make_unique<EnetBridgeBackend>(session->port, session->device->bt_audio_pace_ms());
-        enetBackendPtr = backend.get();
-        backendPtr = backend.get();
-        std::lock_guard<std::mutex> lock(session->mutex);
-        if (session->stopping.load()) {
-            return;
-        }
-        session->enetBackend = enetBackendPtr;
-        session->backend = std::move(backend);
-    } else {
+    {
         auto backend = std::make_unique<BridgeBackend>(session->port, session->device->bt_audio_pace_ms());
         backendPtr = backend.get();
+        backend->set_only_peer(session->onlyPeer);
         // Agent-only session policy (the CLI bridge mode keeps wait-forever
         // defaults): bounded initial accept + reconnect grace, TCP keepalive
         // probing, and the idle rule — gamepads chatter constantly so silence
@@ -227,12 +278,12 @@ static void bridge_session_worker(AgentBridgeSession *session)
                                  session->kind == "ds5e" ||
                                  session->kind == "xbox" || session->kind == "puck";
         backend->set_idle_timeouts(gamepadKind ? 15000 : 0, 15000);
-        // TCP path: when the TV client vanishes and the reconnect grace runs
-        // out (or the idle rule fires), unplug the virtual device and reap the
-        // session (mirrors the ENet link-down behavior; a reaped port also
-        // can't hijack the next plug's handshake). The reap is queued to the
-        // agent loop: stop() joins the reader thread that fires this callback,
-        // so reaping inline here would self-join.
+        // When the TV client vanishes and the reconnect grace runs out (or
+        // the idle rule fires), unplug the virtual device and reap the
+        // session (a reaped port also can't hijack the next plug's
+        // handshake). The reap is queued to the agent loop: stop() joins the
+        // reader thread that fires this callback, so reaping inline here
+        // would self-join.
         {
             const std::wstring busId = session->busId;
             backend->set_closed_callback([busId]() {
@@ -331,43 +382,30 @@ static void bridge_session_worker(AgentBridgeSession *session)
         return;
     }
 
+    // ⛔ NOT ONCE A STOP HAS BEGUN (an independent review, 2026-10-07). An
+    // export made after the stop removed this one was plugged back into
+    // Windows and stayed there, with nothing left to unplug it. The stop
+    // removes it once more after this worker is gone, for the moment between
+    // this check and the export.
+    if (session->stopping.load()) {
+        backendPtr->stop();
+        return;
+    }
+
+    // ⭐ The backend goes in WITH the device, so an import thread still serving
+    // Windows when this bridge stops keeps the backend it may be inside (code
+    // review, 2026-10-05). server.inl, UsbipExportedDevice, says why.
+    std::shared_ptr<CtmBackend> backendForExport;
+    {
+        std::lock_guard<std::mutex> lock(session->mutex);
+        backendForExport = session->backend;
+    }
     if (!g_agent_usbip_server ||
-        !g_agent_usbip_server->add_device(session->device, session->busIdAscii, &error)) {
+        !g_agent_usbip_server->add_device(session->device, session->busIdAscii, &error, backendForExport)) {
         set_bridge_session_error(session, error);
         backendPtr->stop();
         std::wcerr << L"agent USB/IP export failed busid=" << session->busId << L": " << error << L"\n";
         return;
-    }
-
-    // For the ENet transport, surface an explicit plug-out on link loss and a
-    // plug-in on reconnect. Detach mirrors BRIDGE_STOP: remove the export from
-    // the shared USB/IP server (Windows sees an unplug). Reconnect re-exports
-    // and re-attaches the same device. The TCP path sets no callbacks and keeps
-    // its reconnect-in-place behavior unchanged.
-    if (enetBackendPtr != nullptr) {
-        const std::wstring busId = session->busId;
-        const std::string busIdAscii = session->busIdAscii;
-        const std::shared_ptr<CtmUsbipDevice> sessionDevice = session->device;
-        enetBackendPtr->set_disconnect_callback([busId, busIdAscii]() {
-            device_log::session_w() << L"agent bridge link down busid=" << busId
-                       << L" -> virtual device UNPLUGGED";
-            if (g_agent_usbip_server) {
-                g_agent_usbip_server->remove_device(busIdAscii);
-            }
-        });
-        enetBackendPtr->set_reconnect_callback([busId, busIdAscii, sessionDevice]() {
-            device_log::session_w() << L"agent bridge link up busid=" << busId
-                       << L" -> virtual device PLUGGED IN";
-            std::wstring reAddError;
-            if (g_agent_usbip_server &&
-                g_agent_usbip_server->add_device(sessionDevice, busIdAscii, &reAddError)) {
-                if (!run_usbip_attach(busId, kDefaultUsbipPort)) {
-                    std::wcerr << L"agent re-attach failed busid=" << busId << L"\n";
-                }
-            } else {
-                std::wcerr << L"agent re-export failed busid=" << busId << L": " << reAddError << L"\n";
-            }
-        });
     }
 
     // ⛔ RETIRE AN OLDER SESSION FOR THE SAME PHYSICAL CONTROLLER.
@@ -740,6 +778,9 @@ static void bridge_session_worker(AgentBridgeSession *session)
             }
         }
     }
+    if (session->stopping.load()) {
+        return;     // nor attach it: the stop is removing it
+    }
     if (!run_usbip_attach(session->busId, kDefaultUsbipPort)) {
         std::wcerr << L"agent local attach failed busid=" << session->busId << L"\n";
         device_log::session_w() << L"attach FAILED busid=" << session->busId
@@ -747,7 +788,10 @@ static void bridge_session_worker(AgentBridgeSession *session)
     }
 }
 
-static bool start_bridge_session(const std::string &kind, uint16_t port, const std::wstring &busId, std::wstring *error)
+// ⓘ onlyPeer: the only address the bridge port then takes a connection from,
+// in host byte order; 0 for any. See AgentBridgeSession.
+static bool start_bridge_session_for(const std::string &kind, uint16_t port, const std::wstring &busId,
+                                     uint32_t onlyPeer, std::wstring *error)
 {
     const std::string busIdAscii = narrow_ascii(busId);
     if (busIdAscii.empty() || busIdAscii.size() > 31) {
@@ -822,6 +866,7 @@ static bool start_bridge_session(const std::string &kind, uint16_t port, const s
     session->busId = busId;
     session->busIdAscii = busIdAscii;
     session->port = port;
+    session->onlyPeer = onlyPeer;
     session->device = std::make_shared<CtmUsbipDevice>();
     AgentBridgeSession *sessionPtr = session.get();
     const std::string ordinalForLog = session->ordinal;
@@ -837,6 +882,13 @@ static bool start_bridge_session(const std::string &kind, uint16_t port, const s
                << L" kind=" << widen_ascii(kind.c_str(), kind.size())
                << L" port=" << port << L" busid=" << busId;
     return true;
+}
+
+// The same for a caller with no address to hold it to: the REST API, which
+// answers this PC alone.
+static bool start_bridge_session(const std::string &kind, uint16_t port, const std::wstring &busId, std::wstring *error)
+{
+    return start_bridge_session_for(kind, port, busId, 0, error);
 }
 
 static bool stop_bridge_session(const std::wstring &busId)
@@ -872,6 +924,12 @@ static bool stop_bridge_session(const std::wstring &busId)
     }
     if (session->worker.joinable()) {
         session->worker.join();
+    }
+    // ⭐ And once more now the worker is gone (an independent review,
+    // 2026-10-07): it may have exported the device between the first removal
+    // and seeing the stop, and an export left behind is a pad Windows keeps.
+    if (g_agent_usbip_server) {
+        g_agent_usbip_server->remove_device(session->busIdAscii);
     }
     device_log::session_w() << L"agent bridge stopped busid=" << busId;
     return true;
@@ -929,18 +987,108 @@ static void handle_agent_client(SOCKET client, const sockaddr_in &peer)
     setsockopt(client, SOL_SOCKET, SO_SNDTIMEO,
                reinterpret_cast<const char *>(&timeoutMs), sizeof(timeoutMs));
 
-    char line[512] = {};
-    int n = recv(client, line, sizeof(line) - 1, 0);
-    if (n <= 0) {
+    // ⓘ Up to a newline: a command with its pairing proof is about 460
+    // bytes, which one read usually holds but need not. Each read still waits
+    // at most the second above.
+    char line[2048] = {};
+    int got = 0;
+    while (got < static_cast<int>(sizeof(line)) - 1) {
+        const int n = recv(client, line + got, static_cast<int>(sizeof(line)) - 1 - got, 0);
+        if (n <= 0) break;
+        got += n;
+        if (memchr(line, '\n', static_cast<size_t>(got)) != nullptr) break;
+    }
+    if (got <= 0) {
         return;
     }
-    line[n] = '\0';
+    line[got] = '\0';
     char *nl = strpbrk(line, "\r\n");
     if (nl) *nl = '\0';
 
     std::istringstream input(line);
     std::string command;
     input >> command;
+
+    // ⛔ TWO COMMANDS ARE THIS PC'S ALONE (code review, 2026-10-05): importing
+    // a USB device from the caller's machine, and dropping every bridge. The
+    // TV sends neither, and this port is forwarded to the internet for remote
+    // play. control_caller.inl says why each one.
+    if (!control_caller::allowed(command, ntohl(peer.sin_addr.s_addr))) {
+        char peerIp[INET_ADDRSTRLEN] = {};
+        inet_ntop(AF_INET, &peer.sin_addr, peerIp, sizeof(peerIp));
+        device_log::session_s() << "control: refused " << command << " from " << peerIp
+                                << ": only this PC may send it";
+        send_text(client, "ERR only this PC may send " + command + "\n");
+        return;
+    }
+
+    const uint32_t peerAddr = ntohl(peer.sin_addr.s_addr);
+
+    // ⭐ A CHALLENGE FOR THE PAIRING PROOF (paired_tv.inl). Anyone may ask: it
+    // costs a random number, and the list of them is bounded.
+    if (command == "PROOF_CHALLENGE") {
+        const std::string nonce = paired_tv::new_nonce();
+        if (nonce.empty()) {
+            send_text(client, "ERR no challenge to give\n");
+            return;
+        }
+        {
+            std::lock_guard<std::mutex> lock(g_paired_tv_mutex);
+            g_paired_tv_nonces.issue(nonce, peerAddr, std::chrono::steady_clock::now());
+        }
+        send_text(client, "OK NONCE " + nonce + "\n");
+        return;
+    }
+
+    // ⭐⭐ WHO MAY BRIDGE (paired_tv.inl). A TV calling from the internet must
+    // prove it is paired with this PC's streaming host; this PC and the home
+    // network need not. A proof sent from home is checked and written down
+    // all the same. In "log" mode, the default until the remote TVs send the
+    // proof, nobody is turned away: the verdict is only written down.
+    uint32_t onlyPeer = 0;
+    if (command == "BRIDGE_START" || command == "BRIDGE_STOP") {
+        const PairedTvMode mode = paired_tv_mode();
+        if (mode != PairedTvMode::Off) {
+            const paired_tv::Need need = paired_tv::need_for(
+                peerAddr, true, device_config_bool("global", "paired_tv_proof_at_home", false));
+            const bool sent = std::string(line).find(paired_tv::kProofWord) != std::string::npos;
+            if (need == paired_tv::Need::Required || sent) {
+                std::vector<paired_tv::Device> devices;
+                std::wstring where;
+                const bool haveDevices = load_paired_devices(&devices, &where);
+                std::string who;
+                paired_tv::Verdict verdict;
+                {
+                    std::lock_guard<std::mutex> lock(g_paired_tv_mutex);
+                    verdict = paired_tv::check(line, peerAddr, &g_paired_tv_nonces,
+                                               haveDevices ? &devices : nullptr, &who,
+                                               std::chrono::steady_clock::now());
+                }
+                const bool letIn = paired_tv::lets_in(verdict, need);
+                char peerIp[INET_ADDRSTRLEN] = {};
+                inet_ntop(AF_INET, &peer.sin_addr, peerIp, sizeof(peerIp));
+                device_log::session_s()
+                    << "control: " << command << " from " << peerIp << ": " << paired_tv::describe(verdict)
+                    << (who.empty() ? std::string() : " (" + who + ")")
+                    << (need == paired_tv::Need::Required ? "" : "; none is needed from the home network")
+                    << (!letIn && mode == PairedTvMode::Log ? "; let in, the check is log-only" : "")
+                    << (!letIn && mode == PairedTvMode::On ? "; REFUSED" : "")
+                    << (haveDevices ? std::string() : "; the host's paired devices could not be read from " + narrow_ascii(where));
+                if (!letIn && mode == PairedTvMode::On) {
+                    send_text(client, std::string("ERR ") + paired_tv::describe(verdict) + "\n");
+                    return;
+                }
+            }
+            // ⭐ AND THE BRIDGE PORT IS THE CALLER'S ALONE, from home as from
+            // the internet, in "log" as in "on". The bridge ports are forwarded
+            // for remote play like this one, so a port that took anyone could
+            // be reached from the internet in the 30 s before its TV connects,
+            // or the 15 s after it drops, and typed through. It turns no TV
+            // away: a TV connects from the address it asked from.
+            onlyPeer = peerAddr;
+        }
+    }
+
     if (command == "STATUS") {
         send_text(client, "OK CTM_AGENT_V1\n");
         return;
@@ -976,7 +1124,8 @@ static void handle_agent_client(SOCKET client, const sockaddr_in &peer)
             return;
         }
         std::wstring error;
-        if (start_bridge_session(kind, static_cast<uint16_t>(port), widen_ascii(busIdAscii.c_str(), busIdAscii.size()), &error)) {
+        if (start_bridge_session_for(kind, static_cast<uint16_t>(port), widen_ascii(busIdAscii.c_str(), busIdAscii.size()),
+                                     onlyPeer, &error)) {
             send_text(client, "OK bridge starting\n");
         } else {
             std::string err = narrow_ascii(error);
