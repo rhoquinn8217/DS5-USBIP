@@ -43,7 +43,15 @@ struct Setting {
 };
 
 struct Preset {
+    // ⭐ A NAME AND A LABEL, BOTH rhoquinn8217'S (2026-10-11: *"the pre-set as
+    // shown in the selector since it can be anything lets show it like this"*,
+    // then *"when named, replace with"* a second list). The NAME is what the
+    // API finds it by and what a config made from it is named after, so it
+    // keeps to letters, digits and hyphens: touchpad-to-mouse makes
+    // touchpad_to_mouse_config. The LABEL is only what the picker shows, and
+    // may hold anything: "touchpad-to-mouse (DS5|DS4)".
     const char *name;
+    const char *label;
     const char *help;
     // Which device kinds it suits. ⓘ A preset that cannot act on a controller
     // is not offered for it -- a gyro preset on a pad with no gyro would be a
@@ -115,7 +123,7 @@ inline const Setting kGyroMouseMode[] = {
        Enter and the d-pad to the arrows, so there is no game to protect a stick
        for. The pad-specific shapes name their pads instead.
        ⛔ So do not "restore" the touchpad here. The pad-specific version of this
-       idea is gyro-to-mouse (DS5), which uses the touchpad because it can. */
+       idea is gyro-to-mouse-DS5-AT, which uses the touchpad because it can. */
     { "left_stick_mode", "scroll" },
     { "left_stick_no_passthrough", "true" },
     // ⓘ Recentring belongs HERE and only here: it points the gyro back at the
@@ -369,15 +377,15 @@ inline const Setting kL2GyroStickAiming[] = {
 // THE EXACT ORDER IS rhoquinn8217'S, GIVEN 2026-09-20 and listed in full:
 // stick-to-mouse, gyro-to-mouse-always-on, gyro-to-mouse-on-r3,
 // gyro-to-mouse-on-L2-aiming, DS5-gyro-to-mouse, DS5-DS4-touchpad-to-mouse.
-// ⓘ The last two are gyro-to-mouse (DS5) and touchpad-to-mouse (DS5|DS4) since
-// 2026-10-11 (their names; see the touchpad's entry).
+// ⓘ The names changed on 2026-10-11, and every preset gained a label for the
+// picker (see struct Preset); the order did not.
 // It still honours the rule above -- the two DualSense-only shapes are last --
 // and it opens on the stick, which is the one every pad can use.
-// ⓘ gyro-to-stick-on-L2-aiming came later (2026-10-03) and sits straight after
+// ⓘ gyro-to-stick-L2-aiming came later (2026-10-03) and sits straight after
 // its mouse twin; where it goes is theirs to change.
 // This array IS the order the picker draws, so moving an entry moves the row.
 inline const Preset kPresets[] = {
-    { "stick-to-mouse",
+    { "stick-to-mouse", "stick-to-mouse",
       "Right stick moves the cursor, left stick scrolls -- both thumbs where "
       "they already are. The least precise of the three for fine work, and "
       "the one that needs no new habits. Square opens the on-screen keyboard.",
@@ -388,7 +396,7 @@ inline const Preset kPresets[] = {
       // were silent there; now a trigger past a threshold is a press
       // (kSpotTriggerTravel, button_layout.inl).
       true, true, true, true, kStickMouseMode, CTM_PRESET_COUNT_OF(kStickMouseMode) },
-    { "gyro-to-mouse-always-on",
+    { "gyro-to-mouse-always-on", "gyro-to-mouse (always on)",
       "Tilt the controller to move the cursor, always on -- no trigger to "
       "hold. The most precise of the three for small movements, and the one "
       "that takes most getting used to. Either trigger holds the cursor still "
@@ -396,7 +404,7 @@ inline const Preset kPresets[] = {
       "opens the on-screen keyboard.",
       // DualSense, Edge, DS4: a gyro. Not an Xbox pad, which has none.
       true, true, true, false, kGyroMouseMode, CTM_PRESET_COUNT_OF(kGyroMouseMode) },
-    { "gyro-to-mouse-on-r3",
+    { "gyro-to-mouse-r3-hold", "gyro-to-mouse (on r3)",
       "The same, but the gyro only moves the cursor while the RIGHT STICK is "
       "held in. Put the pad down, or play normally, and the cursor stays where "
       "it is. Either trigger holds it still to click, left stick scrolls, and "
@@ -404,19 +412,19 @@ inline const Preset kPresets[] = {
       // The same pads as always-on: a gyro is what this needs, and R3 is on
       // every one of them.
       true, true, true, false, kGyroMouseR3Mode, CTM_PRESET_COUNT_OF(kGyroMouseR3Mode) },
-    { "gyro-to-mouse-on-L2-aiming",
+    { "gyro-to-mouse-L2-aiming", "gyro-to-mouse (on L2 for aiming)",
       "For playing, not for the desktop. Gyro aims only while L2 is held, so "
       "the camera is steady while you move and precise when you aim. Nothing "
       "else is bound: every button stays with the game.",
       // A gyro and an analog L2: DualSense, Edge, DS4.
       true, true, true, false, kL2GyroAiming, CTM_PRESET_COUNT_OF(kL2GyroAiming) },
-    { "gyro-to-stick-on-L2-aiming",
+    { "gyro-to-stick-L2-aiming", "gyro-to-stick (on L2 for aiming)",
       "The same, for a game that will not take a mouse alongside a controller: "
       "while L2 is held, the gyro moves the right stick instead of the cursor. "
       "Nothing else is bound.",
       // The same pads as its mouse twin, for the same reasons.
       true, true, true, false, kL2GyroStickAiming, CTM_PRESET_COUNT_OF(kL2GyroStickAiming) },
-    { "gyro-to-mouse (DS5)",
+    { "gyro-to-mouse-DS5-AT", "gyro-to-mouse (DS5+adaptive triggers)",
       "The gyro moves the cursor and a trigger holds it still. Start to pull "
       "and the cursor stops; push past the break and it clicks. Keep holding "
       "to drag. R2 is left click, L2 is right click, one finger scrolls.",
@@ -425,23 +433,22 @@ inline const Preset kPresets[] = {
       // adaptive trigger. It would still click on travel there, but not as this
       // describes, so it is not offered.
       true, true, false, false, kSteadyGyroMouseMode, CTM_PRESET_COUNT_OF(kSteadyGyroMouseMode) },
-    { "touchpad-to-mouse (DS5|DS4)",
+    { "touchpad-to-mouse", "touchpad-to-mouse (DS5|DS4)",
       "The touchpad behaves like a laptop trackpad: one finger moves the "
       "cursor, two fingers scroll the page with them, and a tap clicks. The "
       "most familiar of the three, and the easiest to pick up, but your hand "
       "leaves the sticks to use it. Square opens the on-screen keyboard.",
       // A two-finger touchpad: DualSense, Edge, DS4, and the name says both
       // (rhoquinn8217, 2026-09-15).
-      // ⭐ AND SAYS IT THE WAY THEY ASKED (rhoquinn8217, 2026-10-11: *"since it
-      // can be anything lets show it like this touchpad-to-mouse (DS5|DS4)"*);
-      // it was DS5-DS4-touchpad-to-mouse, and gyro-to-mouse (DS5) was
-      // DS5-gyro-to-mouse. ⓘ A name may hold anything now. config_store::
-      // valid_name() still takes letters, digits, _ and - alone, because a
-      // config name is a filename and a URL path segment; the page used to name
-      // a config from its preset by swapping only the hyphens, so "DS5/DS4", the
-      // first choice, refused every use of the preset with a 409. Its
-      // configStemOf() now turns every other character into _, and the test
-      // "presets: every name makes a config name the store accepts" holds both.
+      // ⭐ THE LABEL SAYS BOTH (rhoquinn8217, 2026-10-11); the name was
+      // DS5-DS4-touchpad-to-mouse until then. ⓘ Why a label and not the name:
+      // config_store::valid_name() takes letters, digits, _ and - alone,
+      // because a config name is a filename and a URL path segment, and the
+      // page names a config after its preset. "DS5/DS4", the first choice for
+      // this name, refused every use of the preset with a 409. The page's
+      // configStemOf() turns any such character into _ all the same, and the
+      // test "presets: every name makes a config name the store accepts"
+      // holds every name to it.
       // ⓘ The description needs no change: it names no controller.
       true, true, true, false, kTouchpadMouseMode, CTM_PRESET_COUNT_OF(kTouchpadMouseMode) },
 };

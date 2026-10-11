@@ -220,7 +220,7 @@ inline bool gate_button_held(const ctm_rebind::Layout &lay, const uint8_t *d, si
     // -- while a DualSense reports L2/R2 as a bit as well, and that bit sets far
     // lighter than the 12% this gate has always used.
     // ➡️ So reading the triggers through is_pressed() would compile, pass on an
-    // Xbox pad, and quietly turn gyro-to-mouse-on-L2-aiming into a hair trigger
+    // Xbox pad, and quietly turn gyro-to-mouse-L2-aiming into a hair trigger
     // on the pad it was written for. Read the travel for both, from the one
     // constant, so "pulled" cannot mean two things.
     if (button == ctm_rebind::kBtnL2 || button == ctm_rebind::kBtnR2) {
