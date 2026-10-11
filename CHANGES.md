@@ -135,23 +135,31 @@ carry it; upstream's own history is unchanged.
 | 2026-10-06 | The settings page moves to port 48053, off the TV's first bridge port. The REST port refuses other sites, the page loads with a token, and the REST API doc lists every route and who may ask. The page's self-test runs once instead of reloading for ever. A new config is written with CRLF, not CR CR LF, and the settings window is found only by a title that ends with its marker. Unused protocol pieces say so, the old WinForms settings panels move to the attic, `src/capture` and `src/usbdisplay` say they are not part of the listener, and leftovers with no use are taken out. | `aa37e9d`, `65f5f7e`, `ba41608`, `6c691f1`, `088cb87`, `b5a89dd`, `b68da4e`, `5043669`, `7eaa2f6`, `687458b` |
 | 2026-10-06 | Fixes from the code review, run on the C1. The settings push keeps each backend alive and skips devices with no settings section, and the shared config is served section by section with the devices that read it. The rebinder's held-button flags live in one locked table that a departing pad clears, and the on-screen keyboard's shared state has one lock. The USB/IP server checks a submit's sizes before trusting them, and an unlink cancels what is queued. A timed-out Bluetooth write waits for its cancel, input waits for the device to be whole, and log lines are one record. Four costs that ran on every report or every frame are gone, and an edit is written with the value and config it was made in, however fast the tab moves on. Page 2.66.62: what nothing used is gone, and the self-test can read 0 failed again. | `ff256b1`, `464c883`, `c426c18`, `cf849c3`, `89811ec`, `3bae874`, `6626ca5`, `63ce9d3`, `867d080` |
 | 2026-10-07 | A device the TV sent no serial for gets its own USB serial, hashed from the TV's node for it and its ids, so two such pads bridged at once are two devices to Windows, and the same pad on the same node keeps its id. The bridge structures' sizes and later fields' offsets are asserted at compile time, matching the TV's own test. | `6deb8ff`, `702c623` |
+| 2026-10-08 | Fixes from the code review's last listener items. Steering the Controller Configs window with Options writes its place once, when the hold ends, instead of up to 250 times a second. Only this PC may import a USB device or drop every bridge. A stopped bridge's backend lives until Windows has finished with the device. Each input thread keeps the settings it has read until any of them change. A TV calling from the internet is asked to prove it is paired with Apollo (logged only, until the remote TVs are updated), and every bridge port takes a connection only from the address that asked for it. The ENet transport is gone. The USB/IP server, the rebinder, the microphone ring, the handshake and session and the USB descriptor reader have tests, and two faults the server's tests found are fixed. | `6131324`, `3fcf7bc`, `fe23412`, `7b51559`, `3cf62b8`, `a9ff8b2`, `174337c`, `7b389fb`, `9eb6ae4`, `be41373`, `78dc087`, `eba244c`, `fb939b7`, `db160cb`, `0b3603b` |
+| 2026-10-08 | Two TVs can stream and bridge at once. Sessions belong to a TV and the listener hands out the bridge ports: a TV at home takes them from the top of the range and a remote TV from the bottom, so one TV's bridge never lands on another's port. | `4926138`, `3e9a8e4` |
+| 2026-10-08 | Protocol levels: STATUS says this listener's level, and a TV app too old to work with it is told so, which the TV's bridge panel shows as "Update the TV app". | `5a9d289` |
+| 2026-10-08 | A dropped bridge's port is held five seconds, not fifteen, to match the TV, which gives a pad back three seconds after the PC stops answering. | `c11b2a1` |
+| 2026-10-09 | Fixes from a review of the two-TV sessions: a TV's plain stop ends only that TV's session, a session that never connected is cleaned up, the real control port is never handed out as a bridge port, and a nickname belongs to its TV. | `0c9cf3d` |
+| 2026-10-09 | The Controller Configs window: picking the Window Mode already set in the tray brings the window forward; up leaves Advanced's footer, as Esc does; a size button sits beside the Mode picker, with the keyboard's size key to match; "Open on bridge" is a switch for the window opening on every bridge, and follows the tray within a second; the window watches only a full-screen game, and gives it the front back when it closes; and the pad's halo on the Mode picker shows whole. Page 2.66.68. | `c2a6944`, `a93fade`, `cd96dbf`, `131dea4`, `bf54740`, `cf0d11e`, `43bc710`, `ad61948` |
+| 2026-10-09 | Advanced's two sizes: the small is the window as it was set by hand (0.4334 x 0.622 of the screen), the large is the old small (0.68 x 0.73), and the largest size is gone. Page 2.66.70. | `626aa72`, `2636eee` |
 
 ## Files changed
 
 Generated from `git diff origin/main origin/rhqn-main --stat`, excluding
-`third_party/` (9 files, +1333 -- the GamepadMotionHelpers library and
-upstream's release FFmpeg binaries replacing the repo's debug ones).
+`third_party/` (29 files, +1333 -6524 -- the GamepadMotionHelpers library,
+upstream's release FFmpeg binaries replacing the repo's debug ones, and the
+ENet library, removed with the ENet transport).
 
 ```
  .gitattributes                                |   48 +
  .gitignore                                    |   34 +-
- CHANGES.md                                    |  302 +
+ CHANGES.md                                    |  333 +
  LINK                                          |    0
- README.md                                     |  255 +-
- app/ctm-usbip-tests.vcxproj                   |  128 +
+ README.md                                     |  301 +-
+ app/ctm-usbip-tests.vcxproj                   |  140 +
  app/ctm-usbip.ico                             |  Bin 156019 -> 174189 bytes
  app/ctm-usbip.rc                              |   18 +-
- app/ctm-usbip.vcxproj                         |   17 +-
+ app/ctm-usbip.vcxproj                         |   49 +-
  attic/README.md                               |   24 +
  attic/device-config-panel-edge.bat            |    9 +
  attic/device-config-panel-edge.ps1            |  327 +
@@ -162,7 +170,9 @@ upstream's release FFmpeg binaries replacing the repo's debug ones).
  build-tests.ps1                               |   86 +
  build.ps1                                     |   99 +-
  device-config.md                              |  195 +
- docs/rest_api.md                              |  210 +
+ docs/control_port.md                          |  121 +
+ docs/rest_api.md                              |  212 +
+ docs/steam_puck_knowledge.md                  |    5 +-
  include/ctm/map/runtime.h                     |   34 +
  include/ctm/product.h                         |   32 +
  include/ctm/protocol.h                        |   65 +-
@@ -176,35 +186,41 @@ upstream's release FFmpeg binaries replacing the repo's debug ones).
  profiles/descriptors/virtual_keyboard.profile |   74 +
  profiles/descriptors/virtual_mouse.profile    |   59 +
  release.ps1                                   |  262 +
- src/app/agent.inl                             |  681 +-
+ src/app/agent.inl                             | 1129 ++-
  src/app/agent_session_sweep.inl               |  333 +
- src/app/cli.inl                               |   47 +-
- src/app/common.inl                            |   48 +-
- src/app/config_move.inl                       | 1112 +++
+ src/app/cli.inl                               |   48 +-
+ src/app/common.inl                            |  166 +-
+ src/app/config_move.inl                       | 1186 +++
  src/app/console_attach.inl                    |   82 +
+ src/app/control_caller.inl                    |   48 +
  src/app/device_capabilities.inl               |   75 +
  src/app/device_names.inl                      |   93 +
  src/app/device_type.inl                       |   70 +
+ src/app/front_rule.inl                        |   89 +
  src/app/home_folder.inl                       |  110 +
  src/app/nickname.inl                          |   90 +
- src/app/open_ui.inl                           |  562 ++
- src/app/overlay_window.inl                    | 2300 ++++++
- src/app/rest.inl                              |  878 +++
- src/app/rest_config.inl                       | 1277 ++++
+ src/app/open_on_bridge.inl                    |   44 +
+ src/app/open_ui.inl                           |  708 ++
+ src/app/overlay_window.inl                    | 2303 ++++++
+ src/app/paired_tv.inl                         |  495 ++
+ src/app/protocol_level.inl                    |   77 +
+ src/app/rest.inl                              |  880 +++
+ src/app/rest_config.inl                       | 1318 ++++
  src/app/rest_config_sessions.inl              |  205 +
  src/app/rest_sessions.inl                     |   33 +
  src/app/rest_shared_section.inl               |   55 +
  src/app/same_controller.inl                   |   38 +
  src/app/same_device.inl                       |   79 +
- src/app/service.inl                           |   25 +-
+ src/app/service.inl                           |   27 +-
  src/app/start_report.inl                      |   37 +
  src/app/stop_wait.inl                         |   74 +
- src/app/tray_icon.inl                         |  670 ++
- src/app/tray_menu.inl                         |  157 +
+ src/app/tray_icon.inl                         |  701 ++
+ src/app/tray_menu.inl                         |  172 +
+ src/app/tv_sessions.inl                       |  162 +
  src/app/ui_page.inl                           |  114 +
  src/app/window_icon.inl                       |  242 +
  src/app/window_icon_rule.inl                  |   68 +
- src/app/window_move.inl                       |  245 +
+ src/app/window_move.inl                       |  250 +
  src/app/window_size_rule.inl                  |  101 +
  src/audio/audio_gain.inl                      |  178 +
  src/audio/ds5_apply_settings.inl              |  316 +
@@ -215,14 +231,14 @@ upstream's release FFmpeg binaries replacing the repo's debug ones).
  src/audio/pcm_amplitude_log.inl               |  162 +
  src/audio/rumble_floor.inl                    |   58 +
  src/backend/backend.inl                       |   56 +
- src/backend/bridge.inl                        |  361 +-
- src/backend/bridge_enet.inl                   |   49 +-
+ src/backend/bridge.inl                        |  396 +-
+ src/backend/bridge_enet.inl                   |  800 --
  src/backend/bt.inl                            |   24 +-
  src/capture/README.md                         |   14 +
  src/config/config_presets.inl                 |  475 ++
- src/config/config_store.inl                   |  854 +++
+ src/config/config_store.inl                   |  856 +++
  src/config/config_watcher.inl                 |  170 +
- src/config/device_config.inl                  |  271 +
+ src/config/device_config.inl                  |  342 +
  src/input/battery.inl                         |  105 +
  src/input/binding_names.inl                   |  244 +
  src/input/button_layout.inl                   | 1130 +++
@@ -247,22 +263,28 @@ upstream's release FFmpeg binaries replacing the repo's debug ones).
  src/input/trigger_effect.inl                  |  637 ++
  src/log/capped_log.inl                        |  117 +
  src/log/device_log.inl                        |  233 +
- src/main.cpp                                  |  717 +-
+ src/main.cpp                                  |  777 +-
  src/map/runtime.cpp                           |   90 +-
  src/usbdisplay/README.md                      |   13 +
- src/usbip/device.inl                          |  759 +-
- src/usbip/fallback_serial.inl                 |   41 +
- src/usbip/server.inl                          |  116 +-
+ src/usbip/device.inl                          |  800 +-
+ src/usbip/fallback_serial.inl                 |   46 +
+ src/usbip/server.inl                          |  254 +-
+ src/usbip/submit_info.inl                     |   34 +
  src/usbip/submit_limits.inl                   |   54 +
+ src/usbip/wire.inl                            |  103 +
  tests/binding_names_test.cpp                  |  200 +
+ tests/bridge_handshake_test.cpp               |  631 ++
  tests/button_layout_test.cpp                  | 1189 +++
  tests/capped_log_test.cpp                     |  140 +
- tests/config_store_test.cpp                   |  909 +++
+ tests/config_store_test.cpp                   |  942 +++
+ tests/control_caller_test.cpp                 |   73 +
  tests/device_capabilities_test.cpp            |   75 +
+ tests/device_config_cache_test.cpp            |  148 +
  tests/device_config_test.cpp                  |  521 ++
  tests/device_names_test.cpp                   |  110 +
  tests/device_type_test.cpp                    |   89 +
- tests/fallback_serial_test.cpp                |   50 +
+ tests/fallback_serial_test.cpp                |   59 +
+ tests/front_rule_test.cpp                     |   69 +
  tests/gyro_mouse_test.cpp                     |  828 +++
  tests/harness.h                               |   55 +
  tests/held_edges_test.cpp                     |   84 +
@@ -270,13 +292,18 @@ upstream's release FFmpeg binaries replacing the repo's debug ones).
  tests/host_audio_settings_test.cpp            |  125 +
  tests/iso_in_pacing_test.cpp                  |  118 +
  tests/key_pulse_test.cpp                      |  148 +
+ tests/keyboard_device_test.cpp                |  170 +
  tests/map_defaults_test.cpp                   |  100 +
  tests/mic_report_test.cpp                     |   64 +
+ tests/mic_ring_test.cpp                       |  181 +
  tests/mouse_held_test.cpp                     |  162 +
  tests/nickname_test.cpp                       |   98 +
  tests/osk_test.cpp                            |   81 +
  tests/pad_press_test.cpp                      |  117 +
+ tests/paired_tv_test.cpp                      |  319 +
  tests/product_version_test.cpp                |   33 +
+ tests/protocol_level_test.cpp                 |  101 +
+ tests/rebind_test.cpp                         |  664 ++
  tests/rest_parser_test.cpp                    |  252 +
  tests/rest_shared_section_test.cpp            |   79 +
  tests/rumble_floor_test.cpp                   |   87 +
@@ -285,18 +312,22 @@ upstream's release FFmpeg binaries replacing the repo's debug ones).
  tests/schema_json_test.cpp                    |  158 +
  tests/stick_mouse_test.cpp                    |  735 ++
  tests/stop_wait_test.cpp                      |   93 +
- tests/tests_main.cpp                          |  144 +
+ tests/tests_main.cpp                          |  170 +
  tests/touch_mouse_test.cpp                    | 1654 +++++
- tests/tray_menu_test.cpp                      |  160 +
+ tests/tray_menu_test.cpp                      |  193 +
  tests/trigger_click_test.cpp                  |  901 +++
  tests/trigger_effect_test.cpp                 |  529 ++
+ tests/tv_sessions_test.cpp                    |  191 +
  tests/units.h                                 |   54 +
+ tests/usb_descriptors_test.cpp                |  213 +
  tests/usbip_limits_test.cpp                   |   73 +
+ tests/usbip_server_test.cpp                   |  687 ++
  tests/window_icon_rule_test.cpp               |   86 +
+ tests/window_move_test.cpp                    |  136 +
  tests/window_size_rule_test.cpp               |  129 +
- tools/controller-config-test-client.html      | 9603 +++++++++++++++++++++++++
+ tools/controller-config-test-client.html      | 9777 +++++++++++++++++++++++++
  tools/create-desktop-shortcut.bat             |   46 +
  tools/create-desktop-shortcut.ps1             |  148 +
  tools/osk-mockups.py                          |  103 +
- 155 files changed, 48800 insertions(+), 385 deletions(-)
+ 178 files changed, 54790 insertions(+), 1543 deletions(-)
 ```
