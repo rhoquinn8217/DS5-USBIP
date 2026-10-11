@@ -107,6 +107,13 @@ public:
         return audioInputSampleRate_;
     }
 
+    // ⓘ The TV a session belongs to (tv_sessions.inl), before attach_backend:
+    // two TVs' serial-less pads on the same node number are two devices.
+    void set_serial_tv(const std::string &tv)
+    {
+        serialTv_.assign(tv.begin(), tv.end());
+    }
+
     bool attach_backend(CtmBackend *backend, std::wstring *error)
     {
         backend_ = backend;
@@ -130,7 +137,8 @@ public:
             // ⛔ Not one constant for every such device (code review,
             // 2026-10-05): two of them bridged at once were one device to
             // Windows. fallback_serial.inl says how this one is made.
-            requestedSerial = usb_serial_fallback::make(caps.path, caps.vendorId, caps.productId);
+            requestedSerial = usb_serial_fallback::make(caps.path, caps.vendorId, caps.productId,
+                                                        serialTv_);
         }
         if (!apply_virtual_serial_to_profile(&profile_, requestedSerial, &virtualSerial, error)) {
             return false;
@@ -2058,6 +2066,8 @@ private:
     std::vector<uint8_t> physicalFeatureScratch_;
     std::map<FeatureCacheKey, CTM_USB_RESPONSE> featureCache_;
     mutable std::mutex physicalSerialMutex_;
+    // The TV this device came from, for the fallback serial: set_serial_tv().
+    std::wstring serialTv_;
     std::string physicalSerial_;
     std::string linkedConfig_;
     std::mutex unknownLogMutex_;

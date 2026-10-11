@@ -20,13 +20,18 @@
 
 namespace usb_serial_fallback {
 
-inline std::wstring make(const std::wstring &path, uint16_t vendorId, uint16_t productId)
+// ⭐ `tv`, the TV the device came from (tv_sessions.inl), when it is known:
+// two TVs each with the same model on the same node number would otherwise be
+// one device twice. Blank leaves every serial as it was.
+inline std::wstring make(const std::wstring &path, uint16_t vendorId, uint16_t productId,
+                         const std::wstring &tv = std::wstring())
 {
     uint32_t hash = 2166136261u;                       // FNV-1a, 32-bit
     auto mix = [&hash](uint32_t byte) {
         hash ^= byte & 0xffu;
         hash *= 16777619u;
     };
+    for (wchar_t c : tv) mix(static_cast<uint32_t>(c));
     for (wchar_t c : path) mix(static_cast<uint32_t>(c));
     mix(vendorId >> 8); mix(vendorId);
     mix(productId >> 8); mix(productId);
