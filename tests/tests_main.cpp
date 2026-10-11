@@ -52,6 +52,7 @@ int run_rebind_tests();
 int run_usbip_server_tests();
 int run_paired_tv_tests();
 int run_tv_sessions_tests();
+int run_protocol_level_tests();
 int run_usb_descriptors_tests();
 int run_bridge_handshake_tests();
 int run_mic_ring_tests();
@@ -156,6 +157,7 @@ int main(int argc, char **argv)
     run_usbip_server_tests();
     run_paired_tv_tests();
     run_tv_sessions_tests();
+    run_protocol_level_tests();
     run_usb_descriptors_tests();
     run_bridge_handshake_tests();
     run_mic_ring_tests();

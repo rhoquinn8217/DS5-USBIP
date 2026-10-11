@@ -264,6 +264,7 @@ namespace config_move { inline void state_load(); }
 #include "app/control_caller.inl"    // which control commands only this PC may send; agent.inl asks it
 #include "app/paired_tv.inl"         // the pairing proof a TV from the internet bridges with; agent.inl asks it
 #include "app/tv_sessions.inl"       // which TV a bridge session belongs to, and its port; agent.inl asks it
+#include "app/protocol_level.inl"    // whether this listener and a TV app can work together; agent.inl answers with it
 #include "app/agent.inl"
 #include "input/mouse_device.inl"      // needs g_agent_usbip_server, find_relative_asset, run_usbip_attach
 #include "input/keyboard_device.inl"   // same dependencies as the mouse above

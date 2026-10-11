@@ -1163,7 +1163,10 @@ static void handle_agent_client(SOCKET client, const sockaddr_in &peer)
     }
 
     if (command == "STATUS") {
-        send_text(client, "OK CTM_AGENT_V1\n");
+        // ⭐ With this listener's protocol level, and the oldest TV level it
+        // works with: the TV refuses to bridge to a listener it is too new for
+        // (protocol_level.inl).
+        send_text(client, protocol_level::status_reply());
         return;
     }
 
@@ -1194,6 +1197,18 @@ static void handle_agent_client(SOCKET client, const sockaddr_in &peer)
             (port != 0 && (port < 1024 || port > 65535)) ||
             busIdAscii.empty() || busIdAscii.size() > 31) {
             send_text(client, "ERR bad bridge args\n");
+            return;
+        }
+        // ⭐⭐ A TV TOO OLD TO WORK WITH THIS LISTENER IS TOLD SO (rhoquinn8217,
+        // 2026-10-08; protocol_level.inl), in words its bridge panel shows.
+        const std::string tooOld = protocol_level::refusal_for(line);
+        if (!tooOld.empty()) {
+            char peerIp[INET_ADDRSTRLEN] = {};
+            inet_ntop(AF_INET, &peer.sin_addr, peerIp, sizeof(peerIp));
+            device_log::session_s() << "control: BRIDGE_START from " << peerIp << " refused: the TV app is level "
+                                    << protocol_level::tv_level(line) << ", and this listener needs "
+                                    << protocol_level::kMinTv << " or newer";
+            send_text(client, tooOld);
             return;
         }
         std::wstring error;
