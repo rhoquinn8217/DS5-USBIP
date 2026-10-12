@@ -143,6 +143,9 @@ carry it; upstream's own history is unchanged.
 | 2026-10-09 | The Controller Configs window: picking the Window Mode already set in the tray brings the window forward; up leaves Advanced's footer, as Esc does; a size button sits beside the Mode picker, with the keyboard's size key to match; "Open on bridge" is a switch for the window opening on every bridge, and follows the tray within a second; the window watches only a full-screen game, and gives it the front back when it closes; and the pad's halo on the Mode picker shows whole. Page 2.66.68. | `c2a6944`, `a93fade`, `cd96dbf`, `131dea4`, `bf54740`, `cf0d11e`, `43bc710`, `ad61948` |
 | 2026-10-09 | Advanced's two sizes: the small is the window as it was set by hand (0.4334 x 0.622 of the screen), the large is the old small (0.68 x 0.73), and the largest size is gone. Page 2.66.70. | `626aa72`, `2636eee` |
 | 2026-10-11 | Presets: each has a label the configs window's picker shows, which may hold anything ("touchpad-to-mouse (DS5\|DS4)"), and a name a config made from it is named after. Configs are named without "_config": touchpad_to_mouse from a preset, ds5 without one. New lists the presets in rhoquinn8217's order. Page 2.66.75. | `090c244`, `09f2b49`, `d5a72d8`, `c4237c7`, `7d1fc92`, `9905cf0` |
+| 2026-10-12 | The program is DS5-USBIP.exe, not ctm-usbip.exe: the build, its version resource, the release script and its README, the desktop shortcut maker and the usage text follow, and a release retires an old ctm-usbip.exe left in its folder. | `dd3a249` |
+| 2026-10-12 | A person's files live in their own folder, %LOCALAPPDATA%\DS5-USBIP, so the program can sit anywhere, Program Files included; the first start there copies their configs, shared settings and window places from beside the program, once, and the tray menu's "Open configs folder" goes there. `--home` keeps the old way. | `b3194c0`, `161bb7b` |
+| 2026-10-12 | An installer, DS5-USBIP-Setup.exe: DS5-USBIP into Program Files with a Start menu entry and a desktop shortcut, through Windows Firewall on private networks, and the bundled usbip-win2 driver when it is not there yet. Built with installer/build-ds5-installer.ps1. | `90383b1`, `8cba0ec`, `9ae819c` |
 
 ## Files changed
 
@@ -154,13 +157,13 @@ ENet library, removed with the ENet transport).
 ```
  .gitattributes                                |   48 +
  .gitignore                                    |   34 +-
- CHANGES.md                                    |  334 +
+ CHANGES.md                                    |  339 +
  LINK                                          |    0
  README.md                                     |  301 +-
  app/ctm-usbip-tests.vcxproj                   |  140 +
  app/ctm-usbip.ico                             |  Bin 156019 -> 174189 bytes
- app/ctm-usbip.rc                              |   18 +-
- app/ctm-usbip.vcxproj                         |   49 +-
+ app/ctm-usbip.rc                              |   24 +-
+ app/ctm-usbip.vcxproj                         |   53 +-
  attic/README.md                               |   24 +
  attic/device-config-panel-edge.bat            |    9 +
  attic/device-config-panel-edge.ps1            |  327 +
@@ -169,7 +172,7 @@ ENet library, removed with the ENet transport).
  attic/flydigi_apex4_identity.map              |   58 +
  attic/flydigi_apex4_usb.profile               |   24 +
  build-tests.ps1                               |   86 +
- build.ps1                                     |   99 +-
+ build.ps1                                     |  101 +-
  device-config.md                              |  195 +
  docs/control_port.md                          |  121 +
  docs/rest_api.md                              |  212 +
@@ -177,6 +180,8 @@ ENet library, removed with the ENet transport).
  include/ctm/map/runtime.h                     |   34 +
  include/ctm/product.h                         |   32 +
  include/ctm/protocol.h                        |   65 +-
+ installer/build-ds5-installer.ps1             |  115 +
+ installer/ds5-usbip.iss                       |  200 +
  installer/make-icon-ds5.ps1                   |  210 +
  maps/ds4_usb_over_ds4_usb.map                 |   61 +
  maps/ds5_usb_over_ds5_usb.map                 |   61 +
@@ -186,10 +191,10 @@ ENet library, removed with the ENet transport).
  profiles/descriptors/ds5e_composite.profile   |   30 +
  profiles/descriptors/virtual_keyboard.profile |   74 +
  profiles/descriptors/virtual_mouse.profile    |   59 +
- release.ps1                                   |  262 +
+ release.ps1                                   |  266 +
  src/app/agent.inl                             | 1129 ++-
  src/app/agent_session_sweep.inl               |  333 +
- src/app/cli.inl                               |   48 +-
+ src/app/cli.inl                               |   56 +-
  src/app/common.inl                            |  166 +-
  src/app/config_move.inl                       | 1186 +++
  src/app/console_attach.inl                    |   82 +
@@ -198,7 +203,7 @@ ENet library, removed with the ENet transport).
  src/app/device_names.inl                      |   93 +
  src/app/device_type.inl                       |   70 +
  src/app/front_rule.inl                        |   89 +
- src/app/home_folder.inl                       |  110 +
+ src/app/home_folder.inl                       |  130 +
  src/app/nickname.inl                          |   90 +
  src/app/open_on_bridge.inl                    |   44 +
  src/app/open_ui.inl                           |  708 ++
@@ -215,8 +220,8 @@ ENet library, removed with the ENet transport).
  src/app/service.inl                           |   27 +-
  src/app/start_report.inl                      |   37 +
  src/app/stop_wait.inl                         |   74 +
- src/app/tray_icon.inl                         |  701 ++
- src/app/tray_menu.inl                         |  172 +
+ src/app/tray_icon.inl                         |  715 ++
+ src/app/tray_menu.inl                         |  175 +
  src/app/tv_sessions.inl                       |  162 +
  src/app/ui_page.inl                           |  114 +
  src/app/window_icon.inl                       |  242 +
@@ -264,7 +269,7 @@ ENet library, removed with the ENet transport).
  src/input/trigger_effect.inl                  |  637 ++
  src/log/capped_log.inl                        |  117 +
  src/log/device_log.inl                        |  233 +
- src/main.cpp                                  |  777 +-
+ src/main.cpp                                  |  884 ++-
  src/map/runtime.cpp                           |   90 +-
  src/usbdisplay/README.md                      |   13 +
  src/usbip/device.inl                          |  800 +-
@@ -289,7 +294,7 @@ ENet library, removed with the ENet transport).
  tests/gyro_mouse_test.cpp                     |  828 +++
  tests/harness.h                               |   55 +
  tests/held_edges_test.cpp                     |   84 +
- tests/home_folder_test.cpp                    |  163 +
+ tests/home_folder_test.cpp                    |  178 +
  tests/host_audio_settings_test.cpp            |  125 +
  tests/iso_in_pacing_test.cpp                  |  118 +
  tests/key_pulse_test.cpp                      |  148 +
@@ -315,7 +320,7 @@ ENet library, removed with the ENet transport).
  tests/stop_wait_test.cpp                      |   93 +
  tests/tests_main.cpp                          |  170 +
  tests/touch_mouse_test.cpp                    | 1654 +++++
- tests/tray_menu_test.cpp                      |  193 +
+ tests/tray_menu_test.cpp                      |  194 +
  tests/trigger_click_test.cpp                  |  901 +++
  tests/trigger_effect_test.cpp                 |  529 ++
  tests/tv_sessions_test.cpp                    |  191 +
@@ -326,9 +331,9 @@ ENet library, removed with the ENet transport).
  tests/window_icon_rule_test.cpp               |   86 +
  tests/window_move_test.cpp                    |  136 +
  tests/window_size_rule_test.cpp               |  129 +
- tools/controller-config-test-client.html      | 9825 +++++++++++++++++++++++++
+ tools/controller-config-test-client.html      | 9827 +++++++++++++++++++++++++
  tools/create-desktop-shortcut.bat             |   46 +
  tools/create-desktop-shortcut.ps1             |  148 +
  tools/osk-mockups.py                          |  103 +
- 178 files changed, 54908 insertions(+), 1543 deletions(-)
+ 180 files changed, 55403 insertions(+), 1554 deletions(-)
 ```
