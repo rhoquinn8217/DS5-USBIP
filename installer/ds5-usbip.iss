@@ -18,9 +18,10 @@
 ;
 ; IT WRITES NOTHING A PERSON OWNS INTO {app}. Program Files is not writable by
 ; a normal user, so configs, the log and the window state have to live in a
-; per-user folder. Until the listener puts them there, an install made by this
-; script cannot save them. build-ds5-installer.ps1 refuses to build until it
-; can, so a setup that silently loses settings is never handed to anyone.
+; per-user folder. Since 2026-10-12 the listener keeps them in
+; %LOCALAPPDATA%\DS5-USBIP, and copies them there once from beside an older
+; copy of the program. build-ds5-installer.ps1 still checks that before it
+; builds, so a setup that silently loses settings is never handed to anyone.
 ;
 ; ============================================================================
 ; DERIVED FROM ciprianmisaila's installer\ctm-usbip.iss
@@ -56,7 +57,12 @@
 
 #define AppName "DS5-USBIP"
 #define AppPublisher "rhoquinn8217"
-#define ExeName "ctm-usbip.exe"
+#define ExeName "DS5-USBIP.exe"
+; Its name until 2026-10-12. A copy still running under it holds the same ports.
+#define OldExeName "ctm-usbip.exe"
+#ifndef Configuration
+  #define Configuration "Release"
+#endif
 #define IconName "ctm-usbip.ico"
 #define UsbipInstaller "USBip-0.9.7.7-x64.exe"
 #define SrcRoot ".."
@@ -90,7 +96,7 @@ WizardStyle=modern
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 
 [Files]
-Source: "{#SrcRoot}\out\x64\Release\{#ExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#SrcRoot}\out\x64\{#Configuration}\{#ExeName}"; DestDir: "{app}"; Flags: ignoreversion
 ; The ffmpeg runtime comes from the REPO, not from the build output: the build
 ; output holds whatever was last compiled there, which may be stale or absent.
 Source: "{#SrcRoot}\third_party\ffmpeg\x64\release\bin\*.dll"; DestDir: "{app}"; Flags: ignoreversion
@@ -109,7 +115,18 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#ExeName}"; WorkingDir: "{ap
 ; Only the main and client components: not the pdb, sdk or gui, none of which
 ; this uses. /NORESTART so the restart prompt a person sees is ours.
 Filename: "{tmp}\{#UsbipInstaller}"; Parameters: "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /COMPONENTS=main,client"; StatusMsg: "Installing the usbip-win2 driver..."; Flags: waituntilterminated; Check: NeedsUsbip
-Filename: "{app}\{#ExeName}"; Description: "Start {#AppName}"; Flags: nowait postinstall skipifsilent
+; DS5-USBIP.exe through Windows Firewall on private networks, as Windows' own
+; prompt would allow on its first run: a TV reaches it over the network, and a
+; prompt missed or answered wrong breaks that without a word. Public networks
+; stay closed. Deleted first, so an upgrade leaves one rule, not two.
+Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""{#AppName}"""; Flags: runhidden waituntilterminated
+Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall add rule name=""{#AppName}"" dir=in action=allow program=""{app}\{#ExeName}"" enable=yes profile=private,domain"; StatusMsg: "Letting {#AppName} through Windows Firewall on private networks..."; Flags: runhidden waituntilterminated
+; As the person, not as the administrator who ran setup: their own folder is
+; the one it must use. And not before a restart the driver still needs.
+Filename: "{app}\{#ExeName}"; Description: "Start {#AppName}"; Flags: nowait postinstall skipifsilent runasoriginaluser; Check: not NeedRestart
+
+[UninstallRun]
+Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""{#AppName}"""; Flags: runhidden waituntilterminated; RunOnceId: "RemoveDS5USBIPFirewallRule"
 
 [Code]
 var
@@ -126,15 +143,22 @@ begin
   Result := Value;
 end;
 
-function ListenerIsRunning(): Boolean;
+function ImageIsRunning(const Name: String): Boolean;
 var
   ResultCode: Integer;
 begin
   { tasklist exits 0 whether or not it matched, so findstr is what answers:
     it exits 1 when nothing matched. }
   Result := Exec(ExpandConstant('{cmd}'),
-                 '/C tasklist /FI "IMAGENAME eq {#ExeName}" | findstr /I "{#ExeName}"',
+                 '/C tasklist /FI "IMAGENAME eq ' + Name + '" | findstr /I "' + Name + '"',
                  '', SW_HIDE, ewWaitUntilTerminated, ResultCode) and (ResultCode = 0);
+end;
+
+function ListenerIsRunning(): Boolean;
+begin
+  { The old name as well: a copy from before the rename holds the same ports,
+    so the one this installs could not start beside it. }
+  Result := ImageIsRunning('{#ExeName}') or ImageIsRunning('{#OldExeName}');
 end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;

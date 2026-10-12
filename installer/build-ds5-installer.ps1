@@ -27,13 +27,14 @@
 # ============================================================================
 #
 # The installer puts the program in C:\Program Files\DS5-USBIP, which a normal
-# user cannot write to. The listener still resolves configs, device.log and the
-# window state relative to its own folder, so an install made today would look
-# fine and then silently fail to save anything a person changed. That is the
-# worst kind of broken: nothing errors, the settings just never come back.
+# user cannot write to. A listener that resolved configs, device.log and the
+# window state relative to its own folder would install fine and then silently
+# fail to save anything a person changed. That is the worst kind of broken:
+# nothing errors, the settings just never come back.
 #
-# So this stops. Pass -AllowUnwritableConfigs to build one anyway for testing,
-# knowing it cannot keep settings.
+# Since 2026-10-12 the listener keeps them in %LOCALAPPDATA%\DS5-USBIP, so the
+# check below passes. It stays, so a branch without that can never be packaged.
+# -AllowUnwritableConfigs builds one anyway for testing.
 
 param(
   [string]$Configuration = 'Release',
@@ -85,8 +86,8 @@ if (-not $SkipBuild) {
     if ($LASTEXITCODE -ne 0) { throw "build.ps1 failed" }
 }
 
-$exe = Join-Path $repo "out\x64\$Configuration\ctm-usbip.exe"
-if (-not (Test-Path $exe)) { throw "ctm-usbip.exe not found at $exe -- build it first" }
+$exe = Join-Path $repo "out\x64\$Configuration\DS5-USBIP.exe"
+if (-not (Test-Path $exe)) { throw "DS5-USBIP.exe not found at $exe -- build it first" }
 
 # --- Inno Setup -------------------------------------------------------------
 # winget puts it under LOCALAPPDATA; an installer run as admin puts it in
@@ -102,7 +103,7 @@ if (-not $iscc) {
 }
 Write-Host "iscc:    $iscc"
 
-& $iscc "/DAppVersion=$version" (Join-Path $repo 'installer\ds5-usbip.iss')
+& $iscc "/DAppVersion=$version" "/DConfiguration=$Configuration" (Join-Path $repo 'installer\ds5-usbip.iss')
 if ($LASTEXITCODE -ne 0) { throw "ISCC failed" }
 
 $setup = Join-Path $repo 'out\installer\DS5-USBIP-Setup.exe'
