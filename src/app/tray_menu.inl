@@ -45,6 +45,9 @@ namespace tray_menu {
 inline const wchar_t *const kTitle = L"DS5-USBIP";
 inline const wchar_t *const kDevices = L"Devices";
 inline const wchar_t *const kOpenConfig = L"Open Controller Configs";
+// ⭐ Where a person's configs are (rhoquinn8217, 2026-10-12): their own folder
+// now, not the program's, so the menu goes there.
+inline const wchar_t *const kOpenFolder = L"Open configs folder";
 inline const wchar_t *const kConfigMode = L"Window Mode";
 // ⓘ The settings page's switch says the same words.
 inline const wchar_t *const kOpenOnBridge = L"Open on bridge";

@@ -163,10 +163,10 @@ https://github.com/vadimgrn/usbip-win2/releases -- a separate project whose
 signed driver lets Windows attach the controller. Without it this listener
 starts normally and bridges nothing.
 
-Keep this folder together, somewhere writable -- Desktop or Documents, not
-Program Files. The exe finds profiles and maps beside itself, and creates its
-config and logs here as you use it, wherever it is started from. If the
-profiles folder is missing it says so and does not start.
+Keep this folder together. The exe finds profiles and maps beside itself, and
+if the profiles folder is missing it says so and does not start. Your own
+files live in your user folder, %LOCALAPPDATA%\DS5-USBIP, so this one can sit
+anywhere; the tray menu's "Open configs folder" goes there.
 
 Controller Configs opens in a browser window, but the page is built into the
 exe and served by it, so there is no file to place and it cannot fall out of
@@ -184,7 +184,8 @@ Profiles and maps are DATA, on purpose. Adding a controller means adding a
 file here, not rebuilding -- so keep the folders beside the exe. Without them
 the listener says the profiles folder is missing and does not start.
 
-These are created next to the exe as you use it:
+These are made in %LOCALAPPDATA%\DS5-USBIP as you use it. The first start
+copies any it finds beside the exe, once, and leaves the originals there:
 
     configs\                  each controller's settings, made in Controller Configs
     device.log                what it did, for when something goes wrong

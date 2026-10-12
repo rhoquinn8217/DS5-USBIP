@@ -455,6 +455,58 @@ void ctm_chord_show_ui(const std::string &ordinal)
 
 }
 
+// ⭐ The first start that puts a person's files in their own folder copies the
+// ones beside the program across, once (home_folder::should_carry says when,
+// and why it copies rather than moves). Returns what to add to the line the log
+// writes about the home, since nothing may be logged before settle_home ends.
+std::wstring carry_person_files(const std::wstring &from, const std::wstring &to)
+{
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    if (from.empty() || to.empty() || fs::equivalent(from, to, ec)) return std::wstring();
+    const fs::path src(from), dst(to);
+    const auto holds_any = [](const fs::path &folder) {
+        std::error_code e;
+        for (const wchar_t *name : home_folder::kPersonFiles) {
+            if (fs::exists(folder / name, e)) return true;
+        }
+        const fs::path configs = folder / home_folder::kConfigsFolder;
+        return fs::is_directory(configs, e) && !fs::is_empty(configs, e);
+    };
+    const bool noteThere = fs::exists(dst / home_folder::kCarriedNote, ec);
+    if (!home_folder::should_carry(noteThere, holds_any(dst), holds_any(src))) return std::wstring();
+
+    int carried = 0;
+    std::wstring failed;
+    for (const wchar_t *name : home_folder::kPersonFiles) {
+        std::error_code e;
+        if (!fs::exists(src / name, e)) continue;
+        if (fs::copy_file(src / name, dst / name, fs::copy_options::skip_existing, e)) ++carried;
+        else if (e) failed += std::wstring(L" ") + name;
+    }
+    {
+        std::error_code e;
+        const fs::path configs = src / home_folder::kConfigsFolder;
+        if (fs::is_directory(configs, e)) {
+            fs::copy(configs, dst / home_folder::kConfigsFolder,
+                     fs::copy_options::recursive | fs::copy_options::skip_existing, e);
+            if (e) failed += std::wstring(L" ") + home_folder::kConfigsFolder;
+            else ++carried;
+        }
+    }
+    // ⓘ The note says where the originals are, and its being there is what
+    // stops a second copy. Written last, so a start that dies half way tries
+    // again next time rather than leaving half a person's files behind.
+    {
+        std::wofstream note((dst / home_folder::kCarriedNote).wstring().c_str());
+        note << L"DS5-USBIP copied these here on its first start in this folder, from:\n"
+             << from << L"\n"
+             << L"The originals are still there. This note stops it copying again.\n";
+    }
+    return L"; carried " + std::to_wstring(carried) + L" of a person's files from " + from +
+           (failed.empty() ? std::wstring() : L" (could not copy:" + failed + L")");
+}
+
 // ⭐⭐ THE LISTENER'S HOME, SETTLED BEFORE ANYTHING IS READ OR WRITTEN.
 //
 // The config, the configs folder, the log, the window's state and the settings
@@ -583,6 +635,8 @@ bool settle_home(const std::wstring &asked)
             if (CreateDirectoryW(folder.c_str(), nullptr) || GetLastError() == ERROR_ALREADY_EXISTS) {
                 working = folder;
                 home_folder::g_chosen_how += L"; a person's files in " + folder;
+                // ⭐ And the ones that lived beside the program come too, once.
+                home_folder::g_chosen_how += carry_person_files(home, folder);
             }
             // ⓘ Falling through when that fails is deliberate: a listener that
             // runs from beside its program is worth more than one that refuses
