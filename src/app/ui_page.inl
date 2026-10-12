@@ -51,15 +51,42 @@ inline std::string current(bool *fromDisk)
     return std::string(reinterpret_cast<const char *>(kHtmlBytes), kHtmlLength);
 }
 
+inline const int kFaviconResourceId = 101;   // ⚠️ the same number as in the .rc
+
+// The icon's bytes, as the exe carries them (RCDATA 101, app/ctm-usbip.rc).
+inline bool favicon_bytes(const void **bytes, DWORD *size)
+{
+    HRSRC found = FindResourceW(nullptr, MAKEINTRESOURCEW(kFaviconResourceId), RT_RCDATA);
+    if (found == nullptr) return false;
+    HGLOBAL loaded = LoadResource(nullptr, found);
+    *bytes = (loaded != nullptr) ? LockResource(loaded) : nullptr;
+    *size = SizeofResource(nullptr, found);
+    return *bytes != nullptr && *size != 0;
+}
+
+// The icon's fingerprint, worked out once: favicon_version.inl says why the
+// page's icon address carries it.
+inline const std::string &favicon_print()
+{
+    static const std::string print = []() {
+        const void *bytes = nullptr;
+        DWORD size = 0;
+        return favicon_bytes(&bytes, &size) ? favicon_version::fingerprint(bytes, size) : std::string();
+    }();
+    return print;
+}
+
 // The HTTP response. Not JSON, so it does not go through rest_http_response.
 //
 // ⛔ NO CACHING. The page is served from a file that changes while you work on
 // it, and a browser holding yesterday's copy is exactly the confusion this
 // whole arrangement exists to remove.
+// ⭐ And its icon link goes out with the icon's fingerprint in it, so a new
+// icon reaches the window's title bar (favicon_version.inl).
 inline std::string http_response()
 {
     bool fromDisk = false;
-    const std::string body = current(&fromDisk);
+    const std::string body = favicon_version::with_fingerprint(current(&fromDisk), favicon_print());
     std::ostringstream out;
     out << "HTTP/1.1 200 OK\r\n"
         << "Content-Type: text/html; charset=utf-8\r\n"
@@ -88,17 +115,16 @@ inline std::string http_response()
 // handled in window_icon.inl, which gives the window its icons directly.
 //
 // ⓘ no-cache, not no-store: the browser may keep it but has to ask whether it
-// is still current, so a rebuilt icon shows up without anyone clearing a cache.
-inline const int kFaviconResourceId = 101;   // ⚠️ the same number as in the .rc
-
+// is still current.
+// ⛔ THAT WAS MEANT TO BRING A REBUILT ICON THROUGH, AND IT DID NOT (2026-10-12):
+// the browser keeps a favicon by its address and does not ask again, so the
+// window kept the black bridge after the icon changed. What brings a new icon
+// through is the fingerprint in the address (favicon_version.inl).
 inline bool favicon_response(std::string *out)
 {
-    HRSRC found = FindResourceW(nullptr, MAKEINTRESOURCEW(kFaviconResourceId), RT_RCDATA);
-    if (found == nullptr) return false;
-    HGLOBAL loaded = LoadResource(nullptr, found);
-    const void *bytes = (loaded != nullptr) ? LockResource(loaded) : nullptr;
-    const DWORD size = SizeofResource(nullptr, found);
-    if (bytes == nullptr || size == 0) return false;
+    const void *bytes = nullptr;
+    DWORD size = 0;
+    if (!favicon_bytes(&bytes, &size)) return false;
 
     std::ostringstream head;
     head << "HTTP/1.1 200 OK\r\n"
