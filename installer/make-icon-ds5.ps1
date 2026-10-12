@@ -1,8 +1,26 @@
-# Generates app\ctm-usbip.ico with the DS5-USBIP treatment: a BLACK bridge on
-# the original blue backdrop.
+# ⛔⛔ RETIRED. DO NOT RUN THIS. Use build-icon.ps1.
+#
+# This built the black bridge on the blue backdrop, which was the icon until
+# the DualSense outline on a flat-panel television replaced it. It still works,
+# and that is exactly the danger: running it rebuilds the OLD icon from
+# brand.png, overwrites app\ctm-usbip.ico, reports success and leaves a diff
+# nobody would read as a revert. It refuses unless -Allow is passed.
+#
+# ⚠️ make-icon.ps1 beside it is the same trap and is NOT marked, because it is
+# upstream's file and editing it would put our change in the middle of
+# something upstream also edits. Do not run that one either.
+#
+# ⭐ WHAT REPLACED IT, and why there are two scripts now rather than one: the
+# art is no longer a picture to recolour, it is an outline traced out of
+# installer\icon-source.png by trace-silhouette.py into controller-path.txt,
+# which build-icon.ps1 then composes onto the television and rasterises to all
+# fifteen frames. Either half can be re-run on its own.
+#
+# Kept rather than deleted because brand.png is upstream's and this records
+# what was done to it.
 #
 # ---------------------------------------------------------------------------
-# WHY THIS SITS BESIDE make-icon.ps1 INSTEAD OF REPLACING IT.
+# WHY THIS SAT BESIDE make-icon.ps1 INSTEAD OF REPLACING IT.
 #
 # make-icon.ps1 and installer\brand.png are upstream's, and brand.png is the
 # 1024px master the art actually lives in. Editing either would put our change
@@ -51,7 +69,15 @@
 # the committed one, byte for byte, and exits 1 if they differ. That is the
 # whole of "a generated file must have a generator": the claim is only true
 # while this passes.
-param([switch]$Check)
+param([switch]$Check, [switch]$Allow)
+
+if (-not $Allow) {
+    Write-Host "RETIRED: this builds the OLD black-bridge icon from brand.png."
+    Write-Host "The icon is now built by build-icon.ps1 from controller-path.txt."
+    Write-Host "Running this would put the bridge back and report success."
+    Write-Host "Pass -Allow if that is genuinely what you want."
+    exit 2
+}
 
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
