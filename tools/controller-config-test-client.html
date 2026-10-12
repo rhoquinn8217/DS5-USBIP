@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.72 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.73 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,9 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.73 A config made without a preset is named after the controller
+            without "_config" too: ds5, ds4, xbox, or pad (the Editor's
+            New), then ds5_2.
     2.66.72 A config made from a preset is named without "_config":
             touchpad_to_mouse, then touchpad_to_mouse_2. One made without
             a preset is still ds5_config and the like.
@@ -1910,7 +1913,7 @@
 <div class="bar">
   <!-- ⓘ The same number as VERSION at the top of this file, by hand. It sat
        at 2.66.4 for thirty-four versions while VERSION moved on. -->
-  <span class="muted" style="font-size:12px">v2.66.72</span>
+  <span class="muted" style="font-size:12px">v2.66.73</span>
   <label class="muted">agent</label>
   <input id="base" value="http://127.0.0.1:48053" size="26">
   <label class="muted">bearer</label>
@@ -3350,7 +3353,8 @@ function nextNameFrom(base) {
 // which, so a preset names its own configs: gyro-to-mouse-always-on makes
 // gyro_to_mouse_always_on, then _2, _3. ⓘ With no "_config" since 2026-10-11
 // (rhoquinn8217: *"remove the _config from the names. They aren't needed."*).
-// A config made without a preset is still ds5_config and the like, below.
+// A config made without a preset is named after the controller, below, and
+// lost its "_config" the same day.
 //
 // ⓘ Everything but letters and digits becomes an underscore, a run of them
 // one, because a config name is also a FILENAME and a section name: the store
@@ -3360,7 +3364,11 @@ function nextNameFrom(base) {
 // only the hyphens were swapped, and a preset named with a "/" or a bracket
 // would have made a name the store refuses.
 // ⭐⭐ AND A CONFIG WITH NO PRESET IS NAMED AFTER THE PAD (rhoquinn8217,
-// 2026-09-19): ds5_config, ds4_config, xbox_config, or pad_config.
+// 2026-09-19): ds5, ds4, xbox, or pad. ⓘ They were ds5_config and the like
+// until 2026-10-11 (rhoquinn8217: *"remove "_config" from the custom config
+// names too"*). A config named ds5 does not shadow the shared ds5 section: a
+// named config's settings live in their own section, cfg:ds5
+// (config_store::config_section), and an unlinked device reads "shared".
 //
 // ⛔ THIS REVERSES THE RULE THAT STOOD HERE, and the old reasoning is worth
 // keeping: a blank config was my_config precisely so that naming it after the
@@ -3370,20 +3378,20 @@ function nextNameFrom(base) {
 // the name as a restriction, and my_config told you nothing at all about a list
 // of them. ⓘ The name is still only a label; rename it and nothing cares.
 //
-// ⚠️ AN EDGE GETS ds5_config, NOT ds5e_config. Nothing yet uses the extra
+// ⚠️ AN EDGE GETS ds5, NOT ds5e. Nothing yet uses the extra
 // buttons, so a separate name would promise a difference that is not there
 // (rhoquinn8217, 2026-09-19).
 function customConfigBase(sessionKind) {
   var kind = settingsKindOf(String(sessionKind || ''));
-  if (kind === 'ds5' || kind === 'ds5_edge') return 'ds5_config';
-  if (kind === 'ds4') return 'ds4_config';
+  if (kind === 'ds5' || kind === 'ds5_edge') return 'ds5';
+  if (kind === 'ds4') return 'ds4';
   // ⚠️ A CABLED XBOX PAD ARRIVES AS "xpad", which settingsKindOf does not map:
   // it carries only the kinds that take configs, and xpad is not one of them.
   // The listener makes the same fallback in rest_fill_capabilities.
-  if (kind === 'xbox' || kind === 'xpad') return 'xbox_config';
+  if (kind === 'xbox' || kind === 'xpad') return 'xbox';
   // ⓘ Anything else, and the Editor tab's New -- which has no controller at
   // all, so there is no kind to name it after.
-  return 'pad_config';
+  return 'pad';
 }
 
 // ⭐ What the picker shows: a preset's LABEL (rhoquinn8217, 2026-10-11), which
