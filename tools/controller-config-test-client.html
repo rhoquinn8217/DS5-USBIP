@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.73 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.74 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,8 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.74 New lists the presets by name, A to Z, as they are shown;
+            custom stays first.
     2.66.73 A config made without a preset is named after the controller
             without "_config" too: ds5, ds4, xbox, or pad (the Editor's
             New), then ds5_2.
@@ -1913,7 +1915,7 @@
 <div class="bar">
   <!-- ⓘ The same number as VERSION at the top of this file, by hand. It sat
        at 2.66.4 for thirty-four versions while VERSION moved on. -->
-  <span class="muted" style="font-size:12px">v2.66.73</span>
+  <span class="muted" style="font-size:12px">v2.66.74</span>
   <label class="muted">agent</label>
   <input id="base" value="http://127.0.0.1:48053" size="26">
   <label class="muted">bearer</label>
@@ -3399,6 +3401,13 @@ function customConfigBase(sessionKind) {
 function presetLabel(p) {
   return (p && (p.label || p.name)) || '';
 }
+function presetsByLabel() {
+  return PRESETS.slice().sort(function(a, b) {
+    var x = presetLabel(a).toLowerCase();
+    var y = presetLabel(b).toLowerCase();
+    return x < y ? -1 : (x > y ? 1 : 0);
+  });
+}
 function presetLabelOf(name) {
   var p = PRESETS.filter(function(x) { return x.name === name; })[0];
   return p ? presetLabel(p) : String(name || '');
@@ -3908,7 +3917,10 @@ function openPresetPicker(ordinal, dev) {
   var html = '<div class="prow">' +
              '<button onclick="openPresetInfo(\'' + esc(ordinal) + '\',\'\')">' +
              'custom</button></div>';
-  PRESETS.forEach(function(p) {
+  // ⭐ BY NAME, A TO Z (rhoquinn8217, 2026-10-11: *"order the pre-set by name
+  // when selecting new pre-set"*): the label as shown, in any case. ⓘ custom
+  // stays first, above them: it is not a preset but the absence of one.
+  presetsByLabel().forEach(function(p) {
     // ⛔ Only presets that suit THIS controller. One that cannot act on it
     // would be a config that silently does nothing.
     // T-232: with no controller there is no kind to narrow to, so every

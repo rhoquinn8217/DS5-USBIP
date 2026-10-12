@@ -383,7 +383,9 @@ inline const Setting kL2GyroStickAiming[] = {
 // and it opens on the stick, which is the one every pad can use.
 // ⓘ gyro-to-stick-L2-aiming came later (2026-10-03) and sits straight after
 // its mouse twin; where it goes is theirs to change.
-// This array IS the order the picker draws, so moving an entry moves the row.
+// ⓘ Since 2026-10-11 the picker lists them by label, A to Z (rhoquinn8217:
+// *"order the pre-set by name when selecting new pre-set"*), so this order is
+// only the API's now; moving an entry no longer moves the row.
 inline const Preset kPresets[] = {
     { "stick-to-mouse", "stick-to-mouse",
       "Right stick moves the cursor, left stick scrolls -- both thumbs where "
