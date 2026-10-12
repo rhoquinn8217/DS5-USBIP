@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.76 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.78 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,10 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.78 The window's title carries the program's build number,
+            "v0.1.0 (N)", from /api/v1/status's product_version_display;
+            from an older listener, the version alone, as before. (2.66.77
+            is the icon address's, on its own branch.)
     2.66.76 The "Can't reach DS5-USBIP" box names the program by its new
             name, DS5-USBIP.exe.
     2.66.75 New lists the presets in rhoquinn8217's order again, the
@@ -1920,7 +1924,7 @@
 <div class="bar">
   <!-- ⓘ The same number as VERSION at the top of this file, by hand. It sat
        at 2.66.4 for thirty-four versions while VERSION moved on. -->
-  <span class="muted" style="font-size:12px">v2.66.76</span>
+  <span class="muted" style="font-size:12px">v2.66.78</span>
   <label class="muted">agent</label>
   <input id="base" value="http://127.0.0.1:48053" size="26">
   <label class="muted">bearer</label>
@@ -9792,9 +9796,12 @@ function startPage() {
   // ⭐ THE PRODUCT'S VERSION COMES FROM THE LISTENER, never a copy here
   // (include/ctm/product.h, served by /api/v1/status). The title is composed
   // from parts and painted again, so the [ctm-app] marker stays on it.
+  // ⭐ With the build number, "0.1.0 (N)", as the listener writes it
+  // (product_version_display, 2026-10-12); an older listener's plain version
+  // otherwise.
   call('GET', '/api/v1/status', undefined, true).then(function(d) {
     if (d && d.product && d.product_version) {
-      BASE_TITLE = d.product + ' Controller Configs - v' + d.product_version;
+      BASE_TITLE = d.product + ' Controller Configs - v' + (d.product_version_display || d.product_version);
       paintTitle();
     }
   }).catch(function() {});

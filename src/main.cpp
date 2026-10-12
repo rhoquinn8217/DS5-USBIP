@@ -713,9 +713,9 @@ int wmain(int argc, wchar_t **argv)
     std::wstring mode = argv[1];
     if (mode == L"version" || mode == L"--version" || mode == L"-v") {
         // ⭐ The product AND the relay it is built around, since both are true
-        // (include/ctm/product.h).
+        // (include/ctm/product.h), with the product's build number.
         std::wcout << widen_ascii(PRODUCT_NAME, strlen(PRODUCT_NAME)) << L" "
-                   << widen_ascii(PRODUCT_VERSION, strlen(PRODUCT_VERSION))
+                   << widen_ascii(PRODUCT_VERSION_DISPLAY, strlen(PRODUCT_VERSION_DISPLAY))
                    << L" (relay: ctm-usbip " << widen_ascii(CTM_VERSION_DISPLAY, strlen(CTM_VERSION_DISPLAY))
                    << L")\n";
         return 0;

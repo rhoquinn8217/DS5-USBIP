@@ -582,6 +582,11 @@ static std::string rest_handle_status(uint16_t agentPort)
     // no copy of its own.
     body += ",\"product\":\"" + rest_json_escape(PRODUCT_NAME) + "\"";
     body += ",\"product_version\":\"" + rest_json_escape(PRODUCT_VERSION) + "\"";
+    // ⭐ And which build (2026-10-12, include/ctm/build_number.h): the number on
+    // its own for a tool, and the version as everything shows it, "0.1.0 (N)",
+    // which the page titles its window with.
+    body += ",\"product_build\":" + std::to_string(PRODUCT_BUILD);
+    body += ",\"product_version_display\":\"" + rest_json_escape(PRODUCT_VERSION_DISPLAY) + "\"";
     // ⓘ Always "tcp" since the ENet transport went (2026-10-08); kept so a
     // client reading it still finds it.
     body += ",\"transport\":\"tcp\"";
