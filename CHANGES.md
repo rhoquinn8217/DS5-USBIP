@@ -142,6 +142,7 @@ carry it; upstream's own history is unchanged.
 | 2026-10-09 | Fixes from a review of the two-TV sessions: a TV's plain stop ends only that TV's session, a session that never connected is cleaned up, the real control port is never handed out as a bridge port, and a nickname belongs to its TV. | `0c9cf3d` |
 | 2026-10-09 | The Controller Configs window: picking the Window Mode already set in the tray brings the window forward; up leaves Advanced's footer, as Esc does; a size button sits beside the Mode picker, with the keyboard's size key to match; "Open on bridge" is a switch for the window opening on every bridge, and follows the tray within a second; the window watches only a full-screen game, and gives it the front back when it closes; and the pad's halo on the Mode picker shows whole. Page 2.66.68. | `c2a6944`, `a93fade`, `cd96dbf`, `131dea4`, `bf54740`, `cf0d11e`, `43bc710`, `ad61948` |
 | 2026-10-09 | Advanced's two sizes: the small is the window as it was set by hand (0.4334 x 0.622 of the screen), the large is the old small (0.68 x 0.73), and the largest size is gone. Page 2.66.70. | `626aa72`, `2636eee` |
+| 2026-10-11 | Presets: each has a label the configs window's picker shows, which may hold anything ("touchpad-to-mouse (DS5\|DS4)"), and a name a config made from it is named after. Configs are named without "_config": touchpad_to_mouse from a preset, ds5 without one. New lists the presets in rhoquinn8217's order. Page 2.66.75. | `090c244`, `09f2b49`, `d5a72d8`, `c4237c7`, `7d1fc92`, `9905cf0` |
 
 ## Files changed
 
@@ -153,7 +154,7 @@ ENet library, removed with the ENet transport).
 ```
  .gitattributes                                |   48 +
  .gitignore                                    |   34 +-
- CHANGES.md                                    |  333 +
+ CHANGES.md                                    |  334 +
  LINK                                          |    0
  README.md                                     |  301 +-
  app/ctm-usbip-tests.vcxproj                   |  140 +
@@ -205,7 +206,7 @@ ENet library, removed with the ENet transport).
  src/app/paired_tv.inl                         |  495 ++
  src/app/protocol_level.inl                    |   77 +
  src/app/rest.inl                              |  880 +++
- src/app/rest_config.inl                       | 1318 ++++
+ src/app/rest_config.inl                       | 1320 ++++
  src/app/rest_config_sessions.inl              |  205 +
  src/app/rest_sessions.inl                     |   33 +
  src/app/rest_shared_section.inl               |   55 +
@@ -235,7 +236,7 @@ ENet library, removed with the ENet transport).
  src/backend/bridge_enet.inl                   |  800 --
  src/backend/bt.inl                            |   24 +-
  src/capture/README.md                         |   14 +
- src/config/config_presets.inl                 |  475 ++
+ src/config/config_presets.inl                 |  493 ++
  src/config/config_store.inl                   |  856 +++
  src/config/config_watcher.inl                 |  170 +
  src/config/device_config.inl                  |  342 +
@@ -276,7 +277,7 @@ ENet library, removed with the ENet transport).
  tests/bridge_handshake_test.cpp               |  631 ++
  tests/button_layout_test.cpp                  | 1189 +++
  tests/capped_log_test.cpp                     |  140 +
- tests/config_store_test.cpp                   |  942 +++
+ tests/config_store_test.cpp                   |  991 +++
  tests/control_caller_test.cpp                 |   73 +
  tests/device_capabilities_test.cpp            |   75 +
  tests/device_config_cache_test.cpp            |  148 +
@@ -325,9 +326,9 @@ ENet library, removed with the ENet transport).
  tests/window_icon_rule_test.cpp               |   86 +
  tests/window_move_test.cpp                    |  136 +
  tests/window_size_rule_test.cpp               |  129 +
- tools/controller-config-test-client.html      | 9777 +++++++++++++++++++++++++
+ tools/controller-config-test-client.html      | 9825 +++++++++++++++++++++++++
  tools/create-desktop-shortcut.bat             |   46 +
  tools/create-desktop-shortcut.ps1             |  148 +
  tools/osk-mockups.py                          |  103 +
- 178 files changed, 54790 insertions(+), 1543 deletions(-)
+ 178 files changed, 54908 insertions(+), 1543 deletions(-)
 ```
