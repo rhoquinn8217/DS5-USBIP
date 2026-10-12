@@ -344,14 +344,22 @@ def main() -> int:
     print("contour {} points -> {} after simplify -> {} cubic segments".format(
         len(contour), len(simple), len(segs)))
 
+    # ⛔ LINE ENDINGS, BOTH WAYS. Python's text mode writes CRLF on Windows and
+    # git stores the file with LF, so a fresh clone has LF on disk while this
+    # script makes CRLF: --check would then shout DRIFT at a file that had not
+    # changed, on a machine where nothing was wrong. Written with explicit LF
+    # so disk and git agree, and compared with the endings normalised so the
+    # answer does not depend on how the file arrived.
     if check:
-        if TARGET.is_file() and TARGET.read_text(encoding="utf-8") == text:
-            print("OK: {} is what this script makes".format(TARGET.name))
-            return 0
+        if TARGET.is_file():
+            have = TARGET.read_text(encoding="utf-8").replace("\r\n", "\n")
+            if have == text.replace("\r\n", "\n"):
+                print("OK: {} is what this script makes".format(TARGET.name))
+                return 0
         print("DRIFT: {} is NOT what this script makes".format(TARGET.name))
         return 1
 
-    TARGET.write_text(text, encoding="utf-8")
+    TARGET.write_text(text, encoding="utf-8", newline="\n")
     print("wrote {} ({} bytes)".format(TARGET.name, len(text)))
     return 0
 
