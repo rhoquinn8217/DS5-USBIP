@@ -159,5 +159,20 @@ int run_home_folder_tests()
         CTM_CHECK(parent_of(L"").empty());
     }
 
+    section("home: a person's files are carried once, and never over their own");
+    {
+        using home_folder::should_carry;
+        CTM_CHECK(should_carry(false, false, true));     // the first start, files beside the program
+        CTM_CHECK(!should_carry(true, false, true));     // carried once already: the note is there
+        CTM_CHECK(!should_carry(false, true, true));     // the person's folder has files of its own
+        CTM_CHECK(!should_carry(false, false, false));   // nothing beside the program to carry
+        // The log is not one of them: it starts afresh.
+        bool logListed = false;
+        for (const wchar_t *name : home_folder::kPersonFiles) {
+            if (std::wstring(name) == L"device.log") logListed = true;
+        }
+        CTM_CHECK(!logListed);
+    }
+
     return 0;
 }

@@ -107,4 +107,24 @@ inline std::wstring find(const std::wstring &exeFolder, HoldsProfiles holdsProfi
     return std::wstring();
 }
 
+// ⭐ WHAT THE FIRST START IN A PERSON'S OWN FOLDER CARRIES OVER (rhoquinn8217,
+// 2026-10-12). A person's files used to live beside the program, and the first
+// start that puts them in their own folder COPIES the ones beside it across:
+// - copies, never moves: the originals stay, so a build pinned to that folder
+//   still finds them, and a copy that fails half way loses nothing;
+// - once: the note it leaves says so, and a person who later empties their
+//   folder does not get the old files back;
+// - never over a person's own: a folder that already holds any of them is
+//   theirs, and is left alone.
+// ⓘ The log is not carried. It starts afresh, and the old one stays where it was.
+constexpr const wchar_t *kCarriedNote = L"carried-over.txt";
+constexpr const wchar_t *kConfigsFolder = L"configs";
+inline const wchar_t *const kPersonFiles[] = { L"ctm-device-config.txt", L"window-state.txt",
+                                               L"keyboard-state.txt" };
+
+inline bool should_carry(bool noteThere, bool personHasAny, bool besideProgramHasAny)
+{
+    return !noteThere && !personHasAny && besideProgramHasAny;
+}
+
 }  // namespace home_folder

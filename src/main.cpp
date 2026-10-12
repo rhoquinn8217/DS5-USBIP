@@ -455,6 +455,58 @@ void ctm_chord_show_ui(const std::string &ordinal)
 
 }
 
+// ⭐ The first start that puts a person's files in their own folder copies the
+// ones beside the program across, once (home_folder::should_carry says when,
+// and why it copies rather than moves). Returns what to add to the line the log
+// writes about the home, since nothing may be logged before settle_home ends.
+std::wstring carry_person_files(const std::wstring &from, const std::wstring &to)
+{
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    if (from.empty() || to.empty() || fs::equivalent(from, to, ec)) return std::wstring();
+    const fs::path src(from), dst(to);
+    const auto holds_any = [](const fs::path &folder) {
+        std::error_code e;
+        for (const wchar_t *name : home_folder::kPersonFiles) {
+            if (fs::exists(folder / name, e)) return true;
+        }
+        const fs::path configs = folder / home_folder::kConfigsFolder;
+        return fs::is_directory(configs, e) && !fs::is_empty(configs, e);
+    };
+    const bool noteThere = fs::exists(dst / home_folder::kCarriedNote, ec);
+    if (!home_folder::should_carry(noteThere, holds_any(dst), holds_any(src))) return std::wstring();
+
+    int carried = 0;
+    std::wstring failed;
+    for (const wchar_t *name : home_folder::kPersonFiles) {
+        std::error_code e;
+        if (!fs::exists(src / name, e)) continue;
+        if (fs::copy_file(src / name, dst / name, fs::copy_options::skip_existing, e)) ++carried;
+        else if (e) failed += std::wstring(L" ") + name;
+    }
+    {
+        std::error_code e;
+        const fs::path configs = src / home_folder::kConfigsFolder;
+        if (fs::is_directory(configs, e)) {
+            fs::copy(configs, dst / home_folder::kConfigsFolder,
+                     fs::copy_options::recursive | fs::copy_options::skip_existing, e);
+            if (e) failed += std::wstring(L" ") + home_folder::kConfigsFolder;
+            else ++carried;
+        }
+    }
+    // ⓘ The note says where the originals are, and its being there is what
+    // stops a second copy. Written last, so a start that dies half way tries
+    // again next time rather than leaving half a person's files behind.
+    {
+        std::wofstream note((dst / home_folder::kCarriedNote).wstring().c_str());
+        note << L"DS5-USBIP copied these here on its first start in this folder, from:\n"
+             << from << L"\n"
+             << L"The originals are still there. This note stops it copying again.\n";
+    }
+    return L"; carried " + std::to_wstring(carried) + L" of a person's files from " + from +
+           (failed.empty() ? std::wstring() : L" (could not copy:" + failed + L")");
+}
+
 // ⭐⭐ THE LISTENER'S HOME, SETTLED BEFORE ANYTHING IS READ OR WRITTEN.
 //
 // The config, the configs folder, the log, the window's state and the settings
@@ -491,6 +543,12 @@ bool settle_home(const std::wstring &asked)
 
     std::wstring home;
     std::wstring passedOver;
+    // ⭐ Whether this run was PINNED to one folder on purpose: --home, or the
+    // file a build leaves beside its exe. A pinned run keeps a person's files
+    // beside the program, exactly as every run did before; an ordinary one
+    // puts them in their own folder. The block above SetCurrentDirectoryW
+    // below says why.
+    bool pinned = false;
     if (!asked.empty()) {
         if (!is_folder(asked)) {
             start_report::failed(L"DS5-USBIP cannot start: --home names a folder that does not exist.\n\n" + asked);
@@ -498,6 +556,7 @@ bool settle_home(const std::wstring &asked)
         }
         home = full(asked);
         home_folder::g_chosen_how = L"named with --home";
+        pinned = true;
     }
     if (home.empty()) {
         const std::wstring pointerPath = exeFolder + L"\\" + home_folder::kPointerFile;
@@ -508,6 +567,7 @@ bool settle_home(const std::wstring &asked)
             if (!named.empty() && is_folder(named)) {
                 home = full(named);
                 home_folder::g_chosen_how = std::wstring(L"named by ") + home_folder::kPointerFile + L" beside the exe";
+                pinned = true;
             } else if (!named.empty()) {
                 passedOver = std::wstring(L"; ") + home_folder::kPointerFile + L" beside the exe names a folder that is not there: " + named;
             }
@@ -539,9 +599,54 @@ bool settle_home(const std::wstring &asked)
         }
     }
 
-    if (!SetCurrentDirectoryW(home.c_str())) {
+    // ⭐⭐ WHERE A PERSON'S FILES LIVE, AND WHY IT IS NOT BESIDE THE PROGRAM.
+    //
+    // Everything a person owns -- configs\, device.log, the window's place and
+    // the keyboard's -- is opened by a relative path, so it lands in whatever
+    // the working directory is. That used to be the program's own folder,
+    // which is fine for a zip extracted somewhere writable and impossible once
+    // the program is installed: Program Files is not writable by a normal
+    // user, so every save fails and NOTHING SAYS SO. The settings just never
+    // come back.
+    //
+    // ⭐ So an ordinary run works from %LOCALAPPDATA%\DS5-USBIP, and the
+    // program's own files go on being found beside the exe: both asset
+    // look-ups already try the exe's folder (find_relative_asset in agent.inl,
+    // find_ds5_descriptor_profile in common.inl), so neither depends on the
+    // working directory.
+    //
+    // ⓘ ONE FOLDER, AND LOCAL RATHER THAN ROAMING. Local is the right kind of
+    // folder for a 20 MB log. Putting the configs in %APPDATA% as well, so
+    // they follow a person between domain machines, would mean handing the log
+    // writer an absolute path -- and it opens its file with a NARROW one,
+    // which breaks the moment a user name is not plain ASCII. A relative path
+    // has no such problem: Windows resolves it against the working directory
+    // itself, in wide form.
+    //
+    // ⓘ A PINNED RUN IS LEFT ALONE. --home, and a checkout whose build leaves
+    // home-folder.txt beside the exe, both keep everything together in the
+    // folder they named, exactly as before.
+    std::wstring working = home;
+    if (!pinned) {
+        wchar_t buf[MAX_PATH] = {};
+        const DWORD len = GetEnvironmentVariableW(L"LOCALAPPDATA", buf, ARRAYSIZE(buf));
+        if (len > 0 && len < ARRAYSIZE(buf)) {
+            const std::wstring folder = std::wstring(buf) + L"\\DS5-USBIP";
+            if (CreateDirectoryW(folder.c_str(), nullptr) || GetLastError() == ERROR_ALREADY_EXISTS) {
+                working = folder;
+                home_folder::g_chosen_how += L"; a person's files in " + folder;
+                // ⭐ And the ones that lived beside the program come too, once.
+                home_folder::g_chosen_how += carry_person_files(home, folder);
+            }
+            // ⓘ Falling through when that fails is deliberate: a listener that
+            // runs from beside its program is worth more than one that refuses
+            // to start because a folder could not be made.
+        }
+    }
+
+    if (!SetCurrentDirectoryW(working.c_str())) {
         start_report::failed(last_error_message(L"DS5-USBIP cannot start: its folder could not be entered") +
-                             L"\n\n" + home);
+                             L"\n\n" + working);
         return false;
     }
     return true;

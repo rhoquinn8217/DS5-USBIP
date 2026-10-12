@@ -35,6 +35,7 @@ inline const UINT kIdToggle   = 1;
 inline const UINT kIdSettings = 2;
 inline const UINT kIdQuit     = 3;
 inline const UINT kIdOpenOnBridge = 4;
+inline const UINT kIdOpenFolder = 5;
 // ⓘ The title's line. Choosing it closes the menu and does nothing else.
 inline const UINT kIdHeader   = 10;
 // ⓘ One id for each line of the Controllers list, in the order it was read as
@@ -377,6 +378,7 @@ inline void show_menu(HWND hwnd)
     // way back to it.
     AppendMenuW(menu, MF_STRING, kIdSettings, tray_menu::kOpenConfig);
     AppendMenuW(menu, MF_STRING, kIdToggle, tray_menu::keyboard_line(ctm_overlay::visible()));
+    AppendMenuW(menu, MF_STRING, kIdOpenFolder, tray_menu::kOpenFolder);
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
 
     // ---- Window Mode: the window's layout, the padlock on the one it is in ---
@@ -440,6 +442,18 @@ inline void show_menu(HWND hwnd)
         const bool on = !ui_open_on_bridge();
         ui_set_open_on_bridge(on);
         device_log::session_w() << L"tray: Open on bridge is " << (on ? L"on" : L"off") << L" now";
+        break;
+    }
+    case kIdOpenFolder: {
+        // ⓘ The working directory IS the person's folder (settle_home in
+        // main.cpp): its configs folder when there is one yet, else the folder.
+        wchar_t here[MAX_PATH] = {};
+        const DWORD len = GetCurrentDirectoryW(ARRAYSIZE(here), here);
+        if (len == 0 || len >= ARRAYSIZE(here)) break;
+        std::wstring target = std::wstring(here) + L"\\configs";
+        if (GetFileAttributesW(target.c_str()) == INVALID_FILE_ATTRIBUTES) target = here;
+        ShellExecuteW(nullptr, L"open", target.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+        device_log::session_w() << L"tray: opened " << target;
         break;
     }
     case kIdSettings:
