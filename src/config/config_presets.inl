@@ -374,18 +374,17 @@ inline const Setting kL2GyroStickAiming[] = {
 // sit at the BOTTOM (rhoquinn8217, 2026-09-10). A list that opens with a preset
 // half its readers cannot use asks them to skip past it every time.
 //
-// THE EXACT ORDER IS rhoquinn8217'S, GIVEN 2026-09-20 and listed in full:
-// stick-to-mouse, gyro-to-mouse-always-on, gyro-to-mouse-on-r3,
-// gyro-to-mouse-on-L2-aiming, DS5-gyro-to-mouse, DS5-DS4-touchpad-to-mouse.
-// ⓘ The names changed on 2026-10-11, and every preset gained a label for the
-// picker (see struct Preset); the order did not.
+// THE EXACT ORDER IS rhoquinn8217'S, GIVEN 2026-09-20 AND AGAIN 2026-10-11,
+// each time listed in full. The second, by the labels the picker shows: custom
+// (the page's own first row, not a preset), stick-to-mouse, gyro-to-stick (on
+// L2 for aiming), gyro-to-mouse (always on), gyro-to-mouse (on r3),
+// gyro-to-mouse (on L2 for aiming), gyro-to-mouse (DS5 adaptive triggers),
+// touchpad-to-mouse (DS5|DS4). ⓘ An A-to-Z picker came and went the same day:
+// the order is theirs, not the alphabet's.
 // It still honours the rule above -- the two DualSense-only shapes are last --
 // and it opens on the stick, which is the one every pad can use.
-// ⓘ gyro-to-stick-L2-aiming came later (2026-10-03) and sits straight after
-// its mouse twin; where it goes is theirs to change.
-// ⓘ Since 2026-10-11 the picker lists them by label, A to Z (rhoquinn8217:
-// *"order the pre-set by name when selecting new pre-set"*), so this order is
-// only the API's now; moving an entry no longer moves the row.
+// This array IS the order the picker draws, so moving an entry moves the row;
+// the test "presets: the order is rhoquinn8217's" holds it.
 inline const Preset kPresets[] = {
     { "stick-to-mouse", "stick-to-mouse",
       "Right stick moves the cursor, left stick scrolls -- both thumbs where "
@@ -398,6 +397,15 @@ inline const Preset kPresets[] = {
       // were silent there; now a trigger past a threshold is a press
       // (kSpotTriggerTravel, button_layout.inl).
       true, true, true, true, kStickMouseMode, CTM_PRESET_COUNT_OF(kStickMouseMode) },
+    { "gyro-to-stick-L2-aiming", "gyro-to-stick (on L2 for aiming)",
+      "For playing, in a game that will not take a mouse alongside a "
+      "controller: while L2 is held, the gyro moves the right stick, so the "
+      "camera is steady while you move and precise when you aim. Nothing else "
+      "is bound.",
+      // The same pads as its mouse twin, gyro-to-mouse-L2-aiming, for the same
+      // reasons. ⓘ Its help began "The same, ..." until 2026-10-11, when the
+      // two stopped being neighbours in the list.
+      true, true, true, false, kL2GyroStickAiming, CTM_PRESET_COUNT_OF(kL2GyroStickAiming) },
     { "gyro-to-mouse-always-on", "gyro-to-mouse (always on)",
       "Tilt the controller to move the cursor, always on -- no trigger to "
       "hold. The most precise of the three for small movements, and the one "
@@ -420,13 +428,7 @@ inline const Preset kPresets[] = {
       "else is bound: every button stays with the game.",
       // A gyro and an analog L2: DualSense, Edge, DS4.
       true, true, true, false, kL2GyroAiming, CTM_PRESET_COUNT_OF(kL2GyroAiming) },
-    { "gyro-to-stick-L2-aiming", "gyro-to-stick (on L2 for aiming)",
-      "The same, for a game that will not take a mouse alongside a controller: "
-      "while L2 is held, the gyro moves the right stick instead of the cursor. "
-      "Nothing else is bound.",
-      // The same pads as its mouse twin, for the same reasons.
-      true, true, true, false, kL2GyroStickAiming, CTM_PRESET_COUNT_OF(kL2GyroStickAiming) },
-    { "gyro-to-mouse-DS5-AT", "gyro-to-mouse (DS5+adaptive triggers)",
+    { "gyro-to-mouse-DS5-AT", "gyro-to-mouse (DS5 adaptive triggers)",
       "The gyro moves the cursor and a trigger holds it still. Start to pull "
       "and the cursor stops; push past the break and it clicks. Keep holding "
       "to drag. R2 is left click, L2 is right click, one finger scrolls.",

@@ -562,6 +562,25 @@ int run_config_store_tests()
         }
     }
 
+    section("presets: the order is rhoquinn8217's");
+    {
+        // ⭐ The picker draws the array as it stands, and the order is theirs
+        // (2026-10-11, listed in full by label; custom is the page's own first
+        // row, not a preset).
+        const char *const order[] = { "stick-to-mouse", "gyro-to-stick-L2-aiming",
+                                      "gyro-to-mouse-always-on", "gyro-to-mouse-r3-hold",
+                                      "gyro-to-mouse-L2-aiming", "gyro-to-mouse-DS5-AT",
+                                      "touchpad-to-mouse" };
+        const size_t want = sizeof(order) / sizeof(order[0]);
+        CTM_CHECK(ctm_presets::preset_count() == want);
+        for (size_t i = 0; i < ctm_presets::preset_count() && i < want; ++i) {
+            CTM_CHECK(std::string(ctm_presets::kPresets[i].name) == order[i]);
+        }
+        if (const ctm_presets::Preset *at = ctm_presets::find("gyro-to-mouse-DS5-AT")) {
+            CTM_CHECK(std::string(at->label) == "gyro-to-mouse (DS5 adaptive triggers)");
+        }
+    }
+
     section("presets: every mouse mode shares the desktop bindings");
     {
         const char *const names[] = { "gyro-to-mouse-always-on", "touchpad-to-mouse",
