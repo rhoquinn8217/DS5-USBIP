@@ -1,6 +1,6 @@
 // Serving the settings page.
 //
-// ⭐ WHY THE AGENT SERVES IT. Someone given only ctm-usbip.exe has no tools
+// ⭐ WHY THE AGENT SERVES IT. Someone given only DS5-USBIP.exe has no tools
 // folder, so a page loaded from a file path does not exist for them. Serving it
 // from the binary means the exe is the whole product.
 //

@@ -1,4 +1,4 @@
-// Win32 version resource for ctm-usbip.exe. The version values come from
+// Win32 version resource for DS5-USBIP.exe. The version values come from
 // include/ctm/version.h (single source of truth) so the file's Properties >
 // Details tab and any tooling that reads the PE version match the product.
 // The PRODUCT fields are DS5-USBIP's own (include/ctm/product.h); the FILE
@@ -33,8 +33,8 @@ BEGIN
             VALUE "CompanyName", "CTM"
             VALUE "FileDescription", PRODUCT_NAME
             VALUE "FileVersion", CTM_VERSION_FULL_STR
-            VALUE "InternalName", "ctm-usbip"
-            VALUE "OriginalFilename", "ctm-usbip.exe"
+            VALUE "InternalName", "DS5-USBIP"
+            VALUE "OriginalFilename", "DS5-USBIP.exe"
             VALUE "ProductName", PRODUCT_NAME
             VALUE "ProductVersion", PRODUCT_VERSION
         END

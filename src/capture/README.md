@@ -1,6 +1,6 @@
 # ctm-capture: not part of the listener
 
-Nothing in this folder is compiled into `ctm-usbip.exe`. It is a separate
+Nothing in this folder is compiled into `DS5-USBIP.exe`. It is a separate
 program, `ctm-capture.exe`, built only with `build.ps1 -WithCapture`
 (`app\ctm-capture.vcxproj`).
 
