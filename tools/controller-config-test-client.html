@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.75 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.76 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -13,7 +13,7 @@
   opens on http://127.0.0.1:48053/ (the settings port since 2026-10-06; it
   was 48055, which is also the TV's first bridge port).
 
-    ctm-usbip.exe agent 48054 --ui        (or double-click the exe)
+    DS5-USBIP.exe agent 48054 --ui        (or double-click the exe)
 
   ⛔ Not as a file. Opened from disk it cannot reach the listener: no CORS
   header is sent, and a page from a file (Origin "null") is refused (code
@@ -25,6 +25,8 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.76 The "Can't reach DS5-USBIP" box names the program by its new
+            name, DS5-USBIP.exe.
     2.66.75 New lists the presets in rhoquinn8217's order again, the
             listener's, not A to Z; and the DS5 one reads gyro-to-mouse
             (DS5 adaptive triggers).
@@ -1909,7 +1911,7 @@
   <h2><span style="color:#ff8f8f">&#10007;</span> Can't reach DS5-USBIP</h2>
   <p class="muted">No reply from <code id="downAddr"></code>.</p>
   <p>If it was closed, start it again: the DS5-USBIP shortcut on the desktop,
-  or double-click <code>ctm-usbip.exe</code>.</p>
+  or double-click <code>DS5-USBIP.exe</code>.</p>
   <p>If it is restarting, wait: Controller Configs comes back by itself.</p>
 </div>
 
@@ -1918,7 +1920,7 @@
 <div class="bar">
   <!-- ⓘ The same number as VERSION at the top of this file, by hand. It sat
        at 2.66.4 for thirty-four versions while VERSION moved on. -->
-  <span class="muted" style="font-size:12px">v2.66.75</span>
+  <span class="muted" style="font-size:12px">v2.66.76</span>
   <label class="muted">agent</label>
   <input id="base" value="http://127.0.0.1:48053" size="26">
   <label class="muted">bearer</label>
@@ -2352,7 +2354,7 @@ function showOfflineHelp() {
     '<strong>DS5-USBIP is not answering.</strong>' +
     '<div class="muted" style="margin-top:8px;line-height:1.7">' +
     'If it was closed, start it again: the DS5-USBIP shortcut on the desktop, ' +
-    'or double-click <code>ctm-usbip.exe</code>.<br>' +
+    'or double-click <code>DS5-USBIP.exe</code>.<br>' +
     'If it is restarting, wait: Controller Configs comes back by itself.' +
     '</div>';
   var host = document.getElementById('stickyTop');

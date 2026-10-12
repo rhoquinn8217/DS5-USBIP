@@ -33,12 +33,12 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <OutDir>$(ProjectDir)..\out\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)..\out\obj\$(Platform)\$(Configuration)\</IntDir>
-    <TargetName>ctm-usbip</TargetName>
+    <TargetName>DS5-USBIP</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <OutDir>$(ProjectDir)..\out\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)..\out\obj\$(Platform)\$(Configuration)\</IntDir>
-    <TargetName>ctm-usbip</TargetName>
+    <TargetName>DS5-USBIP</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>

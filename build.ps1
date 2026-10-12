@@ -97,7 +97,7 @@ if (-not (Test-Path $opusHeader)) {
 # --- Embed the settings page ------------------------------------------------
 # ⭐ BEFORE msbuild, because the generated header is compiled into the exe.
 #
-# The page has to live INSIDE the binary: someone given only ctm-usbip.exe has
+# The page has to live INSIDE the binary: someone given only DS5-USBIP.exe has
 # no tools folder, and --ui would otherwise have nothing to serve.
 #
 # ⛔ Fails the build rather than warning. A stale generated header compiles
@@ -167,7 +167,7 @@ Copy-Item -Force -Path (Join-Path $Root 'third_party\ffmpeg\x64\release\bin\*.dl
 [System.IO.File]::WriteAllText((Join-Path $out 'home-folder.txt'), "..\..\..`r`n",
                                (New-Object System.Text.ASCIIEncoding))
 
-Write-Host "Built: $(Join-Path $out 'ctm-usbip.exe')"
+Write-Host "Built: $(Join-Path $out 'DS5-USBIP.exe')"
 
 if ($WithUsbDisplay) {
     $displayProject = Join-Path $Root 'app\ctm-usbdisplay.vcxproj'

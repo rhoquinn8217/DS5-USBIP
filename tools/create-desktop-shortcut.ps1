@@ -19,7 +19,7 @@
 # to run it in the background and the tray icon to be the place where it is
 # closed."
 #
-# ctm-usbip.exe is a Windows program with no console of its own. Started with
+# DS5-USBIP.exe is a Windows program with no console of its own. Started with
 # no arguments and no terminal, which is what a shortcut does, it runs the
 # listener in the background and opens the settings page. Nothing flashes up,
 # and what is left on screen is the DS5-USBIP icon in the tray.
@@ -68,11 +68,11 @@ if ([string]::IsNullOrWhiteSpace($FolderPath)) { $FolderPath = $PSScriptRoot }
 # that it works when nothing else is.
 $here = (Resolve-Path -LiteralPath $FolderPath).ProviderPath
 
-$exe = Join-Path $here 'ctm-usbip.exe'
+$exe = Join-Path $here 'DS5-USBIP.exe'
 
 if (-not (Test-Path -LiteralPath $exe)) {
     Write-Host ''
-    Write-Host 'ERROR: ctm-usbip.exe is not in this folder.' -ForegroundColor Red
+    Write-Host 'ERROR: DS5-USBIP.exe is not in this folder.' -ForegroundColor Red
     Write-Host ''
     Write-Host "  looked in: $here"
     Write-Host ''
@@ -93,7 +93,7 @@ if ([string]::IsNullOrWhiteSpace($desktop) -or -not (Test-Path -LiteralPath $des
     Write-Host 'ERROR: could not find your desktop folder.' -ForegroundColor Red
     Write-Host ''
     Write-Host '  You can still start DS5-USBIP by double-clicking'
-    Write-Host "  ctm-usbip.exe in $here"
+    Write-Host "  DS5-USBIP.exe in $here"
     Write-Host ''
     exit 1
 }

@@ -532,7 +532,7 @@ bool settle_home(const std::wstring &asked)
             // front of the exe, the exe makes it.
             start_report::failed(
                 L"DS5-USBIP cannot start: the profiles folder is missing.\n\n"
-                L"ctm-usbip.exe needs its profiles and maps folders beside it. "
+                L"DS5-USBIP.exe needs its profiles and maps folders beside it. "
                 L"Extract the whole zip, keep the folder together, and start it again.\n\n"
                 L"Looked beside: " + exeFolder);
             return false;
@@ -1050,7 +1050,7 @@ int wmain(int argc, wchar_t **argv)
         }
     }
 
-    std::cout << "ctm-usbip running; press Ctrl+C to stop" << std::endl;
+    std::cout << "DS5-USBIP running; press Ctrl+C to stop" << std::endl;
     while (!g_stop.load()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }

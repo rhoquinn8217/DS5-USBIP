@@ -22,8 +22,8 @@ $ErrorActionPreference = 'Stop'
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $binaries = Join-Path $Root "out\$Platform\$Configuration"
 
-if (-not (Test-Path (Join-Path $binaries 'ctm-usbip.exe'))) {
-    throw "ctm-usbip.exe not found in $binaries -- run build.ps1 first"
+if (-not (Test-Path (Join-Path $binaries 'DS5-USBIP.exe'))) {
+    throw "DS5-USBIP.exe not found in $binaries -- run build.ps1 first"
 }
 
 # ⚠️ Not a hand-typed version by default. One that does not match the binary is
@@ -62,13 +62,16 @@ $stage = Join-Path $Root "out\release\DS5-USBIP-$Version"
 # below). A half-staged folder with no exe in it is somebody's shortcut that
 # no longer starts.
 $aside = "$stage.previous"
-$retired = @('start-ctm-usbip.bat')    # shipped once and not any more: not put back
+# shipped once and not any more: not put back. The program was ctm-usbip.exe
+# until 2026-10-12, and an old one left beside DS5-USBIP.exe would be a second
+# listener for a double-click to find.
+$retired = @('start-ctm-usbip.bat', 'ctm-usbip.exe', 'ctm-usbip.pdb')
 $staging = $false
 
 # ⛔ Not while it is running from there. Windows will not let a running exe be
 # replaced, and finding that out half way through is how a folder gets left in
 # pieces.
-$running = @(Get-CimInstance Win32_Process -Filter "Name='ctm-usbip.exe'" |
+$running = @(Get-CimInstance Win32_Process -Filter "Name='DS5-USBIP.exe' or Name='ctm-usbip.exe'" |
              Where-Object { $_.ExecutablePath -and
                             $_.ExecutablePath.StartsWith("$stage\", [System.StringComparison]::OrdinalIgnoreCase) })
 if ($running.Count -gt 0) {
@@ -101,7 +104,7 @@ New-Item -ItemType Directory -Force -Path $stage | Out-Null
 New-Item -ItemType Directory -Force -Path (Join-Path $stage 'profiles\descriptors') | Out-Null
 New-Item -ItemType Directory -Force -Path (Join-Path $stage 'maps') | Out-Null
 
-Copy-Item -Force -Path (Join-Path $binaries 'ctm-usbip.exe') -Destination $stage
+Copy-Item -Force -Path (Join-Path $binaries 'DS5-USBIP.exe') -Destination $stage
 Copy-Item -Force -Path (Join-Path $binaries '*.dll') -Destination $stage
 
 # ⛔ Copied from the REPO, not from the build output. The build output is a
@@ -135,7 +138,7 @@ $readme = @"
 DS5-USBIP $Version
 ==================
 
-Start it: double-click ctm-usbip.exe
+Start it: double-click DS5-USBIP.exe
 
 It runs in the background. No window opens for it: look for the DS5-USBIP icon
 in the tray, by the clock. Click it for Controller Configs, where each
@@ -153,7 +156,7 @@ in this folder. The prompt comes straight back and the listener's lines follow
 in the same window. Ctrl+C in that window ends it, and so does closing the
 window or choosing Quit from the tray icon:
 
-    ctm-usbip.exe agent --ui --verbose
+    DS5-USBIP.exe agent --ui --verbose
 
 IMPORTANT: FIRST, install usbip-win2 0.9.77 from
 https://github.com/vadimgrn/usbip-win2/releases -- a separate project whose
@@ -171,7 +174,7 @@ step with the version you are running.
 
 What is in here, and what each part is for:
 
-    ctm-usbip.exe             the listener: double-click it
+    DS5-USBIP.exe             the listener: double-click it
     create-desktop-shortcut.bat   puts a shortcut to it on your desktop
     *.dll                     ffmpeg, for audio
     profiles\descriptors\     what each controller looks like over USB
@@ -191,7 +194,7 @@ These are created next to the exe as you use it:
 ctm-device-config.txt, if it is there, holds settings shared by every
 controller with no config of its own. Nothing creates it: it is written by hand.
 
-Full documentation: https://github.com/rhoquinn8217/CTM-USBIP
+Full documentation: https://github.com/rhoquinn8217/DS5-USBIP
 "@
 [System.IO.File]::WriteAllText((Join-Path $stage 'README.txt'), $readme,
                                (New-Object System.Text.UTF8Encoding($false)))
