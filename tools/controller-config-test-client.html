@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.70 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.75 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,22 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.75 New lists the presets in rhoquinn8217's order again, the
+            listener's, not A to Z; and the DS5 one reads gyro-to-mouse
+            (DS5 adaptive triggers).
+    2.66.74 New lists the presets by name, A to Z, as they are shown;
+            custom stays first.
+    2.66.73 A config made without a preset is named after the controller
+            without "_config" too: ds5, ds4, xbox, or pad (the Editor's
+            New), then ds5_2.
+    2.66.72 A config made from a preset is named without "_config":
+            touchpad_to_mouse, then touchpad_to_mouse_2. One made without
+            a preset is still ds5_config and the like.
+    2.66.71 The preset picker shows each preset's label, and a config made
+            from one is named after its name: the picker shows
+            "touchpad-to-mouse (DS5|DS4)", and its configs are
+            touchpad_to_mouse_config. Any character in a name a config
+            name cannot hold becomes _.
     2.66.70 Advanced's small is wider: 0.4334 x 0.622 of the screen, the
             size this window was then set to by hand (2.66.69's was a
             third too narrow).
@@ -1902,7 +1918,7 @@
 <div class="bar">
   <!-- ⓘ The same number as VERSION at the top of this file, by hand. It sat
        at 2.66.4 for thirty-four versions while VERSION moved on. -->
-  <span class="muted" style="font-size:12px">v2.66.70</span>
+  <span class="muted" style="font-size:12px">v2.66.75</span>
   <label class="muted">agent</label>
   <input id="base" value="http://127.0.0.1:48053" size="26">
   <label class="muted">bearer</label>
@@ -3339,13 +3355,25 @@ function nextNameFrom(base) {
 
 // ⭐ THE NAME SAYS WHAT THE CONFIG DOES (rhoquinn8217, 2026-08-31). A list of
 // ds5_config_2, ds5_config_3, ds5_config_4 tells you nothing about which is
-// which, so a preset names its own configs: gyro-to-mouse makes
-// gyro_to_mouse_config, then _2, _3.
+// which, so a preset names its own configs: gyro-to-mouse-always-on makes
+// gyro_to_mouse_always_on, then _2, _3. ⓘ With no "_config" since 2026-10-11
+// (rhoquinn8217: *"remove the _config from the names. They aren't needed."*).
+// A config made without a preset is named after the controller, below, and
+// lost its "_config" the same day.
 //
-// ⓘ Hyphens become underscores because a config name is also a FILENAME and a
-// section name; the preset keeps the hyphens because it is only ever a label.
+// ⓘ Everything but letters and digits becomes an underscore, a run of them
+// one, because a config name is also a FILENAME and a section name: the store
+// takes letters, digits, _ and - alone. The preset keeps its own characters
+// because it is only ever a label (rhoquinn8217, 2026-10-11: *"since it can be
+// anything lets show it like this touchpad-to-mouse (DS5|DS4)"*). Until then
+// only the hyphens were swapped, and a preset named with a "/" or a bracket
+// would have made a name the store refuses.
 // ⭐⭐ AND A CONFIG WITH NO PRESET IS NAMED AFTER THE PAD (rhoquinn8217,
-// 2026-09-19): ds5_config, ds4_config, xbox_config, or pad_config.
+// 2026-09-19): ds5, ds4, xbox, or pad. ⓘ They were ds5_config and the like
+// until 2026-10-11 (rhoquinn8217: *"remove "_config" from the custom config
+// names too"*). A config named ds5 does not shadow the shared ds5 section: a
+// named config's settings live in their own section, cfg:ds5
+// (config_store::config_section), and an unlinked device reads "shared".
 //
 // ⛔ THIS REVERSES THE RULE THAT STOOD HERE, and the old reasoning is worth
 // keeping: a blank config was my_config precisely so that naming it after the
@@ -3355,27 +3383,44 @@ function nextNameFrom(base) {
 // the name as a restriction, and my_config told you nothing at all about a list
 // of them. ⓘ The name is still only a label; rename it and nothing cares.
 //
-// ⚠️ AN EDGE GETS ds5_config, NOT ds5e_config. Nothing yet uses the extra
+// ⚠️ AN EDGE GETS ds5, NOT ds5e. Nothing yet uses the extra
 // buttons, so a separate name would promise a difference that is not there
 // (rhoquinn8217, 2026-09-19).
 function customConfigBase(sessionKind) {
   var kind = settingsKindOf(String(sessionKind || ''));
-  if (kind === 'ds5' || kind === 'ds5_edge') return 'ds5_config';
-  if (kind === 'ds4') return 'ds4_config';
+  if (kind === 'ds5' || kind === 'ds5_edge') return 'ds5';
+  if (kind === 'ds4') return 'ds4';
   // ⚠️ A CABLED XBOX PAD ARRIVES AS "xpad", which settingsKindOf does not map:
   // it carries only the kinds that take configs, and xpad is not one of them.
   // The listener makes the same fallback in rest_fill_capabilities.
-  if (kind === 'xbox' || kind === 'xpad') return 'xbox_config';
+  if (kind === 'xbox' || kind === 'xpad') return 'xbox';
   // ⓘ Anything else, and the Editor tab's New -- which has no controller at
   // all, so there is no kind to name it after.
-  return 'pad_config';
+  return 'pad';
+}
+
+// ⭐ What the picker shows: a preset's LABEL (rhoquinn8217, 2026-10-11), which
+// may hold anything. Its name is what a config made from it is named after.
+function presetLabel(p) {
+  return (p && (p.label || p.name)) || '';
+}
+function presetLabelOf(name) {
+  var p = PRESETS.filter(function(x) { return x.name === name; })[0];
+  return p ? presetLabel(p) : String(name || '');
 }
 
 function nextConfigName(sessionKind, presetName) {
   var base = presetName
-    ? presetName.replace(/-/g, '_') + '_config'
+    ? configStemOf(presetName)
     : customConfigBase(sessionKind);
   return nextNameFrom(base);
+}
+
+// touchpad-to-mouse -> touchpad_to_mouse, and a name with any other character
+// the same way: "a (b|c)" -> a_b_c. The listener's config_store_test holds
+// every preset's name to it.
+function configStemOf(presetName) {
+  return String(presetName).replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
 }
 
 // A copy keeps its source's base name and takes the next number, so copying
@@ -3868,6 +3913,9 @@ function openPresetPicker(ordinal, dev) {
   var html = '<div class="prow">' +
              '<button onclick="openPresetInfo(\'' + esc(ordinal) + '\',\'\')">' +
              'custom</button></div>';
+  // ⭐ IN THE LISTENER'S ORDER, WHICH IS rhoquinn8217'S (config_presets.inl,
+  // given in full 2026-10-11). ⓘ An A-to-Z sort here came and went the same
+  // day. custom stays first: it is not a preset but the absence of one.
   PRESETS.forEach(function(p) {
     // ⛔ Only presets that suit THIS controller. One that cannot act on it
     // would be a config that silently does nothing.
@@ -3878,7 +3926,7 @@ function openPresetPicker(ordinal, dev) {
     html += '<div class="prow">' +
             '<button data-preset="' + esc(p.name) + '" ' +
             'onclick="openPresetInfo(\'' + esc(ordinal) + '\',\'' +
-            esc(p.name) + '\')">' + esc(p.name) + '</button></div>';
+            esc(p.name) + '\')">' + esc(presetLabel(p)) + '</button></div>';
   });
   document.getElementById('presetList').innerHTML = html;
   document.getElementById('presetBox').style.display = 'flex';
@@ -4043,7 +4091,7 @@ function openPresetInfo(ordinal, presetName) {
         settings: [] };
   if (!p) return;
   var rows = presetInfoRows(p.settings);
-  document.getElementById('presetInfoTitle').textContent = p.name;
+  document.getElementById('presetInfoTitle').textContent = presetLabel(p);
   document.getElementById('presetInfoText').textContent = p.help || '';
   // ⓘ In the settings page's own section order, so the preview reads in the
   // same order as the thing it is previewing.
@@ -4113,7 +4161,7 @@ function createFromPreset(ordinal, preset) {
     // under the same name follow it (linkParts).
     .then(function() { return ordinal ? linkParts(ordinal, { config: name }, ordinal) : null; })
     .then(function() {
-      setConn('created ' + name + (preset ? ' from ' + preset : ''), 'good');
+      setConn('created ' + name + (preset ? ' from ' + presetLabelOf(preset) : ''), 'good');
       loadConfigs(); loadDevices();
       // T-232: made from the Editor tab, so show it there. Pressing New and
       // being left on an empty editor would be its own puzzle.

@@ -988,6 +988,8 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
             const ctm_presets::Preset &p = ctm_presets::kPresets[i];
             if (i) body += ",";
             body += "{\"name\":\"" + rest_json_escape(p.name) + "\"";
+            // ⭐ What the picker shows; the name is what a config is named after.
+            body += ",\"label\":\"" + rest_json_escape(p.label) + "\"";
             body += ",\"help\":\"" + rest_json_escape(p.help) + "\"";
             // ⭐ The settings themselves, so a UI can show what the preset
             // DOES rather than a sentence about it. ⓘ Derived display beats a

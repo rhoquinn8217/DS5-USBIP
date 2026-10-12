@@ -275,7 +275,7 @@ int run_gyro_mouse_tests()
         // its spot IS the travel and the two agree exactly, while a DualSense
         // reports a bit that sets far lighter than 12%. Routing the triggers
         // through is_pressed() would have compiled, passed on an Xbox pad, and
-        // turned gyro-to-mouse-on-L2-aiming into a hair trigger on the pad it
+        // turned gyro-to-mouse-L2-aiming into a hair trigger on the pad it
         // was written for.
         auto light = make_report(0, 0, /*l2*/ 20);   // pulled, but under 12%
         auto firm  = make_report(0, 0, /*l2*/ 40);   // past it

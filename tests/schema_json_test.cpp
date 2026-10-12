@@ -145,7 +145,7 @@ int run_schema_json_tests()
 
     // T-235: R3 is a gate the parser knows, but the PAGE only offers what the
     // schema lists -- a gate missing from the choices cannot be picked, and the
-    // gyro-to-mouse-on-r3 preset would be the only way to reach it.
+    // gyro-to-mouse-r3-hold preset would be the only way to reach it.
     const size_t gateAt = json.find("\"key\":\"gyro_to_mouse_gate\"");
     CTM_CHECK(gateAt != std::string::npos);
     if (gateAt != std::string::npos) {
