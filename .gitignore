@@ -46,3 +46,10 @@ device.log.1
 # T-239: the settings window's remembered place, size and layout.
 # Runtime state beside device.log and configs/, not source.
 window-state.txt
+
+# The on-screen keyboard's remembered place, and the note a first start leaves
+# in a person's folder: a person's files, like window-state.txt. Ignored also
+# because build-number.ps1 refuses a tree with anything uncommitted in it, and
+# a listener run from a checkout writes them there.
+keyboard-state.txt
+carried-over.txt

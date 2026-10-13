@@ -4,8 +4,8 @@
 ; usbip-win2 driver with it, so the only setup left for a person is the TV app.
 ;
 ; Build:  installer\build-ds5-installer.ps1
-;   or:   ISCC.exe /DAppVersion=0.1.0 installer\ds5-usbip.iss
-; Output: out\installer\DS5-USBIP-Setup.exe
+;   or:   ISCC.exe /DAppVersion=0.1.0 /DAppBuild=12 installer\ds5-usbip.iss
+; Output: out\installer\DS5-USBIP-Setup-build-12.exe, named for the build it holds
 ;
 ; ============================================================================
 ; WHAT THIS IS NOT, AND WHY
@@ -55,6 +55,15 @@
   #error Pass the version in: ISCC.exe /DAppVersion=0.1.0 -- or use build-ds5-installer.ps1
 #endif
 
+; THE BUILD NUMBER TOO (2026-10-12): the number every build takes
+; (include/ctm/build_number.h), which build-ds5-installer.ps1 reads off the exe
+; this setup carries. It names the setup's file, so two setups never share a
+; name, and it is the fourth number of the installed version, 0.1.0.N, which
+; Windows' list of installed apps shows.
+#ifndef AppBuild
+  #error Pass the build number in: ISCC.exe /DAppVersion=0.1.0 /DAppBuild=12 -- or use build-ds5-installer.ps1
+#endif
+
 #define AppName "DS5-USBIP"
 #define AppPublisher "rhoquinn8217"
 #define ExeName "DS5-USBIP.exe"
@@ -72,10 +81,10 @@
 ; upgrade and uninstall HIS product on a machine that has it.
 AppId={{5DAD18E8-3795-409F-AEEB-A0CCF8D0EF02}
 AppName={#AppName}
-AppVersion={#AppVersion}
-AppVerName={#AppName} {#AppVersion}
+AppVersion={#AppVersion}.{#AppBuild}
+AppVerName={#AppName} {#AppVersion} ({#AppBuild})
 AppPublisher={#AppPublisher}
-VersionInfoVersion={#AppVersion}
+VersionInfoVersion={#AppVersion}.{#AppBuild}
 DefaultDirName={commonpf64}\{#AppName}
 DisableProgramGroupPage=yes
 DisableDirPage=auto
@@ -84,7 +93,7 @@ ArchitecturesInstallIn64BitMode=x64compatible
 ; admin: the bundled usbip-win2 driver cannot be installed without it.
 PrivilegesRequired=admin
 OutputDir={#SrcRoot}\out\installer
-OutputBaseFilename={#AppName}-Setup
+OutputBaseFilename={#AppName}-Setup-build-{#AppBuild}
 Compression=lzma2
 SolidCompression=yes
 UninstallDisplayName={#AppName}

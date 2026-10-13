@@ -1,5 +1,5 @@
 # Builds DS5-USBIP's installer: the Release exe, then Inno Setup, leaving
-# out\installer\DS5-USBIP-Setup.exe.
+# out\installer\DS5-USBIP-Setup-build-<N>.exe, N being the build it holds.
 #
 #   .\installer\build-ds5-installer.ps1
 #   .\installer\build-ds5-installer.ps1 -SkipBuild     (compile the .iss only)
@@ -89,6 +89,17 @@ if (-not $SkipBuild) {
 $exe = Join-Path $repo "out\x64\$Configuration\DS5-USBIP.exe"
 if (-not (Test-Path $exe)) { throw "DS5-USBIP.exe not found at $exe -- build it first" }
 
+# --- the build number, off the exe the setup will carry ---------------------
+# Not off the source: with -SkipBuild the source can be a build or more ahead
+# of the exe. The fourth number of the exe's product version is its build
+# (app/ctm-usbip.rc, include/ctm/build_number.h), and it names the setup.
+$info = (Get-Item -LiteralPath $exe).VersionInfo
+$exeVersion = '{0}.{1}.{2}' -f $info.ProductMajorPart, $info.ProductMinorPart, $info.ProductBuildPart
+$build = $info.ProductPrivatePart
+if ($exeVersion -ne $version) { throw "DS5-USBIP.exe is $exeVersion, but include/ctm/product.h says $version. Build it again." }
+if ($build -lt 1) { throw "DS5-USBIP.exe carries no build number: it was built before builds took one. Build it again." }
+Write-Host "build:   $build (from DS5-USBIP.exe)"
+
 # --- Inno Setup -------------------------------------------------------------
 # winget puts it under LOCALAPPDATA; an installer run as admin puts it in
 # Program Files. Both are looked for rather than one being assumed.
@@ -103,10 +114,10 @@ if (-not $iscc) {
 }
 Write-Host "iscc:    $iscc"
 
-& $iscc "/DAppVersion=$version" "/DConfiguration=$Configuration" (Join-Path $repo 'installer\ds5-usbip.iss')
+& $iscc "/DAppVersion=$version" "/DAppBuild=$build" "/DConfiguration=$Configuration" (Join-Path $repo 'installer\ds5-usbip.iss')
 if ($LASTEXITCODE -ne 0) { throw "ISCC failed" }
 
-$setup = Join-Path $repo 'out\installer\DS5-USBIP-Setup.exe'
+$setup = Join-Path $repo "out\installer\DS5-USBIP-Setup-build-$build.exe"
 if (-not (Test-Path $setup)) { throw "ISCC reported success but $setup is not there" }
 
 $size = [math]::Round((Get-Item $setup).Length / 1MB, 1)

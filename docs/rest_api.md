@@ -90,9 +90,15 @@ mode").
 
 ```json
 {"version":"0.0.2 (build 2)","product":"DS5-USBIP","product_version":"0.1.0",
+ "product_build":12,"product_version_display":"0.1.0 (12)",
  "transport":"tcp","control_port":48054,"usbip_port":3240,
  "uptime_seconds":812,"session_count":1}
 ```
+
+`version` is the relay's, ctm-usbip's, the same in every build. Which
+DS5-USBIP is running is `product_version`, and which build of it is
+`product_build`: the number every build takes (`include/ctm/build_number.h`).
+`product_version_display` is the two as the program shows them.
 
 `transport` is always `"tcp"`. It read `"enet"` under the `--enet` flag until
 2026-10-08, when that transport was removed.

@@ -30,3 +30,14 @@
 #define PRODUCT_VERSION_MINOR 1
 #define PRODUCT_VERSION_PATCH 0
 #define PRODUCT_VERSION       "0.1.0"
+
+// ⭐ AND WHICH BUILD (2026-10-12): build_number.h, which every build rewrites.
+// The version with it is "0.1.0 (N)", aurora-tv's form, and that is what the
+// window title, the tray tip, --version, the log's start line, /api/v1/status
+// and the exe's product version string show. The exe's numeric product
+// version carries the build as its fourth number.
+#include "build_number.h"
+
+#define PRODUCT_STRINGIFY_(x)   #x
+#define PRODUCT_STRINGIFY(x)    PRODUCT_STRINGIFY_(x)
+#define PRODUCT_VERSION_DISPLAY PRODUCT_VERSION " (" PRODUCT_STRINGIFY(PRODUCT_BUILD) ")"

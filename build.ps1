@@ -94,6 +94,15 @@ if (-not (Test-Path $opusHeader)) {
     Write-Host '  vcpkg ready' -ForegroundColor DarkGray
 }
 
+# --- The build number ----------------------------------------------------------
+# Every build takes the next number and commits it as "Build N" before anything
+# compiles, the way aurora-tv's builds do; build-number.ps1 says why. A tree
+# with uncommitted changes is refused there, so commit first. Taken here, after
+# Visual Studio and vcpkg are found, so a machine that cannot build does not
+# use a number up.
+& (Join-Path $Root 'build-number.ps1') -Configuration $Configuration
+if ($LASTEXITCODE -ne 0) { exit 1 }
+
 # --- Embed the settings page ------------------------------------------------
 # ⭐ BEFORE msbuild, because the generated header is compiled into the exe.
 #

@@ -668,7 +668,13 @@ inline void thread_main()
     // UTF-8, so the compiler took the dash's three bytes for three
     // characters. Text a person reads does not need a dash that depends on
     // how the file happened to be saved.
-    wcscpy_s(nid.szTip, L"DS5-USBIP: Select Devices, Controller Configs, Virtual Keyboard or Quit");
+    // ⭐ And which build is running (2026-10-12), in the form everything shows
+    // it: "DS5-USBIP 0.1.0 (N): Select Devices, ...". Built from product.h's
+    // plain ASCII, so the warning above still holds.
+    static const wchar_t kTip[] = L"" PRODUCT_NAME " " PRODUCT_VERSION_DISPLAY
+                                  ": Select Devices, Controller Configs, Virtual Keyboard or Quit";
+    static_assert(sizeof(kTip) <= sizeof(nid.szTip), "the tray tip is longer than Windows keeps");
+    wcscpy_s(nid.szTip, kTip);
     g_nid = nid;
     g_iconSource = iconSource;
     if (!add_icon(false, L"at start")) {

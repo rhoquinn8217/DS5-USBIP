@@ -1328,8 +1328,14 @@ static void handle_agent_client(SOCKET client, const sockaddr_in &peer)
 static int run_agent(uint16_t port)
 {
     g_agent_control_port = port;
-    device_log::session_w() << L"ctm-usbip " << widen_ascii(CTM_VERSION_DISPLAY, strlen(CTM_VERSION_DISPLAY))
-               << L" agent starting";
+    // ⭐ The program and its build first, the relay after (2026-10-12). The line
+    // named only the relay, "ctm-usbip 0.0.2 (build 2)", the same in every
+    // build, so the log never said which DS5-USBIP had started.
+    // ⓘ Tools find the line by "agent starting", which stays.
+    device_log::session_w() << widen_ascii(PRODUCT_NAME, strlen(PRODUCT_NAME)) << L" "
+               << widen_ascii(PRODUCT_VERSION_DISPLAY, strlen(PRODUCT_VERSION_DISPLAY))
+               << L" agent starting (relay: ctm-usbip "
+               << widen_ascii(CTM_VERSION_DISPLAY, strlen(CTM_VERSION_DISPLAY)) << L")";
     WSADATA data = {};
     if (WSAStartup(MAKEWORD(2, 2), &data) != 0) {
         start_report::failed(L"DS5-USBIP could not start: Windows networking did not come up.\n\n" +
