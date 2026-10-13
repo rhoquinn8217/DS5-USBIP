@@ -51,9 +51,11 @@
 // cost that resurfaces later as dropouts blamed on something else.
 //
 // THE RULE: A RESEAT APPLIES EVERY SETTING; NOTHING NEEDS A LISTENER RESTART.
-// refresh() is called at session start and by the config watcher. Any future
-// setting on a hot path must do the same -- cache for speed, refresh on
-// change. Caching without a refresh is what made rumble_gain the odd one out.
+// Each pad re-reads its gains about once a second while its sound flows
+// (device.inl, refresh_gains), so a changed file or link takes within a
+// second. Any future setting on a hot path must do the same -- cache for
+// speed, re-read on a slow beat. Caching without a refresh is what made
+// rumble_gain the odd one out.
 //
 // BACKWARD COMPATIBILITY: nothing on the wire. No message type, no enum, no
 // map key, no default, no change to what is transmitted -- only the amplitude
@@ -70,63 +72,40 @@ constexpr size_t kSpeakerChannels = 2;    // 0,1 speaker/headset; 2,3 haptics
 constexpr int    kRumbleGainMax   = 500;  // matches the wireless clamp of 5x
 constexpr int    kSpeakerGainMax  = 100;  // reduction only -- see the note above
 
-// -1 means "not configured". Read on the audio path, written only by refresh().
-inline std::atomic<int> &cached_rumble_gain()
-{
-    static std::atomic<int> value{-1};
-    return value;
-}
-
-inline std::atomic<int> &cached_output_gain()
-{
-    static std::atomic<int> value{-1};
-    return value;
-}
-
 // A gain that is absent, or set to 100, changes nothing.
 inline bool gain_is_active(int gain)
 {
     return gain >= 0 && gain != 100;
 }
 
-// Re-read both gains. Called at session start and whenever the config file
-// changes, so neither a reseat nor a restart is needed.
-inline void refresh()
+// ⭐⭐ ONE PAD'S GAINS, FROM ITS OWN SECTION (2026-10-13). They were read from
+// the shared [ds5] section only, for every pad: a linked config's
+// master_rumble_gain and audio_gain scaled its rumble motors and never its
+// stream, and an Edge's stream followed [ds5], not [ds5_edge]. Found by
+// reading, while looking into PC-sound haptics. Now each pad reads the
+// section everything else of it reads (device.inl, refresh_gains), at attach,
+// when its link changes, and about once a second while its sound flows.
+// -1 where the section sets none.
+struct Gains {
+    int haptics = -1;   // master_rumble_gain, on channels 2 and 3
+    int sound = -1;     // audio_gain, on channels 0 and 1
+};
+
+inline Gains read(const char *section)
 {
-    const int rumble = device_config_int("ds5", "master_rumble_gain", -1);
-    const int speaker = device_config_int("ds5", "audio_gain", -1);   // see the section note below
-
-    const int rumbleClamped = (rumble < 0 || rumble <= kRumbleGainMax)
-        ? rumble : kRumbleGainMax;
-    const int speakerClamped = (speaker < 0 || speaker <= kSpeakerGainMax)
-        ? speaker : kSpeakerGainMax;
-
-    if (cached_rumble_gain().exchange(rumbleClamped, std::memory_order_relaxed)
-            != rumbleClamped) {
-        if (gain_is_active(rumbleClamped)) {
-            device_log::audio(device_log::msg()
-                << "haptics scaled to " << rumbleClamped << "%");
-        } else {
-            device_log::audio("haptics left untouched");
-        }
-    }
-    if (cached_output_gain().exchange(speakerClamped, std::memory_order_relaxed)
-            != speakerClamped) {
-        if (gain_is_active(speakerClamped)) {
-            device_log::audio(device_log::msg()
-                << "output scaled to " << speakerClamped << "%");
-        } else {
-            device_log::audio("output left untouched");
-        }
-    }
+    Gains g;
+    const int rumble = device_config_int(section, "master_rumble_gain", -1);
+    const int sound = device_config_int(section, "audio_gain", -1);
+    g.haptics = (rumble < 0 || rumble <= kRumbleGainMax) ? rumble : kRumbleGainMax;
+    g.sound = (sound < 0 || sound <= kSpeakerGainMax) ? sound : kSpeakerGainMax;
+    return g;
 }
 
 // Cheap gate for the call site: lets the caller skip copying the buffer when
-// there is nothing to do. Two relaxed loads, no config lookup.
-inline bool configured()
+// there is nothing to do.
+inline bool active(const Gains &g)
 {
-    return gain_is_active(cached_rumble_gain().load(std::memory_order_relaxed)) ||
-           gain_is_active(cached_output_gain().load(std::memory_order_relaxed));
+    return gain_is_active(g.haptics) || gain_is_active(g.sound);
 }
 
 inline void scale_sample(uint8_t *at, int gain)
@@ -146,22 +125,16 @@ inline void scale_sample(uint8_t *at, int gain)
     at[1] = static_cast<uint8_t>((out >> 8) & 0xff);
 }
 
-// Scales speaker and haptic channels in place, each by its own gain, leaving
+// Scales sound and haptic channels in place, each by its own gain, leaving
 // either untouched when its gain is absent or 100.
-inline void apply(std::vector<uint8_t> &data)
+inline void apply(std::vector<uint8_t> &data, const Gains &gains)
 {
-    const int rumble = cached_rumble_gain().load(std::memory_order_relaxed);
-    const int speaker = cached_output_gain().load(std::memory_order_relaxed);
-    const bool doRumble = gain_is_active(rumble);
-    const bool doSpeaker = gain_is_active(speaker);
+    const bool doRumble = gain_is_active(gains.haptics);
+    const bool doSpeaker = gain_is_active(gains.sound);
     if (!doRumble && !doSpeaker) {
         return;
     }
     const size_t frames = data.size() / kBytesPerFrame;
-    if (frames == 0) {
-        return;
-    }
-
     for (size_t f = 0; f < frames; ++f) {
         uint8_t *frameStart = data.data() + f * kBytesPerFrame;
         for (size_t ch = 0; ch < kChannels; ++ch) {
@@ -170,7 +143,7 @@ inline void apply(std::vector<uint8_t> &data)
                 continue;
             }
             scale_sample(frameStart + ch * sizeof(int16_t),
-                         isSpeaker ? speaker : rumble);
+                         isSpeaker ? gains.sound : gains.haptics);
         }
     }
 }

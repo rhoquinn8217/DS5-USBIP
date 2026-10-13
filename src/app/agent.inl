@@ -914,7 +914,6 @@ static bool start_bridge_session_for(const std::string &kind, uint16_t port, con
     port = plan.port;
 
     device_config_invalidate();   // a reseat re-reads the settings file
-    ctm_audio_gain::refresh();   // and picks up a changed rumble gain
     ctm_config_watcher::ensure_started();   // live config changes, no reseat
     ctm_config_watcher::adopt_config_store();   // ...including per-controller ones
     config_store::reload_all();             // per-controller config files
