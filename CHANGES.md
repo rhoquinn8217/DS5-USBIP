@@ -146,7 +146,7 @@ carry it; upstream's own history is unchanged.
 | 2026-10-12 | The program is DS5-USBIP.exe, not ctm-usbip.exe: the build, its version resource, the release script and its README, the desktop shortcut maker and the usage text follow, and a release retires an old ctm-usbip.exe left in its folder. | `dd3a249` |
 | 2026-10-12 | A person's files live in their own folder, %LOCALAPPDATA%\DS5-USBIP, so the program can sit anywhere, Program Files included; the first start there copies their configs, shared settings and window places from beside the program, once, and the tray menu's "Open configs folder" goes there. `--home` keeps the old way. | `b3194c0`, `161bb7b` |
 | 2026-10-12 | An installer, DS5-USBIP-Setup.exe: DS5-USBIP into Program Files with a Start menu entry and a desktop shortcut, through Windows Firewall on private networks, and the bundled usbip-win2 driver when it is not there yet. Built with installer/build-ds5-installer.ps1. | `90383b1`, `8cba0ec`, `9ae819c` |
-| 2026-10-12 | The program's icon is a DualSense on a television instead of the bridge: app/ctm-usbip.ico, with the tools that make it (installer/trace-silhouette.py traces the controller, installer/build-icon.ps1 builds the .ico; each checks its output byte for byte). make-icon-ds5.ps1, which made the bridge, refuses without -Allow. | `d408a87`, `f3280c7` |
+| 2026-10-12 | The program's icon is a DualSense on a television instead of the bridge: app/ctm-usbip.ico, with the tools that make it (installer/trace-silhouette.py traces the controller, installer/build-icon.ps1 builds the .ico; each checks its output byte for byte). make-icon-ds5.ps1, which made the bridge, refuses without -Allow. The panel is white and the controller navy, so the television keeps its edge on the dark taskbar. | `d408a87`, `f3280c7`, `ba59d6c` |
 | 2026-10-12 | The Controller Configs window's icon address carries a fingerprint of the icon, so a new icon reaches the window's title bar instead of the one the browser kept by address. | `a276971` |
 | 2026-10-12 | A build number, like aurora-tv's: every build takes the next number free and commits it as "Build N" before compiling (build-number.ps1, called by build.ps1; a tree with uncommitted changes is refused). The program shows its version with the build, as "0.2.0 (N)", in the Controller Configs window's title, the tray tip, --version, the log's start line, /api/v1/status and its file properties, and the installer is named for its build. | `e8c2e64`, `c64a5a9` |
 | 2026-10-12 | The installer over an installed copy: a first page to upgrade (or reinstall, or replace with an older build) or uninstall, with the uninstaller that copy came with. A running DS5-USBIP is asked to quit the way the tray's Quit does, releasing its bridges (the tray window answers DS5-USBIP.Quit), by the setup and by the uninstaller from Windows' list. The firewall rule covers public networks too: a PC whose network Windows marks Public otherwise let no TV in. | `c25bbe8`, `8fc326e`, `c7fef51`, `e0328f4` |
@@ -166,7 +166,7 @@ ENet library, removed with the ENet transport).
  LINK                                          |    0
  README.md                                     |  301 +-
  app/ctm-usbip-tests.vcxproj                   |  141 +
- app/ctm-usbip.ico                             |  Bin 156019 -> 32487 bytes
+ app/ctm-usbip.ico                             |  Bin 156019 -> 30139 bytes
  app/ctm-usbip.rc                              |   26 +-
  app/ctm-usbip.vcxproj                         |   53 +-
  attic/README.md                               |   24 +
@@ -188,7 +188,7 @@ ENet library, removed with the ENet transport).
  include/ctm/product.h                         |   43 +
  include/ctm/protocol.h                        |   65 +-
  installer/build-ds5-installer.ps1             |  126 +
- installer/build-icon.ps1                      |  232 +
+ installer/build-icon.ps1                      |  238 +
  installer/controller-path.txt                 |   68 +
  installer/ds5-usbip.iss                       |  508 ++
  installer/icon-source.png                     |  Bin 0 -> 100705 bytes
@@ -349,5 +349,5 @@ ENet library, removed with the ENet transport).
  tools/create-desktop-shortcut.bat             |   46 +
  tools/create-desktop-shortcut.ps1             |  148 +
  tools/osk-mockups.py                          |  103 +
- 189 files changed, 56926 insertions(+), 1554 deletions(-)
+ 189 files changed, 56932 insertions(+), 1554 deletions(-)
 ```
