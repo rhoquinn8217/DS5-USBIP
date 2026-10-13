@@ -20,6 +20,7 @@ int run_touch_mouse_tests();
 int run_stick_mouse_tests();
 int run_osk_tests();
 int run_window_icon_rule_tests();
+int run_quit_request_tests();
 int run_nickname_tests();
 int run_rest_shared_section_tests();
 int run_held_edges_tests();
@@ -110,6 +111,8 @@ int main(int argc, char **argv)
     run_schema_json_tests();
     // ⛔ And here: its last section reads the list of names out of the same file.
     run_binding_names_tests();
+    // ⛔ And here: it reads installer/ds5-usbip.iss.
+    run_quit_request_tests();
 
     if (!enter_scratch()) {
         std::fprintf(stderr, "could not create the scratch directory -- "
