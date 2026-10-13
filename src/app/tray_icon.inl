@@ -27,7 +27,9 @@ inline HWND g_hwnd = nullptr;
 inline std::thread g_thread;
 inline std::atomic_bool g_running{false};
 
-inline const wchar_t *const kClassName = L"CtmTrayIcon";
+// ⚠️ The installer finds this window by this name, to ask for Quit
+// (quit_request.inl).
+inline const wchar_t *const kClassName = quit_request::kTrayClass;
 inline const UINT WM_CTM_TRAY = WM_APP + 20;
 
 // ⓘ Menu ids. Kept small and local; nothing else uses this window.
@@ -321,6 +323,31 @@ inline size_t battery_part(const std::vector<RestDeviceView> &devices,
     return lead;
 }
 
+// ⭐ QUIT, FROM THE MENU OR FROM ANOTHER PROGRAM (2026-10-12). The menu's
+// Quit and the installer's request for it (quit_request.inl) do this one
+// thing, so a quit the installer asks for releases the controllers exactly as
+// a click does.
+inline void quit_as_the_menu_does(const wchar_t *who)
+{
+    device_log::session_w() << L"tray: quit, asked for by " << who;
+    // ⭐⭐ QUIT TAKES THE SETTINGS WINDOW WITH IT (rhoquinn8217, 2026-10-01:
+    // *"I want to change exit to Quit and I want that also to close the
+    // DS5-USBIP config window."*). It read Exit and left that window
+    // open, showing a page with no listener behind it.
+    //
+    // ⓘ Closed HERE as well as where the listener stops (agent.inl),
+    // because here is where someone is looking: the window goes the
+    // moment they choose Quit, not a second later when the agent's loop
+    // next comes round.
+    ui_close_window();
+    // ⛔ THE SAME FLAG CTRL+C SETS, not an exit. Bridged controllers get
+    // torn down properly; killing the process would leave them attached
+    // with nothing driving them.
+    g_stop.store(true);
+    // ⭐ And the icon with it, at once. See remove_icon().
+    remove_icon();
+}
+
 inline void show_menu(HWND hwnd)
 {
     HMENU menu = CreatePopupMenu();
@@ -461,22 +488,7 @@ inline void show_menu(HWND hwnd)
         ctm_chord_show_ui(std::string());
         break;
     case kIdQuit:
-        // ⭐⭐ QUIT TAKES THE SETTINGS WINDOW WITH IT (rhoquinn8217, 2026-10-01:
-        // *"I want to change exit to Quit and I want that also to close the
-        // DS5-USBIP config window."*). It read Exit and left that window
-        // open, showing a page with no listener behind it.
-        //
-        // ⓘ Closed HERE as well as where the listener stops (agent.inl),
-        // because here is where someone is looking: the window goes the
-        // moment they choose Quit, not a second later when the agent's loop
-        // next comes round.
-        ui_close_window();
-        // ⛔ THE SAME FLAG CTRL+C SETS, not an exit. Bridged controllers get
-        // torn down properly; killing the process would leave them attached
-        // with nothing driving them.
-        g_stop.store(true);
-        // ⭐ And the icon with it, at once. See remove_icon().
-        remove_icon();
+        quit_as_the_menu_does(L"the tray menu");
         break;
     default:
         break;
@@ -493,6 +505,9 @@ inline void show_menu(HWND hwnd)
 // Controller Configs, no keyboard, nothing but Task Manager.
 // ➡️ Re-add on the broadcast, and retry a refused add on a timer.
 inline UINT g_taskbarCreated = 0;
+// ⭐ The installer's request for Quit (quit_request.inl), registered by name
+// in thread_main, as the broadcast above is.
+inline UINT g_quitMessage = 0;
 inline NOTIFYICONDATAW g_nid = {};
 inline const wchar_t *g_iconSource = L"";
 inline const UINT_PTR kAddRetryTimer = 1;
@@ -517,6 +532,10 @@ inline bool add_icon(bool again, const wchar_t *why)
 
 inline LRESULT CALLBACK tray_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 {
+    if (g_quitMessage != 0 && msg == g_quitMessage) {
+        quit_as_the_menu_does(L"another program (DS5-USBIP.Quit, as the installer sends it)");
+        return 0;
+    }
     if (g_taskbarCreated != 0 && msg == g_taskbarCreated) {
         if (add_icon(true, L"the taskbar was created again")) {
             KillTimer(hwnd, kAddRetryTimer);
@@ -575,6 +594,7 @@ inline void thread_main()
         return;
     }
     g_taskbarCreated = RegisterWindowMessageW(L"TaskbarCreated");
+    g_quitMessage = RegisterWindowMessageW(quit_request::kMessageName);
     // ⓘ Let the broadcast through even if this process runs elevated.
     if (g_taskbarCreated != 0) {
         ChangeWindowMessageFilterEx(g_hwnd, g_taskbarCreated, MSGFLT_ALLOW, nullptr);

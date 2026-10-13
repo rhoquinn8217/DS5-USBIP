@@ -64,6 +64,15 @@
   #error Pass the build number in: ISCC.exe /DAppVersion=0.1.0 /DAppBuild=12 -- or use build-ds5-installer.ps1
 #endif
 
+; HOW THIS SETUP QUITS A RUNNING DS5-USBIP (2026-10-12): it posts this message
+; to the tray icon's window, found by its class, and DS5-USBIP quits exactly
+; as its tray menu's Quit does, releasing any controller it has bridged. A
+; copy from before that cannot be asked, and the person is asked instead.
+; src/app/quit_request.inl names both too; tests/quit_request_test.cpp fails
+; when the two disagree.
+#define TrayClassName "CtmTrayIcon"
+#define QuitMessageName "DS5-USBIP.Quit"
+
 #define AppName "DS5-USBIP"
 #define AppPublisher "rhoquinn8217"
 #define ExeName "DS5-USBIP.exe"
@@ -124,12 +133,24 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#ExeName}"; WorkingDir: "{ap
 ; Only the main and client components: not the pdb, sdk or gui, none of which
 ; this uses. /NORESTART so the restart prompt a person sees is ours.
 Filename: "{tmp}\{#UsbipInstaller}"; Parameters: "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /COMPONENTS=main,client"; StatusMsg: "Installing the usbip-win2 driver..."; Flags: waituntilterminated; Check: NeedsUsbip
-; DS5-USBIP.exe through Windows Firewall on private networks, as Windows' own
-; prompt would allow on its first run: a TV reaches it over the network, and a
-; prompt missed or answered wrong breaks that without a word. Public networks
-; stay closed. Deleted first, so an upgrade leaves one rule, not two.
+; DS5-USBIP.exe through Windows Firewall, on private AND public networks: a
+; TV reaches it over the network, and a rule that leaves its network out
+; breaks that without a word. Deleted first, so an upgrade leaves one rule,
+; not two.
+;
+; WHY PUBLIC TOO (rhoquinn8217, 2026-10-12: the TV said DS5-USBIP was off
+; while the installed copy ran, and "I didn't need to change my network
+; settings"). This rule was private only, on the thought that Windows' own
+; prompt would allow that much. But Windows 11 marks a new network Public
+; unless someone changes it, and that PC's wired network was Public: every
+; packet from the TV was dropped. With a rule already there, Windows never
+; asks, so nobody was offered the choice. Every copy started before the
+; installer had been allowed through Windows' prompt on private and public
+; networks, and this does the same. The cost: on a public network, a cafe's
+; or a hotel's, anyone on it can reach the control port, as they could reach
+; those copies, until the pairing proof is required by default.
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""{#AppName}"""; Flags: runhidden waituntilterminated
-Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall add rule name=""{#AppName}"" dir=in action=allow program=""{app}\{#ExeName}"" enable=yes profile=private,domain"; StatusMsg: "Letting {#AppName} through Windows Firewall on private networks..."; Flags: runhidden waituntilterminated
+Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall add rule name=""{#AppName}"" dir=in action=allow program=""{app}\{#ExeName}"" enable=yes profile=private,public,domain"; StatusMsg: "Letting {#AppName} through Windows Firewall on private and public networks..."; Flags: runhidden waituntilterminated
 ; As the person, not as the administrator who ran setup: their own folder is
 ; the one it must use. And not before a restart the driver still needs.
 Filename: "{app}\{#ExeName}"; Description: "Start {#AppName}"; Flags: nowait postinstall skipifsilent runasoriginaluser; Check: not NeedRestart
@@ -138,18 +159,93 @@ Filename: "{app}\{#ExeName}"; Description: "Start {#AppName}"; Flags: nowait pos
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""{#AppName}"""; Flags: runhidden waituntilterminated; RunOnceId: "RemoveDS5USBIPFirewallRule"
 
 [Code]
+{ ======================================================================
+  ALREADY INSTALLED: UPGRADE OR UNINSTALL (2026-10-12)
+  ======================================================================
+  rhoquinn8217: "can we have the installer have an uninstall or upgrade
+  path if DS5-USBIP already installed?" Installing over an installed copy
+  always worked, the same AppId upgrading it in place, but nothing said so,
+  and uninstalling meant finding Windows' list of installed apps. So when a
+  copy is installed, the first page says which build it is and which this
+  setup holds, and offers two things: upgrade (or reinstall, or replace it
+  with an older build), and uninstall, which runs the uninstaller that copy
+  was installed with and closes this setup once the copy is gone.
+
+  AND A RUNNING DS5-USBIP IS QUIT FOR THE PERSON (2026-10-12), the way its
+  tray menu's Quit does: see AskListenerToQuit. A copy that does not know
+  how to be asked is left to them, with a Retry.
+  ====================================================================== }
+
+const
+  UninstallKey = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{5DAD18E8-3795-409F-AEEB-A0CCF8D0EF02}_is1';
+
 var
   GInstallUsbip: Boolean;
+  { The copy already installed: its version as Windows lists it, 0.1.0.N,
+    and the uninstaller it was installed with. Both empty when there is
+    none. }
+  GInstalledVersion: String;
+  GUninstaller: String;
+  { The page that asks what to do with it. }
+  GActionPage: TWizardPage;
+  GUpgradeChoice: TNewRadioButton;
+  GUninstallChoice: TNewRadioButton;
+  GRunningNote: TNewStaticText;
+  { Set once the copy is uninstalled, so closing this setup asks nothing. }
+  GDoneAfterUninstall: Boolean;
 
-function GetUninstallString(): String;
-var
-  Key, Value: String;
+{ One value of the copy already installed, from the entry Windows lists it
+  under: the machine's, or the person's for a copy installed without admin. }
+function InstalledValue(const Name: String): String;
 begin
-  Key := 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{5DAD18E8-3795-409F-AEEB-A0CCF8D0EF02}_is1';
-  Value := '';
-  if not RegQueryStringValue(HKLM, Key, 'UninstallString', Value) then
-    RegQueryStringValue(HKCU, Key, 'UninstallString', Value);
-  Result := Value;
+  Result := '';
+  if not RegQueryStringValue(HKLM, UninstallKey, Name, Result) then
+    RegQueryStringValue(HKCU, UninstallKey, Name, Result);
+end;
+
+function DotCount(const S: String): Integer;
+var
+  I: Integer;
+begin
+  Result := 0;
+  for I := 1 to Length(S) do
+    if S[I] = '.' then Result := Result + 1;
+end;
+
+function LastDot(const S: String): Integer;
+var
+  I: Integer;
+begin
+  Result := 0;
+  for I := Length(S) downto 1 do
+    if S[I] = '.' then
+    begin
+      Result := I;
+      Exit;
+    end;
+end;
+
+{ A version as Windows lists it, 0.1.0.N, the way DS5-USBIP shows it:
+  0.1.0 (N). One from before builds had numbers, 0.1.0, as it is. }
+function ShownVersion(const V: String): String;
+var
+  Dot: Integer;
+begin
+  Result := V;
+  if DotCount(V) = 3 then
+  begin
+    Dot := LastDot(V);
+    Result := Copy(V, 1, Dot - 1) + ' (' + Copy(V, Dot + 1, Length(V) - Dot) + ')';
+  end;
+end;
+
+{ The build of a version as Windows lists it, or 0 for one from before
+  builds had numbers, which is older than any that has one. }
+function BuildOf(const V: String): Integer;
+begin
+  Result := 0;
+  if DotCount(V) = 3 then
+    Result := StrToIntDef(Copy(V, LastDot(V) + 1, Length(V)), 0);
 end;
 
 function ImageIsRunning(const Name: String): Boolean;
@@ -170,17 +266,197 @@ begin
   Result := ImageIsRunning('{#ExeName}') or ImageIsRunning('{#OldExeName}');
 end;
 
+{ Waits up to Ms milliseconds for every running DS5-USBIP to be gone. }
+function ListenerGoneWithin(Ms: Integer): Boolean;
+var
+  Waited: Integer;
+begin
+  Waited := 0;
+  Result := not ListenerIsRunning();
+  while (not Result) and (Waited < Ms) do
+  begin
+    Sleep(500);
+    Waited := Waited + 500;
+    Result := not ListenerIsRunning();
+  end;
+end;
+
+{ A RUNNING LISTENER IS ASKED TO QUIT, NEVER KILLED.
+  Windows will not overwrite or delete a running exe, so it does have to
+  stop. But ending the process strands every controller it has bridged: the
+  pad stays attached to a host that is gone, and the person has to unplug
+  and replug it. Quit from the tray icon releases the bridges first. So this
+  asks for that same Quit, by posting the message the tray window listens
+  for, and gives it ten seconds. True when nothing is left running. A copy
+  from before 2026-10-12 does not know the message and stays running. }
+function AskListenerToQuit(): Boolean;
+var
+  Wnd: HWND;
+begin
+  Result := not ListenerIsRunning();
+  if Result then Exit;
+  Wnd := FindWindowByClassName('{#TrayClassName}');
+  if Wnd = 0 then Exit;
+  PostMessage(Wnd, RegisterWindowMessage('{#QuitMessageName}'), 0, 0);
+  Result := ListenerGoneWithin(10000);
+end;
+
+{ Quits a running DS5-USBIP, and asks the person to quit it from its tray
+  only when it will not go by itself. False when they give up. }
+function EnsureListenerQuit(Silent: Boolean): Boolean;
+begin
+  Result := AskListenerToQuit();
+  while (not Result) and (not Silent) do
+  begin
+    if MsgBox('{#AppName} is still running, and this copy of it cannot be asked to quit by another program.' + #13#10#13#10
+            + 'Quit it from its tray icon, then click Retry. Quitting from the tray releases any controller it has bridged.',
+              mbError, MB_RETRYCANCEL) <> IDRETRY then
+      Exit;
+    Result := ListenerGoneWithin(5000);
+  end;
+end;
+
+{ The first choice on the page, by how this setup's build compares with the
+  installed copy's. }
+function UpgradeCaption(): String;
+var
+  Mine, Theirs: Integer;
+begin
+  Mine := {#AppBuild};
+  Theirs := BuildOf(GInstalledVersion);
+  if Mine > Theirs then
+    Result := 'Upgrade to {#AppVersion} ({#AppBuild})'
+  else if Mine = Theirs then
+    Result := 'Reinstall {#AppVersion} ({#AppBuild})'
+  else
+    Result := 'Replace it with {#AppVersion} ({#AppBuild}), an older build';
+end;
+
+procedure ChoiceChanged(Sender: TObject);
+begin
+  { Never before both choices exist. Ticking the first while the page was
+    being built clicked it, this read the second, not made yet, and the
+    setup ended with "Could not call proc" (rhoquinn8217, 2026-10-12). }
+  if (GUpgradeChoice = nil) or (GUninstallChoice = nil) then Exit;
+  if GUninstallChoice.Checked then
+    WizardForm.NextButton.Caption := 'Uninstall'
+  else
+    WizardForm.NextButton.Caption := SetupMessage(msgButtonNext);
+end;
+
+function NewNote(const Caption: String; Left, Top, Width, Height: Integer): TNewStaticText;
+begin
+  Result := TNewStaticText.Create(GActionPage);
+  Result.Parent := GActionPage.Surface;
+  Result.AutoSize := False;
+  Result.WordWrap := True;
+  Result.Left := Left;
+  Result.Top := Top;
+  Result.Width := Width;
+  Result.Height := Height;
+  Result.Caption := Caption;
+end;
+
+function NewChoice(const Caption: String; Top, Width: Integer): TNewRadioButton;
+begin
+  Result := TNewRadioButton.Create(GActionPage);
+  Result.Parent := GActionPage.Surface;
+  Result.Top := Top;
+  Result.Width := Width;
+  Result.Height := ScaleY(18);
+  Result.Caption := Caption;
+  Result.Font.Style := [fsBold];
+end;
+
+procedure InitializeWizard();
+var
+  Info, UpgradeNote, UninstallNote: TNewStaticText;
+  Indent, Width: Integer;
+  Installed: String;
+begin
+  GInstalledVersion := InstalledValue('DisplayVersion');
+  GUninstaller := RemoveQuotes(InstalledValue('UninstallString'));
+  { Not installed: the plain install, as it always was. }
+  if GUninstaller = '' then Exit;
+
+  GActionPage := CreateCustomPage(wpWelcome, '{#AppName} is already installed', 'What should this setup do?');
+  Width := GActionPage.SurfaceWidth;
+  Indent := ScaleX(18);
+
+  Installed := '{#AppName}';
+  if GInstalledVersion <> '' then Installed := Installed + ' ' + ShownVersion(GInstalledVersion);
+  Info := NewNote(Installed + ' is installed on this PC. This setup holds {#AppVersion} ({#AppBuild}).',
+                  0, 0, Width, ScaleY(30));
+
+  GUpgradeChoice := NewChoice(UpgradeCaption(), Info.Top + Info.Height + ScaleY(8), Width);
+  GUpgradeChoice.Checked := True;
+  UpgradeNote := NewNote('Your configs, settings and desktop shortcut stay as they are.',
+                         Indent, GUpgradeChoice.Top + GUpgradeChoice.Height + ScaleY(2), Width - Indent, ScaleY(30));
+
+  GUninstallChoice := NewChoice('Uninstall {#AppName}', UpgradeNote.Top + UpgradeNote.Height + ScaleY(8), Width);
+  UninstallNote := NewNote('Removes the program, its shortcuts and its firewall rule. Your configs and the usbip-win2 driver stay.',
+                           Indent, GUninstallChoice.Top + GUninstallChoice.Height + ScaleY(2), Width - Indent, ScaleY(30));
+  { The handlers last, once both choices exist: see ChoiceChanged. }
+  GUpgradeChoice.OnClick := @ChoiceChanged;
+  GUninstallChoice.OnClick := @ChoiceChanged;
+
+  GRunningNote := NewNote('{#AppName} is running. It will be quit before anything changes, the way Quit in its tray menu does: any controller it has bridged is released first.',
+                          0, UninstallNote.Top + UninstallNote.Height + ScaleY(14), Width, ScaleY(44));
+  GRunningNote.Visible := False;
+end;
+
+procedure CurPageChanged(CurPageID: Integer);
+begin
+  { One test at a time, so nothing is read off a page that was never made. }
+  if GActionPage = nil then Exit;
+  if CurPageID <> GActionPage.ID then Exit;
+  GRunningNote.Visible := ListenerIsRunning();
+  ChoiceChanged(nil);
+end;
+
+{ UNINSTALL, from the page: quit it, run the uninstaller the copy was
+  installed with (it asks the person to confirm, as from Windows' list), and
+  close this setup once the copy is gone. Cancelled there, the page stays. }
+function NextButtonClick(CurPageID: Integer): Boolean;
+var
+  Code, Waited: Integer;
+begin
+  Result := True;
+  { One test at a time, as in CurPageChanged. }
+  if GActionPage = nil then Exit;
+  if CurPageID <> GActionPage.ID then Exit;
+  if not GUninstallChoice.Checked then Exit;
+
+  Result := False;
+  if not EnsureListenerQuit(WizardSilent()) then Exit;
+  if not Exec(GUninstaller, '', '', SW_SHOWNORMAL, ewWaitUntilTerminated, Code) then
+  begin
+    MsgBox('The uninstaller did not start: ' + SysErrorMessage(Code), mbError, MB_OK);
+    Exit;
+  end;
+  { Its entry goes as the uninstall ends; a moment's grace for that. }
+  Waited := 0;
+  while (InstalledValue('UninstallString') <> '') and (Code = 0) and (Waited < 10000) do
+  begin
+    Sleep(500);
+    Waited := Waited + 500;
+  end;
+  if InstalledValue('UninstallString') <> '' then Exit;
+  GDoneAfterUninstall := True;
+  WizardForm.Close;
+end;
+
+procedure CancelButtonClick(CurPageID: Integer; var Cancel, Confirm: Boolean);
+begin
+  if GDoneAfterUninstall then Confirm := False;
+end;
+
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
   Result := '';
 
-  { A RUNNING LISTENER IS ASKED ABOUT, NEVER KILLED.
-    Windows will not overwrite a running exe, so it does have to stop. But
-    ending the process strands every controller it has bridged: the pad stays
-    attached to a host that is gone, and the person has to unplug and replug
-    it. Quit from the tray icon releases the bridges first. So this stops and
-    says so, instead of doing it for them. }
-  if ListenerIsRunning() then
+  { Quit, not killed: see AskListenerToQuit. }
+  if not EnsureListenerQuit(WizardSilent()) then
   begin
     Result := '{#AppName} is running. Quit it from its tray icon, then run this'
             + ' installer again.' + #13#10#13#10
@@ -206,4 +482,27 @@ begin
     We run it /NORESTART, so the reboot prompt has to come from here instead,
     and only when we were the ones who installed it. }
   Result := GInstallUsbip;
+end;
+
+{ UNINSTALLING FROM WINDOWS' LIST, while DS5-USBIP runs: asked, then quit the
+  same way, since Windows cannot delete a running exe. A copy that will not
+  go is left to the person, and nothing is removed. }
+function InitializeUninstall(): Boolean;
+begin
+  Result := True;
+  if not ListenerIsRunning() then Exit;
+  if not UninstallSilent() then
+    if MsgBox('{#AppName} is running. Quit it and uninstall?' + #13#10#13#10
+            + 'It quits the way Quit in its tray menu does: any controller it has bridged is released first.',
+              mbConfirmation, MB_YESNO) <> IDYES then
+    begin
+      Result := False;
+      Exit;
+    end;
+  if not AskListenerToQuit() then
+  begin
+    if not UninstallSilent() then
+      MsgBox('{#AppName} did not quit. Quit it from its tray icon, then uninstall it again.', mbError, MB_OK);
+    Result := False;
+  end;
 end;

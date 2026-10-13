@@ -331,6 +331,7 @@ static bool ctm_window_steering(const void *deviceKey) { return window_move::ste
 // ⛔ AFTER osk.inl, which it calls to open the settings window, and after
 // overlay_window.inl, whose keyboard it toggles.
 #include "app/tray_menu.inl"       // the words on the tray icon's menu; pure
+#include "app/quit_request.inl"    // how another program asks for Quit; pure
 #include "app/tray_icon.inl"       // the notification-area icon
 #include "app/window_icon_rule.inl" // the settings window's icon: which sizes, which window
 // ⛔ AFTER open_ui.inl, whose title marker says which window is ours.
