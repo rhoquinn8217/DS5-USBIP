@@ -151,6 +151,7 @@ carry it; upstream's own history is unchanged.
 | 2026-10-12 | A build number, like aurora-tv's: every build takes the next number free and commits it as "Build N" before compiling (build-number.ps1, called by build.ps1; a tree with uncommitted changes is refused). The program shows its version with the build, as "0.2.0 (N)", in the Controller Configs window's title, the tray tip, --version, the log's start line, /api/v1/status and its file properties, and the installer is named for its build. | `e8c2e64`, `c64a5a9` |
 | 2026-10-12 | The installer over an installed copy: a first page to upgrade (or reinstall, or replace with an older build) or uninstall, with the uninstaller that copy came with. A running DS5-USBIP is asked to quit the way the tray's Quit does, releasing its bridges (the tray window answers DS5-USBIP.Quit), by the setup and by the uninstaller from Windows' list. The firewall rule covers public networks too: a PC whose network Windows marks Public otherwise let no TV in. | `c25bbe8`, `8fc326e`, `c7fef51`, `e0328f4` |
 | 2026-10-12 | DS5-USBIP 0.2.0. | `d00fb16` |
+| 2026-10-12 | Vibepollo starts DS5-USBIP as a stream starts and quits it as the stream ends. `DS5-USBIP start` starts the listener as a process of its own and returns at once, as Vibepollo waits on a start command with no time limit; `DS5-USBIP stop` asks it to quit the way the tray's Quit does; `DS5-USBIP stream-commands add|remove` puts the two in Vibepollo's global_prep_cmd beside the person's own entries, or takes them out. The installer has a box for it, ticked by default where Vibepollo is found, and asks before restarting Vibepollo. | `d0654c5`, `1000f09` |
 
 ## Files changed
 
@@ -162,10 +163,10 @@ ENet library, removed with the ENet transport).
 ```
  .gitattributes                                |   48 +
  .gitignore                                    |   41 +-
- CHANGES.md                                    |  353 +
+ CHANGES.md                                    |  357 +
  LINK                                          |    0
  README.md                                     |  301 +-
- app/ctm-usbip-tests.vcxproj                   |  141 +
+ app/ctm-usbip-tests.vcxproj                   |  142 +
  app/ctm-usbip.ico                             |  Bin 156019 -> 30139 bytes
  app/ctm-usbip.rc                              |   26 +-
  app/ctm-usbip.vcxproj                         |   53 +-
@@ -190,7 +191,7 @@ ENet library, removed with the ENet transport).
  installer/build-ds5-installer.ps1             |  126 +
  installer/build-icon.ps1                      |  238 +
  installer/controller-path.txt                 |   68 +
- installer/ds5-usbip.iss                       |  508 ++
+ installer/ds5-usbip.iss                       |  674 ++
  installer/icon-source.png                     |  Bin 0 -> 100705 bytes
  installer/make-icon-ds5.ps1                   |  236 +
  installer/trace-silhouette.py                 |  368 +
@@ -205,7 +206,7 @@ ENet library, removed with the ENet transport).
  release.ps1                                   |  266 +
  src/app/agent.inl                             | 1135 ++-
  src/app/agent_session_sweep.inl               |  333 +
- src/app/cli.inl                               |   56 +-
+ src/app/cli.inl                               |   60 +-
  src/app/common.inl                            |  166 +-
  src/app/config_move.inl                       | 1186 +++
  src/app/console_attach.inl                    |   82 +
@@ -233,6 +234,8 @@ ENet library, removed with the ENet transport).
  src/app/service.inl                           |   27 +-
  src/app/start_report.inl                      |   37 +
  src/app/stop_wait.inl                         |   74 +
+ src/app/stream_commands.inl                   |  233 +
+ src/app/stream_start.inl                      |  157 +
  src/app/tray_icon.inl                         |  741 ++
  src/app/tray_menu.inl                         |  175 +
  src/app/tv_sessions.inl                       |  162 +
@@ -282,7 +285,7 @@ ENet library, removed with the ENet transport).
  src/input/trigger_effect.inl                  |  637 ++
  src/log/capped_log.inl                        |  117 +
  src/log/device_log.inl                        |  233 +
- src/main.cpp                                  |  886 ++-
+ src/main.cpp                                  |  895 ++-
  src/map/runtime.cpp                           |   90 +-
  src/usbdisplay/README.md                      |   13 +
  src/usbip/device.inl                          |  800 +-
@@ -332,7 +335,8 @@ ENet library, removed with the ENet transport).
  tests/schema_json_test.cpp                    |  158 +
  tests/stick_mouse_test.cpp                    |  735 ++
  tests/stop_wait_test.cpp                      |   93 +
- tests/tests_main.cpp                          |  173 +
+ tests/stream_commands_test.cpp                |  118 +
+ tests/tests_main.cpp                          |  175 +
  tests/touch_mouse_test.cpp                    | 1654 +++++
  tests/tray_menu_test.cpp                      |  194 +
  tests/trigger_click_test.cpp                  |  901 +++
@@ -349,5 +353,5 @@ ENet library, removed with the ENet transport).
  tools/create-desktop-shortcut.bat             |   46 +
  tools/create-desktop-shortcut.ps1             |  148 +
  tools/osk-mockups.py                          |  103 +
- 189 files changed, 56932 insertions(+), 1554 deletions(-)
+ 192 files changed, 57626 insertions(+), 1554 deletions(-)
 ```
