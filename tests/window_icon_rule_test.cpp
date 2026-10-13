@@ -8,6 +8,7 @@
 #include "harness.h"
 
 #include "app/window_icon_rule.inl"
+#include "app/favicon_version.inl"
 
 using namespace ctmtest;
 
@@ -80,6 +81,27 @@ int run_window_icon_rule_tests()
         CTM_CHECK(!is_app_window_title(nullptr, marker));
         CTM_CHECK(!is_app_window_title(L"anything", nullptr));
         CTM_CHECK(!is_app_window_title(L"anything", L""));
+    }
+
+    section("window icon: the page's icon address carries the icon's fingerprint");
+    {
+        // ⭐ The browser keeps a favicon by its address (rhoquinn8217, 2026-10-12:
+        // the window kept the black bridge after the icon changed), so a new
+        // picture has to mean a new address.
+        using favicon_version::fingerprint;
+        using favicon_version::with_fingerprint;
+        const unsigned char oldIcon[] = { 0, 0, 1, 0, 1 };
+        const unsigned char newIcon[] = { 0, 0, 1, 0, 2 };
+        const std::string a = fingerprint(oldIcon, sizeof oldIcon);
+        const std::string b = fingerprint(newIcon, sizeof newIcon);
+        CTM_CHECK(a.size() == 8);
+        CTM_CHECK(a != b);                                          // a new picture, a new address
+        CTM_CHECK(fingerprint(oldIcon, sizeof oldIcon) == a);       // the same picture, the same one
+        CTM_CHECK(fingerprint("", 0) == std::string("811c9dc5"));   // nothing hashed: FNV-1a's basis
+        const std::string page = "<link rel=\"icon\" href=\"/favicon.ico?v=1\">";
+        CTM_CHECK(with_fingerprint(page, a) == "<link rel=\"icon\" href=\"/favicon.ico?v=" + a + "\">");
+        CTM_CHECK(with_fingerprint(page, "") == page);               // no icon in the exe: left alone
+        CTM_CHECK(with_fingerprint("<p>no link</p>", a) == std::string("<p>no link</p>"));
     }
 
     return 0;
