@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.79 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.80 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,8 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.80 The page's version has its own line at the top of the Overview
+            bar, with its own label, in a box that cannot be edited.
     2.66.79 Open on bridge is a checkbox, on its own line under "agent", in
             place of the button that turned green. A controller lands on it,
             as on no other checkbox, and A ticks it.
@@ -1693,6 +1695,10 @@
   .barLines { display:flex; flex-direction:column; gap:6px; }
   .barLine { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
   #openOnBridgeLabel { display:inline-flex; align-items:center; gap:6px; cursor:pointer; }
+  /* The page's version in a box like the fields below it, its words dimmer
+     because nothing can be typed there (rhoquinn8217, 2026-10-12). */
+  .fixedField { background:#1d1f26; color:#9aa0ab; border:1px solid #2c2e36; border-radius:6px;
+                padding:7px 9px; font-size:13px; cursor:default; }
   #padDest.on { color:#7fd18c; }
   /* Lit while ○ has backed out into it, so it is clear where focus went. */
   #gpbar.gp-zone { background:#22252e; border-top-color:#6c8cff; }
@@ -1933,10 +1939,19 @@
 <div class="pane on" id="pane-overview">
 
 <div class="bar">
-  <!-- ⓘ The same number as VERSION at the top of this file, by hand. It sat
-       at 2.66.4 for thirty-four versions while VERSION moved on. -->
-  <span class="muted" style="font-size:12px">v2.66.79</span>
   <span class="barLines">
+  <!-- ⭐ THE PAGE'S VERSION, on its own line at the top, with its own label,
+       in a box that cannot be edited (rhoquinn8217, 2026-10-12: "can you give
+       the version it's own label but make it uneditable. Place it on it's own
+       line at the top"). Text, not an input: nothing can be typed in it, and
+       a controller never stops on it. The program's own version is in the
+       window's title.
+       ⓘ The same number as VERSION at the top of this file, by hand. It sat
+       at 2.66.4 for thirty-four versions while VERSION moved on. -->
+  <span class="barLine">
+  <label class="muted">version</label>
+  <span class="fixedField" id="pageVersion" title="This page's version. The program's own is in the window's title.">2.66.80</span>
+  </span>
   <span class="barLine">
   <label class="muted">agent</label>
   <input id="base" value="http://127.0.0.1:48053" size="26">
