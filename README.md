@@ -143,9 +143,3 @@ line, and this fork continues it.
 
 Copyright (C) 2026 Ciprian Teodor Misaila. Fork additions copyright (C) 2026
 rhoquinn8217, under the same license.
-
-Not a license term, an ask from ciprianmisaila's CTM-USBIP that this fork
-honours: if you integrate CTM Bridge into your own app or fork, overlay the CTM
-Bridge badge on your app's icon, the way the
-[aurora-tv](https://github.com/CTM-Bridge/aurora-tv) and
-[moonlight-tv](https://github.com/CTM-Bridge/moonlight-tv) forks do.
