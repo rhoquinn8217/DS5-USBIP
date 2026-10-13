@@ -174,6 +174,11 @@ Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=
   with an older build), and uninstall, which runs the uninstaller that copy
   was installed with and closes this setup once the copy is gone.
 
+  AND A THIRD CHOICE, only while Vibepollo is set to start this program:
+  stop that, and change nothing else (rhoquinn8217, 2026-10-12: "When you
+  run the installer, there is an option to just remove the vibepollo
+  setting. The other way is to do so automatically if you uninstall").
+
   AND A RUNNING DS5-USBIP IS QUIT FOR THE PERSON (2026-10-12), the way its
   tray menu's Quit does: see AskListenerToQuit. A copy that does not know
   how to be asked is left to them, with a Retry.
@@ -193,8 +198,11 @@ var
   GActionPage: TWizardPage;
   GUpgradeChoice: TNewRadioButton;
   GUninstallChoice: TNewRadioButton;
+  { Only while Vibepollo is set to start this program; nil otherwise. }
+  GRemoveStreamChoice: TNewRadioButton;
   GRunningNote: TNewStaticText;
-  { Set once the copy is uninstalled, so closing this setup asks nothing. }
+  { Set once the page's choice is done, an uninstall or the Vibepollo
+    setting taken out, so closing this setup asks nothing. }
   GDoneAfterUninstall: Boolean;
   { Vibepollo, when it is here: the service it runs as, and its settings
     file. Looked for once. }
@@ -324,141 +332,6 @@ begin
   end;
 end;
 
-{ The first choice on the page, by how this setup's build compares with the
-  installed copy's. }
-function UpgradeCaption(): String;
-var
-  Mine, Theirs: Integer;
-begin
-  Mine := {#AppBuild};
-  Theirs := BuildOf(GInstalledVersion);
-  if Mine > Theirs then
-    Result := 'Upgrade to {#AppVersion} ({#AppBuild})'
-  else if Mine = Theirs then
-    Result := 'Reinstall {#AppVersion} ({#AppBuild})'
-  else
-    Result := 'Replace it with {#AppVersion} ({#AppBuild}), an older build';
-end;
-
-procedure ChoiceChanged(Sender: TObject);
-begin
-  { Never before both choices exist. Ticking the first while the page was
-    being built clicked it, this read the second, not made yet, and the
-    setup ended with "Could not call proc" (rhoquinn8217, 2026-10-12). }
-  if (GUpgradeChoice = nil) or (GUninstallChoice = nil) then Exit;
-  if GUninstallChoice.Checked then
-    WizardForm.NextButton.Caption := 'Uninstall'
-  else
-    WizardForm.NextButton.Caption := SetupMessage(msgButtonNext);
-end;
-
-function NewNote(const Caption: String; Left, Top, Width, Height: Integer): TNewStaticText;
-begin
-  Result := TNewStaticText.Create(GActionPage);
-  Result.Parent := GActionPage.Surface;
-  Result.AutoSize := False;
-  Result.WordWrap := True;
-  Result.Left := Left;
-  Result.Top := Top;
-  Result.Width := Width;
-  Result.Height := Height;
-  Result.Caption := Caption;
-end;
-
-function NewChoice(const Caption: String; Top, Width: Integer): TNewRadioButton;
-begin
-  Result := TNewRadioButton.Create(GActionPage);
-  Result.Parent := GActionPage.Surface;
-  Result.Top := Top;
-  Result.Width := Width;
-  Result.Height := ScaleY(18);
-  Result.Caption := Caption;
-  Result.Font.Style := [fsBold];
-end;
-
-procedure InitializeWizard();
-var
-  Info, UpgradeNote, UninstallNote: TNewStaticText;
-  Indent, Width: Integer;
-  Installed: String;
-begin
-  GInstalledVersion := InstalledValue('DisplayVersion');
-  GUninstaller := RemoveQuotes(InstalledValue('UninstallString'));
-  { Not installed: the plain install, as it always was. }
-  if GUninstaller = '' then Exit;
-
-  GActionPage := CreateCustomPage(wpWelcome, '{#AppName} is already installed', 'What should this setup do?');
-  Width := GActionPage.SurfaceWidth;
-  Indent := ScaleX(18);
-
-  Installed := '{#AppName}';
-  if GInstalledVersion <> '' then Installed := Installed + ' ' + ShownVersion(GInstalledVersion);
-  Info := NewNote(Installed + ' is installed on this PC. This setup holds {#AppVersion} ({#AppBuild}).',
-                  0, 0, Width, ScaleY(30));
-
-  GUpgradeChoice := NewChoice(UpgradeCaption(), Info.Top + Info.Height + ScaleY(8), Width);
-  GUpgradeChoice.Checked := True;
-  UpgradeNote := NewNote('Your configs, settings and desktop shortcut stay as they are.',
-                         Indent, GUpgradeChoice.Top + GUpgradeChoice.Height + ScaleY(2), Width - Indent, ScaleY(30));
-
-  GUninstallChoice := NewChoice('Uninstall {#AppName}', UpgradeNote.Top + UpgradeNote.Height + ScaleY(8), Width);
-  UninstallNote := NewNote('Removes the program, its shortcuts and its firewall rule. Your configs and the usbip-win2 driver stay.',
-                           Indent, GUninstallChoice.Top + GUninstallChoice.Height + ScaleY(2), Width - Indent, ScaleY(30));
-  { The handlers last, once both choices exist: see ChoiceChanged. }
-  GUpgradeChoice.OnClick := @ChoiceChanged;
-  GUninstallChoice.OnClick := @ChoiceChanged;
-
-  GRunningNote := NewNote('{#AppName} is running. It will be quit before anything changes, the way Quit in its tray menu does: any controller it has bridged is released first.',
-                          0, UninstallNote.Top + UninstallNote.Height + ScaleY(14), Width, ScaleY(44));
-  GRunningNote.Visible := False;
-end;
-
-procedure CurPageChanged(CurPageID: Integer);
-begin
-  { One test at a time, so nothing is read off a page that was never made. }
-  if GActionPage = nil then Exit;
-  if CurPageID <> GActionPage.ID then Exit;
-  GRunningNote.Visible := ListenerIsRunning();
-  ChoiceChanged(nil);
-end;
-
-{ UNINSTALL, from the page: quit it, run the uninstaller the copy was
-  installed with (it asks the person to confirm, as from Windows' list), and
-  close this setup once the copy is gone. Cancelled there, the page stays. }
-function NextButtonClick(CurPageID: Integer): Boolean;
-var
-  Code, Waited: Integer;
-begin
-  Result := True;
-  { One test at a time, as in CurPageChanged. }
-  if GActionPage = nil then Exit;
-  if CurPageID <> GActionPage.ID then Exit;
-  if not GUninstallChoice.Checked then Exit;
-
-  Result := False;
-  if not EnsureListenerQuit(WizardSilent()) then Exit;
-  if not Exec(GUninstaller, '', '', SW_SHOWNORMAL, ewWaitUntilTerminated, Code) then
-  begin
-    MsgBox('The uninstaller did not start: ' + SysErrorMessage(Code), mbError, MB_OK);
-    Exit;
-  end;
-  { Its entry goes as the uninstall ends; a moment's grace for that. }
-  Waited := 0;
-  while (InstalledValue('UninstallString') <> '') and (Code = 0) and (Waited < 10000) do
-  begin
-    Sleep(500);
-    Waited := Waited + 500;
-  end;
-  if InstalledValue('UninstallString') <> '' then Exit;
-  GDoneAfterUninstall := True;
-  WizardForm.Close;
-end;
-
-procedure CancelButtonClick(CurPageID: Integer; var Cancel, Confirm: Boolean);
-begin
-  if GDoneAfterUninstall then Confirm := False;
-end;
-
 { ======================================================================
   VIBEPOLLO STARTS DS5-USBIP WITH A STREAM, AND QUITS IT AFTER (2026-10-12)
   ======================================================================
@@ -559,24 +432,232 @@ begin
     RestartStreamHost();
 end;
 
-{ DS5-USBIP.exe stream-commands add or remove, on Vibepollo's settings file.
-  It ends 0 when the file already said so and 10 when it changed it; see
-  src/app/stream_start.inl for the rest. -1 when it did not run. }
-function EditStreamCommands(const Verb: String): Integer;
+{ DS5-USBIP.exe stream-commands add or remove, on Vibepollo's settings file,
+  with the program at Exe. It ends 0 when the file already said so and 10
+  when it changed it; see src/app/stream_start.inl for the rest. -1 when it
+  did not run. }
+function EditStreamCommandsWith(const Exe, Verb: String): Integer;
 var
   Code: Integer;
 begin
-  if Exec(ExpandConstant('{app}\{#ExeName}'), 'stream-commands ' + Verb + ' "' + GStreamHostConfig + '"',
+  if Exec(Exe, 'stream-commands ' + Verb + ' "' + GStreamHostConfig + '"',
           '', SW_HIDE, ewWaitUntilTerminated, Code) then
   begin
-    Log('stream-commands ' + Verb + ': ' + IntToStr(Code));
+    Log('stream-commands ' + Verb + ' (' + Exe + '): ' + IntToStr(Code));
     Result := Code;
   end
   else
   begin
-    Log('stream-commands ' + Verb + ' did not run: ' + SysErrorMessage(Code));
+    Log('stream-commands ' + Verb + ' (' + Exe + ') did not run: ' + SysErrorMessage(Code));
     Result := -1;
   end;
+end;
+
+{ The same with the program this setup installs. }
+function EditStreamCommands(const Verb: String): Integer;
+begin
+  Result := EditStreamCommandsWith(ExpandConstant('{app}\{#ExeName}'), Verb);
+end;
+
+{ Whether Vibepollo is set to start this program now: its global_prep_cmd
+  line names it. }
+function OurStreamCommandsSet(): Boolean;
+var
+  Lines: TArrayOfString;
+  I: Integer;
+  Entry: String;
+begin
+  Result := False;
+  if not StreamHostFound() then Exit;
+  if not LoadStringsFromFile(GStreamHostConfig, Lines) then Exit;
+  for I := 0 to GetArrayLength(Lines) - 1 do
+  begin
+    Entry := Lowercase(Trim(Lines[I]));
+    if (Pos('global_prep_cmd', Entry) = 1) and (Pos('ds5-usbip.exe', Entry) > 0) then
+      Result := True;
+  end;
+end;
+
+{ The first choice on the page, by how this setup's build compares with the
+  installed copy's. }
+function UpgradeCaption(): String;
+var
+  Mine, Theirs: Integer;
+begin
+  Mine := {#AppBuild};
+  Theirs := BuildOf(GInstalledVersion);
+  if Mine > Theirs then
+    Result := 'Upgrade to {#AppVersion} ({#AppBuild})'
+  else if Mine = Theirs then
+    Result := 'Reinstall {#AppVersion} ({#AppBuild})'
+  else
+    Result := 'Replace it with {#AppVersion} ({#AppBuild}), an older build';
+end;
+
+procedure ChoiceChanged(Sender: TObject);
+var
+  NextCaption: String;
+begin
+  { Never before both choices exist. Ticking the first while the page was
+    being built clicked it, this read the second, not made yet, and the
+    setup ended with "Could not call proc" (rhoquinn8217, 2026-10-12). }
+  if (GUpgradeChoice = nil) or (GUninstallChoice = nil) then Exit;
+  NextCaption := SetupMessage(msgButtonNext);
+  if GUninstallChoice.Checked then NextCaption := 'Uninstall';
+  if GRemoveStreamChoice <> nil then
+    if GRemoveStreamChoice.Checked then NextCaption := 'Remove';
+  WizardForm.NextButton.Caption := NextCaption;
+end;
+
+function NewNote(const Caption: String; Left, Top, Width, Height: Integer): TNewStaticText;
+begin
+  Result := TNewStaticText.Create(GActionPage);
+  Result.Parent := GActionPage.Surface;
+  Result.AutoSize := False;
+  Result.WordWrap := True;
+  Result.Left := Left;
+  Result.Top := Top;
+  Result.Width := Width;
+  Result.Height := Height;
+  Result.Caption := Caption;
+end;
+
+function NewChoice(const Caption: String; Top, Width: Integer): TNewRadioButton;
+begin
+  Result := TNewRadioButton.Create(GActionPage);
+  Result.Parent := GActionPage.Surface;
+  Result.Top := Top;
+  Result.Width := Width;
+  Result.Height := ScaleY(18);
+  Result.Caption := Caption;
+  Result.Font.Style := [fsBold];
+end;
+
+procedure InitializeWizard();
+var
+  Info, UpgradeNote, RemoveStreamNote, UninstallNote: TNewStaticText;
+  Indent, Width, Below: Integer;
+  Installed, UninstallSays: String;
+begin
+  GInstalledVersion := InstalledValue('DisplayVersion');
+  GUninstaller := RemoveQuotes(InstalledValue('UninstallString'));
+  { Not installed: the plain install, as it always was. }
+  if GUninstaller = '' then Exit;
+
+  GActionPage := CreateCustomPage(wpWelcome, '{#AppName} is already installed', 'What should this setup do?');
+  Width := GActionPage.SurfaceWidth;
+  Indent := ScaleX(18);
+
+  Installed := '{#AppName}';
+  if GInstalledVersion <> '' then Installed := Installed + ' ' + ShownVersion(GInstalledVersion);
+  Info := NewNote(Installed + ' is installed on this PC. This setup holds {#AppVersion} ({#AppBuild}).',
+                  0, 0, Width, ScaleY(30));
+
+  GUpgradeChoice := NewChoice(UpgradeCaption(), Info.Top + Info.Height + ScaleY(8), Width);
+  GUpgradeChoice.Checked := True;
+  UpgradeNote := NewNote('Your configs, settings and desktop shortcut stay as they are.',
+                         Indent, GUpgradeChoice.Top + GUpgradeChoice.Height + ScaleY(2), Width - Indent, ScaleY(30));
+
+  Below := UpgradeNote.Top + UpgradeNote.Height + ScaleY(8);
+
+  { Only while Vibepollo is set to start this program: then there is
+    something to take out. }
+  if OurStreamCommandsSet() then
+  begin
+    GRemoveStreamChoice := NewChoice('Stop Vibepollo starting {#AppName}', Below, Width);
+    RemoveStreamNote := NewNote('Takes {#AppName} out of Vibepollo''s stream commands. {#AppName} stays installed, and your own Vibepollo commands stay.',
+                                Indent, GRemoveStreamChoice.Top + GRemoveStreamChoice.Height + ScaleY(2), Width - Indent, ScaleY(30));
+    Below := RemoveStreamNote.Top + RemoveStreamNote.Height + ScaleY(8);
+  end;
+
+  if StreamHostFound() then
+    UninstallSays := 'Removes the program, its shortcuts, its firewall rule and its Vibepollo setting. Your configs and the usbip-win2 driver stay.'
+  else
+    UninstallSays := 'Removes the program, its shortcuts and its firewall rule. Your configs and the usbip-win2 driver stay.';
+  GUninstallChoice := NewChoice('Uninstall {#AppName}', Below, Width);
+  UninstallNote := NewNote(UninstallSays,
+                           Indent, GUninstallChoice.Top + GUninstallChoice.Height + ScaleY(2), Width - Indent, ScaleY(30));
+  { The handlers last, once every choice exists: see ChoiceChanged. }
+  GUpgradeChoice.OnClick := @ChoiceChanged;
+  if GRemoveStreamChoice <> nil then GRemoveStreamChoice.OnClick := @ChoiceChanged;
+  GUninstallChoice.OnClick := @ChoiceChanged;
+
+  GRunningNote := NewNote('{#AppName} is running. It will be quit before anything changes, the way Quit in its tray menu does: any controller it has bridged is released first.',
+                          0, UninstallNote.Top + UninstallNote.Height + ScaleY(14), Width, ScaleY(44));
+  GRunningNote.Visible := False;
+  Log('the page: ' + IntToStr(GRunningNote.Top + GRunningNote.Height) + ' of '
+      + IntToStr(GActionPage.SurfaceHeight) + ' high');
+end;
+
+procedure CurPageChanged(CurPageID: Integer);
+begin
+  { One test at a time, so nothing is read off a page that was never made. }
+  if GActionPage = nil then Exit;
+  if CurPageID <> GActionPage.ID then Exit;
+  GRunningNote.Visible := ListenerIsRunning();
+  ChoiceChanged(nil);
+end;
+
+{ UNINSTALL, from the page: quit it, run the uninstaller the copy was
+  installed with (it asks the person to confirm, as from Windows' list), and
+  close this setup once the copy is gone. Cancelled there, the page stays. }
+function NextButtonClick(CurPageID: Integer): Boolean;
+var
+  Code, Waited: Integer;
+  Exe: String;
+begin
+  Result := True;
+  { One test at a time, as in CurPageChanged. }
+  if GActionPage = nil then Exit;
+  if CurPageID <> GActionPage.ID then Exit;
+
+  { STOP VIBEPOLLO STARTING IT: ours taken out of its list by the program
+    already installed (one that put the entry there has the command),
+    Vibepollo restarted after asking, and this setup closed. Nothing else
+    changes. }
+  if GRemoveStreamChoice <> nil then
+    if GRemoveStreamChoice.Checked then
+    begin
+      Result := False;
+      Exe := AddBackslash(InstalledValue('InstallLocation')) + '{#ExeName}';
+      Code := EditStreamCommandsWith(Exe, 'remove');
+      if (Code <> 0) and (Code <> 10) then
+      begin
+        MsgBox('Setup could not take {#AppName} out of Vibepollo''s stream commands (code ' + IntToStr(Code)
+             + '). Vibepollo''s settings file was left as it was.', mbError, MB_OK);
+        Exit;
+      end;
+      if Code = 10 then
+        AskToRestartStreamHost(WizardSilent(), 'Vibepollo will stop starting {#AppName} with its streams once it has restarted.');
+      GDoneAfterUninstall := True;
+      WizardForm.Close;
+      Exit;
+    end;
+
+  if not GUninstallChoice.Checked then Exit;
+
+  Result := False;
+  if not EnsureListenerQuit(WizardSilent()) then Exit;
+  if not Exec(GUninstaller, '', '', SW_SHOWNORMAL, ewWaitUntilTerminated, Code) then
+  begin
+    MsgBox('The uninstaller did not start: ' + SysErrorMessage(Code), mbError, MB_OK);
+    Exit;
+  end;
+  { Its entry goes as the uninstall ends; a moment's grace for that. }
+  Waited := 0;
+  while (InstalledValue('UninstallString') <> '') and (Code = 0) and (Waited < 10000) do
+  begin
+    Sleep(500);
+    Waited := Waited + 500;
+  end;
+  if InstalledValue('UninstallString') <> '' then Exit;
+  GDoneAfterUninstall := True;
+  WizardForm.Close;
+end;
+
+procedure CancelButtonClick(CurPageID: Integer; var Cancel, Confirm: Boolean);
+begin
+  if GDoneAfterUninstall then Confirm := False;
 end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
