@@ -98,6 +98,7 @@
     <ClCompile Include="..\tests\quit_request_test.cpp" />
     <ClCompile Include="..\tests\stream_commands_test.cpp" />
     <ClCompile Include="..\tests\taskbar_rule_test.cpp" />
+    <ClCompile Include="..\tests\audio_haptics_dsp_test.cpp" />
     <ClCompile Include="..\tests\nickname_test.cpp" />
     <ClCompile Include="..\tests\rest_shared_section_test.cpp" />
     <ClCompile Include="..\tests\held_edges_test.cpp" />
