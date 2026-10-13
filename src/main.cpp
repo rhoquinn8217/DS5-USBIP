@@ -32,6 +32,11 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+// ⛔ A standard header must be named up here, never first inside the
+// namespace below: there it makes a std of its own, and std::wstring stops
+// being found (old_devices_rule.inl's <cwctype>, 2026-10-13).
+#include <cwchar>
+#include <cwctype>
 #include <deque>
 #include <filesystem>
 #include <fstream>
@@ -334,6 +339,8 @@ static bool ctm_window_steering(const void *deviceKey) { return window_move::ste
 #include "app/quit_request.inl"    // how another program asks for Quit; pure
 #include "app/stream_commands.inl" // our entry in Vibepollo's stream commands; pure
 #include "app/stream_start.inl"    // start, stop and stream-commands, which Vibepollo and the installer run
+#include "app/old_devices_rule.inl" // which of Windows' old device records are ours; pure
+#include "app/old_devices.inl"     // ...listed and removed: old-devices, remove-old-devices
 #include "app/tray_icon.inl"       // the notification-area icon
 #include "app/window_icon_rule.inl" // the settings window's icon: which sizes, which window
 // ⛔ AFTER open_ui.inl, whose title marker says which window is ours.
@@ -733,6 +740,16 @@ int wmain(int argc, wchar_t **argv)
     if (mode == L"start") return stream_start::start();
     if (mode == L"stop") return stream_start::stop();
     if (mode == L"stream-commands") return stream_start::edit_commands(argc, argv);
+    // ⭐ THE OLD CONTROLLERS WINDOWS KEEPS FROM PAST BRIDGES (2026-10-13):
+    // old_devices.inl. Not the listener either.
+    if (mode == L"old-devices") return old_devices::list_mode();
+    if (mode == L"remove-old-devices") {
+        bool report = false;
+        for (int i = 2; i < argc; ++i) {
+            if (std::wstring(argv[i]) == L"--report") report = true;
+        }
+        return old_devices::remove_mode(report);
+    }
 
     if (mode == L"list-bt" || mode == L"list-hid") {
         // JSON device inventory for GUI front-ends (Ciprian's Bridge). The GUI

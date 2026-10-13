@@ -3,6 +3,7 @@ public:
     ~CtmUsbipDevice()
     {
         stop_audio_stream();
+        usb_serial_fallback::g_slots.release(fallbackSerial_);
     }
 
     bool load(
@@ -107,13 +108,6 @@ public:
         return audioInputSampleRate_;
     }
 
-    // ⓘ The TV a session belongs to (tv_sessions.inl), before attach_backend:
-    // two TVs' serial-less pads on the same node number are two devices.
-    void set_serial_tv(const std::string &tv)
-    {
-        serialTv_.assign(tv.begin(), tv.end());
-    }
-
     bool attach_backend(CtmBackend *backend, std::wstring *error)
     {
         backend_ = backend;
@@ -136,9 +130,13 @@ public:
         if (requestedSerial.empty()) {
             // ⛔ Not one constant for every such device (code review,
             // 2026-10-05): two of them bridged at once were one device to
-            // Windows. fallback_serial.inl says how this one is made.
-            requestedSerial = usb_serial_fallback::make(caps.path, caps.vendorId, caps.productId,
-                                                        serialTv_);
+            // Windows. ⛔ And not a new one on every bridge (2026-10-13): each
+            // was a new device to Windows, and they piled up by the hundred.
+            // fallback_serial.inl says how this one is made; stop() gives its
+            // slot back.
+            usb_serial_fallback::g_slots.release(fallbackSerial_);
+            fallbackSerial_ = usb_serial_fallback::g_slots.claim(caps.vendorId, caps.productId);
+            requestedSerial = fallbackSerial_;
         }
         if (!apply_virtual_serial_to_profile(&profile_, requestedSerial, &virtualSerial, error)) {
             return false;
@@ -288,6 +286,10 @@ public:
         mouse_forget_device(this);
         rebind_forget_pad(this);
         stop_audio_stream();
+        // ⭐ Its serial's slot is free for the next device of its kind
+        // (fallback_serial.inl).
+        usb_serial_fallback::g_slots.release(fallbackSerial_);
+        fallbackSerial_.clear();
     }
 
     CtmAudioStats audio_stats() const
@@ -2066,8 +2068,9 @@ private:
     std::vector<uint8_t> physicalFeatureScratch_;
     std::map<FeatureCacheKey, CTM_USB_RESPONSE> featureCache_;
     mutable std::mutex physicalSerialMutex_;
-    // The TV this device came from, for the fallback serial: set_serial_tv().
-    std::wstring serialTv_;
+    // The serial made for it when the TV sent none, held until stop()
+    // (fallback_serial.inl). Empty for a device with a serial of its own.
+    std::wstring fallbackSerial_;
     std::string physicalSerial_;
     std::string linkedConfig_;
     std::mutex unknownLogMutex_;

@@ -950,7 +950,6 @@ static bool start_bridge_session_for(const std::string &kind, uint16_t port, con
     session->onlyPeer = onlyPeer;
     session->owner = owner;
     session->device = std::make_shared<CtmUsbipDevice>();
-    session->device->set_serial_tv(owner);
     AgentBridgeSession *sessionPtr = session.get();
     const std::string ordinalForLog = session->ordinal;
     const std::string nicknameForLog = session->nickname;
