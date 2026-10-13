@@ -152,6 +152,8 @@ carry it; upstream's own history is unchanged.
 | 2026-10-12 | The installer over an installed copy: a first page to upgrade (or reinstall, or replace with an older build) or uninstall, with the uninstaller that copy came with. A running DS5-USBIP is asked to quit the way the tray's Quit does, releasing its bridges (the tray window answers DS5-USBIP.Quit), by the setup and by the uninstaller from Windows' list. The firewall rule covers public networks too: a PC whose network Windows marks Public otherwise let no TV in. | `c25bbe8`, `8fc326e`, `c7fef51`, `e0328f4` |
 | 2026-10-12 | DS5-USBIP 0.2.0. | `d00fb16` |
 | 2026-10-12 | Vibepollo starts DS5-USBIP as a stream starts and quits it as the stream ends. `DS5-USBIP start` starts the listener as a process of its own and returns at once, as Vibepollo waits on a start command with no time limit; `DS5-USBIP stop` asks it to quit the way the tray's Quit does; `DS5-USBIP stream-commands add|remove` puts the two in Vibepollo's global_prep_cmd beside the person's own entries, or takes them out. The installer has a box for it, ticked by default where Vibepollo is found, and asks before restarting Vibepollo. | `d0654c5`, `1000f09` |
+| 2026-10-12 | No Controller Configs window at a stream's start, now that aurora-tv's badge and button show the listener is on: Vibepollo's start runs the listener with --no-start-window, which keeps the tray icon and the API and leaves a running listener as it is. A controller bridging still opens the window, unless Open on bridge is off. | `e61ce2e` |
+| 2026-10-12 | The installer's already-installed page has a third choice while Vibepollo is set to start DS5-USBIP: stop that and change nothing else, the person's own Vibepollo commands kept, Vibepollo restarted after asking. Uninstalling takes the setting out too, as before. | `19dbd6b` |
 
 ## Files changed
 
@@ -163,9 +165,9 @@ ENet library, removed with the ENet transport).
 ```
  .gitattributes                                |   48 +
  .gitignore                                    |   41 +-
- CHANGES.md                                    |  357 +
+ CHANGES.md                                    |  359 +
  LINK                                          |    0
- README.md                                     |  301 +-
+ README.md                                     |  297 +-
  app/ctm-usbip-tests.vcxproj                   |  142 +
  app/ctm-usbip.ico                             |  Bin 156019 -> 30139 bytes
  app/ctm-usbip.rc                              |   26 +-
@@ -191,7 +193,7 @@ ENet library, removed with the ENet transport).
  installer/build-ds5-installer.ps1             |  126 +
  installer/build-icon.ps1                      |  238 +
  installer/controller-path.txt                 |   68 +
- installer/ds5-usbip.iss                       |  674 ++
+ installer/ds5-usbip.iss                       |  755 ++
  installer/icon-source.png                     |  Bin 0 -> 100705 bytes
  installer/make-icon-ds5.ps1                   |  236 +
  installer/trace-silhouette.py                 |  368 +
@@ -204,9 +206,9 @@ ENet library, removed with the ENet transport).
  profiles/descriptors/virtual_keyboard.profile |   74 +
  profiles/descriptors/virtual_mouse.profile    |   59 +
  release.ps1                                   |  266 +
- src/app/agent.inl                             | 1135 ++-
+ src/app/agent.inl                             | 1138 ++-
  src/app/agent_session_sweep.inl               |  333 +
- src/app/cli.inl                               |   60 +-
+ src/app/cli.inl                               |   61 +-
  src/app/common.inl                            |  166 +-
  src/app/config_move.inl                       | 1186 +++
  src/app/console_attach.inl                    |   82 +
@@ -218,8 +220,8 @@ ENet library, removed with the ENet transport).
  src/app/front_rule.inl                        |   89 +
  src/app/home_folder.inl                       |  130 +
  src/app/nickname.inl                          |   90 +
- src/app/open_on_bridge.inl                    |   44 +
- src/app/open_ui.inl                           |  708 ++
+ src/app/open_on_bridge.inl                    |   62 +
+ src/app/open_ui.inl                           |  709 ++
  src/app/overlay_window.inl                    | 2303 ++++++
  src/app/paired_tv.inl                         |  495 ++
  src/app/protocol_level.inl                    |   77 +
@@ -235,7 +237,7 @@ ENet library, removed with the ENet transport).
  src/app/start_report.inl                      |   37 +
  src/app/stop_wait.inl                         |   74 +
  src/app/stream_commands.inl                   |  233 +
- src/app/stream_start.inl                      |  157 +
+ src/app/stream_start.inl                      |  159 +
  src/app/tray_icon.inl                         |  741 ++
  src/app/tray_menu.inl                         |  175 +
  src/app/tv_sessions.inl                       |  162 +
@@ -285,7 +287,7 @@ ENet library, removed with the ENet transport).
  src/input/trigger_effect.inl                  |  637 ++
  src/log/capped_log.inl                        |  117 +
  src/log/device_log.inl                        |  233 +
- src/main.cpp                                  |  895 ++-
+ src/main.cpp                                  |  904 ++-
  src/map/runtime.cpp                           |   90 +-
  src/usbdisplay/README.md                      |   13 +
  src/usbip/device.inl                          |  800 +-
@@ -338,7 +340,7 @@ ENet library, removed with the ENet transport).
  tests/stream_commands_test.cpp                |  118 +
  tests/tests_main.cpp                          |  175 +
  tests/touch_mouse_test.cpp                    | 1654 +++++
- tests/tray_menu_test.cpp                      |  194 +
+ tests/tray_menu_test.cpp                      |  208 +
  tests/trigger_click_test.cpp                  |  901 +++
  tests/trigger_effect_test.cpp                 |  529 ++
  tests/tv_sessions_test.cpp                    |  191 +
@@ -353,5 +355,5 @@ ENet library, removed with the ENet transport).
  tools/create-desktop-shortcut.bat             |   46 +
  tools/create-desktop-shortcut.ps1             |  148 +
  tools/osk-mockups.py                          |  103 +
- 192 files changed, 57626 insertions(+), 1554 deletions(-)
+ 192 files changed, 57752 insertions(+), 1555 deletions(-)
 ```
