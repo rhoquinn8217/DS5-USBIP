@@ -38,7 +38,7 @@ those, or a [DS5Dongle](https://github.com/awalol/DS5Dongle) to stay wireless.
 
 **Set up DS5-USBIP**
 
-1. Download the installer from the [releases page](https://github.com/rhoquinn8217/DS5-USBIP/releases) (pending).
+1. Download the installer from the [releases page](https://github.com/rhoquinn8217/DS5-USBIP/releases).
 2. Run the installer. It is unsigned, so you need to select **Run anyway**.<br>
    *Note: installation includes the required
    [usbip-win2](https://github.com/vadimgrn/usbip-win2/releases) driver and will
