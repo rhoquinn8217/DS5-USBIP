@@ -89,8 +89,8 @@ mode").
 ### GET /api/v1/status
 
 ```json
-{"version":"0.0.2 (build 2)","product":"DS5-USBIP","product_version":"0.1.0",
- "product_build":12,"product_version_display":"0.1.0 (12)",
+{"version":"0.0.2 (build 2)","product":"DS5-USBIP","product_version":"0.2.0",
+ "product_build":12,"product_version_display":"0.2.0 (12)",
  "transport":"tcp","control_port":48054,"usbip_port":3240,
  "uptime_seconds":812,"session_count":1}
 ```
