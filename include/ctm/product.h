@@ -27,9 +27,9 @@
 
 #define PRODUCT_NAME          "DS5-USBIP"
 #define PRODUCT_VERSION_MAJOR 0
-#define PRODUCT_VERSION_MINOR 1
+#define PRODUCT_VERSION_MINOR 2
 #define PRODUCT_VERSION_PATCH 0
-#define PRODUCT_VERSION       "0.1.0"
+#define PRODUCT_VERSION       "0.2.0"
 
 // ⭐ AND WHICH BUILD (2026-10-12): build_number.h, which every build rewrites.
 // The version with it is "0.1.0 (N)", aurora-tv's form, and that is what the
