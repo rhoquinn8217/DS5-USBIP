@@ -332,6 +332,8 @@ static bool ctm_window_steering(const void *deviceKey) { return window_move::ste
 // overlay_window.inl, whose keyboard it toggles.
 #include "app/tray_menu.inl"       // the words on the tray icon's menu; pure
 #include "app/quit_request.inl"    // how another program asks for Quit; pure
+#include "app/stream_commands.inl" // our entry in Vibepollo's stream commands; pure
+#include "app/stream_start.inl"    // start, stop and stream-commands, which Vibepollo and the installer run
 #include "app/tray_icon.inl"       // the notification-area icon
 #include "app/window_icon_rule.inl" // the settings window's icon: which sizes, which window
 // ⛔ AFTER open_ui.inl, whose title marker says which window is ours.
@@ -722,6 +724,13 @@ int wmain(int argc, wchar_t **argv)
                    << L")\n";
         return 0;
     }
+
+    // ⭐ VIBEPOLLO'S STREAM START AND END, and the installer's edit of its list
+    // (2026-10-12): stream_start.inl. Here, ahead of everything else, as none
+    // of them is the listener.
+    if (mode == L"start") return stream_start::start();
+    if (mode == L"stop") return stream_start::stop();
+    if (mode == L"stream-commands") return stream_start::edit_commands(argc, argv);
 
     if (mode == L"list-bt" || mode == L"list-hid") {
         // JSON device inventory for GUI front-ends (Ciprian's Bridge). The GUI
