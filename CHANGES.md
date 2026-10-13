@@ -154,6 +154,7 @@ carry it; upstream's own history is unchanged.
 | 2026-10-12 | Vibepollo starts DS5-USBIP as a stream starts and quits it as the stream ends. `DS5-USBIP start` starts the listener as a process of its own and returns at once, as Vibepollo waits on a start command with no time limit; `DS5-USBIP stop` asks it to quit the way the tray's Quit does; `DS5-USBIP stream-commands add|remove` puts the two in Vibepollo's global_prep_cmd beside the person's own entries, or takes them out. The installer has a box for it, ticked by default where Vibepollo is found, and asks before restarting Vibepollo. | `d0654c5`, `1000f09` |
 | 2026-10-12 | No Controller Configs window at a stream's start, now that aurora-tv's badge and button show the listener is on: Vibepollo's start runs the listener with --no-start-window, which keeps the tray icon and the API and leaves a running listener as it is. A controller bridging still opens the window, unless Open on bridge is off. | `e61ce2e` |
 | 2026-10-12 | The installer's already-installed page has a third choice while Vibepollo is set to start DS5-USBIP: stop that and change nothing else, the person's own Vibepollo commands kept, Vibepollo restarted after asking. Uninstalling takes the setting out too, as before. | `19dbd6b` |
+| 2026-10-12 | The Controller Configs window's Overview bar as a small form: the page's version on its own line at the top, in a box that cannot be edited; Open on bridge a checkbox, its words on the left and the box on the right, where it was a button that turned green; the boxes lined up. And the taskbar stays behind a game in borderless window mode while the Controller Configs window is in front of it: the window is marked full-screen for the taskbar (ITaskbarList2::MarkFullscreenWindow) while a full-screen window is just behind it, and ahead of time while one is in front, so the taskbar does not come up with it. | `6068db2` `7d9f622` `6dc83cd` `3a3e195` |
 
 ## Files changed
 
@@ -165,10 +166,10 @@ ENet library, removed with the ENet transport).
 ```
  .gitattributes                                |   48 +
  .gitignore                                    |   41 +-
- CHANGES.md                                    |  359 +
+ CHANGES.md                                    |  371 +
  LINK                                          |    0
  README.md                                     |  297 +-
- app/ctm-usbip-tests.vcxproj                   |  142 +
+ app/ctm-usbip-tests.vcxproj                   |  143 +
  app/ctm-usbip.ico                             |  Bin 156019 -> 30139 bytes
  app/ctm-usbip.rc                              |   26 +-
  app/ctm-usbip.vcxproj                         |   53 +-
@@ -184,6 +185,14 @@ ENet library, removed with the ENet transport).
  build.ps1                                     |  110 +-
  device-config.md                              |  195 +
  docs/control_port.md                          |  121 +
+ docs/images/ds5usbip-advanced-overview.png    |  Bin 0 -> 313356 bytes
+ docs/images/ds5usbip-advanced-touchpad.png    |  Bin 0 -> 725906 bytes
+ docs/images/ds5usbip-keyboard-sizes.png       |  Bin 0 -> 431047 bytes
+ docs/images/ds5usbip-quick-in-game.jpg        |  Bin 0 -> 516960 bytes
+ docs/images/ds5usbip-quick.png                |  Bin 0 -> 51252 bytes
+ docs/images/ds5usbip-simple-dualsense.png     |  Bin 0 -> 341360 bytes
+ docs/images/ds5usbip-simple-xbox.png          |  Bin 0 -> 283054 bytes
+ docs/images/ds5usbip-tray-menu.png            |  Bin 0 -> 25374 bytes
  docs/rest_api.md                              |  218 +
  docs/steam_puck_knowledge.md                  |    5 +-
  include/ctm/build_number.h                    |   23 +
@@ -238,6 +247,8 @@ ENet library, removed with the ENet transport).
  src/app/stop_wait.inl                         |   74 +
  src/app/stream_commands.inl                   |  233 +
  src/app/stream_start.inl                      |  159 +
+ src/app/taskbar_back.inl                      |  169 +
+ src/app/taskbar_rule.inl                      |   64 +
  src/app/tray_icon.inl                         |  741 ++
  src/app/tray_menu.inl                         |  175 +
  src/app/tv_sessions.inl                       |  162 +
@@ -287,7 +298,7 @@ ENet library, removed with the ENet transport).
  src/input/trigger_effect.inl                  |  637 ++
  src/log/capped_log.inl                        |  117 +
  src/log/device_log.inl                        |  233 +
- src/main.cpp                                  |  904 ++-
+ src/main.cpp                                  |  910 ++-
  src/map/runtime.cpp                           |   90 +-
  src/usbdisplay/README.md                      |   13 +
  src/usbip/device.inl                          |  800 +-
@@ -338,7 +349,8 @@ ENet library, removed with the ENet transport).
  tests/stick_mouse_test.cpp                    |  735 ++
  tests/stop_wait_test.cpp                      |   93 +
  tests/stream_commands_test.cpp                |  118 +
- tests/tests_main.cpp                          |  175 +
+ tests/taskbar_rule_test.cpp                   |   46 +
+ tests/tests_main.cpp                          |  177 +
  tests/touch_mouse_test.cpp                    | 1654 +++++
  tests/tray_menu_test.cpp                      |  208 +
  tests/trigger_click_test.cpp                  |  901 +++
@@ -351,9 +363,9 @@ ENet library, removed with the ENet transport).
  tests/window_icon_rule_test.cpp               |  108 +
  tests/window_move_test.cpp                    |  136 +
  tests/window_size_rule_test.cpp               |  129 +
- tools/controller-config-test-client.html      | 9838 +++++++++++++++++++++++++
+ tools/controller-config-test-client.html      | 9882 +++++++++++++++++++++++++
  tools/create-desktop-shortcut.bat             |   46 +
  tools/create-desktop-shortcut.ps1             |  148 +
  tools/osk-mockups.py                          |  103 +
- 192 files changed, 57752 insertions(+), 1555 deletions(-)
+ 203 files changed, 58096 insertions(+), 1555 deletions(-)
 ```
