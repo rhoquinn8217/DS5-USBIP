@@ -133,12 +133,24 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#ExeName}"; WorkingDir: "{ap
 ; Only the main and client components: not the pdb, sdk or gui, none of which
 ; this uses. /NORESTART so the restart prompt a person sees is ours.
 Filename: "{tmp}\{#UsbipInstaller}"; Parameters: "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /COMPONENTS=main,client"; StatusMsg: "Installing the usbip-win2 driver..."; Flags: waituntilterminated; Check: NeedsUsbip
-; DS5-USBIP.exe through Windows Firewall on private networks, as Windows' own
-; prompt would allow on its first run: a TV reaches it over the network, and a
-; prompt missed or answered wrong breaks that without a word. Public networks
-; stay closed. Deleted first, so an upgrade leaves one rule, not two.
+; DS5-USBIP.exe through Windows Firewall, on private AND public networks: a
+; TV reaches it over the network, and a rule that leaves its network out
+; breaks that without a word. Deleted first, so an upgrade leaves one rule,
+; not two.
+;
+; WHY PUBLIC TOO (rhoquinn8217, 2026-10-12: the TV said DS5-USBIP was off
+; while the installed copy ran, and "I didn't need to change my network
+; settings"). This rule was private only, on the thought that Windows' own
+; prompt would allow that much. But Windows 11 marks a new network Public
+; unless someone changes it, and that PC's wired network was Public: every
+; packet from the TV was dropped. With a rule already there, Windows never
+; asks, so nobody was offered the choice. Every copy started before the
+; installer had been allowed through Windows' prompt on private and public
+; networks, and this does the same. The cost: on a public network, a cafe's
+; or a hotel's, anyone on it can reach the control port, as they could reach
+; those copies, until the pairing proof is required by default.
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""{#AppName}"""; Flags: runhidden waituntilterminated
-Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall add rule name=""{#AppName}"" dir=in action=allow program=""{app}\{#ExeName}"" enable=yes profile=private,domain"; StatusMsg: "Letting {#AppName} through Windows Firewall on private networks..."; Flags: runhidden waituntilterminated
+Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall add rule name=""{#AppName}"" dir=in action=allow program=""{app}\{#ExeName}"" enable=yes profile=private,public,domain"; StatusMsg: "Letting {#AppName} through Windows Firewall on private and public networks..."; Flags: runhidden waituntilterminated
 ; As the person, not as the administrator who ran setup: their own folder is
 ; the one it must use. And not before a restart the driver still needs.
 Filename: "{app}\{#ExeName}"; Description: "Start {#AppName}"; Flags: nowait postinstall skipifsilent runasoriginaluser; Check: not NeedRestart
