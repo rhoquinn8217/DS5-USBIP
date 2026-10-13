@@ -338,6 +338,8 @@ static bool ctm_window_steering(const void *deviceKey) { return window_move::ste
 #include "app/window_icon_rule.inl" // the settings window's icon: which sizes, which window
 // ⛔ AFTER open_ui.inl, whose title marker says which window is ours.
 #include "app/window_icon.inl"     // ...and keeping them on a window the browser owns
+#include "app/taskbar_rule.inl"    // when the taskbar stays behind the configs window; pure
+#include "app/taskbar_back.inl"    // ...and telling the taskbar so, over a full-screen game
 #include "app/rest_sessions.inl"
 #include "app/rest_config_sessions.inl"   // defines what rest_config.inl declares; needs agent.inl's sessions
 #include "app/service.inl"
@@ -950,10 +952,14 @@ int wmain(int argc, wchar_t **argv)
             // bring the page forward has returned above, and icons it set
             // would have died with it a moment later.
             window_icon::start();
+            // ⭐ And the taskbar kept behind a full-screen game while the
+            // configs window is in front of it (taskbar_rule.inl).
+            taskbar_back::start();
         }
         const int rc = run_agent(static_cast<uint16_t>(port));
         // ⓘ The settings window can outlive the listener. Its icons cannot.
         window_icon::stop();
+        taskbar_back::stop();
         // ⛔ A START THAT FAILED SAYS SO, even with no terminal to say it in
         // (start_report.inl). ⓘ Nothing to show after a run that ended well.
         if (rc != 0) {

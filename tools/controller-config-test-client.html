@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.78 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.81 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,14 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.81 The Overview bar's boxes line up, the labels in one column and
+            the boxes in the next, and Open on bridge's box sits on the right
+            of its words.
+    2.66.80 The page's version has its own line at the top of the Overview
+            bar, with its own label, in a box that cannot be edited.
+    2.66.79 Open on bridge is a checkbox, on its own line under "agent", in
+            place of the button that turned green. A controller lands on it,
+            as on no other checkbox, and A ticks it.
     2.66.78 The window's title carries the program's build number,
             "v0.1.0 (N)", from /api/v1/status's product_version_display;
             from an older listener, the version alone, as before.
@@ -1683,9 +1691,22 @@
   .holdBtnCopy { font-weight:600; }
   #holdBtn.on, .holdBtnCopy.on { background:#3a3320; border-color:#e0c07a; color:#e8cf92; }
   #holdBtn.safe, .holdBtnCopy.safe { background:#1f3325; border-color:#7fd18c; color:#a9e3b5; }
-  /* ⭐ OPEN ON BRIDGE (rhoquinn8217, 2026-10-09): green with a tick while a
-     bridge brings this window up by itself, plain while it does not. */
-  #openOnBridge.on { background:#1f3325; border-color:#7fd18c; color:#a9e3b5; }
+  /* ⭐ OPEN ON BRIDGE IS A CHECKBOX, on its own line under "agent"
+     (rhoquinn8217, 2026-10-12: "a label and checkbox rather that a button that
+     turns green", then "B but put it on a new line under agent"). It was a
+     button, green with a tick while on, from 2026-10-09. */
+  /* ⭐ And the bar is a small form since (rhoquinn8217, the same evening:
+     "put the check on the right side of the "Open on bridge" settings",
+     "align the boxes as well"): the labels in one column, the boxes lined up
+     in the next, Open on bridge's box among them on the right of its words. */
+  .barLines { display:grid; grid-template-columns:auto auto; column-gap:8px; row-gap:6px;
+              align-items:center; justify-content:start; }
+  .barCell { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  #openOnBridgeLabel { cursor:pointer; }
+  /* The page's version in a box like the fields below it, its words dimmer
+     because nothing can be typed there (rhoquinn8217, 2026-10-12). */
+  .fixedField { background:#1d1f26; color:#9aa0ab; border:1px solid #2c2e36; border-radius:6px;
+                padding:7px 9px; font-size:13px; cursor:default; }
   #padDest.on { color:#7fd18c; }
   /* Lit while ○ has backed out into it, so it is clear where focus went. */
   #gpbar.gp-zone { background:#22252e; border-top-color:#6c8cff; }
@@ -1926,19 +1947,35 @@
 <div class="pane on" id="pane-overview">
 
 <div class="bar">
-  <!-- ⓘ The same number as VERSION at the top of this file, by hand. It sat
+  <span class="barLines">
+  <!-- ⭐ THE PAGE'S VERSION, on its own line at the top, with its own label,
+       in a box that cannot be edited (rhoquinn8217, 2026-10-12: "can you give
+       the version it's own label but make it uneditable. Place it on it's own
+       line at the top"). Text, not an input: nothing can be typed in it, and
+       a controller never stops on it. The program's own version is in the
+       window's title.
+       ⓘ The same number as VERSION at the top of this file, by hand. It sat
        at 2.66.4 for thirty-four versions while VERSION moved on. -->
-  <span class="muted" style="font-size:12px">v2.66.78</span>
-  <label class="muted">agent</label>
+  <label class="muted">version</label>
+  <span class="barCell"><span class="fixedField" id="pageVersion" title="This page's version. The program's own is in the window's title.">2.66.81</span></span>
+  <label class="muted" for="base">agent</label>
+  <span class="barCell">
   <input id="base" value="http://127.0.0.1:48053" size="26">
   <label class="muted">bearer</label>
   <input id="token" placeholder="leave empty unless you set one" size="16"
     title="A password for the listener. Leave this empty -- almost everyone should. The listener normally only answers programs on this same PC, so it needs no password. If you start it with --rest-lan it answers other machines on your network too, and then anyone on your wifi could send it commands. --rest-token sets a password to stop that, and this box is where you type the same password back so this page is still allowed in.">
+  </span>
   <!-- ⭐ OPEN ON BRIDGE (rhoquinn8217, 2026-10-09): whether a bridge brings
        this window up by itself. The tray menu's item under Window Mode is the
-       same switch; the listener keeps it. Painted by paintOpenOnBridge(). -->
-  <button id="openOnBridge" class="on" aria-pressed="true" onclick="toggleOpenOnBridge()"
-    title="On: a bridge brings this window up by itself. Click to turn it off.">✓ Open on bridge</button>
+       same switch; the listener keeps it. Painted by paintOpenOnBridge().
+       ⭐ A checkbox since 2026-10-12, where it was a button that turned green:
+       its words in the labels' column, its box on their right among the
+       other boxes; and the one checkbox a controller lands on
+       (data-gp-focus), since it sits alone and no row's □ reaches it. -->
+  <label class="muted" id="openOnBridgeLabel" for="openOnBridge"
+    title="Ticked: a bridge brings this window up by itself. Untick it to leave the window alone.">Open on bridge</label>
+  <span class="barCell"><input type="checkbox" id="openOnBridge" data-gp-focus="1" checked onchange="toggleOpenOnBridge()"></span>
+  </span>
   <!-- ⛔ RELOAD REMOVED 2026-09-01. rhoquinn8217: "Using it means the page is
        broken." Its last purpose was noticing a config edited outside this
        page, and that is covered twice over now -- the page reloads configs
@@ -5941,7 +5978,9 @@ function gpCollect() {
       // ⛔ Checkboxes are deliberately NOT focusable by controller. Stepping
       // past one on the way to every single control is a lot of D-pad for
       // something □ does in place. The mouse can still click them.
-      if (e.type === 'checkbox') return;
+      // ⓘ Except one marked data-gp-focus: a checkbox on its own, like Open on
+      // bridge (2026-10-12), which no row's □ reaches. A ticks it.
+      if (e.type === 'checkbox' && !(e.dataset && e.dataset.gpFocus)) return;
       // Nor anything disabled -- an inert setting cannot be changed, so landing
       // on it is a dead stop the user has to step back out of.
       if (e.disabled) return;
@@ -7737,12 +7776,13 @@ var OPEN_ON_BRIDGE = true;
 function paintOpenOnBridge() {
   var b = document.getElementById('openOnBridge');
   if (!b) return;
-  b.classList.toggle('on', OPEN_ON_BRIDGE);
-  b.setAttribute('aria-pressed', OPEN_ON_BRIDGE ? 'true' : 'false');
-  b.textContent = (OPEN_ON_BRIDGE ? '✓ ' : '') + 'Open on bridge';
-  b.title = OPEN_ON_BRIDGE
-    ? 'On: a bridge brings this window up by itself. Click to turn it off.'
-    : 'Off: a bridge leaves this window alone. Click to turn it on.';
+  b.checked = OPEN_ON_BRIDGE;
+  var label = document.getElementById('openOnBridgeLabel');
+  if (label) {
+    label.title = OPEN_ON_BRIDGE
+      ? 'Ticked: a bridge brings this window up by itself. Untick it to leave the window alone.'
+      : 'Unticked: a bridge leaves this window alone. Tick it to have a bridge bring the window up.';
+  }
 }
 function takeOpenOnBridge(r) {
   if (r && typeof r.on === 'boolean') { OPEN_ON_BRIDGE = r.on; paintOpenOnBridge(); }
@@ -7750,9 +7790,13 @@ function takeOpenOnBridge(r) {
 function loadOpenOnBridge() {
   call('GET', '/api/v1/ui/open-on-bridge', undefined, true).then(takeOpenOnBridge).catch(function () {});
 }
+// ⓘ The box has already changed when this runs (a click, or A through
+// gpActivate), so it says what is wanted; a failed save puts it back.
 function toggleOpenOnBridge() {
-  call('POST', '/api/v1/ui/open-on-bridge', { on: !OPEN_ON_BRIDGE }, true)
-    .then(takeOpenOnBridge).catch(function () {});
+  var b = document.getElementById('openOnBridge');
+  var want = b ? b.checked : !OPEN_ON_BRIDGE;
+  call('POST', '/api/v1/ui/open-on-bridge', { on: want }, true)
+    .then(takeOpenOnBridge).catch(function () { paintOpenOnBridge(); });
 }
 window.addEventListener('load', loadOpenOnBridge);
 window.addEventListener('focus', loadOpenOnBridge);
