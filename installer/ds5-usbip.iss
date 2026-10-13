@@ -322,6 +322,10 @@ end;
 
 procedure ChoiceChanged(Sender: TObject);
 begin
+  { Never before both choices exist. Ticking the first while the page was
+    being built clicked it, this read the second, not made yet, and the
+    setup ended with "Could not call proc" (rhoquinn8217, 2026-10-12). }
+  if (GUpgradeChoice = nil) or (GUninstallChoice = nil) then Exit;
   if GUninstallChoice.Checked then
     WizardForm.NextButton.Caption := 'Uninstall'
   else
@@ -350,7 +354,6 @@ begin
   Result.Height := ScaleY(18);
   Result.Caption := Caption;
   Result.Font.Style := [fsBold];
-  Result.OnClick := @ChoiceChanged;
 end;
 
 procedure InitializeWizard();
@@ -381,6 +384,9 @@ begin
   GUninstallChoice := NewChoice('Uninstall {#AppName}', UpgradeNote.Top + UpgradeNote.Height + ScaleY(8), Width);
   UninstallNote := NewNote('Removes the program, its shortcuts and its firewall rule. Your configs and the usbip-win2 driver stay.',
                            Indent, GUninstallChoice.Top + GUninstallChoice.Height + ScaleY(2), Width - Indent, ScaleY(30));
+  { The handlers last, once both choices exist: see ChoiceChanged. }
+  GUpgradeChoice.OnClick := @ChoiceChanged;
+  GUninstallChoice.OnClick := @ChoiceChanged;
 
   GRunningNote := NewNote('{#AppName} is running. It will be quit before anything changes, the way Quit in its tray menu does: any controller it has bridged is released first.',
                           0, UninstallNote.Top + UninstallNote.Height + ScaleY(14), Width, ScaleY(44));
@@ -389,11 +395,11 @@ end;
 
 procedure CurPageChanged(CurPageID: Integer);
 begin
-  if (GActionPage <> nil) and (CurPageID = GActionPage.ID) then
-  begin
-    GRunningNote.Visible := ListenerIsRunning();
-    ChoiceChanged(nil);
-  end;
+  { One test at a time, so nothing is read off a page that was never made. }
+  if GActionPage = nil then Exit;
+  if CurPageID <> GActionPage.ID then Exit;
+  GRunningNote.Visible := ListenerIsRunning();
+  ChoiceChanged(nil);
 end;
 
 { UNINSTALL, from the page: quit it, run the uninstaller the copy was
@@ -404,7 +410,10 @@ var
   Code, Waited: Integer;
 begin
   Result := True;
-  if (GActionPage = nil) or (CurPageID <> GActionPage.ID) or (not GUninstallChoice.Checked) then Exit;
+  { One test at a time, as in CurPageChanged. }
+  if GActionPage = nil then Exit;
+  if CurPageID <> GActionPage.ID then Exit;
+  if not GUninstallChoice.Checked then Exit;
 
   Result := False;
   if not EnsureListenerQuit(WizardSilent()) then Exit;
