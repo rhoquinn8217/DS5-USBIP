@@ -39,11 +39,13 @@ inline std::string utf8_of(const std::wstring &text)
     return out;
 }
 
-// ⭐ START: the listener as a process of its own, started the way a
-// double-click starts it (agent --ui). One already running is left alone and
-// its window brought forward, by the new process itself (main.cpp's agent
-// mode), which then ends. The window coming up is the point: pads bridge as
-// the listener starts, and the window on the TV shows them arrive.
+// ⭐ START: the listener as a process of its own, as a double-click starts it
+// (agent --ui) but with no window (--no-start-window). rhoquinn8217,
+// 2026-10-12: "on stream start, no controller configs window", now that
+// aurora-tv's badge and button say the listener is on. The window still opens
+// when a controller bridges, unless "Open on bridge" is off
+// (open_on_bridge.inl). One already running is left exactly as it is, by the
+// new process itself (main.cpp's agent mode), which then ends.
 inline int start()
 {
     const std::wstring exe = own_path();
@@ -52,7 +54,7 @@ inline int start()
         return 0;
     }
     const std::wstring folder = exe.substr(0, exe.find_last_of(L"\\/"));
-    std::wstring command = L"\"" + exe + L"\" agent --ui";
+    std::wstring command = L"\"" + exe + L"\" agent --ui --no-start-window";
     STARTUPINFOW si = {};
     si.cb = sizeof si;
     PROCESS_INFORMATION pi = {};
@@ -71,7 +73,7 @@ inline int start()
     }
     CloseHandle(pi.hThread);
     CloseHandle(pi.hProcess);
-    std::wcout << L"start: DS5-USBIP started, or brought forward if it was running\n";
+    std::wcout << L"start: DS5-USBIP started with no window, or left as it was if it was running\n";
     return 0;
 }
 

@@ -31,6 +31,7 @@ namespace ctm_open_ui {
 
 inline bool g_open_ui = false;              // set by --ui
 inline bool g_ui_already_focused = false;   // main focused one before starting
+inline bool g_no_start_window = false;      // set by --no-start-window: none until a bridge (open_on_bridge.inl)
 
 // A distinctive fragment of the page's <title>. See the warning above.
 // ⛔ NOT the page title. "Controller config" appears in the <title>, so any

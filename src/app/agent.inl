@@ -1437,7 +1437,10 @@ static int run_agent(uint16_t port)
     //
     // ⓘ Late rather than early on purpose: a page opened before the agent binds
     // would load, fail its first poll and show "cannot reach the listener".
-    if (ctm_open_ui::g_open_ui && !ctm_open_ui::g_ui_already_focused) {
+    // ⓘ Not for Vibepollo's start (--no-start-window), whose window waits for
+    // a bridge (open_on_bridge.inl).
+    if (open_on_bridge::opens_at_start(ctm_open_ui::g_open_ui, ctm_open_ui::g_no_start_window,
+                                       ctm_open_ui::g_ui_already_focused)) {
         ctm_open_ui::open_new(g_rest_port);
     }
     while (!g_stop.load()) {

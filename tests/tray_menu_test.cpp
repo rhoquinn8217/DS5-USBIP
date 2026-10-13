@@ -54,6 +54,20 @@ int run_tray_menu_tests()
         CTM_CHECK(!opens_window(false, true, false));   // no --ui: no window at all
     }
 
+    section("open on bridge: a stream's start opens no window, and a bridge still does");
+    {
+        // ⓘ rhoquinn8217, 2026-10-12: no Controller Configs window at a stream's
+        // start; on a bridge, unless "Open on bridge" is off.
+        using open_on_bridge::opens_at_start;
+        using open_on_bridge::opens_window;
+        CTM_CHECK(opens_at_start(true, false, false));     // a double-click: the window
+        CTM_CHECK(!opens_at_start(true, true, false));     // Vibepollo's start: none
+        CTM_CHECK(!opens_at_start(true, false, true));     // one already brought forward
+        CTM_CHECK(!opens_at_start(false, false, false));   // no --ui: no window at all
+        CTM_CHECK(opens_window(true, true, false));        // then a bridge, the switch on: it opens
+        CTM_CHECK(!opens_window(true, false, false));      // ... and with the switch off: it does not
+    }
+
     section("tray menu: picking a mode in Window Mode");
     {
         using tray_menu::mode_pick;

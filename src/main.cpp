@@ -849,6 +849,11 @@ int wmain(int argc, wchar_t **argv)
                 // ⛔ It is STARTED further down, though, once this process
                 // knows it is the listener. See there for what starting it
                 // here left behind.
+            } else if (arg == L"--no-start-window") {
+                // ⭐ The tray icon and the API as --ui gives them, and no window
+                // until a controller bridges (open_on_bridge.inl): Vibepollo's
+                // stream start (stream_start.inl).
+                ctm_open_ui::g_no_start_window = true;
             } else if (arg == L"--rest-lan") {
                 g_rest_bind_lan = true;
             } else if (arg == L"--rest-token" && i + 1 < argc) {
@@ -904,10 +909,14 @@ int wmain(int argc, wchar_t **argv)
             // opened it is still there. Otherwise it is a leftover, and closing
             // it is the right thing to do.
             if (ctm_open_ui::agent_already_running(static_cast<uint16_t>(port))) {
-                const bool focused = ctm_open_ui::focus_only();
-                // ⓘ No token: the OTHER listener serves the API and would not
-                // recognise one minted here, so the window would close itself.
-                if (!focused) ctm_open_ui::open_new(g_rest_port, false);
+                // ⭐ Unless this start is to open no window (--no-start-window,
+                // Vibepollo's): then the running one is left exactly as it is.
+                if (!ctm_open_ui::g_no_start_window) {
+                    const bool focused = ctm_open_ui::focus_only();
+                    // ⓘ No token: the OTHER listener serves the API and would not
+                    // recognise one minted here, so the window would close itself.
+                    if (!focused) ctm_open_ui::open_new(g_rest_port, false);
+                }
                 std::wcout << L"a listener is already running on port " << port
                            << L" -- left it alone\n";
                 return 0;
