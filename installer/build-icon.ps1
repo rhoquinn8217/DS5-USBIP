@@ -62,8 +62,14 @@ $SS = 4                     # supersample factor
 # 66 wide (69% of the screen) and 5 tall, floating 3 below it; at small sizes
 # that gap closes and the bar reads as an attached stand, which is what a
 # television looks like anyway.
-$NAVY = [System.Drawing.Color]::FromArgb(255, 17, 24, 39)      # #111827
-$WHITE = [System.Drawing.Color]::White
+# The panel is the LIGHT element and the controller the dark one, which is the
+# way round that survives where the icon actually lives. A navy panel sinks
+# into the Windows taskbar, which is dark by default: the television stops
+# being a shape and what is left is a controller floating over a slightly
+# darker patch. A white panel keeps a hard edge against that, and the dark
+# controller still reads on it.
+$PANEL = [System.Drawing.Color]::White
+$MARK = [System.Drawing.Color]::FromArgb(255, 17, 24, 39)      # #111827
 
 $SCREEN_X = 2.0;  $SCREEN_W = 96.0;  $SCREEN_H = 66.0;  $SCREEN_R = 8.0
 $GAP = 3.0
@@ -145,19 +151,19 @@ function New-Frame {
     $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
     $g.Clear([System.Drawing.Color]::Transparent)
 
-    $navyBrush = New-Object System.Drawing.SolidBrush($NAVY)
-    $whiteBrush = New-Object System.Drawing.SolidBrush($WHITE)
+    $panelBrush = New-Object System.Drawing.SolidBrush($PANEL)
+    $markBrush = New-Object System.Drawing.SolidBrush($MARK)
 
     $screen = New-RoundedRect $SCREEN_X $SCREEN_Y $SCREEN_W $SCREEN_H $SCREEN_R $k
-    $g.FillPath($navyBrush, $screen); $screen.Dispose()
+    $g.FillPath($panelBrush, $screen); $screen.Dispose()
 
     $bar = New-RoundedRect $BAR_X $BAR_Y $BAR_W $BAR_H $BAR_R $k
-    $g.FillPath($navyBrush, $bar); $bar.Dispose()
+    $g.FillPath($panelBrush, $bar); $bar.Dispose()
 
     $ctrl = New-ControllerPath $k
-    $g.FillPath($whiteBrush, $ctrl); $ctrl.Dispose()
+    $g.FillPath($markBrush, $ctrl); $ctrl.Dispose()
 
-    $navyBrush.Dispose(); $whiteBrush.Dispose(); $g.Dispose()
+    $panelBrush.Dispose(); $markBrush.Dispose(); $g.Dispose()
 
     # Down to the real size. Premultiplied averaging is what makes the curves
     # clean; HighQualityBicubic on a 32bppArgb source does that for us.
