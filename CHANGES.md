@@ -146,6 +146,11 @@ carry it; upstream's own history is unchanged.
 | 2026-10-12 | The program is DS5-USBIP.exe, not ctm-usbip.exe: the build, its version resource, the release script and its README, the desktop shortcut maker and the usage text follow, and a release retires an old ctm-usbip.exe left in its folder. | `dd3a249` |
 | 2026-10-12 | A person's files live in their own folder, %LOCALAPPDATA%\DS5-USBIP, so the program can sit anywhere, Program Files included; the first start there copies their configs, shared settings and window places from beside the program, once, and the tray menu's "Open configs folder" goes there. `--home` keeps the old way. | `b3194c0`, `161bb7b` |
 | 2026-10-12 | An installer, DS5-USBIP-Setup.exe: DS5-USBIP into Program Files with a Start menu entry and a desktop shortcut, through Windows Firewall on private networks, and the bundled usbip-win2 driver when it is not there yet. Built with installer/build-ds5-installer.ps1. | `90383b1`, `8cba0ec`, `9ae819c` |
+| 2026-10-12 | The program's icon is a DualSense on a television instead of the bridge: app/ctm-usbip.ico, with the tools that make it (installer/trace-silhouette.py traces the controller, installer/build-icon.ps1 builds the .ico; each checks its output byte for byte). make-icon-ds5.ps1, which made the bridge, refuses without -Allow. | `d408a87`, `f3280c7` |
+| 2026-10-12 | The Controller Configs window's icon address carries a fingerprint of the icon, so a new icon reaches the window's title bar instead of the one the browser kept by address. | `a276971` |
+| 2026-10-12 | A build number, like aurora-tv's: every build takes the next number free and commits it as "Build N" before compiling (build-number.ps1, called by build.ps1; a tree with uncommitted changes is refused). The program shows its version with the build, as "0.2.0 (N)", in the Controller Configs window's title, the tray tip, --version, the log's start line, /api/v1/status and its file properties, and the installer is named for its build. | `e8c2e64`, `c64a5a9` |
+| 2026-10-12 | The installer over an installed copy: a first page to upgrade (or reinstall, or replace with an older build) or uninstall, with the uninstaller that copy came with. A running DS5-USBIP is asked to quit the way the tray's Quit does, releasing its bridges (the tray window answers DS5-USBIP.Quit), by the setup and by the uninstaller from Windows' list. The firewall rule covers public networks too: a PC whose network Windows marks Public otherwise let no TV in. | `c25bbe8`, `8fc326e`, `c7fef51`, `e0328f4` |
+| 2026-10-12 | DS5-USBIP 0.2.0. | `d00fb16` |
 
 ## Files changed
 
@@ -156,13 +161,13 @@ ENet library, removed with the ENet transport).
 
 ```
  .gitattributes                                |   48 +
- .gitignore                                    |   34 +-
- CHANGES.md                                    |  339 +
+ .gitignore                                    |   41 +-
+ CHANGES.md                                    |  353 +
  LINK                                          |    0
  README.md                                     |  301 +-
- app/ctm-usbip-tests.vcxproj                   |  140 +
- app/ctm-usbip.ico                             |  Bin 156019 -> 174189 bytes
- app/ctm-usbip.rc                              |   24 +-
+ app/ctm-usbip-tests.vcxproj                   |  141 +
+ app/ctm-usbip.ico                             |  Bin 156019 -> 32487 bytes
+ app/ctm-usbip.rc                              |   26 +-
  app/ctm-usbip.vcxproj                         |   53 +-
  attic/README.md                               |   24 +
  attic/device-config-panel-edge.bat            |    9 +
@@ -171,18 +176,24 @@ ENet library, removed with the ENet transport).
  attic/device-config-panel.ps1                 |  303 +
  attic/flydigi_apex4_identity.map              |   58 +
  attic/flydigi_apex4_usb.profile               |   24 +
+ build-number.ps1                              |  169 +
  build-tests.ps1                               |   86 +
- build.ps1                                     |  101 +-
+ build.ps1                                     |  110 +-
  device-config.md                              |  195 +
  docs/control_port.md                          |  121 +
- docs/rest_api.md                              |  212 +
+ docs/rest_api.md                              |  218 +
  docs/steam_puck_knowledge.md                  |    5 +-
+ include/ctm/build_number.h                    |   23 +
  include/ctm/map/runtime.h                     |   34 +
- include/ctm/product.h                         |   32 +
+ include/ctm/product.h                         |   43 +
  include/ctm/protocol.h                        |   65 +-
- installer/build-ds5-installer.ps1             |  115 +
- installer/ds5-usbip.iss                       |  200 +
- installer/make-icon-ds5.ps1                   |  210 +
+ installer/build-ds5-installer.ps1             |  126 +
+ installer/build-icon.ps1                      |  232 +
+ installer/controller-path.txt                 |   68 +
+ installer/ds5-usbip.iss                       |  508 ++
+ installer/icon-source.png                     |  Bin 0 -> 100705 bytes
+ installer/make-icon-ds5.ps1                   |  236 +
+ installer/trace-silhouette.py                 |  368 +
  maps/ds4_usb_over_ds4_usb.map                 |   61 +
  maps/ds5_usb_over_ds5_usb.map                 |   61 +
  maps/virtual_keyboard.map                     |   46 +
@@ -192,7 +203,7 @@ ENet library, removed with the ENet transport).
  profiles/descriptors/virtual_keyboard.profile |   74 +
  profiles/descriptors/virtual_mouse.profile    |   59 +
  release.ps1                                   |  266 +
- src/app/agent.inl                             | 1129 ++-
+ src/app/agent.inl                             | 1135 ++-
  src/app/agent_session_sweep.inl               |  333 +
  src/app/cli.inl                               |   56 +-
  src/app/common.inl                            |  166 +-
@@ -202,6 +213,7 @@ ENet library, removed with the ENet transport).
  src/app/device_capabilities.inl               |   75 +
  src/app/device_names.inl                      |   93 +
  src/app/device_type.inl                       |   70 +
+ src/app/favicon_version.inl                   |   58 +
  src/app/front_rule.inl                        |   89 +
  src/app/home_folder.inl                       |  130 +
  src/app/nickname.inl                          |   90 +
@@ -210,7 +222,8 @@ ENet library, removed with the ENet transport).
  src/app/overlay_window.inl                    | 2303 ++++++
  src/app/paired_tv.inl                         |  495 ++
  src/app/protocol_level.inl                    |   77 +
- src/app/rest.inl                              |  880 +++
+ src/app/quit_request.inl                      |   28 +
+ src/app/rest.inl                              |  885 +++
  src/app/rest_config.inl                       | 1320 ++++
  src/app/rest_config_sessions.inl              |  205 +
  src/app/rest_sessions.inl                     |   33 +
@@ -220,10 +233,10 @@ ENet library, removed with the ENet transport).
  src/app/service.inl                           |   27 +-
  src/app/start_report.inl                      |   37 +
  src/app/stop_wait.inl                         |   74 +
- src/app/tray_icon.inl                         |  715 ++
+ src/app/tray_icon.inl                         |  741 ++
  src/app/tray_menu.inl                         |  175 +
  src/app/tv_sessions.inl                       |  162 +
- src/app/ui_page.inl                           |  114 +
+ src/app/ui_page.inl                           |  140 +
  src/app/window_icon.inl                       |  242 +
  src/app/window_icon_rule.inl                  |   68 +
  src/app/window_move.inl                       |  250 +
@@ -269,7 +282,7 @@ ENet library, removed with the ENet transport).
  src/input/trigger_effect.inl                  |  637 ++
  src/log/capped_log.inl                        |  117 +
  src/log/device_log.inl                        |  233 +
- src/main.cpp                                  |  884 ++-
+ src/main.cpp                                  |  886 ++-
  src/map/runtime.cpp                           |   90 +-
  src/usbdisplay/README.md                      |   13 +
  src/usbip/device.inl                          |  800 +-
@@ -307,8 +320,9 @@ ENet library, removed with the ENet transport).
  tests/osk_test.cpp                            |   81 +
  tests/pad_press_test.cpp                      |  117 +
  tests/paired_tv_test.cpp                      |  319 +
- tests/product_version_test.cpp                |   33 +
+ tests/product_version_test.cpp                |   45 +
  tests/protocol_level_test.cpp                 |  101 +
+ tests/quit_request_test.cpp                   |   69 +
  tests/rebind_test.cpp                         |  664 ++
  tests/rest_parser_test.cpp                    |  252 +
  tests/rest_shared_section_test.cpp            |   79 +
@@ -318,7 +332,7 @@ ENet library, removed with the ENet transport).
  tests/schema_json_test.cpp                    |  158 +
  tests/stick_mouse_test.cpp                    |  735 ++
  tests/stop_wait_test.cpp                      |   93 +
- tests/tests_main.cpp                          |  170 +
+ tests/tests_main.cpp                          |  173 +
  tests/touch_mouse_test.cpp                    | 1654 +++++
  tests/tray_menu_test.cpp                      |  194 +
  tests/trigger_click_test.cpp                  |  901 +++
@@ -328,12 +342,12 @@ ENet library, removed with the ENet transport).
  tests/usb_descriptors_test.cpp                |  213 +
  tests/usbip_limits_test.cpp                   |   73 +
  tests/usbip_server_test.cpp                   |  687 ++
- tests/window_icon_rule_test.cpp               |   86 +
+ tests/window_icon_rule_test.cpp               |  108 +
  tests/window_move_test.cpp                    |  136 +
  tests/window_size_rule_test.cpp               |  129 +
- tools/controller-config-test-client.html      | 9827 +++++++++++++++++++++++++
+ tools/controller-config-test-client.html      | 9838 +++++++++++++++++++++++++
  tools/create-desktop-shortcut.bat             |   46 +
  tools/create-desktop-shortcut.ps1             |  148 +
  tools/osk-mockups.py                          |  103 +
- 180 files changed, 55403 insertions(+), 1554 deletions(-)
+ 189 files changed, 56926 insertions(+), 1554 deletions(-)
 ```
