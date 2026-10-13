@@ -99,10 +99,14 @@ static void print_usage()
         << L"  DS5-USBIP service-run [control-port] [--rest <port>] [--rest-lan] [--rest-token <token>]\n"
         << L"                                               (internal: launched by the SCM)\n"
         << L"  DS5-USBIP version\n"
+        << L"  DS5-USBIP start                              (Vibepollo, as a stream starts: the listener started, or its window brought forward)\n"
+        << L"  DS5-USBIP stop                               (Vibepollo, as a stream ends: the listener asked to quit, as its tray menu's Quit)\n"
+        << L"  DS5-USBIP stream-commands add|remove <sunshine.conf>\n"
+        << L"                                               (the installer: those two put in Vibepollo's list, or taken out)\n"
         << L"  (--rest serves an HTTP/JSON control API, loopback-only unless --rest-lan; see docs/rest_api.md.)\n"
-        << L"  (agent: --ui opens the settings page and puts the icon in the tray, where Quit closes it.\n"
-        << L"   Its config, configs, log and settings live beside the exe, wherever it is started from. A build's exe\n"
-        << L"   has home-folder.txt beside it, naming the checkout's root instead; --home names any other folder.)\n"
+        << L"  (agent: --ui opens the Controller Configs window and puts the icon in the tray, where Quit closes it.\n"
+        << L"   A person's configs, log and settings live in %LOCALAPPDATA%\\DS5-USBIP. A build's exe has\n"
+        << L"   home-folder.txt beside it, naming the checkout's root instead; --home names any other folder.)\n"
         << L"  (agent: --verbose logs everything, sampling the lines that fire on every report; --verbose-reports logs every one.\n"
         << L"   device.log is capped at 20 MB, with the previous 20 MB kept in device.log.1.)\n";
 }
