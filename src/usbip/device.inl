@@ -3,6 +3,7 @@ public:
     ~CtmUsbipDevice()
     {
         stop_audio_stream();
+        audio_haptics::detach(std::atomic_exchange(&hapticsPad_, std::shared_ptr<audio_haptics::Pad>()));
     }
 
     bool load(
@@ -145,6 +146,21 @@ public:
         }
         info_ = parse_usb_info(profile_);
         device_log::usb_w() << L"virtual USB serial: " << virtualSerial;
+        // ⭐ PC sound as haptics (audio_haptics.inl): a DualSense or Edge
+        // joins, whether or not it is turned on; its settings decide that, and
+        // can change while it is bridged.
+        {
+            const char *kind = device_section_for(profile_.device_descriptor);
+            if (kind != nullptr && (std::strcmp(kind, "ds5") == 0 || std::strcmp(kind, "ds5_edge") == 0) &&
+                profile_.device_descriptor.size() >= 12) {
+                const unsigned vendor = profile_.device_descriptor[8] | (profile_.device_descriptor[9] << 8);
+                const unsigned product = profile_.device_descriptor[10] | (profile_.device_descriptor[11] << 8);
+                wchar_t instance[160] = {};
+                std::swprintf(instance, 160, L"USB\\VID_%04X&PID_%04X\\%ls", vendor, product, virtualSerial.c_str());
+                std::atomic_store(&hapticsPad_, audio_haptics::attach(instance, L"the pad " + virtualSerial,
+                                                                      device_settings_section(kind, linked_config())));
+            }
+        }
         // ⭐ The map replays captured packets, and an announce carries an id
         // Windows keys an XInput device on. Give it this controller's, derived
         // from the serial above, so two bridged pads are two devices.
@@ -263,8 +279,15 @@ public:
 
     void set_linked_config(const std::string &name)
     {
-        std::lock_guard<std::mutex> lock(physicalSerialMutex_);
-        linkedConfig_ = name;
+        {
+            std::lock_guard<std::mutex> lock(physicalSerialMutex_);
+            linkedConfig_ = name;
+        }
+        // ⓘ PC-sound haptics read the section a link names, as everything
+        // else here does.
+        if (const std::shared_ptr<audio_haptics::Pad> pad = std::atomic_load(&hapticsPad_)) {
+            audio_haptics::set_section(*pad, device_settings_section(device_section_for(profile_.device_descriptor), name));
+        }
     }
 
     void stop()
@@ -287,6 +310,9 @@ public:
         // release a button this pad held at unbridge.
         mouse_forget_device(this);
         rebind_forget_pad(this);
+        // ⭐ Out of PC-sound haptics too: its keep-alive closed, and the
+        // capture stopped if it was the last.
+        audio_haptics::detach(std::atomic_exchange(&hapticsPad_, std::shared_ptr<audio_haptics::Pad>()));
         stop_audio_stream();
     }
 
@@ -1819,6 +1845,17 @@ private:
         event.event_type = endpoint_is_iso(info_, endpointAddress) ? CTM_USB_EVENT_ISO_OUT : CTM_USB_EVENT_HID_OUTPUT;
         event.endpoint_address = endpointAddress;
         if (event.event_type == CTM_USB_EVENT_ISO_OUT) {
+            // ⭐ PC sound as haptics, into channels 2 and 3 BEFORE the stream
+            // splits into its wired and Bluetooth paths, so both carry it
+            // (audio_haptics.inl). ⓘ A copy only while it is on.
+            const std::shared_ptr<audio_haptics::Pad> pad = std::atomic_load(&hapticsPad_);
+            if (pad && pad->on.load() && endpointAddress == audioIsoEndpoint_) {
+                std::vector<uint8_t> mixed(data);
+                audio_haptics::into_stream(*pad, &mixed);
+                return map_iso_passthrough_enabled()
+                    ? process_iso_output_wired(endpointAddress, mixed)
+                    : process_iso_output(endpointAddress, mixed);
+            }
             return map_iso_passthrough_enabled()
                 ? process_iso_output_wired(endpointAddress, data)
                 : process_iso_output(endpointAddress, data);
@@ -2070,6 +2107,9 @@ private:
     std::wstring serialTv_;
     std::string physicalSerial_;
     std::string linkedConfig_;
+    // Its place in PC-sound haptics, for a DualSense or Edge: set at attach,
+    // read by its sound stream's thread, so loaded and stored atomically.
+    std::shared_ptr<audio_haptics::Pad> hapticsPad_;
     std::mutex unknownLogMutex_;
     std::map<std::string, uint64_t> unknownLogCounts_;
     std::chrono::steady_clock::time_point unknownLogLastFlush_;

@@ -102,6 +102,7 @@ static void print_usage()
         << L"  DS5-USBIP start                              (Vibepollo, as a stream starts: the listener started, with no window until a controller bridges)\n"
         << L"  DS5-USBIP stop                               (Vibepollo, as a stream ends: the listener asked to quit, as its tray menu's Quit)\n"
         << L"  DS5-USBIP stream-commands add|remove <sunshine.conf>\n"
+        << L"  DS5-USBIP audio-haptics-probe [seconds]      (what the PC plays, and what a pad would feel of it, a line a second)\n"
         << L"                                               (the installer: those two put in Vibepollo's list, or taken out)\n"
         << L"  (--rest serves an HTTP/JSON control API, loopback-only unless --rest-lan; see docs/rest_api.md.)\n"
         << L"  (agent: --ui opens the Controller Configs window and puts the icon in the tray, where Quit closes it.\n"

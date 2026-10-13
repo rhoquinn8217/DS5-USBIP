@@ -466,7 +466,11 @@ static std::string rest_keys_json()
 {"key":"master_rumble_gain","type":"int","min":0,"max":500,"default":100,"help":"Scales all rumble. 100 is unchanged."},
 {"key":"rumble_gain_heavy","type":"int","min":0,"max":500,"default":100,"help":"Heavy weight only. Multiplies with master."},
 {"key":"rumble_gain_soft","type":"int","min":0,"max":500,"default":100,"help":"Soft weight only. Multiplies with master."},
-{"key":"rumble_floor","type":"int","min":0,"max":100,"default":12,"help":"Weakest motor value the game can actually feel, as a percentage. Below its start-up threshold a motor does not spin, so a faint cue becomes silence; this lifts it back. 0 turns the floor off. It never makes a resting pad buzz."}
+{"key":"rumble_floor","type":"int","min":0,"max":100,"default":12,"help":"Weakest motor value the game can actually feel, as a percentage. Below its start-up threshold a motor does not spin, so a faint cue becomes silence; this lifts it back. 0 turns the floor off. It never makes a resting pad buzz."},
+{"key":"audio_haptics","type":"bool","default":false,"name":"PC sound as vibration","help":"Turns the low part of what the PC plays into vibration in the controller: explosions, engines, bass. While it is on, the controller's sound stream keeps running whenever there is sound to feel."},
+{"key":"audio_haptics_strength","type":"int","min":0,"max":200,"default":100,"name":"PC sound vibration strength","help":"How strong. 100 is the normal strength, 0 is none."},
+{"key":"audio_haptics_bass_hz","type":"int","min":40,"max":300,"default":150,"name":"PC sound vibration bass","help":"The highest pitch that becomes vibration. Lower feels only the deepest booms; higher lets in more of the music."},
+{"key":"audio_haptics_mode","type":"choice","choices":["yield","mix","replace"],"default":"yield","name":"When the game vibrates too","help":"yield steps aside while the game sends its own haptics and comes back after; mix plays both; replace plays only the PC's sound."}
 ])CTMKEYS";
     const std::string names = R"CTMKEYS(,
 "key_names":[
