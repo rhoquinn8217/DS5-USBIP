@@ -96,6 +96,20 @@ constexpr int kPressMaxBackUnits = 120;
 // After a put-back, check it again for this long, for movement that was
 // already on its way to Windows when it happened.
 constexpr long long kPutBackCheckMs = 40;
+// ⭐ A LIFT GOES BACK TO WHERE THE FINGER RESTED (rhoquinn8217, 2026-10-14:
+// "if you lift your finger, that movement makes the mouse jump away from the
+// spot you want to click"). A finger rolls as it leaves the pad, as it does
+// when it lands and when it presses, and the cursor followed the roll off the
+// spot it had been brought to -- so the tap that came next clicked beside it.
+// When the last finger lifts, the cursor goes back to where it was
+// kLiftRollMs before, if the finger was nearly still just before that
+// (kStillUnits in kLiftRestMs, which is what a finger aiming at something
+// does) and the roll covered no more than kLiftMaxBackUnits. A finger still
+// sliding when it lifted, a flick, keeps where it went.
+// ⓘ Starting values, to be read off the lift's log line.
+constexpr long long kLiftRollMs = 60;
+constexpr long long kLiftRestMs = 40;
+constexpr int kLiftMaxBackUnits = 120;
 
 // ⭐ AFTER A SCROLL, THE FINGER LEFT BEHIND POINTS AGAIN (rhoquinn8217,
 // 2026-09-30: lift one finger and carry on with the other, without lifting
@@ -725,6 +739,54 @@ inline void put_back_for_press(TouchState &st, long long nowMs, const TouchPoint
     }
 }
 
+// ⭐ THE LAST FINGER HAS LIFTED: back to where it rested before it rolled off
+// the pad (kLiftRollMs). The line says how far the finger moved in the 25, 50,
+// 100 and 200 ms before it lifted, which is how the numbers get set from a
+// real hand.
+inline void put_back_for_lift(TouchState &st, long long nowMs)
+{
+    if (st.sampleCount == 0) return;
+    // ⓘ Where the finger was last seen: the pad reports no position once it
+    // has gone.
+    const TouchState::Sample &last =
+        st.samples[(st.sampleNext + TouchState::kSamples - 1) % TouchState::kSamples];
+    TouchPoint end;
+    end.x = last.fx;
+    end.y = last.fy;
+    const auto moved = [&](long long ago) {
+        const TouchState::Sample *b = sample_before(st, nowMs, ago);
+        return b == nullptr ? std::string("-") : std::to_string(travel_from(b->fx, b->fy, end));
+    };
+    const TouchState::Sample *roll = sample_before(st, nowMs, kLiftRollMs);
+    const TouchState::Sample *rest = sample_before(st, nowMs, kLiftRollMs + kLiftRestMs);
+    // ⓘ A touch too short to have a moment of rest before its roll has
+    // nothing to go back to.
+    const bool longEnough = roll != nullptr && rest != nullptr &&
+                            nowMs - rest->t >= kLiftRollMs + kLiftRestMs;
+    TouchPoint rolledFrom;
+    if (roll != nullptr) {
+        rolledFrom.x = roll->fx;
+        rolledFrom.y = roll->fy;
+    }
+    const bool rested = longEnough && travel_from(rest->fx, rest->fy, rolledFrom) <= kStillUnits;
+    const int rolled = roll != nullptr ? travel_from(roll->fx, roll->fy, end) : 0;
+    long cx = 0;
+    long cy = 0;
+    const bool haveNow = ctm_gyro_mouse::cursor_read(&cx, &cy);
+    const bool goBack = rested && rolled <= kLiftMaxBackUnits && haveNow &&
+                        (roll->cx != cx || roll->cy != cy);
+    device_log::input(device_log::msg()
+        << "[touch] lift finger_moved 25ms=" << moved(25) << " 50ms=" << moved(50)
+        << " 100ms=" << moved(100) << " 200ms=" << moved(200)
+        << " rested=" << (rested ? "yes" : (longEnough ? "no" : "short"))
+        << " cursor_back="
+        << (goBack ? std::to_string(cx - roll->cx) + "," + std::to_string(cy - roll->cy) + "px"
+                   : std::string(rested && rolled > kLiftMaxBackUnits ? "none (moving)" : "none")));
+    if (goBack) {
+        put_back(st, roll->cx, roll->cy, nowMs, "lift");
+    }
+}
+
 // ⭐ A SECOND FINGER HAS COME DOWN, so the cursor goes back to where it
 // belongs, and the line says what the pad did as it came:
 //   early in a touch      where the first finger landed (kSecondFingerMs):
@@ -953,6 +1015,17 @@ inline void step(const void *deviceKey, const std::string &section,
 
     // The recent path, for a press to go back along.
     if (cursorOn && fingers > 0) remember(st, nowMs, only);
+
+    // ⭐ THE LAST FINGER HAS JUST LIFTED, AFTER POINTING: its roll is undone
+    // (kLiftRollMs) before anything acts on where the cursor is -- a drag
+    // drops there, just below. ⓘ Not after a tap, which puts the cursor back
+    // to where it landed itself, and not after a scroll unless the finger left
+    // behind went on to point.
+    if (cursorOn && fingers == 0 && st.sessionActive && st.movedCursor &&
+        (st.sessionMaxFingers < 2 || st.tailLive) &&
+        !(tapsOn && !st.sessionMoved && nowMs - st.sessionStart <= kTapMaxMs)) {
+        put_back_for_lift(st, nowMs);
+    }
 
     // ---- Drag ---------------------------------------------------------------
     // Read before the tap and cursor paths so a drag survives whatever they
