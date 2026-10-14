@@ -157,6 +157,7 @@ carry it; upstream's own history is unchanged.
 | 2026-10-12 | The Controller Configs window's Overview bar as a small form: the page's version on its own line at the top, in a box that cannot be edited; Open on bridge a checkbox, its words on the left and the box on the right, where it was a button that turned green; the boxes lined up. And the taskbar stays behind a game in borderless window mode while the Controller Configs window is in front of it: the window is marked full-screen for the taskbar (ITaskbarList2::MarkFullscreenWindow) while a full-screen window is just behind it, and ahead of time while one is in front, so the taskbar does not come up with it. | `6068db2` `7d9f622` `6dc83cd` `3a3e195` |
 | 2026-10-13 | The old controllers Windows keeps from past bridges, cleared and no longer piling up. Windows keeps a record of every device a bridge ever plugged in, with its parts and its sound devices: 477 records on the PC this was written on. `DS5-USBIP old-devices` lists them, read only; `remove-old-devices` removes them as an administrator, and with `--report` says how it went in a box; the installer runs it on every install, upgrade and uninstall; and the tray menu's "Remove old controllers…", in a group of its own above Quit, runs it through Windows' prompt. A record is ours only when the parent Windows keeps for it leads to usbip-win2's host controller, never by vendor and product: ViGEm's and VirtualHere's virtual controllers can sit on the same PC under Sony's ids. A device without a serial gets the vendor, the product and a slot, where it got a hash of its node on the TV, which follows plug order and made it a new device to Windows at every bridge. And the program names the Windows it is built for (Windows 10 and 11) in its manifest: without that, Windows' compatibility assistant took the administrator copy's short run and box for an old program failing a version check, and said "This program might not have run correctly". | `fc9e9e6`, `824dc0a`, `7e5602b`, merge `ca55300` |
 | 2026-10-14 | A polling rate readout and a rate limit for each controller. The Controller Configs window's device tables, in Advanced, show the reports a second Windows is getting from each device, and beside a controller's, a rate limit: Real time, 500, 250 or 125 Hz, kept in its linked config as `polling_rate`. Real time, the DS5Dongle's and its forks' name for it, passes every report on the moment it arrives; under a limit the newest report always goes, so nothing queues behind it. A keyboard or a mouse is never limited. Tested on a DualSense Edge through a DS5dongle: about 640 a second at Real time, every one reaching Windows, and 500, 250 and 125 held | `c0c80a6`, `81383ba`, merge `6cd5b9a` |
+| 2026-10-14 | The touchpad: lifting the finger no longer moves the cursor off the spot. A finger rolls as it leaves the pad and the cursor followed the roll, so the tap after it clicked beside the target. When the last finger lifts after pointing, the cursor goes back to where it was 60 ms before, if the finger was nearly still just before that; a flick keeps its place, and a press-and-drag drops where the finger stopped | `66ec88b`, merge `1766525` |
 
 ## Files changed
 
@@ -168,7 +169,7 @@ ENet library, removed with the ENet transport).
 ```
  .gitattributes                                |    48 +
  .gitignore                                    |    41 +-
- CHANGES.md                                    |   380 +
+ CHANGES.md                                    |   381 +
  LINK                                          |     0
  README.md                                     |   297 +-
  app/compatibility.manifest                    |    27 +
@@ -298,7 +299,7 @@ ENet library, removed with the ENet transport).
  src/input/pad_press.inl                       |   116 +
  src/input/rebind.inl                          |  1309 +++
  src/input/stick_mouse.inl                     |   474 ++
- src/input/touch_mouse.inl                     |  1346 ++++
+ src/input/touch_mouse.inl                     |  1419 ++++
  src/input/trigger_click.inl                   |   857 ++
  src/input/trigger_effect.inl                  |   637 ++
  src/log/capped_log.inl                        |   117 +
@@ -360,7 +361,7 @@ ENet library, removed with the ENet transport).
  tests/stream_commands_test.cpp                |   118 +
  tests/taskbar_rule_test.cpp                   |    46 +
  tests/tests_main.cpp                          |   181 +
- tests/touch_mouse_test.cpp                    |  1654 ++++
+ tests/touch_mouse_test.cpp                    |  1787 +++++
  tests/tray_menu_test.cpp                      |   208 +
  tests/trigger_click_test.cpp                  |   901 +++
  tests/trigger_effect_test.cpp                 |   529 ++
@@ -376,5 +377,5 @@ ENet library, removed with the ENet transport).
  tools/create-desktop-shortcut.bat             |    46 +
  tools/create-desktop-shortcut.ps1             |   148 +
  tools/osk-mockups.py                          |   103 +
- 210 files changed, 59551 insertions(+), 1568 deletions(-)
+ 210 files changed, 59758 insertions(+), 1568 deletions(-)
 ```
