@@ -53,7 +53,8 @@ int run_input_pace_tests()
         CTM_CHECK_EQ(ip::limit_hz("500"), 500);
         CTM_CHECK_EQ(ip::limit_hz("250"), 250);
         CTM_CHECK_EQ(ip::limit_hz("125"), 125);
-        CTM_CHECK_EQ(ip::limit_hz("max"), 0);
+        CTM_CHECK_EQ(ip::limit_hz("real_time"), 0);
+        CTM_CHECK_EQ(ip::limit_hz("max"), 0);         // its name before
         CTM_CHECK_EQ(ip::limit_hz(""), 0);
         // ⛔ A value the page does not offer is no limit, never a slow pad.
         CTM_CHECK_EQ(ip::limit_hz("1000"), 0);

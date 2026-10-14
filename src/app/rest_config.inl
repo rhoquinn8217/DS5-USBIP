@@ -483,7 +483,7 @@ static std::string rest_keys_json()
 {"key":"rumble_gain_heavy","type":"int","min":0,"max":500,"default":100,"help":"Heavy weight only. Multiplies with master."},
 {"key":"rumble_gain_soft","type":"int","min":0,"max":500,"default":100,"help":"Soft weight only. Multiplies with master."},
 {"key":"rumble_floor","type":"int","min":0,"max":100,"default":12,"help":"Weakest motor value the game can actually feel, as a percentage. Below its start-up threshold a motor does not spin, so a faint cue becomes silence; this lifts it back. 0 turns the floor off. It never makes a resting pad buzz."},
-{"key":"polling_rate","type":"choice","choices":["max","500","250","125"],"default":"max","name":"Rate limit","help":"The most input reports a second Windows gets from this controller. Max passes on every report the moment it arrives. A number is a ceiling: a report that comes early waits for its turn, and the newest always wins, so nothing piles up. Controllers only. The settings page sets it in the polling rate column."}
+{"key":"polling_rate","type":"choice","choices":["real_time","500","250","125"],"default":"real_time","name":"Rate limit","help":"The most input reports a second Windows gets from this controller. Real time passes on every report the moment it arrives. A number is a ceiling: a report that comes early waits for its turn, and the newest always wins, so nothing piles up. Controllers only. The settings page sets it in the polling rate column."}
 ])CTMKEYS";
     const std::string names = R"CTMKEYS(,
 "key_names":[

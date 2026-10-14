@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.82 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.83 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,10 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.83 The rate limit's first choice reads Real time, as the
+            DS5Dongle and its forks call theirs, and is saved as
+            real_time. A config that says max, its name in 2.66.82,
+            still has no limit.
     2.66.82 Advanced's device tables, on Overview and on a controller's
             own tab, have a polling rate column after battery: the
             reports a second Windows is getting, then a rate limit to
@@ -1969,7 +1973,7 @@
        ⓘ The same number as VERSION at the top of this file, by hand. It sat
        at 2.66.4 for thirty-four versions while VERSION moved on. -->
   <label class="muted">version</label>
-  <span class="barCell"><span class="fixedField" id="pageVersion" title="This page's version. The program's own is in the window's title.">2.66.82</span></span>
+  <span class="barCell"><span class="fixedField" id="pageVersion" title="This page's version. The program's own is in the window's title.">2.66.83</span></span>
   <label class="muted" for="base">agent</label>
   <span class="barCell">
   <input id="base" value="http://127.0.0.1:48053" size="26">
@@ -3010,7 +3014,9 @@ function refreshBatteries(list) {
 // ⛔ A keyboard or a mouse shows the rate alone. The listener never limits
 // one: a mouse report is a movement, and one thinned out is distance the
 // cursor never travels.
-var RATE_CHOICES = [['max', 'max'], ['500', '500 Hz'], ['250', '250 Hz'], ['125', '125 Hz']];
+// ⓘ The first choice is no limit at all, called Real time as the DS5Dongle
+// and its forks call theirs (rhoquinn8217, 2026-10-14). It was max in 2.66.82.
+var RATE_CHOICES = [['real_time', 'Real time'], ['500', '500 Hz'], ['250', '250 Hz'], ['125', '125 Hz']];
 
 // The devices the readouts were last painted from. A head drawn again from
 // its stored markup is brought up to date from these.
@@ -3035,10 +3041,11 @@ function rateTitle(d) {
 }
 
 // What the dropdown shows: the limit that APPLIES. A value the listener does
-// not take, written into a config by hand, reads as max, which is what it does.
+// not take, written into a config by hand, reads as Real time, which is what
+// it does.
 function rateSelectValue(d) {
   var limit = Number(d.rate_limit_hz) || 0;
-  return limit > 0 ? String(limit) : 'max';
+  return limit > 0 ? String(limit) : 'real_time';
 }
 
 // Why the dropdown cannot be used here, or '' when it can.
@@ -3060,7 +3067,8 @@ function rateTag(d) {
              c[1] + '</option>';
     }).join('');
     var title = lock || ('The most reports a second Windows may get from this controller, ' +
-                'kept in ' + d.linked_config + '. Max passes on every one. A number is a ' +
+                'kept in ' + d.linked_config + '. Real time passes on every report the moment ' +
+                'it arrives. A number is a ' +
                 'ceiling: a report that comes early waits for its turn, and the newest ' +
                 'always wins, so nothing piles up.');
     html += ' / <select data-ord="' + esc(String(d.ordinal)) + '" title="' + esc(title) + '"' +
@@ -9855,8 +9863,12 @@ function selfTest() {
     ok('a linked controller can set its limit, showing the one that applies',
        rateTag(held).indexOf(' disabled') < 0 &&
        rateTag(held).indexOf('<option value="125" selected>') >= 0, rateTag(held));
-    ok('a value the listener does not take reads as max',
-       rateSelectValue({ polling_rate: '1000', rate_limit_hz: 0 }) === 'max');
+    ok('the first choice reads Real time',
+       rateTag(loose).indexOf('<option value="real_time" selected>Real time</option>') >= 0,
+       rateTag(loose));
+    ok('a value the listener does not take reads as Real time',
+       rateSelectValue({ polling_rate: '1000', rate_limit_hz: 0 }) === 'real_time' &&
+       rateSelectValue({ polling_rate: 'max', rate_limit_hz: 0 }) === 'real_time');
     ok('polling_rate is not offered again in the settings list', hiddenSetting('polling_rate'));
     var rbox = document.createElement('div');
     rbox.innerHTML = rateTag(held);

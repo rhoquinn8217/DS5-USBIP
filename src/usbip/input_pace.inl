@@ -26,9 +26,11 @@ namespace input_pace {
 // The limit a config's polling_rate asks for, in reports a second, or 0 for
 // none. The text is as device_config_str hands it, lowercased.
 //
-// ⛔ ONLY THE VALUES THE PAGE OFFERS. "max", blank, and anything else at all
-// mean no limit: a typo in a hand-edited file must never slow a controller
-// down, and a hand-typed 25 would make it feel broken.
+// ⛔ ONLY THE VALUES THE PAGE OFFERS. "real_time", blank, and anything else
+// at all mean no limit: a typo in a hand-edited file must never slow a
+// controller down, and a hand-typed 25 would make it feel broken. ⓘ So does
+// "max", the first choice's name before it took "Real time" from the
+// DS5Dongle and its forks (rhoquinn8217, 2026-10-14).
 inline int limit_hz(const std::string &text)
 {
     if (text == "500") return 500;
