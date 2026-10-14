@@ -49,6 +49,16 @@ struct RestDeviceView {
     bool hasRumbleGains = true; // the three gains, patched only into a DualSense report
     bool hasTouchpad = true;
     bool hasGyro = true;
+    // ⭐ THE POLLING RATE (usbip/input_pace.inl): the reports a second Windows
+    // is getting now, and arriving from the TV, which differ only under a
+    // limit; whether a limit can apply at all, a controller's and never a
+    // keyboard's or a mouse's; and the limit its settings set, as written and
+    // as applied.
+    int inputRateHz = 0;
+    int arrivalRateHz = 0;
+    bool takesRateLimit = false;
+    std::string pollingRate;    // lowercased; "" when the settings say nothing
+    int rateLimitHz = 0;        // 0 is none
 };
 static std::vector<RestDeviceView> rest_collect_devices();
 static bool rest_link_device(const std::string &ordinal, const std::string &configName,
@@ -95,6 +105,12 @@ static std::string rest_device_json(const RestDeviceView &d)
     out += ",\"has_rumble_gains\":" + std::string(d.hasRumbleGains ? "true" : "false");
     out += ",\"has_touchpad\":" + std::string(d.hasTouchpad ? "true" : "false");
     out += ",\"has_gyro\":" + std::string(d.hasGyro ? "true" : "false");
+    // ⭐ The polling rate column, Advanced only on the page.
+    out += ",\"input_rate_hz\":" + std::to_string(d.inputRateHz);
+    out += ",\"arrival_rate_hz\":" + std::to_string(d.arrivalRateHz);
+    out += ",\"takes_rate_limit\":" + std::string(d.takesRateLimit ? "true" : "false");
+    out += ",\"polling_rate\":\"" + rest_json_escape(d.pollingRate) + "\"";
+    out += ",\"rate_limit_hz\":" + std::to_string(d.rateLimitHz);
     out += ",\"supports_config\":" +
            std::string(config_store::kind_supports_config(d.kind) ? "true" : "false") + "}";
     return out;
@@ -466,7 +482,8 @@ static std::string rest_keys_json()
 {"key":"master_rumble_gain","type":"int","min":0,"max":500,"default":100,"help":"Scales all rumble. 100 is unchanged."},
 {"key":"rumble_gain_heavy","type":"int","min":0,"max":500,"default":100,"help":"Heavy weight only. Multiplies with master."},
 {"key":"rumble_gain_soft","type":"int","min":0,"max":500,"default":100,"help":"Soft weight only. Multiplies with master."},
-{"key":"rumble_floor","type":"int","min":0,"max":100,"default":12,"help":"Weakest motor value the game can actually feel, as a percentage. Below its start-up threshold a motor does not spin, so a faint cue becomes silence; this lifts it back. 0 turns the floor off. It never makes a resting pad buzz."}
+{"key":"rumble_floor","type":"int","min":0,"max":100,"default":12,"help":"Weakest motor value the game can actually feel, as a percentage. Below its start-up threshold a motor does not spin, so a faint cue becomes silence; this lifts it back. 0 turns the floor off. It never makes a resting pad buzz."},
+{"key":"polling_rate","type":"choice","choices":["max","500","250","125"],"default":"max","name":"Rate limit","help":"The most input reports a second Windows gets from this controller. Max passes on every report the moment it arrives. A number is a ceiling: a report that comes early waits for its turn, and the newest always wins, so nothing piles up. Controllers only. The settings page sets it in the polling rate column."}
 ])CTMKEYS";
     const std::string names = R"CTMKEYS(,
 "key_names":[

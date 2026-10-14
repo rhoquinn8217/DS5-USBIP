@@ -20,6 +20,9 @@
 #include "ctm/product.h"
 
 #include <hidsdi.h>
+// ⓘ Named outright: WIN32_LEAN_AND_MEAN leaves it out, and usbip/fine_timer.inl
+// asks for a 1 ms timer while a controller has a rate limit.
+#include <timeapi.h>
 
 #include <algorithm>
 #include <array>
@@ -229,6 +232,8 @@ void ctm_osk_toggle(const std::string &section, int button, int program);
 #include "app/device_names.inl"  // what a device is listed by; pure; device.inl asks it for the link
 #include "usbip/fallback_serial.inl"   // the serial of a device the TV sent none for
 #include "usbip/submit_info.inl"    // what a submit reports back; pure
+#include "usbip/input_pace.inl"     // a controller's rate limit and its readout; pure
+#include "usbip/fine_timer.inl"     // a 1 ms timer while a rate limit holds reports back
 #include "usbip/device.inl"
 #include "audio/iso_in_pacing.inl"
 #include "usbip/server.inl"

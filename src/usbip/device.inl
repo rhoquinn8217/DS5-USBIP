@@ -3,6 +3,7 @@ public:
     ~CtmUsbipDevice()
     {
         stop_audio_stream();
+        want_fine_timer(false);
     }
 
     bool load(
@@ -267,6 +268,49 @@ public:
         linkedConfig_ = name;
     }
 
+    // ⭐ WHETHER A RATE LIMIT CAN APPLY HERE (usbip/input_pace.inl).
+    //
+    // ⛔ CONTROLLERS ONLY. A keyboard or a mouse has no settings section, so it
+    // never has a limit -- and must not: a mouse report is a movement, and one
+    // thinned out is distance the cursor never travels. ⓘ Nor a device of
+    // several HID interfaces, which is forwarded exactly as it comes.
+    bool takes_rate_limit() const
+    {
+        return profile_.interface_report_descriptors.empty() &&
+               device_button_section_for(profile_.device_descriptor) != nullptr;
+    }
+
+    // What this device's settings say for polling_rate, lowercased, or empty:
+    // the linked config's, or the shared section's when none is linked.
+    std::string rate_limit_setting() const
+    {
+        if (!takes_rate_limit()) return std::string();
+        const std::string section = device_settings_section(
+            device_button_section_for(profile_.device_descriptor), linked_config());
+        return device_config_str(section.c_str(), "polling_rate");
+    }
+
+    // The limit in reports a second, or 0 for none.
+    int rate_limit_hz() const
+    {
+        return input_pace::limit_hz(rate_limit_setting());
+    }
+
+    // ⭐ THE READOUT: the reports a second Windows is getting from this device
+    // now, and the reports a second arriving from the TV. The two differ only
+    // under a limit.
+    int served_rate_hz() const
+    {
+        std::lock_guard<std::mutex> lock(rateMutex_);
+        return servedRate_.rate_hz(pace_now_us());
+    }
+
+    int arrived_rate_hz() const
+    {
+        std::lock_guard<std::mutex> lock(rateMutex_);
+        return arrivedRate_.rate_hz(pace_now_us());
+    }
+
     void stop()
     {
         // Drop this controller's gyro motion state so a reconnect starts with
@@ -288,6 +332,8 @@ public:
         mouse_forget_device(this);
         rebind_forget_pad(this);
         stop_audio_stream();
+        // ⓘ And its hold on the 1 ms timer, if a rate limit had taken one.
+        want_fine_timer(false);
     }
 
     CtmAudioStats audio_stats() const
@@ -671,6 +717,20 @@ public:
             submitInfo->endpointInterrupt = true;
         }
 
+        // ⭐ THE RATE LIMIT, read once a request: 0 is none, and with none
+        // everything below does what it always did (usbip/input_pace.inl).
+        // ⓘ Read before the input lock is taken, since it takes the device's
+        // own.
+        const int limit = rate_limit_hz();
+        want_fine_timer(limit > 0);
+        if (limit != loggedLimit_.exchange(limit)) {
+            const std::string linked = linked_config();
+            device_log::usb_s() << "input rate limit: "
+                << (limit > 0 ? std::to_string(limit) + " a second" : std::string("none"))
+                << ", from " << (linked.empty() ? std::string("the shared settings") : linked)
+                << std::endl;
+        }
+
         using clock = std::chrono::steady_clock;
         const auto waitStart = clock::now();
         std::unique_lock<std::mutex> lock(inputMutex_);
@@ -694,35 +754,75 @@ public:
             }
             return std::find_if(pendingInputReports_.begin(), pendingInputReports_.end(), match);
         };
-        inputCv_.wait(lock, [&]() {
-            const bool hasPending = pendingForEndpoint() != pendingInputReports_.end();
-            const bool hasLatest =
-                hasInput_ &&
+        auto hasLatest = [&]() {
+            return hasInput_ &&
                 latestInput_.endpoint_address == endpointAddress &&
                 inputSequence_ > state.deliveredSequence;
-            return g_stop.load() ||
-                (sessionActive != nullptr && !sessionActive->load()) ||
-                hasPending ||
-                hasLatest;
-        });
+        };
+        // ⭐ WAIT until there is something to serve, as it always has. And
+        // under a limit, input that has come before its turn waits for the
+        // turn: a newer report arriving meanwhile wakes this and is looked at
+        // in its place. ⛔ The map's packets never wait.
+        for (;;) {
+            if (g_stop.load() || (sessionActive != nullptr && !sessionActive->load())) break;
+            const auto next = pendingForEndpoint();
+            if (next != pendingInputReports_.end() && next->priority) break;
+            if (next == pendingInputReports_.end() && !hasLatest()) {
+                inputCv_.wait(lock);
+                continue;
+            }
+            if (state.pace.may_serve(pace_now_us(), limit)) break;
+            inputCv_.wait_until(lock, pace_time_point(state.pace.earliest_us(limit)));
+        }
         CTM_INPUT_REPORT report = {};
         uint32_t deliveredSequence = 0;
         // ⭐ WHICH HALF ANSWERED, for the log below: a packet the map queued
         // (a handshake) or the live input the pad is sending.
         bool fromQueue = false;
+        // ⓘ The pad's own input, which the limit and the readout count. A map
+        // packet is neither.
+        bool input = true;
         auto pendingIt = pendingForEndpoint();
-        if (pendingIt != pendingInputReports_.end()) {
+        if (pendingIt != pendingInputReports_.end() && !pendingIt->priority && limit > 0) {
+            // ⭐ NEWEST WINS. The latest report this endpoint has waiting goes,
+            // and the older ones are dropped with it unserved: they are what the
+            // limit thins out. ⓘ The queue is in arrival order, so it is the
+            // last one that matches.
+            auto newest = pendingIt;
+            for (auto it = pendingIt; it != pendingInputReports_.end(); ++it) {
+                if (!it->priority && it->report.endpoint_address == endpointAddress &&
+                    it->sequence > state.deliveredSequence) {
+                    newest = it;
+                }
+            }
             fromQueue = true;
+            report = newest->report;
+            deliveredSequence = newest->sequence;
+            pendingInputReports_.erase(
+                std::remove_if(pendingInputReports_.begin(), pendingInputReports_.end(),
+                    [&](const QueuedInputReport &item) {
+                        return !item.priority &&
+                            item.report.endpoint_address == endpointAddress &&
+                            item.sequence <= deliveredSequence;
+                    }),
+                pendingInputReports_.end());
+        } else if (pendingIt != pendingInputReports_.end()) {
+            fromQueue = true;
+            input = !pendingIt->priority;
             report = pendingIt->report;
             deliveredSequence = pendingIt->sequence;
             pendingInputReports_.erase(pendingIt);
-        } else if (hasInput_ &&
-            latestInput_.endpoint_address == endpointAddress &&
-            inputSequence_ > state.deliveredSequence) {
+        } else if (hasLatest()) {
             report = latestInput_;
             deliveredSequence = inputSequence_;
         } else {
             return kStatusStall;
+        }
+        if (input) {
+            const int64_t now = pace_now_us();
+            state.pace.served(now, limit);
+            std::lock_guard<std::mutex> rateLock(rateMutex_);
+            servedRate_.record(now);
         }
 
         const size_t copy = (std::min<size_t>)(report.length, transferLength);
@@ -843,7 +943,33 @@ private:
         // read by the verbose "input served" line, which exists to tell a host
         // that is not polling from a device that is not producing.
         unsigned long servedCount = 0;
+        // ⓘ When the next report is due under a rate limit (input_pace.inl).
+        input_pace::Pacer pace;
     };
+
+    // ⓘ The time the pacing and the readout count in: microseconds of the
+    // steady clock, and back.
+    static int64_t pace_now_us()
+    {
+        return std::chrono::duration_cast<std::chrono::microseconds>(
+            std::chrono::steady_clock::now().time_since_epoch()).count();
+    }
+
+    static std::chrono::steady_clock::time_point pace_time_point(int64_t us)
+    {
+        return std::chrono::steady_clock::time_point(
+            std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+                std::chrono::microseconds(us)));
+    }
+
+    // Takes or gives back this device's hold on the 1 ms timer
+    // (usbip/fine_timer.inl), once each way.
+    void want_fine_timer(bool want)
+    {
+        const bool had = fineTimer_.exchange(want);
+        if (want && !had) fine_timer::acquire();
+        else if (!want && had) fine_timer::release();
+    }
 
     void configure_audio_stream_from_map()
     {
@@ -889,6 +1015,10 @@ private:
         if (!priority) {
             latestInput_ = report;
             hasInput_ = true;
+            // ⓘ What the TV sends, beside what Windows gets: the readout's two
+            // halves, which differ only under a rate limit.
+            std::lock_guard<std::mutex> rateLock(rateMutex_);
+            arrivedRate_.record(pace_now_us());
         }
         ++inputSequence_;
         pendingInputReports_.push_back(QueuedInputReport{inputSequence_, report, priority});
@@ -2046,6 +2176,16 @@ private:
     std::deque<QueuedInputReport> pendingInputReports_;
     // ⓘ One line per session when the cap above evicts something, no more.
     bool droppedQueuedLogged_ = false;
+    // ⭐ THE POLLING RATE (usbip/input_pace.inl): what Windows gets and what
+    // the TV sends, counted as they go. Their own lock, so the settings page
+    // reading them never waits on the input path. ⓘ Taken inside inputMutex_,
+    // never the other way round.
+    mutable std::mutex rateMutex_;
+    input_pace::RateMeter servedRate_;
+    input_pace::RateMeter arrivedRate_;
+    // Whether this device holds the 1 ms timer, and the limit last logged.
+    std::atomic<bool> fineTimer_{false};
+    std::atomic<int> loggedLimit_{0};
     // ⓘ How many of each per-report line this device has reached, for
     // ctm_log_report_line. Atomic: output arrives on the host's thread.
     std::atomic<uint64_t> setOutputLines_{0};
