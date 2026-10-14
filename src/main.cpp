@@ -133,6 +133,14 @@ bool ui_view_get(bool *compact, bool *quick, std::string *ordinal);
  * Defined below, after config_move.inl. */
 bool ui_open_on_bridge();
 void ui_set_open_on_bridge(bool on);
+/* The tutorials (tutorial_state.inl): whether Simple's has been seen, kept in
+ * window-state.txt, and the tray's request to show it again. Defined below,
+ * after config_move.inl. */
+bool ui_tutorial_seen();
+void ui_set_tutorial_seen(bool seen);
+void ui_tutorial_ask();
+bool ui_tutorial_asked();
+void ui_tutorial_take();
 /* Where the window stands right now, kept for the next one. Called on the way
  * out, while it still exists. */
 void ui_view_remember_pos();
@@ -293,6 +301,7 @@ namespace config_move { inline void state_load(); }
 #include "app/tv_sessions.inl"       // which TV a bridge session belongs to, and its port; agent.inl asks it
 #include "app/protocol_level.inl"    // whether this listener and a TV app can work together; agent.inl answers with it
 #include "app/open_on_bridge.inl"      // whether a bridge opens the settings window; agent.inl and the tray ask it
+#include "app/tutorial_state.inl"      // whether the window's tutorial has been seen; config_move.inl keeps it
 #include "app/agent.inl"
 #include "input/mouse_device.inl"      // needs g_agent_usbip_server, find_relative_asset, run_usbip_attach
 #include "input/keyboard_device.inl"   // same dependencies as the mouse above
@@ -391,6 +400,26 @@ bool ui_open_on_bridge()
 void ui_set_open_on_bridge(bool on)
 {
     config_move::set_open_on_bridge(on);
+}
+bool ui_tutorial_seen()
+{
+    return config_move::tutorial_seen();
+}
+void ui_set_tutorial_seen(bool seen)
+{
+    config_move::set_tutorial_seen(seen);
+}
+void ui_tutorial_ask()
+{
+    config_move::ask_tutorial();
+}
+bool ui_tutorial_asked()
+{
+    return config_move::tutorial_asked();
+}
+void ui_tutorial_take()
+{
+    config_move::take_tutorial();
 }
 void ui_view_remember_pos()
 {

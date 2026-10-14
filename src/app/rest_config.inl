@@ -686,6 +686,39 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
             return true;
         }
 
+        // ⭐ THE TUTORIALS (rhoquinn8217, 2026-10-14): a GET says whether
+        // Simple's has been seen and whether the tray asked for it, once a
+        // second while the page is in view, as Open on bridge is read. A POST
+        // of {"seen": true} keeps it seen; {"taken": true} clears the tray's
+        // request once the page has it (tutorial_state.inl).
+        if (what == "tutorial") {
+            if (req.method == "POST") {
+                RestJson json;
+                std::string parseError;
+                if (!rest_parse_flat_json(req.body, &json, &parseError)) {
+                    *out = rest_error_response(400, parseError);
+                    return true;
+                }
+                auto seen = json.bools.find("seen");
+                auto taken = json.bools.find("taken");
+                if (seen == json.bools.end() && taken == json.bools.end()) {
+                    *out = rest_error_response(400, "say seen or taken, true or false");
+                    return true;
+                }
+                if (seen != json.bools.end()) {
+                    ui_set_tutorial_seen(seen->second);
+                    device_log::session_w() << L"settings page: the Simple tutorial is "
+                                            << (seen->second ? L"seen" : L"unseen") << L" now";
+                }
+                if (taken != json.bools.end() && taken->second) ui_tutorial_take();
+            } else if (req.method != "GET") {
+                *out = rest_error_response(405, "method not allowed", "Allow: GET, POST, OPTIONS\r\n");
+                return true;
+            }
+            *out = rest_http_response(200, tutorial_state::json(ui_tutorial_seen(), ui_tutorial_asked()));
+            return true;
+        }
+
         if (req.method != "POST") {
             *out = rest_error_response(405, "method not allowed", "Allow: GET, POST, OPTIONS\r\n");
             return true;

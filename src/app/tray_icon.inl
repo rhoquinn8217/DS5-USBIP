@@ -39,6 +39,7 @@ inline const UINT kIdQuit     = 3;
 inline const UINT kIdOpenOnBridge = 4;
 inline const UINT kIdOpenFolder = 5;
 inline const UINT kIdRemoveOld = 6;
+inline const UINT kIdTutorial = 7;
 // ⓘ The title's line. Choosing it closes the menu and does nothing else.
 inline const UINT kIdHeader   = 10;
 // ⓘ One id for each line of the Controllers list, in the order it was read as
@@ -200,8 +201,8 @@ inline HBITMAP header_picture(const std::wstring &count, UINT dpi)
     LONG widest = titleLine > countSize.cx ? titleLine : countSize.cx;
     const std::wstring lines[] = {
         tray_menu::kDevices, tray_menu::kOpenConfig, tray_menu::keyboard_line(false),
-        tray_menu::keyboard_line(true), tray_menu::kConfigMode, tray_menu::kRemoveOld,
-        tray_menu::kQuit };
+        tray_menu::keyboard_line(true), tray_menu::kConfigMode, tray_menu::kShowTutorial,
+        tray_menu::kRemoveOld, tray_menu::kQuit };
     for (const std::wstring &line : lines) {
         SIZE lineSize = {};
         GetTextExtentPoint32W(dc, line.c_str(), static_cast<int>(line.size()), &lineSize);
@@ -402,6 +403,27 @@ inline void remove_old_controllers()
     }
 }
 
+// ⭐ The menu's "Show tutorial" (rhoquinn8217, 2026-10-14). Simple is the one
+// layout with a tutorial yet, so the window goes to Simple, by the same
+// change_layout its Window Mode line uses, and opens if it was not open. The
+// page collects the request within a second and starts the tutorial as soon
+// as a controller is bridged.
+// ⓘ kModes[1] is Simple.
+inline void show_tutorial()
+{
+    ui_tutorial_ask();
+    bool compact = false, quick = false;
+    std::string ordinal;
+    ui_view_get(&compact, &quick, &ordinal);
+    ctm_open_ui::FindState open;
+    EnumWindows(ctm_open_ui::find_window_proc, reinterpret_cast<LPARAM>(&open));
+    const bool wasOpen = open.found != nullptr;
+    change_layout(1);
+    if (!wasOpen) ctm_chord_show_ui(ordinal);
+    device_log::session_w() << L"tray: Show tutorial, in Simple"
+                            << (wasOpen ? L"" : L"; the config window is opening for it");
+}
+
 inline void show_menu(HWND hwnd)
 {
     HMENU menu = CreatePopupMenu();
@@ -481,6 +503,9 @@ inline void show_menu(HWND hwnd)
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     // ⭐ Remove old controllers, in a group of its own above Quit
     // (rhoquinn8217, 2026-10-13): a rarely used tidy-up that asks first.
+    // ⭐ Show tutorial above it (rhoquinn8217, 2026-10-14), the other thing
+    // here that is wanted now and then rather than every day.
+    AppendMenuW(menu, MF_STRING, kIdTutorial, tray_menu::kShowTutorial);
     AppendMenuW(menu, MF_STRING, kIdRemoveOld, tray_menu::kRemoveOld);
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
 
@@ -545,6 +570,9 @@ inline void show_menu(HWND hwnd)
     case kIdSettings:
         // ⓘ The same path the chord takes, with no controller in hand.
         ctm_chord_show_ui(std::string());
+        break;
+    case kIdTutorial:
+        show_tutorial();
         break;
     case kIdRemoveOld:
         remove_old_controllers();

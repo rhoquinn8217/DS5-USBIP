@@ -2661,6 +2661,32 @@
   select.gp-selecting option:hover { background:#3a3d49; color:#fff; }
   select.gp-selecting { cursor:pointer; }
   .log-head { font-family:Consolas,monospace; font-size:12px; margin-bottom:4px; }
+  /* ⭐ THE TUTORIAL (2026-10-14): one layer over everything, the dim with its
+     feathered openings, the words and the buttons. Sized in vh as Simple
+     is, because it runs in Simple's window. ⓘ The layer lets the pointer
+     through; the window's own capture listeners decide what a click may
+     reach, so the dim needs no shape of its own for that. */
+  #tutRoot { position:fixed; inset:0; z-index:1000; pointer-events:none; }
+  #tutDim { position:absolute; inset:0; width:100%; height:100%; }
+  #tutRoot .tutFloat { position:absolute; pointer-events:auto; }
+  #tutCard { left:50%; top:50%; transform:translate(-50%,-50%); width:min(74vw,900px);
+             background:#1d2030; border:1px solid #f0b429; border-radius:12px;
+             padding:2.6vh 2.6vw; text-align:center; color:#e8e8ea; }
+  #tutCard h3 { margin:0 0 1.2vh; font-size:5vh; }
+  #tutCard p { margin:0 0 2.4vh; font-size:3.6vh; line-height:1.45; color:#c9cdd6; }
+  #tutCard .tutBtns { display:flex; gap:1.4vw; justify-content:center; }
+  #tutWrap { max-width:52vw; }
+  #tutBubble { background:#1d2030; border:1px solid #f0b429; border-radius:10px;
+               padding:1.6vh 1.8vw; color:#e8e8ea; font-size:3.6vh; line-height:1.5; }
+  #tutBubble .tcount { display:block; font-size:2.6vh; color:#9aa4b2; margin-bottom:.4vh; }
+  /* ⓘ A name in the words: lit, and never broken at its dashes. */
+  .tut-hl { color:#f0b429; border:1px solid #f0b429; border-radius:6px; padding:0 .5vw;
+            white-space:nowrap; font-weight:600; }
+  #tutNav { display:flex; flex-wrap:wrap; gap:1vw; justify-content:flex-end; margin-top:1.2vh; }
+  #tutRoot button { font-size:3.8vh; padding:1vh 2.2vw; white-space:nowrap; }
+  /* ⓘ Greyed out but solid: the page's own see-through grey let the footer's
+     words show through Next. */
+  #tutRoot button[disabled] { opacity:1; background:#1a1b20; border-color:#2c2e36; color:#5d6270; }
 </style>
 </head>
 <body>
@@ -5386,6 +5412,7 @@ function createFromPreset(ordinal, preset) {
   var body = { name: name };
   if (ordinal) { body.device = ordinal; }
   if (preset) body.preset = preset;
+  if (TUT) tutNoteMade(ordinal, name);
   presetCancel();
   call('POST', '/api/v1/configs', body)
     // ⓘ The create links the part it was made from; the device's other parts
@@ -7459,6 +7486,10 @@ function focusKeyOf(el) {
 var GP_WANT = '';
 
 function gpCollect() {
+  // ⭐ THE TUTORIAL IS MODAL TOO, and above everything: while it runs, the
+  // pad reaches its buttons and, on a step that asks for it, the one thing
+  // lit. Nothing else.
+  if (TUT) { tutCollect(); return; }
   var scope = document.getElementById('pane-' + ACTIVE);
   var list = [];
   // ⛔ The device header lives in the sticky block, NOT in the pane -- moving it
@@ -9005,6 +9036,7 @@ function writePlace(p) {
 
 function savePlace(force) {
   if (!AGENT_RUN) return;              // nothing worth writing yet
+  if (TUT) return;                     // the tutorial's buttons are no place to come back to
   // ⛔⛔ NOT UNTIL THE RESTORE HAS HAD ITS TURN. The first paint happens while
   // the page is still empty, and saving then overwrites the very place we are
   // about to read -- so closing the window without touching anything would
@@ -10418,7 +10450,7 @@ function paintCompact() {
   };
   var foot = function (withNew, ordinal) {
     return '<div class="cfoot">' +
-      (withNew ? '<button onclick="newConfigFor(\'' + esc(ordinal) + '\')">New</button>' : '') +
+      (withNew ? '<button class="cnew" onclick="newConfigFor(\'' + esc(ordinal) + '\')">New</button>' : '') +
       (ordinal ? '<button onclick="setCompact(false)">Edit</button>' : '') + '</div>';
   };
   // ⓘ Simple with its config panel stands centred between the window's top
@@ -10774,6 +10806,9 @@ function paintCompact() {
   alignNameRow();
   drumPaint(null);
   gpCollect();
+  // ⓘ The tutorial keeps the halo on its own buttons (tutCollect); placing
+  // it on the box here would pull it off them at every device poll.
+  if (TUT) return;
   // ⭐ THE HALO STAYS WHERE IT WAS across a repaint (rhoquinn8217, 2026-09-09:
   // it jumped back to the selector whenever the device poll redrew the box,
   // the T-148 shape again). gpCollect has just re-acquired it by key; only
@@ -12263,6 +12298,585 @@ function selfTest() {
 //
 // ⚠️ The lesson is the one already in the handoff: read the error before
 // changing the thing you assume is at fault.
+// ⭐⭐ THE TUTORIALS (rhoquinn8217, 2026-10-14: *"I want a tutorial when a
+// mode for each mode. Lets start with simple mode."*). One per Window Mode,
+// and Simple's is the first. It starts by itself the first time this window
+// is in Simple with a controller bridged, and again from the tray's "Show
+// tutorial" (*"put it in the tray menu"*). The listener keeps whether it has
+// been seen (tutorial_state.inl): Skip and End tutorial both end it for good,
+// while a bridge lost or a layout changed midway stops it unseen, and it
+// starts again.
+//
+// ⭐ THE LOOK WAS AGREED BY PICTURE, a round at a time, the same day:
+// - a FEATHERED spotlight (*"use a Feathered spotlight effect"*): the window
+//   dims, and a soft-edged opening shaped to the area shows it;
+// - End tutorial floats at the bottom right just above Close, in a spotlight
+//   of its own (*"Separate the "End Tutorial" button from the
+//   description"*), and asks first unless it is the last step;
+// - Next and Previous float under the words, Next first (*"lets have the
+//   the "Next" and "Previous" buttons float under the description"*);
+// - a step that asks for something greys Next out, and its words say "Click
+//   <name> to <what it does>" with the name lit (*"Don't replace the button
+//   with instructions when instructions are given. Instead just gray it
+//   out"*); doing it moves on by itself;
+// - a name never breaks at its dashes (*"Don't wrap it on it's dashes"*).
+//
+// ⛔⛔ EVERYTHING ELSE IS LOCKED (*"During the tutorial, everything should be
+// locked out except when the user is instructed to do something"*). Keys and
+// clicks are caught on the WINDOW in the capture phase, ahead of every
+// handler on the page, and only the tutorial's own buttons and, on a step
+// that asks for it, the one thing lit, answer. ⓘ P and R still place and size
+// the window, as Options and Create do from the pad in the listener: they
+// change nothing the tutorial shows.
+//
+// ⭐ PREVIOUS UNDOES (*"If you go back to a previous step that requires an
+// action, that action will be reverted so the user can do that step
+// again"*). Back onto opening the pre-set list closes the list; back onto
+// choosing stick-to-mouse closes its page; back onto Use this puts the
+// controller's earlier config back and archives the one the tutorial made,
+// since configs are archived here, never deleted (config_store.inl).
+//
+// ⓘ Simple's box is repainted on every device poll, so a step names what it
+// lights by a lookup that runs on every frame, and never holds an element.
+
+var TUT = null;              // the tutorial on screen, or null
+var TUT_SEEN = null;         // what the listener keeps; null until it answers
+var TUT_ASKED = false;       // the tray asked, and it has not started yet
+var TUT_ENDED_HERE = false;  // this window ended one; another waits to be asked
+var TUT_LAST_HOLES = '';
+
+function tutById(id) { return document.getElementById(id); }
+
+// A name in the words, lit and never broken at a dash.
+function tutHl(name) { return '<span class="tut-hl">' + esc(name) + '</span>'; }
+
+// ⓘ Start shows while this controller has no config to pick, New after.
+function tutStartBtn() {
+  return document.querySelector('#compactBox button.cbig') ||
+         document.querySelector('#compactBox .cfoot button.cnew');
+}
+function tutStartWord() {
+  return document.querySelector('#compactBox button.cbig') ? 'Start' : 'New';
+}
+
+// A section of a pre-set's page: its heading and what is under it.
+function tutSection(title) {
+  var heads = document.querySelectorAll('#presetInfoTables h4');
+  for (var i = 0; i < heads.length; i++) {
+    if (heads[i].textContent !== title) continue;
+    var out = [heads[i]];
+    if (heads[i].nextElementSibling) out.push(heads[i].nextElementSibling);
+    return out;
+  }
+  return [];
+}
+
+function tutMadeBoxUp() {
+  var box = tutById('confirmBox');
+  var title = tutById('confirmTitle');
+  return !!(box && box.style.display === 'flex' && title &&
+            title.textContent === 'Pre-set config created!');
+}
+
+// ⭐ SIMPLE'S TEN, in rhoquinn8217's order. `act` marks a step that asks for
+// something: Next is greyed out, `done` says when it has been done, and
+// `undo` takes it back when Previous comes back onto it. 'end' is the last,
+// whose action is End tutorial itself.
+var TUT_SIMPLE = [
+  { lit: function () { return [tutStartBtn()]; },
+    words: function () {
+      return tutStartWord() + ' makes a controller config: what this controller does on the PC, ' +
+             'like moving the mouse with a stick.';
+    } },
+  { lit: function () { return [tutStartBtn()]; }, act: true,
+    words: function () { return 'Click ' + tutHl(tutStartWord()) + ' to make a new controller config.'; },
+    done: function () { return PRESET_OPEN; },
+    undo: function () { presetCancel(); } },
+  { lit: function () { return [document.querySelector('#presetBox .confirmCard')]; },
+    words: function () {
+      return 'Pre-sets are ready-made configs. Choosing one shows what it does before anything is made.';
+    } },
+  { lit: function () { return [document.querySelector('#presetList button[data-preset="stick-to-mouse"]')]; },
+    act: true,
+    words: function () {
+      return 'Select ' + tutHl('stick-to-mouse') + ' to see what it does. It works with every controller.';
+    },
+    done: function () { return PRESET_INFO_OPEN === 'stick-to-mouse'; },
+    undo: function () { closePresetInfo(); } },
+  { lit: function () { return [tutById('presetInfoText')]; },
+    words: function () { return "Every pre-set starts by saying what it's for."; } },
+  { lit: function () { return tutSection('Triggers'); },
+    words: function () {
+      return 'The triggers become mouse clicks: the right trigger left-clicks and the left ' +
+             'trigger right-clicks.';
+    } },
+  { lit: function () { return tutSection('Left stick').concat(tutSection('Right stick')); },
+    words: function () {
+      return 'The right stick moves the cursor and the left stick scrolls. While this config ' +
+             "is linked, games don't see either stick.";
+    } },
+  { lit: function () { return tutSection('Buttons'); },
+    words: function () {
+      return 'The buttons become keys: Enter, Escape and Space, the arrow keys on the d-pad, ' +
+             'and one button opens the on-screen keyboard.';
+    } },
+  { lit: function () { return [tutById('presetInfoUse')]; }, act: true,
+    words: function () {
+      return 'Click ' + tutHl('Use this') + ' to make the config and link it to this controller.';
+    },
+    done: tutMadeBoxUp,
+    undo: function () { tutUndoMade(); } },
+  { lit: function () { return [document.querySelector('#confirmBox .confirmCard')]; }, act: 'end',
+    words: function () {
+      return 'Your config is made and linked. Click ' + tutHl('End tutorial') +
+             ' to finish, then pick one of these.';
+    } }
+];
+
+function tutSteps() { return TUT_SIMPLE; }
+function tutStep() { return TUT && TUT.phase === 'step' ? tutSteps()[TUT.at] : null; }
+
+// What a step lights, as it stands now: shown elements only.
+function tutLit(s) {
+  if (!s) return [];
+  return (s.lit() || []).filter(function (el) {
+    return el && el.isConnected && el.getClientRects().length > 0;
+  });
+}
+
+// ⭐ WHEN IT STARTS: Simple, a controller in view that takes a config, and
+// nothing open over it. Then once, unless the tray asks again.
+function tutMaybeStart() {
+  if (TUT || STOPPED || IS_DOWN || !COMPACT || QUICK) return;
+  var due = TUT_ASKED || (TUT_SEEN && !TUT_SEEN.simple && !TUT_ENDED_HERE);
+  if (!due) return;
+  if (document.visibilityState !== 'visible') return;
+  var d = deviceByOrdinal(ACTIVE);
+  if (!d || !d.supports_config) return;
+  if (PRESET_OPEN || PRESET_INFO_OPEN || CONFIRM_CB || RENAMING || GP_SELECTING || FOOTER_MODE) return;
+  TUT_ASKED = false;
+  tutBegin(d.ordinal);
+}
+
+// ⓘ Asked once a second while this window can be seen, as Open on bridge is.
+function tutPoll() {
+  if (STOPPED || document.visibilityState !== 'visible') return;
+  call('GET', '/api/v1/ui/tutorial', undefined, true).then(function (d) {
+    if (!d) return;
+    TUT_SEEN = { simple: !!d.simple_seen };
+    if (d.request) {
+      // ⓘ One already running takes the request as answered.
+      if (!TUT) TUT_ASKED = true;
+      call('POST', '/api/v1/ui/tutorial', { taken: true }, true).catch(function () {});
+    }
+    tutMaybeStart();
+  }).catch(function () {});
+}
+window.addEventListener('load', tutPoll);
+window.addEventListener('focus', tutPoll);
+setInterval(tutPoll, 1000);
+
+function tutBegin(ordinal) {
+  TUT = { ordinal: ordinal, active: ACTIVE, phase: 'intro', at: 0, done: [],
+          made: null, busy: false, focus: null };
+  TUT_LAST_HOLES = '';
+  var root = document.createElement('div');
+  root.id = 'tutRoot';
+  // ⓘ The dim is a mask: white keeps it, the black holes let the window
+  // through, and the blur on the holes is the feather.
+  root.innerHTML =
+    '<svg id="tutDim" aria-hidden="true"><defs>' +
+      '<filter id="tutBlur" x="-50%" y="-50%" width="200%" height="200%">' +
+        '<feGaussianBlur id="tutBlurDev" stdDeviation="10"/></filter>' +
+      '<mask id="tutMask" maskUnits="userSpaceOnUse" x="0" y="0" width="100%" height="100%">' +
+        '<rect x="0" y="0" width="100%" height="100%" fill="white"/>' +
+        '<g id="tutHoles" filter="url(#tutBlur)"></g></mask></defs>' +
+      '<rect x="0" y="0" width="100%" height="100%" fill="#000" fill-opacity="0.72" ' +
+        'mask="url(#tutMask)"/></svg>' +
+    '<div id="tutCard" class="tutFloat"></div>' +
+    '<div id="tutWrap" class="tutFloat"><div id="tutBubble"></div>' +
+      '<div id="tutNav"><button id="tutNext" class="go" onclick="tutNext()">Next</button>' +
+      '<button id="tutPrev" onclick="tutPrev()">Previous</button></div></div>' +
+    '<button id="tutEnd" class="tutFloat" onclick="tutEndPressed()">End tutorial</button>';
+  document.body.appendChild(root);
+  tutRender();
+  requestAnimationFrame(tutFrame);
+}
+
+function tutRender() {
+  if (!TUT) return;
+  var card = tutById('tutCard'), wrap = tutById('tutWrap'), end = tutById('tutEnd');
+  var steps = tutSteps();
+  if (TUT.phase === 'intro' || TUT.phase === 'ask') {
+    card.style.display = 'block';
+    wrap.style.display = 'none';
+    end.style.display = 'none';
+    if (TUT.phase === 'intro') {
+      card.innerHTML = '<h3>Simple mode tutorial</h3>' +
+        '<p>A one-minute tour: make a controller config from a pre-set and link it to this ' +
+        'controller.</p><div class="tutBtns">' +
+        '<button id="tutSkip" onclick="tutFinish(true)">Skip</button>' +
+        '<button id="tutBegin" class="go" onclick="tutShow(0)">Begin tutorial</button></div>';
+      TUT.focus = tutById('tutBegin');
+    } else {
+      // ⭐ ASKED, UNLESS IT IS THE LAST STEP (*"End tutorial should ask the
+      // user if they are sure they want to end the tutorial unless its the
+      // last step"*). Keep going is where the halo starts, so a stray press
+      // keeps the tutorial.
+      card.innerHTML = '<h3>End the tutorial?</h3>' +
+        "<p>You're on step " + (TUT.at + 1) + ' of ' + steps.length + '.</p>' +
+        '<div class="tutBtns">' +
+        '<button id="tutEndYes" onclick="tutFinish(true)">End tutorial</button>' +
+        '<button id="tutKeep" class="go" onclick="tutKeepGoing()">Keep going</button></div>';
+      TUT.focus = tutById('tutKeep');
+    }
+  } else {
+    var s = steps[TUT.at];
+    card.style.display = 'none';
+    wrap.style.display = 'block';
+    end.style.display = 'block';
+    tutById('tutBubble').innerHTML = '<span class="tcount">' + (TUT.at + 1) + ' of ' +
+      steps.length + '</span>' + s.words();
+    var nx = tutById('tutNext'), pv = tutById('tutPrev');
+    nx.disabled = !!s.act;
+    nx.classList.toggle('go', !s.act);
+    pv.style.display = TUT.at === 0 ? 'none' : '';
+    // ⓘ On the last step End tutorial IS the thing to do, so it is lit as one.
+    end.classList.toggle('go', s.act === 'end');
+  }
+  TUT_LAST_HOLES = '';
+  tutCollect();
+}
+
+function tutShow(i) {
+  if (!TUT) return;
+  var steps = tutSteps();
+  if (i < 0 || i >= steps.length) return;
+  TUT.phase = 'step';
+  TUT.at = i;
+  var s = steps[i];
+  var lit = tutLit(s);
+  // ⓘ Where the halo starts: the thing to do on a step that asks, End
+  // tutorial on the last, Next on the rest.
+  TUT.focus = s.act === true && lit[0] ? lit[0]
+            : s.act === 'end' ? tutById('tutEnd') : tutById('tutNext');
+  tutRender();
+  if (lit[0] && lit[0].scrollIntoView) lit[0].scrollIntoView({ block: 'nearest' });
+}
+
+function tutNext() {
+  var s = tutStep();
+  if (!s || s.act || TUT.busy) return;
+  tutShow(TUT.at + 1);
+}
+
+function tutPrev() {
+  if (!TUT || TUT.phase !== 'step' || TUT.at === 0 || TUT.busy) return;
+  var back = TUT.at - 1;
+  var s = tutSteps()[back];
+  if (s.act === true && TUT.done[back]) {
+    TUT.done[back] = false;
+    if (s.undo) s.undo();
+  }
+  tutShow(back);
+}
+
+function tutEndPressed() {
+  if (!TUT || TUT.busy) return;
+  var s = tutStep();
+  if (s && s.act === 'end') { tutFinish(true); return; }
+  TUT.phase = 'ask';
+  tutRender();
+}
+
+function tutKeepGoing() {
+  if (!TUT) return;
+  TUT.phase = 'step';
+  tutRender();
+  TUT.focus = tutById('tutEnd');
+  tutCollect();
+}
+
+// ⭐ Seen is for good; not seen, it comes back. After the last step, the box
+// it lit is left waiting for a choice (*"After the "End tutorial" button is
+// clicked, the user can select what they want."*).
+function tutFinish(seen) {
+  if (!TUT) return;
+  TUT = null;
+  var root = tutById('tutRoot');
+  if (root && root.parentNode) root.parentNode.removeChild(root);
+  if (seen) {
+    TUT_ENDED_HERE = true;
+    if (TUT_SEEN) TUT_SEEN.simple = true;
+    call('POST', '/api/v1/ui/tutorial', { mode: 'simple', seen: true }, true).catch(function () {});
+  }
+  gpCollect();
+  if (CONFIRM_CB) { GP_INDEX = Math.max(0, GP_FOCUS.length - 1); gpPaint(); }
+}
+
+// What Use this made, noted as it is made (createFromPreset).
+function tutNoteMade(ordinal, name) {
+  if (!TUT || !ordinal) return;
+  var d = deviceByOrdinal(ordinal);
+  TUT.made = { ordinal: ordinal, name: name, before: (d && d.linked_config) || '' };
+}
+
+// ⭐ BACK ONTO USE THIS: the box goes with none of its buttons pressed, the
+// controller reads what it read before, the config made is archived, and the
+// pre-set's page opens again with Use this on it.
+function tutUndoMade() {
+  var made = TUT && TUT.made;
+  if (!made) return;
+  TUT.made = null;
+  TUT.busy = true;
+  if (tutMadeBoxUp()) confirmNo();
+  linkParts(made.ordinal, made.before ? { config: made.before } : {})
+    .then(function () {
+      return call('POST', '/api/v1/configs/' + encodeURIComponent(made.name) + '/archive', {});
+    })
+    .catch(function () {})
+    .then(function () {
+      loadConfigs(); loadDevices();
+      if (!TUT) return;
+      openPresetPicker(made.ordinal, deviceByOrdinal(made.ordinal) || null);
+      openPresetInfo(made.ordinal, 'stick-to-mouse');
+      TUT.busy = false;
+      tutShow(TUT.at);
+    });
+}
+
+// ---- the pad and the keys -----------------------------------------------------
+
+function tutFocusables() {
+  if (!TUT) return [];
+  if (TUT.phase === 'intro') return [tutById('tutSkip'), tutById('tutBegin')].filter(Boolean);
+  if (TUT.phase === 'ask') return [tutById('tutEndYes'), tutById('tutKeep')].filter(Boolean);
+  var list = [];
+  var s = tutStep();
+  if (s && s.act === true && !TUT.busy) {
+    var lit = tutLit(s);
+    if (lit[0] && !lit[0].disabled) list.push(lit[0]);
+  }
+  var nx = tutById('tutNext'), pv = tutById('tutPrev');
+  if (nx && !nx.disabled) list.push(nx);
+  if (pv && pv.style.display !== 'none') list.push(pv);
+  if (tutById('tutEnd')) list.push(tutById('tutEnd'));
+  return list;
+}
+
+function tutCollect() {
+  // ⓘ The keys are the tutorial's while it runs, so nothing on the page
+  // needs real focus, and a box that took it (askConfirm gives its last
+  // button focus) showed the browser's white ring on a button it locks.
+  var had = document.activeElement;
+  if (had && had !== document.body && had.blur) had.blur();
+  GP_FOCUS = tutFocusables();
+  // ⓘ A repaint replaces the lit button; the halo follows it to the new one.
+  var s = tutStep();
+  if (TUT && TUT.focus && !TUT.focus.isConnected && s && s.act === true) {
+    TUT.focus = tutLit(s)[0] || null;
+  }
+  var at = TUT && TUT.focus ? GP_FOCUS.indexOf(TUT.focus) : -1;
+  if (at >= 0) GP_INDEX = at;
+  else if (GP_INDEX >= GP_FOCUS.length) GP_INDEX = 0;
+  gpPaint();
+}
+
+function tutMove(dir) {
+  if (!GP_FOCUS.length) return;
+  GP_INDEX = Math.max(0, Math.min(GP_FOCUS.length - 1, GP_INDEX + dir));
+  if (TUT) TUT.focus = GP_FOCUS[GP_INDEX];
+  gpPaint();
+}
+
+function tutPress() {
+  var el = GP_FOCUS[GP_INDEX];
+  if (el && !el.disabled) el.click();
+}
+
+// ⓘ Circle: the question's Keep going; otherwise the halo goes to the way
+// out, Skip or End tutorial, without pressing it.
+function tutBack() {
+  if (!TUT) return;
+  if (TUT.phase === 'ask') { tutKeepGoing(); return; }
+  TUT.focus = tutById(TUT.phase === 'intro' ? 'tutSkip' : 'tutEnd');
+  tutCollect();
+}
+
+// ⛔⛔ AHEAD OF EVERY KEY HANDLER ON THE PAGE. A gated pad arrives as
+// Ctrl+Alt+Shift with W, A, S and D for the d-pad, Enter for Cross and Z for
+// Circle; a keyboard as the arrows, Enter or Space, and Escape.
+window.addEventListener('keydown', function (ev) {
+  if (!TUT) return;
+  var gated = ev.ctrlKey && ev.altKey && ev.shiftKey;
+  var plain = !ev.ctrlKey && !ev.altKey && !ev.metaKey && !ev.shiftKey;
+  if (plain && (ev.code === 'KeyP' || ev.code === 'KeyR')) return;
+  ev.preventDefault();
+  ev.stopImmediatePropagation();
+  if (TUT.busy) return;
+  var dir = 0, press = false, back = false;
+  if (gated) {
+    dir = (ev.code === 'KeyW' || ev.code === 'KeyA') ? -1
+        : (ev.code === 'KeyS' || ev.code === 'KeyD') ? 1 : 0;
+    press = ev.code === 'Enter';
+    back = ev.code === 'KeyZ';
+  } else if (plain) {
+    dir = (ev.code === 'ArrowUp' || ev.code === 'ArrowLeft') ? -1
+        : (ev.code === 'ArrowDown' || ev.code === 'ArrowRight') ? 1 : 0;
+    press = ev.code === 'Enter' || ev.code === 'Space';
+    back = ev.code === 'Escape';
+  }
+  if (ev.repeat && !dir) return;
+  if (!dir && !press && !back) return;
+  noteInputSource(gated ? 'pad' : 'keyboard');
+  if (dir) tutMove(dir);
+  else if (press) tutPress();
+  else tutBack();
+}, true);
+
+// ⛔⛔ AND AHEAD OF EVERY POINTER HANDLER: a press anywhere but the
+// tutorial's buttons and the one thing a step asks for goes nowhere.
+function tutAllows(t) {
+  if (!TUT) return true;
+  var root = tutById('tutRoot');
+  if (root && t && root.contains(t)) return true;
+  var s = tutStep();
+  if (s && s.act === true && !TUT.busy) {
+    var lit = tutLit(s);
+    for (var i = 0; i < lit.length; i++) if (lit[i].contains(t)) return true;
+  }
+  return false;
+}
+['pointerdown', 'mousedown', 'mouseup', 'click', 'dblclick', 'auxclick', 'contextmenu']
+  .forEach(function (type) {
+    window.addEventListener(type, function (ev) {
+      if (!TUT || tutAllows(ev.target)) return;
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+    }, true);
+  });
+
+// ---- each frame: stop, move on, and follow what is lit --------------------
+
+function tutFrame() {
+  if (!TUT) return;
+  // ⓘ Stopped, not ended: the layout changed, the controller went or another
+  // came into view, or the listener stopped answering. Unseen, so it starts
+  // again.
+  if (STOPPED || IS_DOWN || !COMPACT || QUICK || ACTIVE !== TUT.active ||
+      !deviceByOrdinal(TUT.ordinal)) {
+    tutFinish(false);
+    return;
+  }
+  var s = tutStep();
+  if (s && s.act === true && !TUT.busy && s.done && s.done()) {
+    TUT.done[TUT.at] = true;
+    tutShow(TUT.at + 1);
+    s = tutStep();
+  }
+  tutLayout(s);
+  requestAnimationFrame(tutFrame);
+}
+
+function tutRectOf(els) {
+  var r = null;
+  els.forEach(function (el) {
+    var b = el.getBoundingClientRect();
+    if (!r) { r = { left: b.left, top: b.top, right: b.right, bottom: b.bottom }; return; }
+    r.left = Math.min(r.left, b.left);
+    r.top = Math.min(r.top, b.top);
+    r.right = Math.max(r.right, b.right);
+    r.bottom = Math.max(r.bottom, b.bottom);
+  });
+  if (r) { r.width = r.right - r.left; r.height = r.bottom - r.top; }
+  return r;
+}
+
+function tutLayout(s) {
+  var vh = window.innerHeight;
+  var pad = Math.round(vh * 0.015) + 6;
+  var holes = [];
+  if (TUT.phase === 'step') {
+    var endR = tutPlaceEnd();
+    var r = tutRectOf(tutLit(s));
+    tutPlaceWrap(r, endR);
+    if (r) holes.push(r);
+    holes.push(endR);
+  }
+  var html = holes.map(function (h) {
+    return '<rect x="' + Math.round(h.left - pad) + '" y="' + Math.round(h.top - pad) +
+           '" width="' + Math.round(h.width + 2 * pad) + '" height="' + Math.round(h.height + 2 * pad) +
+           '" rx="' + (pad + 6) + '" fill="black"/>';
+  }).join('');
+  var key = html + '|' + vh;
+  if (key === TUT_LAST_HOLES) return;
+  TUT_LAST_HOLES = key;
+  var g = tutById('tutHoles');
+  if (g) g.innerHTML = html;
+  var dev = tutById('tutBlurDev');
+  if (dev) dev.setAttribute('stdDeviation', String(Math.max(6, Math.round(vh * 0.014))));
+}
+
+// ⭐ End tutorial sits just above Close, its right edge on Close's.
+function tutPlaceEnd() {
+  var end = tutById('tutEnd');
+  var close = document.querySelector('#compactBox button.cclose');
+  var c = close && close.getClientRects().length ? close.getBoundingClientRect() : null;
+  var gap = Math.round(window.innerHeight * 0.015) + 4;
+  end.style.right = Math.max(8, Math.round(c ? window.innerWidth - c.right : 16)) + 'px';
+  end.style.bottom = Math.max(8, Math.round(c ? window.innerHeight - c.top + gap : 16)) + 'px';
+  return end.getBoundingClientRect();
+}
+
+// The words go under what is lit, else over it, else beside it, else along
+// whichever edge has more room; never off the window, and clear of End
+// tutorial in its corner.
+function tutPlaceWrap(r, endR) {
+  var wrap = tutById('tutWrap');
+  var vw = window.innerWidth, vh = window.innerHeight;
+  var m = 10, gap = Math.round(vh * 0.03) + 6;
+  wrap.style.maxWidth = '';      // the stylesheet's, unless it goes beside
+  var w = wrap.offsetWidth, h = wrap.offsetHeight;
+  var x, y;
+  if (!r) {
+    x = (vw - w) / 2;
+    y = (vh - h) / 2;
+  } else {
+    x = r.left + r.width / 2 - w / 2;
+    if (r.bottom + gap + h <= vh - m) {
+      y = r.bottom + gap;
+    } else if (r.top - gap - h >= m) {
+      y = r.top - gap - h;
+    } else {
+      // ⓘ Beside it, narrowed to the room there, rather than over it: a tall
+      // thing like the pre-set list fills the height, and words laid across
+      // its top hid its title.
+      var leftRoom = r.left - gap - m, rightRoom = vw - r.right - gap - m;
+      var room = Math.max(leftRoom, rightRoom);
+      if (room >= Math.min(w, vw * 0.26)) {
+        if (room < w) {
+          wrap.style.maxWidth = Math.floor(room) + 'px';
+          w = wrap.offsetWidth;
+          h = wrap.offsetHeight;
+        }
+        x = leftRoom > rightRoom ? r.left - gap - w : r.right + gap;
+        y = r.top + r.height / 2 - h / 2;
+      } else {
+        y = r.top > vh - r.bottom ? m : vh - m - h;
+      }
+    }
+  }
+  x = Math.max(m, Math.min(vw - m - w, x));
+  y = Math.max(m, Math.min(vh - m - h, y));
+  if (endR && x < endR.right + 4 && x + w > endR.left - 4 &&
+      y < endR.bottom + 4 && y + h > endR.top - 4) {
+    if (endR.left - 8 - w >= m) x = endR.left - 8 - w;
+    else y = Math.max(m, endR.top - 8 - h);
+  }
+  wrap.style.left = Math.round(x) + 'px';
+  wrap.style.top = Math.round(y) + 'px';
+}
+
 function startPage() {
   if (inPlainTab()) { offerRealWindow(); return; }
 

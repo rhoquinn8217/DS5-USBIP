@@ -19,6 +19,7 @@
 
 #include "app/tray_menu.inl"
 #include "app/open_on_bridge.inl"
+#include "app/tutorial_state.inl"
 
 using namespace ctmtest;
 
@@ -35,6 +36,19 @@ std::string narrow(const std::wstring &w)
 
 int run_tray_menu_tests()
 {
+    section("tutorial: seen only when window-state.txt says 1, and what the page is told");
+    {
+        CTM_CHECK(tutorial_state::parse_seen("1"));
+        CTM_CHECK(!tutorial_state::parse_seen("0"));
+        CTM_CHECK(!tutorial_state::parse_seen(""));      // a file from before: shown once more
+        CTM_CHECK(!tutorial_state::parse_seen("yes"));   // junk: the same
+        CTM_CHECK_EQ(tutorial_state::seen_line(true), std::string("tutorial_simple_seen = 1\n"));
+        CTM_CHECK_EQ(tutorial_state::seen_line(false), std::string("tutorial_simple_seen = 0\n"));
+        CTM_CHECK_EQ(tutorial_state::json(false, false), std::string(R"({"simple_seen":false,"request":""})"));
+        CTM_CHECK_EQ(tutorial_state::json(true, true), std::string(R"({"simple_seen":true,"request":"simple"})"));
+        CTM_CHECK_EQ(narrow(tray_menu::kShowTutorial), std::string("Show tutorial"));
+    }
+
     section("open on bridge: kept in window-state.txt, on unless it says 0");
     {
         CTM_CHECK(open_on_bridge::parse("1"));
