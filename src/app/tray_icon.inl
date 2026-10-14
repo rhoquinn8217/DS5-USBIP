@@ -38,6 +38,7 @@ inline const UINT kIdSettings = 2;
 inline const UINT kIdQuit     = 3;
 inline const UINT kIdOpenOnBridge = 4;
 inline const UINT kIdOpenFolder = 5;
+inline const UINT kIdRemoveOld = 6;
 // ⓘ The title's line. Choosing it closes the menu and does nothing else.
 inline const UINT kIdHeader   = 10;
 // ⓘ One id for each line of the Controllers list, in the order it was read as
@@ -184,7 +185,8 @@ inline HBITMAP header_picture(const std::wstring &count, UINT dpi)
     LONG widest = titleSize.cx > countSize.cx ? titleSize.cx : countSize.cx;
     const std::wstring lines[] = {
         tray_menu::kDevices, tray_menu::kOpenConfig, tray_menu::keyboard_line(false),
-        tray_menu::keyboard_line(true), tray_menu::kConfigMode, tray_menu::kQuit };
+        tray_menu::keyboard_line(true), tray_menu::kConfigMode, tray_menu::kRemoveOld,
+        tray_menu::kQuit };
     for (const std::wstring &line : lines) {
         SIZE lineSize = {};
         GetTextExtentPoint32W(dc, line.c_str(), static_cast<int>(line.size()), &lineSize);
@@ -348,6 +350,34 @@ inline void quit_as_the_menu_does(const wchar_t *who)
     remove_icon();
 }
 
+// ⭐ The menu's "Remove old controllers...": this program again, as an
+// administrator, through Windows' own prompt, which says how it went in a box
+// of its own (remove-old-devices --report, old_devices.inl). Declined, nothing
+// happens. ⓘ Only devices that are not connected are touched, so a bridge
+// that is up is safe through it.
+inline void remove_old_controllers()
+{
+    wchar_t self[MAX_PATH] = {};
+    const DWORD len = GetModuleFileNameW(nullptr, self, MAX_PATH);
+    if (len == 0 || len >= MAX_PATH) return;
+    SHELLEXECUTEINFOW run = {};
+    run.cbSize = sizeof run;
+    run.fMask = SEE_MASK_NOASYNC;
+    run.lpVerb = L"runas";
+    run.lpFile = self;
+    run.lpParameters = L"remove-old-devices --report";
+    run.nShow = SW_HIDE;
+    if (ShellExecuteExW(&run)) {
+        device_log::session_w() << L"tray: removing old controllers, as an administrator";
+    } else {
+        const DWORD error = GetLastError();
+        device_log::session_w() << L"tray: old controllers left as they were ("
+                                << (error == ERROR_CANCELLED ? std::wstring(L"Windows' prompt declined")
+                                                             : L"error " + std::to_wstring(error))
+                                << L")";
+    }
+}
+
 inline void show_menu(HWND hwnd)
 {
     HMENU menu = CreatePopupMenu();
@@ -424,6 +454,10 @@ inline void show_menu(HWND hwnd)
     AppendMenuW(menu, MF_STRING | (ui_open_on_bridge() ? MF_CHECKED : MF_UNCHECKED),
                 kIdOpenOnBridge, tray_menu::kOpenOnBridge);
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+    // ⭐ Remove old controllers, in a group of its own above Quit
+    // (rhoquinn8217, 2026-10-13): a rarely used tidy-up that asks first.
+    AppendMenuW(menu, MF_STRING, kIdRemoveOld, tray_menu::kRemoveOld);
+    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
 
     // ⓘ "Quit", not "Exit" (rhoquinn8217, 2026-10-01). It ends the whole
     // program, settings window included, and that is the word for it.
@@ -486,6 +520,9 @@ inline void show_menu(HWND hwnd)
     case kIdSettings:
         // ⓘ The same path the chord takes, with no controller in hand.
         ctm_chord_show_ui(std::string());
+        break;
+    case kIdRemoveOld:
+        remove_old_controllers();
         break;
     case kIdQuit:
         quit_as_the_menu_does(L"the tray menu");
