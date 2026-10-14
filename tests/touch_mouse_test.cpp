@@ -54,12 +54,15 @@ int g_oskProgram = -1;
 long g_cursorX = 0;
 long g_cursorY = 0;
 int g_placeCount = 0;
+// ⓘ Where the cursor was when a drag let go, for a drop's place.
+long g_dropX = -1;
 
 void reset_stubs()
 {
     g_cursorX = 0;
     g_cursorY = 0;
     g_placeCount = 0;
+    g_dropX = -1;
     g_cfg.clear();
     g_configModeEffective = false;
     g_pushedX = 0;
@@ -210,6 +213,7 @@ inline void add_wheel(int ticks) { g_wheelSum += ticks; }
 inline void add_click(uint8_t mask) { g_lastClick = mask; ++g_clickCount; }
 inline void set_drag_for(const void *deviceKey, uint8_t mask)
 {
+    if (mask == 0 && g_dragFor.count(deviceKey) != 0) g_dropX = g_cursorX;
     if (mask != 0) g_dragFor[deviceKey] = mask;
     else g_dragFor.erase(deviceKey);
     g_dragMask = 0;
@@ -772,6 +776,135 @@ int run_touch_mouse_tests()
         CTM_CHECK_EQ(static_cast<int>(g_dragMask), 0x01);
         CTM_CHECK_EQ(static_cast<int>(g_cursorX), 1900);
         CTM_CHECK_EQ(g_placeCount, 0);
+    }
+
+    section("touch: a lift goes back to where the finger rested, undoing its roll");
+    {
+        // rhoquinn8217, 2026-10-14: lifting the finger to tap moved the
+        // cursor off the spot it had been brought to.
+        reset_stubs();
+        fresh_device();
+        g_cfg["touchpad_to_mouse"] = "true";
+        g_cursorX = 1000;
+        g_cursorY = 500;
+        auto r = rest_report();
+        set_point(r, 0, true, 1, 300, 300);
+        run_step(r, 0);
+        for (int i = 1; i <= 10; ++i) {          // to the spot, over 100 ms
+            set_point(r, 0, true, 1, 300 + 10 * i, 300);
+            run_step(r, 10 * i);
+        }
+        for (int t = 110; t <= 300; t += 10) {   // resting on it
+            run_step(r, t);
+        }
+        CTM_CHECK_EQ(static_cast<int>(g_cursorX), 1100);
+        for (int i = 1; i <= 3; ++i) {           // the roll as it leaves
+            set_point(r, 0, true, 1, 400 + 10 * i, 300 + 5 * i);
+            run_step(r, 300 + 10 * i);
+        }
+        CTM_CHECK_EQ(static_cast<int>(g_cursorX), 1130);
+        set_point(r, 0, false, 1, 430, 315);
+        run_step(r, 340);
+        CTM_CHECK_EQ(static_cast<int>(g_cursorX), 1100);
+        CTM_CHECK_EQ(static_cast<int>(g_cursorY), 500);
+        CTM_CHECK_EQ(g_placeCount, 1);
+    }
+
+    section("touch: a finger still sliding when it lifts keeps where it went");
+    {
+        reset_stubs();
+        fresh_device();
+        g_cfg["touchpad_to_mouse"] = "true";
+        g_cursorX = 1000;
+        g_cursorY = 500;
+        auto r = rest_report();
+        set_point(r, 0, true, 1, 300, 300);
+        run_step(r, 0);
+        for (int i = 1; i <= 20; ++i) {          // 2000 units a second, to the end
+            set_point(r, 0, true, 1, 300 + 20 * i, 300);
+            run_step(r, 10 * i);
+        }
+        set_point(r, 0, false, 1, 700, 300);
+        run_step(r, 210);
+        CTM_CHECK_EQ(static_cast<int>(g_cursorX), 1400);
+        CTM_CHECK_EQ(g_placeCount, 0);
+    }
+
+    section("touch drag: a drag drops where the finger rested, not where it rolled");
+    {
+        reset_stubs();
+        fresh_device();
+        g_cfg["touchpad_to_mouse"] = "true";
+        g_cfg["touchpad_press_touch_drag"] = "MouseLeft";
+        g_cursorX = 1000;
+        g_cursorY = 500;
+        auto r = rest_report();
+        set_point(r, 0, true, 1, 300, 300);
+        run_step(r, 0);
+        r[10] = static_cast<uint8_t>(r[10] | 0x02);    // pressed in: the grab
+        run_step(r, 10);
+        CTM_CHECK_EQ(static_cast<int>(g_dragMask), 0x01);
+        r[10] = static_cast<uint8_t>(r[10] & ~0x02);   // the click let go; the drag holds
+        for (int i = 1; i <= 10; ++i) {
+            set_point(r, 0, true, 1, 300 + 10 * i, 300);
+            run_step(r, 10 + 10 * i);
+        }
+        for (int t = 120; t <= 300; t += 10) {
+            run_step(r, t);
+        }
+        const long rested = g_cursorX;
+        CTM_CHECK(rested > 1000);                      // the drag did move it
+        for (int i = 1; i <= 3; ++i) {
+            set_point(r, 0, true, 1, 400 + 10 * i, 300);
+            run_step(r, 300 + 10 * i);
+        }
+        CTM_CHECK_EQ(static_cast<int>(g_cursorX), static_cast<int>(rested) + 30);
+        set_point(r, 0, false, 1, 430, 300);
+        run_step(r, 340);
+        CTM_CHECK_EQ(static_cast<int>(g_dragMask), 0x00);
+        CTM_CHECK_EQ(static_cast<int>(g_dropX), static_cast<int>(rested));   // put back, THEN dropped
+        CTM_CHECK_EQ(static_cast<int>(g_cursorX), static_cast<int>(rested));
+    }
+
+    section("touch: point, lift, tap: the click lands on the spot the finger rested on");
+    {
+        reset_stubs();
+        fresh_device();
+        g_cfg["touchpad_to_mouse"] = "true";
+        g_cfg["touchpad_one_finger_tap"] = "MouseLeft";
+        g_cursorX = 1000;
+        g_cursorY = 500;
+        auto r = rest_report();
+        set_point(r, 0, true, 1, 300, 300);
+        run_step(r, 0);
+        for (int i = 1; i <= 15; ++i) {          // a real move, not a tap
+            set_point(r, 0, true, 1, 300 + 10 * i, 300);
+            run_step(r, 10 * i);
+        }
+        for (int t = 160; t <= 500; t += 10) {
+            run_step(r, t);
+        }
+        const long rested = g_cursorX;
+        for (int i = 1; i <= 3; ++i) {
+            set_point(r, 0, true, 1, 450 + 10 * i, 300);
+            run_step(r, 500 + 10 * i);
+        }
+        set_point(r, 0, false, 1, 480, 300);
+        run_step(r, 540);
+        CTM_CHECK_EQ(static_cast<int>(g_cursorX), static_cast<int>(rested));
+        CTM_CHECK_EQ(g_clickCount, 0);           // a move, not a tap
+        set_point(r, 0, true, 2, 800, 600);      // now the tap, rolling as it does
+        run_step(r, 700);
+        set_point(r, 0, true, 2, 812, 608);
+        run_step(r, 740);
+        set_point(r, 0, true, 2, 820, 610);
+        run_step(r, 760);
+        set_point(r, 0, false, 2, 820, 610);
+        run_step(r, 780);
+        run_step(r, 815);
+        CTM_CHECK_EQ(g_clickCount, 1);
+        CTM_CHECK_EQ(static_cast<int>(g_lastClick), 0x01);
+        CTM_CHECK_EQ(static_cast<int>(g_cursorX), static_cast<int>(rested));
     }
 
     section("touch: a finger still sliding as a scroll ends moves nothing");
