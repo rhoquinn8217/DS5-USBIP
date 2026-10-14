@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">
+  <!-- Merged by the linker into DS5-USBIP.exe's own manifest, beside the run
+       level it writes by itself (asInvoker): app\ctm-usbip.vcxproj, Manifest.
+
+       WHICH WINDOWS THIS PROGRAM IS BUILT FOR (rhoquinn8217's PC, 2026-10-14).
+       Windows' Program Compatibility Assistant treats a program that names
+       none as possibly older than the system: it watches how the program runs
+       and guesses. The tray's "Remove old controllers..." runs a copy of this
+       program as an administrator, which shows its result in a box and then
+       closes, and Windows read that as an old program refusing a newer
+       Windows. It said "This program might not have run correctly" and
+       offered to run it in a compatibility mode, which would have made Windows
+       misreport its own version to the listener as well. Its records named
+       why: a short run, and a message box just before the end
+       (C:\Windows\appcompat\pca\PcaGeneralDb0.txt, in UTF-16).
+
+       Naming Windows 10 and 11 takes the program out of those guesses. It
+       also ends the Windows Vista behaviour a program without this section is
+       given; nothing in our code asks Windows for its version. -->
+  <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
+    <application>
+      <!-- Windows 10 and 11 -->
+      <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}" />
+    </application>
+  </compatibility>
+</assembly>

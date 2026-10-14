@@ -59,6 +59,11 @@
       <SubSystem>Windows</SubSystem>
       <EntryPointSymbol>wmainCRTStartup</EntryPointSymbol>
     </Link>
+    <!-- Which Windows the program is built for, merged into its manifest:
+         compatibility.manifest says why. -->
+    <Manifest>
+      <AdditionalManifestFiles>$(ProjectDir)compatibility.manifest;%(AdditionalManifestFiles)</AdditionalManifestFiles>
+    </Manifest>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -76,6 +81,10 @@
       <SubSystem>Windows</SubSystem>
       <EntryPointSymbol>wmainCRTStartup</EntryPointSymbol>
     </Link>
+    <!-- Which Windows it is built for: see the Debug settings above. -->
+    <Manifest>
+      <AdditionalManifestFiles>$(ProjectDir)compatibility.manifest;%(AdditionalManifestFiles)</AdditionalManifestFiles>
+    </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ResourceCompile Include="ctm-usbip.rc" />
