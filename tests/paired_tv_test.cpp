@@ -307,6 +307,19 @@ int run_paired_tv_tests()
         CTM_CHECK(paired_tv::check(good, home, &nonces, &devices, &who, t0) == Verdict::Proven);
     }
 
+    section("paired tv: the check is on unless it is set to log or off");
+    {
+        using paired_tv::Mode;
+        // ⭐ Nothing set is "on" (since 2026-10-13; "log" before).
+        CTM_CHECK(paired_tv::mode_from("") == Mode::On);
+        CTM_CHECK(paired_tv::mode_from("on") == Mode::On);
+        CTM_CHECK(paired_tv::mode_from("log") == Mode::Log);
+        CTM_CHECK(paired_tv::mode_from("off") == Mode::Off);
+        // A word it does not know is "on": a typo must not open the door.
+        CTM_CHECK(paired_tv::mode_from("false") == Mode::On);
+        CTM_CHECK(paired_tv::mode_from("of") == Mode::On);
+    }
+
     section("paired tv: challenges are random, and the right length");
     {
         const std::string a = paired_tv::new_nonce();

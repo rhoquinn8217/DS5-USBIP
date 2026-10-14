@@ -55,22 +55,15 @@ static std::unique_ptr<CtmUsbipServer> g_agent_usbip_server;
 static std::mutex g_paired_tv_mutex;
 static paired_tv::Nonces g_paired_tv_nonces;
 
-// [global] paired_tv_proof (rhoquinn8217, 2026-10-08: "log only until
-// updated"):
-//   log -- the default for now: checked and written down, nobody turned away;
-//   on  -- a TV calling from the internet without a good proof is refused;
-//   off -- not checked at all, and a bridge port takes a connection from
-//          anywhere, as it did before.
-// ⭐ "log" until the TVs at the remote site run a build that sends the proof;
-// then the default becomes "on".
-enum class PairedTvMode { Off, Log, On };
+// [global] paired_tv_proof: on, log or off, and paired_tv::mode_from() says
+// what each does. rhoquinn8217, 2026-10-08: "log only until updated"; "on" by
+// default since 2026-10-13, once the TVs at the remote site had proved their
+// pairing with a build that sends the proof.
+using PairedTvMode = paired_tv::Mode;
 
 static PairedTvMode paired_tv_mode()
 {
-    const std::string mode = device_config_str("global", "paired_tv_proof");
-    if (mode == "on") return PairedTvMode::On;
-    if (mode == "off") return PairedTvMode::Off;
-    return PairedTvMode::Log;
+    return paired_tv::mode_from(device_config_str("global", "paired_tv_proof"));
 }
 
 // The streaming host's paired devices, read from its state file each time a
@@ -1152,8 +1145,8 @@ static void handle_agent_client(SOCKET client, const sockaddr_in &peer)
     // ⭐⭐ WHO MAY BRIDGE (paired_tv.inl). A TV calling from the internet must
     // prove it is paired with this PC's streaming host; this PC and the home
     // network need not. A proof sent from home is checked and written down
-    // all the same. In "log" mode, the default until the remote TVs send the
-    // proof, nobody is turned away: the verdict is only written down.
+    // all the same. In "log" mode nobody is turned away: the verdict is only
+    // written down.
     uint32_t onlyPeer = 0;
     // ⭐ The TV asking, when its proof was PROVEN: tv_sessions.inl says what it
     // decides, and why nothing less than proven may name a TV.

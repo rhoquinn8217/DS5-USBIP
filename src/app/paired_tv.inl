@@ -114,6 +114,23 @@ inline Need need_for(uint32_t peer, bool requireAtAll, bool requireAtHome)
     return Need::Required;
 }
 
+// [global] paired_tv_proof, as device_config_str() gives it (trimmed, lowered):
+//   on  -- the default: a TV calling from the internet without a good proof
+//          is refused;
+//   log -- checked and written down, nobody turned away;
+//   off -- not checked at all, and a bridge port takes a connection from
+//          anywhere, as it did before.
+// ⭐ Nothing set, or a word it does not know, is "on": a typo must not open
+// the door.
+enum class Mode { Off, Log, On };
+
+inline Mode mode_from(const std::string &lowered)
+{
+    if (lowered == "log") return Mode::Log;
+    if (lowered == "off") return Mode::Off;
+    return Mode::On; // "on", nothing set, or a word it does not know
+}
+
 // ----------------------------------------------------------------- nonces --
 
 // Challenges given out and not yet used. ⓘ Bounded: anyone may ask for one,
