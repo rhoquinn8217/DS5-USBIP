@@ -112,6 +112,12 @@ static std::vector<RestDeviceView> rest_collect_devices()
                 view.batteryState = ctm_battery::state_word(battery.state);
             }
             rest_fill_capabilities(&view);
+            // ⭐ The polling rate column (usbip/input_pace.inl).
+            view.inputRateHz = session->device->served_rate_hz();
+            view.arrivalRateHz = session->device->arrived_rate_hz();
+            view.takesRateLimit = session->device->takes_rate_limit();
+            view.pollingRate = session->device->rate_limit_setting();
+            view.rateLimitHz = input_pace::limit_hz(view.pollingRate);
         }
         out.push_back(std::move(view));
     }

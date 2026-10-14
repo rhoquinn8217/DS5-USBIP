@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.81 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.83 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,16 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.83 The rate limit's first choice reads Real time, as the
+            DS5Dongle and its forks call theirs, and is saved as
+            real_time. A config that says max, its name in 2.66.82,
+            still has no limit.
+    2.66.82 Advanced's device tables, on Overview and on a controller's
+            own tab, have a polling rate column after battery: the
+            reports a second Windows is getting, then a rate limit to
+            pick, max, 500, 250 or 125 Hz, kept in the linked config as
+            polling_rate. Greyed, with the reason, until a config is
+            linked; a keyboard or a mouse shows the rate alone.
     2.66.81 The Overview bar's boxes line up, the labels in one column and
             the boxes in the next, and Open on bridge's box sits on the right
             of its words.
@@ -1515,6 +1525,12 @@
      of the width empty. */
   .fields { display:flex; flex-wrap:wrap; gap:6px 26px; align-items:flex-end; }
   .devrow { margin-bottom:14px; }
+  /* ⭐ THE POLLING RATE COLUMN (2.66.82): the readout, then the limit. The
+     dropdown is sized to the row, not to the editor's fields. */
+  .prate { white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .prate select { padding:1px 6px; font-size:12.5px; margin-left:2px;
+                  vertical-align:baseline; }
+  .prate select:disabled { opacity:0.55; cursor:not-allowed; }
   /* ⭐ The WHOLE row. A 3px bar at the left edge was invisible unless you knew
      to look, and the point is noticing at a glance that a pad is connected.
      Kept dim enough that the text still reads. */
@@ -1957,7 +1973,7 @@
        ⓘ The same number as VERSION at the top of this file, by hand. It sat
        at 2.66.4 for thirty-four versions while VERSION moved on. -->
   <label class="muted">version</label>
-  <span class="barCell"><span class="fixedField" id="pageVersion" title="This page's version. The program's own is in the window's title.">2.66.81</span></span>
+  <span class="barCell"><span class="fixedField" id="pageVersion" title="This page's version. The program's own is in the window's title.">2.66.83</span></span>
   <label class="muted" for="base">agent</label>
   <span class="barCell">
   <input id="base" value="http://127.0.0.1:48053" size="26">
@@ -2986,6 +3002,141 @@ function refreshBatteries(list) {
     if (!d || el.getAttribute('data-lvl') === batteryLevelKey(d)) return;
     el.outerHTML = batteryTag(d);
   });
+}
+
+// ⭐⭐ THE POLLING RATE COLUMN (2.66.82; rhoquinn8217, 2026-10-13: "show the
+// read out and the limit in the same column. (polling rate)/[rate limit] rate
+// limit is a drop down"). The readout is the reports a second Windows is
+// getting from the device now; the dropdown is the most it may get, kept in
+// the linked config as polling_rate (usbip/input_pace.inl in the listener).
+// ⓘ Advanced only, because the two tables it sits in are: not in Simple or
+// Quick "yet", in their words.
+// ⛔ A keyboard or a mouse shows the rate alone. The listener never limits
+// one: a mouse report is a movement, and one thinned out is distance the
+// cursor never travels.
+// ⓘ The first choice is no limit at all, called Real time as the DS5Dongle
+// and its forks call theirs (rhoquinn8217, 2026-10-14). It was max in 2.66.82.
+var RATE_CHOICES = [['real_time', 'Real time'], ['500', '500 Hz'], ['250', '250 Hz'], ['125', '125 Hz']];
+
+// The devices the readouts were last painted from. A head drawn again from
+// its stored markup is brought up to date from these.
+var RATE_LIST = [];
+
+function rateHzText(d) {
+  return (Number(d && d.input_rate_hz) || 0) + ' Hz';
+}
+
+function rateTitle(d) {
+  var got = Number(d.input_rate_hz) || 0;
+  var sent = Number(d.arrival_rate_hz) || 0;
+  var limit = Number(d.rate_limit_hz) || 0;
+  var t = 'Windows is getting ' + got + ' reports a second from this ' +
+          (d.takes_rate_limit ? 'controller' : 'device') + ' right now.';
+  if (limit > 0) {
+    t += ' It sends ' + sent + '; the limit lets ' + limit + ' through, the newest each time.';
+  } else if (!d.takes_rate_limit) {
+    t += ' A keyboard or a mouse is never limited, and sends a report only when something changes.';
+  }
+  return t;
+}
+
+// What the dropdown shows: the limit that APPLIES. A value the listener does
+// not take, written into a config by hand, reads as Real time, which is what
+// it does.
+function rateSelectValue(d) {
+  var limit = Number(d.rate_limit_hz) || 0;
+  return limit > 0 ? String(limit) : 'real_time';
+}
+
+// Why the dropdown cannot be used here, or '' when it can.
+function rateLockReason(d) {
+  if (!d.supports_config) return 'This controller takes no config, so it has no rate limit.';
+  if (!d.linked_config) return 'Link a config to set a rate limit: the limit is kept in the config.';
+  return '';
+}
+
+function rateTag(d) {
+  var html = '<span class="prate" data-ord="' + esc(String(d.ordinal)) + '">' +
+             '<span class="prate-hz" title="' + esc(rateTitle(d)) + '">' +
+             esc(rateHzText(d)) + '</span>';
+  if (d.takes_rate_limit) {
+    var lock = rateLockReason(d);
+    var value = rateSelectValue(d);
+    var opts = RATE_CHOICES.map(function (c) {
+      return '<option value="' + c[0] + '"' + (c[0] === value ? ' selected' : '') + '>' +
+             c[1] + '</option>';
+    }).join('');
+    var title = lock || ('The most reports a second Windows may get from this controller, ' +
+                'kept in ' + d.linked_config + '. Real time passes on every report the moment ' +
+                'it arrives. A number is a ' +
+                'ceiling: a report that comes early waits for its turn, and the newest ' +
+                'always wins, so nothing piles up.');
+    html += ' / <select data-ord="' + esc(String(d.ordinal)) + '" title="' + esc(title) + '"' +
+            (lock ? ' disabled' : '') + ' onchange="setRateLimit(this)">' + opts + '</select>';
+  }
+  return html + '</span>';
+}
+
+// ⓘ One per part, as the battery gauges are: two halves under one name each
+// have their own rate.
+function rateTags(parts) {
+  return (parts || []).map(rateTag).join(' ');
+}
+
+// ⭐ THE READOUTS FOLLOW THE POLL, in place, like the gauges: a rate changes
+// every second, and a full redraw for each would take the halo off whatever it
+// was on. ⓘ A dropdown in use is left alone.
+function refreshRates(list) {
+  if (list) RATE_LIST = list;
+  var byOrd = {};
+  (RATE_LIST || []).forEach(function (d) { byOrd[String(d.ordinal)] = d; });
+  document.querySelectorAll('.prate[data-ord]').forEach(function (el) {
+    var d = byOrd[el.getAttribute('data-ord')];
+    if (!d) return;
+    var hz = el.querySelector('.prate-hz');
+    if (hz) {
+      var text = rateHzText(d);
+      if (hz.textContent !== text) hz.textContent = text;
+      var title = rateTitle(d);
+      if (hz.title !== title) hz.title = title;
+    }
+    var sel = el.querySelector('select');
+    if (sel && sel !== document.activeElement && !sel.classList.contains('gp-selecting')) {
+      var want = rateSelectValue(d);
+      if (sel.value !== want) sel.value = want;
+    }
+  });
+}
+
+// The dropdown's choice, written to the config the controller is linked to.
+function setRateLimit(sel) {
+  var ord = sel.getAttribute('data-ord');
+  var d = (RATE_LIST || []).concat(LAST_DEVICES || []).filter(function (x) {
+    return String(x.ordinal) === ord;
+  })[0];
+  if (!d || !d.linked_config) return;
+  postSetting(d.linked_config, 'polling_rate', sel.value);
+  // ⓘ The readout answers once a second of reports has been counted at the
+  // new rate, so it is asked again shortly rather than at the next poll.
+  setTimeout(pollRates, 1300);
+  setTimeout(pollRates, 2600);
+}
+
+// ⭐ ONCE A SECOND, while a readout is on screen. POLL_MS is four seconds, and
+// a rate that answers a new limit four seconds late reads as the limit not
+// working. ⓘ Nothing is asked while none is showing: Simple, Quick, another
+// tab, or the window out of sight.
+var RATE_MS = 1000;
+function pollRates() {
+  if (STOPPED || COMPACT || document.hidden) return;
+  var showing = false;
+  document.querySelectorAll('.prate').forEach(function (el) {
+    if (el.offsetParent !== null) showing = true;
+  });
+  if (!showing) return;
+  call('GET', '/api/v1/devices', undefined, true).then(function (d) {
+    refreshRates((d && d.devices) || []);
+  }).catch(function () {});
 }
 
 function renderTabs(devices) {
@@ -4272,6 +4423,7 @@ function paintStickyHead() {
   var host = document.getElementById('stickyHead');
   if (!host) return;
   host.innerHTML = HEADS[ACTIVE] ? '<div class="devhead">' + HEADS[ACTIVE] + '</div>' : '';
+  refreshRates();    // ⓘ the head carries the rates of when it was built
   // ⓘ The row may carry a Safe Edit switch, and it is brand new -- colour it
   // now rather than leaving it plain until the next poll.
   paintHoldControls();
@@ -4420,6 +4572,7 @@ function devHeadRow(p) {
              // *"next to the device name in the rows"*).
              '<td>' + esc(deviceLabelShort(p)) + deviceIcons(parts) + '</td>' +
              '<td>' + batteryTags(parts) + '</td>' +
+             '<td>' + rateTags(parts) + '</td>' +
              '<td>' + serialCell + '</td>' +
              '<td>' + autoCell + '</td>' +
              '<td>' + autoBtn + '</td></tr>');
@@ -4453,7 +4606,7 @@ function buildDevicePane(d) {
     });
   });
 
-  var head = '<table class="devrow"><tr><th>nickname</th><th>device</th><th>battery</th><th>serial</th>' +
+  var head = '<table class="devrow"><tr><th>nickname</th><th>device</th><th>battery</th><th>polling rate / rate limit</th><th>serial</th>' +
              '<th>auto linked config</th><th></th></tr>' +
              // ⭐ One row for the device, all its parts in it (devHeadRow, above).
              devHeadRow(d) + '</table>';
@@ -4723,8 +4876,12 @@ function inertReason(key, sessionKind) {
 // touchpad_*_tap / _drag keys (T-242) and still read, so a config written
 // before the split keeps its gestures. Hidden for the same reason the gate
 // is: two controls for one thing, and whichever you touched last wins.
+// ⓘ polling_rate is set in the device tables' polling rate column (2.66.82),
+// beside the rate it limits. A row here as well would be a second control
+// for one thing.
 var HIDDEN_SETTINGS = { trigger_probe: 1, gyro_to_mouse_gate: 1,
-                        touchpad_tap_click: 1, touchpad_click_drag: 1 };
+                        touchpad_tap_click: 1, touchpad_click_drag: 1,
+                        polling_rate: 1 };
 
 function hiddenSetting(key) {
   return HIDDEN_SETTINGS[key] === 1 || /_debug(_|$)/.test(key);
@@ -5283,7 +5440,7 @@ function loadDevices() {
     // ⭐ THE SAME COLUMNS AS THE CONTROLLER TAB. The two tables described the
     // same thing in different words -- 'linked' here, 'auto linked config'
     // there -- so reading one taught you nothing about the other.
-    var html = '<table><tr><th>nickname</th><th>device</th><th>battery</th><th>serial</th>' +
+    var html = '<table><tr><th>nickname</th><th>device</th><th>battery</th><th>polling rate / rate limit</th><th>serial</th>' +
                '<th>auto linked config</th><th></th></tr>';
     // ⭐ ONE ROW PER DEVICE, as on its tab (rhoquinn8217, 2026-10-02: *"Lets
     // combine the rows with the same name and combine the icons."*). Grouped
@@ -5342,6 +5499,7 @@ function loadDevices() {
               '<td>' + esc(deviceLabelShort(dev)) + deviceIcons(parts) + (dev.supports_config ? '' :
                   ' <span class="muted">(no config support)</span>') + '</td>' +
               '<td>' + batteryTags(parts) + '</td>' +
+              '<td>' + rateTags(parts) + '</td>' +
               '<td>' + serial + '</td>' +
               '<td>' + autoCell + '</td>' +
               '<td>' + autoBtn + '</td></tr>';
@@ -5963,11 +6121,18 @@ function gpCollect() {
 
   var top = document.getElementById('stickyTop');
   if (top) {
+    // ⓘ The rate limit (2.66.82) sits first in the head's row, and first in
+    // the list it would be where the pad starts on every controller's tab,
+    // ahead of the config picker it is changed far less often than. So it
+    // comes after the rest of the head: still reachable, never in the way.
+    var lateInHead = [];
     top.querySelectorAll('button, select, input').forEach(function(e) {
       if (e.offsetParent === null || e.disabled || e.type === 'checkbox') return;
       if (e.closest && e.closest('#tabs')) return;   // L1/R1 own the tabs
+      if (e.closest && e.closest('.prate')) { lateInHead.push(e); return; }
       list.push(e);
     });
+    lateInHead.forEach(function(e) { list.push(e); });
   }
   // ⛔ Tabs are NOT in the D-pad set. L1/R1 move between them, so including
   // them here meant stepping through every tab to reach the first setting --
@@ -9446,6 +9611,7 @@ function pollDevices() {
     }
 
     refreshBatteries(list);                  // the one thing the signature leaves out
+    refreshRates(list);                      // ...nor the rates, which change every second
     var sig = deviceSignature(list);
     if (sig === DEVICE_SIG) return;          // nothing to do
     var first = DEVICE_SIG === null;
@@ -9472,6 +9638,7 @@ window.addEventListener('gamepadconnected', function() { gpCollect(); pollDevice
 window.addEventListener('gamepaddisconnected', pollDevices);
 
 setInterval(pollDevices, POLL_MS);
+setInterval(pollRates, RATE_MS);   // the polling rate readouts, while one shows
 // ⭐ T-240. Its own interval, four times a second, because POLL_MS above is
 // four SECONDS and a legend that lags your hand by that much reads as broken.
 setInterval(pollLastPress, LAST_PRESS_MS);
@@ -9606,7 +9773,8 @@ function selfTest() {
    'nameFor','deviceLabelShort','settingsKindOf',
    'askConfirm','confirmYes','confirmNo','whoIs','setAutoLink','claimAutoLink',
    'stopAutoLink','archive','unlinkConfirmed','renameConfig','copyConfigFor','createFromPreset','presetCancel','openPresetInfo','closePresetInfo','renameKey','loadConfigs','loadDevices',
-   'openConfig','applyPick','newConfigFor','preserveScroll','setDown','gpCollect'
+   'openConfig','applyPick','newConfigFor','preserveScroll','setDown','gpCollect',
+   'rateTag','rateTags','refreshRates','setRateLimit','pollRates'
   ].forEach(function(n) {
     ok('function ' + n, typeof window[n] === 'function');
   });
@@ -9674,6 +9842,61 @@ function selfTest() {
        'POST /api/v1/devices/xbox_2/link | POST /api/v1/devices/ds4_usb_1/link',
        'got ' + posted.join(' | '));
     groupDevices(LAST_DEVICES);
+  }
+
+  // ⭐ THE POLLING RATE COLUMN (2.66.82). Self-contained like the block above:
+  // made-up devices, and the one write it makes goes to a recorder.
+  {
+    var kb = { ordinal: 'hid_9', kind: 'hid', device_type: 'keyboard', input_rate_hz: 0,
+               takes_rate_limit: false, supports_config: false };
+    var loose = { ordinal: 'ds5_usb_9', kind: 'ds5_usb', input_rate_hz: 250, arrival_rate_hz: 250,
+                  takes_rate_limit: true, supports_config: true, linked_config: '',
+                  polling_rate: '', rate_limit_hz: 0 };
+    var held = { ordinal: 'ds5_usb_8', kind: 'ds5_usb', input_rate_hz: 125, arrival_rate_hz: 250,
+                 takes_rate_limit: true, supports_config: true, linked_config: 'pad',
+                 polling_rate: '125', rate_limit_hz: 125 };
+    ok('a keyboard shows its rate and no limit',
+       rateTag(kb).indexOf('0 Hz') >= 0 && rateTag(kb).indexOf('<select') < 0, rateTag(kb));
+    ok('a controller with no config has the limit greyed, saying why',
+       rateTag(loose).indexOf(' disabled') >= 0 && rateTag(loose).indexOf('Link a config') >= 0,
+       rateTag(loose));
+    ok('a linked controller can set its limit, showing the one that applies',
+       rateTag(held).indexOf(' disabled') < 0 &&
+       rateTag(held).indexOf('<option value="125" selected>') >= 0, rateTag(held));
+    ok('the first choice reads Real time',
+       rateTag(loose).indexOf('<option value="real_time" selected>Real time</option>') >= 0,
+       rateTag(loose));
+    ok('a value the listener does not take reads as Real time',
+       rateSelectValue({ polling_rate: '1000', rate_limit_hz: 0 }) === 'real_time' &&
+       rateSelectValue({ polling_rate: 'max', rate_limit_hz: 0 }) === 'real_time');
+    ok('polling_rate is not offered again in the settings list', hiddenSetting('polling_rate'));
+    var rbox = document.createElement('div');
+    rbox.innerHTML = rateTag(held);
+    document.body.appendChild(rbox);
+    var savedRates = RATE_LIST;
+    refreshRates([{ ordinal: 'ds5_usb_8', input_rate_hz: 124, arrival_rate_hz: 250,
+                    takes_rate_limit: true, supports_config: true, linked_config: 'pad',
+                    polling_rate: '250', rate_limit_hz: 250 }]);
+    ok('the readout follows the poll, in place',
+       rbox.querySelector('.prate-hz').textContent === '124 Hz',
+       rbox.querySelector('.prate-hz').textContent);
+    ok('and so does the limit', rbox.querySelector('select').value === '250',
+       rbox.querySelector('select').value);
+    var rsent = [];
+    var rateCall = call;
+    call = function (method, path, body) {
+      rsent.push(method + ' ' + path + ' ' + JSON.stringify(body));
+      return Promise.resolve({});
+    };
+    var rsel = rbox.querySelector('select');
+    rsel.value = '125';
+    setRateLimit(rsel);
+    call = rateCall;
+    ok('a limit chosen is written to the linked config, and nowhere else',
+       rsent.length === 1 &&
+       rsent[0] === 'POST /api/v1/configs/pad/settings {"polling_rate":"125"}', rsent.join(' | '));
+    document.body.removeChild(rbox);
+    RATE_LIST = savedRates;
   }
 
   // 🔗 T-248. The hints are a plain array of strings, and the one way this
