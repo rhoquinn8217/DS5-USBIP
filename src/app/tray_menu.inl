@@ -12,6 +12,8 @@
 //     ----------------------------
 //     Window Mode                >   Advanced, Simple, Quick, with the
 //     ----------------------------   padlock on the one the window is in
+//     Remove old controllers...      (2026-10-13, below)
+//     ----------------------------
 //     Quit
 //
 // ⓘ Quit was not in the order they gave. It is the only way the listener is
@@ -52,6 +54,13 @@ inline const wchar_t *const kConfigMode = L"Window Mode";
 // ⓘ The settings page's switch says the same words.
 inline const wchar_t *const kOpenOnBridge = L"Open on bridge";
 inline const wchar_t *const kQuit = L"Quit";
+// ⭐ REMOVE OLD CONTROLLERS (rhoquinn8217, 2026-10-13: place B, a group of its
+// own above Quit). Windows keeps a record of every controller a bridge ever
+// plugged in, and this removes the ones not connected (old_devices.inl). The
+// three dots are the Windows convention for a line that asks something before
+// it acts: here Windows' own administrator prompt. ⓘ By code point, like the
+// padlock below.
+inline const wchar_t *const kRemoveOld = L"Remove old controllers\u2026";
 
 // ⓘ By code point, so no editor and no compiler setting can turn it into
 // something else on the way to the screen. It is the mark the settings page's
