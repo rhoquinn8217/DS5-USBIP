@@ -155,6 +155,7 @@ carry it; upstream's own history is unchanged.
 | 2026-10-12 | No Controller Configs window at a stream's start, now that aurora-tv's badge and button show the listener is on: Vibepollo's start runs the listener with --no-start-window, which keeps the tray icon and the API and leaves a running listener as it is. A controller bridging still opens the window, unless Open on bridge is off. | `e61ce2e` |
 | 2026-10-12 | The installer's already-installed page has a third choice while Vibepollo is set to start DS5-USBIP: stop that and change nothing else, the person's own Vibepollo commands kept, Vibepollo restarted after asking. Uninstalling takes the setting out too, as before. | `19dbd6b` |
 | 2026-10-12 | The Controller Configs window's Overview bar as a small form: the page's version on its own line at the top, in a box that cannot be edited; Open on bridge a checkbox, its words on the left and the box on the right, where it was a button that turned green; the boxes lined up. And the taskbar stays behind a game in borderless window mode while the Controller Configs window is in front of it: the window is marked full-screen for the taskbar (ITaskbarList2::MarkFullscreenWindow) while a full-screen window is just behind it, and ahead of time while one is in front, so the taskbar does not come up with it. | `6068db2` `7d9f622` `6dc83cd` `3a3e195` |
+| 2026-10-13 | The old controllers Windows keeps from past bridges, cleared and no longer piling up. Windows keeps a record of every device a bridge ever plugged in, with its parts and its sound devices: 477 records on the PC this was written on. `DS5-USBIP old-devices` lists them, read only; `remove-old-devices` removes them as an administrator, and with `--report` says how it went in a box; the installer runs it on every install, upgrade and uninstall; and the tray menu's "Remove old controllers…", in a group of its own above Quit, runs it through Windows' prompt. A record is ours only when the parent Windows keeps for it leads to usbip-win2's host controller, never by vendor and product: ViGEm's and VirtualHere's virtual controllers can sit on the same PC under Sony's ids. A device without a serial gets the vendor, the product and a slot, where it got a hash of its node on the TV, which follows plug order and made it a new device to Windows at every bridge. And the program names the Windows it is built for (Windows 10 and 11) in its manifest: without that, Windows' compatibility assistant took the administrator copy's short run and box for an old program failing a version check, and said "This program might not have run correctly". | `fc9e9e6`, `824dc0a`, `7e5602b`, merge `ca55300` |
 
 ## Files changed
 
@@ -166,13 +167,14 @@ ENet library, removed with the ENet transport).
 ```
  .gitattributes                                |   48 +
  .gitignore                                    |   41 +-
- CHANGES.md                                    |  371 +
+ CHANGES.md                                    |  376 +
  LINK                                          |    0
  README.md                                     |  297 +-
- app/ctm-usbip-tests.vcxproj                   |  143 +
+ app/compatibility.manifest                    |   27 +
+ app/ctm-usbip-tests.vcxproj                   |  144 +
  app/ctm-usbip.ico                             |  Bin 156019 -> 30139 bytes
  app/ctm-usbip.rc                              |   26 +-
- app/ctm-usbip.vcxproj                         |   53 +-
+ app/ctm-usbip.vcxproj                         |   62 +-
  attic/README.md                               |   24 +
  attic/device-config-panel-edge.bat            |    9 +
  attic/device-config-panel-edge.ps1            |  327 +
@@ -202,7 +204,7 @@ ENet library, removed with the ENet transport).
  installer/build-ds5-installer.ps1             |  126 +
  installer/build-icon.ps1                      |  238 +
  installer/controller-path.txt                 |   68 +
- installer/ds5-usbip.iss                       |  755 ++
+ installer/ds5-usbip.iss                       |  775 ++
  installer/icon-source.png                     |  Bin 0 -> 100705 bytes
  installer/make-icon-ds5.ps1                   |  236 +
  installer/trace-silhouette.py                 |  368 +
@@ -215,9 +217,9 @@ ENet library, removed with the ENet transport).
  profiles/descriptors/virtual_keyboard.profile |   74 +
  profiles/descriptors/virtual_mouse.profile    |   59 +
  release.ps1                                   |  266 +
- src/app/agent.inl                             | 1138 ++-
+ src/app/agent.inl                             | 1137 ++-
  src/app/agent_session_sweep.inl               |  333 +
- src/app/cli.inl                               |   61 +-
+ src/app/cli.inl                               |   63 +-
  src/app/common.inl                            |  166 +-
  src/app/config_move.inl                       | 1186 +++
  src/app/console_attach.inl                    |   82 +
@@ -229,6 +231,8 @@ ENet library, removed with the ENet transport).
  src/app/front_rule.inl                        |   89 +
  src/app/home_folder.inl                       |  130 +
  src/app/nickname.inl                          |   90 +
+ src/app/old_devices.inl                       |  267 +
+ src/app/old_devices_rule.inl                  |   91 +
  src/app/open_on_bridge.inl                    |   62 +
  src/app/open_ui.inl                           |  709 ++
  src/app/overlay_window.inl                    | 2303 ++++++
@@ -249,8 +253,8 @@ ENet library, removed with the ENet transport).
  src/app/stream_start.inl                      |  159 +
  src/app/taskbar_back.inl                      |  169 +
  src/app/taskbar_rule.inl                      |   64 +
- src/app/tray_icon.inl                         |  741 ++
- src/app/tray_menu.inl                         |  175 +
+ src/app/tray_icon.inl                         |  778 ++
+ src/app/tray_menu.inl                         |  184 +
  src/app/tv_sessions.inl                       |  162 +
  src/app/ui_page.inl                           |  140 +
  src/app/window_icon.inl                       |  242 +
@@ -298,11 +302,11 @@ ENet library, removed with the ENet transport).
  src/input/trigger_effect.inl                  |  637 ++
  src/log/capped_log.inl                        |  117 +
  src/log/device_log.inl                        |  233 +
- src/main.cpp                                  |  910 ++-
+ src/main.cpp                                  |  927 ++-
  src/map/runtime.cpp                           |   90 +-
  src/usbdisplay/README.md                      |   13 +
- src/usbip/device.inl                          |  800 +-
- src/usbip/fallback_serial.inl                 |   46 +
+ src/usbip/device.inl                          |  803 +-
+ src/usbip/fallback_serial.inl                 |   81 +
  src/usbip/server.inl                          |  254 +-
  src/usbip/submit_info.inl                     |   34 +
  src/usbip/submit_limits.inl                   |   54 +
@@ -318,7 +322,7 @@ ENet library, removed with the ENet transport).
  tests/device_config_test.cpp                  |  521 ++
  tests/device_names_test.cpp                   |  110 +
  tests/device_type_test.cpp                    |   89 +
- tests/fallback_serial_test.cpp                |   59 +
+ tests/fallback_serial_test.cpp                |   79 +
  tests/front_rule_test.cpp                     |   69 +
  tests/gyro_mouse_test.cpp                     |  828 +++
  tests/harness.h                               |   55 +
@@ -333,6 +337,7 @@ ENet library, removed with the ENet transport).
  tests/mic_ring_test.cpp                       |  181 +
  tests/mouse_held_test.cpp                     |  162 +
  tests/nickname_test.cpp                       |   98 +
+ tests/old_devices_rule_test.cpp               |  131 +
  tests/osk_test.cpp                            |   81 +
  tests/pad_press_test.cpp                      |  117 +
  tests/paired_tv_test.cpp                      |  319 +
@@ -350,7 +355,7 @@ ENet library, removed with the ENet transport).
  tests/stop_wait_test.cpp                      |   93 +
  tests/stream_commands_test.cpp                |  118 +
  tests/taskbar_rule_test.cpp                   |   46 +
- tests/tests_main.cpp                          |  177 +
+ tests/tests_main.cpp                          |  179 +
  tests/touch_mouse_test.cpp                    | 1654 +++++
  tests/tray_menu_test.cpp                      |  208 +
  tests/trigger_click_test.cpp                  |  901 +++
@@ -367,5 +372,5 @@ ENet library, removed with the ENet transport).
  tools/create-desktop-shortcut.bat             |   46 +
  tools/create-desktop-shortcut.ps1             |  148 +
  tools/osk-mockups.py                          |  103 +
- 203 files changed, 58096 insertions(+), 1555 deletions(-)
+ 207 files changed, 58771 insertions(+), 1555 deletions(-)
 ```
