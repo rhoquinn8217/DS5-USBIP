@@ -159,6 +159,15 @@ constexpr long long kClickSettleMs = 30;
 // double-click time; "near" is a finger's roll, not a new target.
 constexpr long long kDoubleTapMs = 500;
 constexpr long kDoubleTapNearPx = 16;
+// ⭐ DOUBLE TAP AND HOLD DRAGS (rhoquinn8217, 2026-10-14: "i want to add a
+// drag functionality when double tapping set to a mouse click";
+// touchpad_double_tap_drag). A touch that lands within this long after a
+// one-finger tap that clicked, and near it, holds that tap's button down until
+// the last finger lifts: move to drag, lift to let go. 0.3 s rather than the
+// double tap's kDoubleTapMs, on their word: a touch made a moment after a tap
+// to point somewhere else drags instead, and a shorter wait leaves less room
+// for that. The first tap still clicks at once, as a Windows touchpad's does.
+constexpr long long kTapDragMs = 300;
 
 // ⭐ A FINGER LIFTED MID-STROKE IS PART OF THE SCROLL (2026-09-30). Between
 // strokes, the Edge reports the finger left behind sliding toward the other as
@@ -281,6 +290,12 @@ struct TouchState {
     // guess; a physical click is not. Three-finger drag is not available to us
     // at all -- the pad reports two touch points.
     bool dragging = false;
+    // ⭐ THE HOLD IS A DOUBLE TAP'S (kTapDragMs), NOT A PRESS'S: it lets go when
+    // the last finger lifts, whatever the press setting says, and the touch
+    // that made it adds no click at its lift -- its touch was the button's
+    // down and its lift the up, so a quick one is the double-click it was.
+    bool holdByTap = false;
+    bool sessionTapDrag = false;
     // ⭐ WHAT THE PRESS TOOK HOLD OF, kept so the letting go matches it. The
     // setting can change while the pad is still held in, and a key pressed
     // under the old value has to be the key that comes back up.
@@ -642,6 +657,7 @@ inline void drop_hold(TouchState &st, const void *deviceKey)
 {
     if (!st.dragging) return;
     st.dragging = false;
+    st.holdByTap = false;
     hold_end(deviceKey, st.holdTarget);
     st.holdTarget = binding::Target();
 }
@@ -955,6 +971,10 @@ inline void step(const void *deviceKey, const std::string &section,
     }
     const bool tapsOn = !oneTap.empty() || !twoTap.empty();
     const bool dragOn = !dragTo.empty();
+    // ⭐ DOUBLE TAP AND HOLD (kTapDragMs). ⓘ Only with the cursor on: the tap it
+    // follows is the one-finger tap that clicks, and a drag needs a pointer.
+    const bool tapDragOn =
+        cursorOn && device_config_bool(section.c_str(), "touchpad_double_tap_drag", false);
 
     std::lock_guard<std::mutex> lock(g_touchMutex);
     TouchState &st = g_touch[deviceKey];
@@ -1034,7 +1054,11 @@ inline void step(const void *deviceKey, const std::string &section,
     // drag, and a key or a pad button is that key or button kept down, for the
     // same length of time -- from the press until no finger is left.
     const binding::Target dragTarget = binding::parse(dragTo);
-    if (dragOn && dragTarget.kind != binding::kNone) {
+    if (st.dragging && st.holdByTap) {
+        // ⭐ A DOUBLE TAP'S HOLD lets go when the last finger lifts, or at once
+        // if the setting goes off under it.
+        if (fingers == 0 || !tapDragOn) drop_hold(st, deviceKey);
+    } else if (dragOn && dragTarget.kind != binding::kNone) {
         const bool padPressed = ctm_rebind::touch_pressed(lay, data, len);
         const bool anyFinger = fingers > 0;
 
@@ -1103,6 +1127,31 @@ inline void step(const void *deviceKey, const std::string &section,
             st.strokeHold = false;
             st.scrollSampleCount = 0;
             st.scrollSampleNext = 0;
+            st.sessionTapDrag = false;
+            // ⭐ DOUBLE TAP AND HOLD (kTapDragMs): this touch landed soon after
+            // a tap that clicked, near where it clicked, so it holds that tap's
+            // button until the last finger lifts. The cursor stays still for the
+            // first kStillUnits, as for any touch that could be a tap, so the
+            // grab does not twitch.
+            const auto apart = [](long a, long b) { return a > b ? a - b : b - a; };
+            if (tapDragOn && fingers == 1 && !st.dragging && st.lastTapValid &&
+                st.lastTapMask != 0 && nowMs - st.lastTapMs <= kTapDragMs && st.homeValid &&
+                apart(st.homeX, st.lastTapX) <= kDoubleTapNearPx &&
+                apart(st.homeY, st.lastTapY) <= kDoubleTapNearPx) {
+                binding::Target held;
+                held.kind = binding::kMouseButton;
+                held.mouseMask = st.lastTapMask;
+                st.dragging = true;
+                st.holdByTap = true;
+                st.holdTarget = held;
+                st.sessionTapDrag = true;
+                hold_begin(deviceKey, section, held);
+                st.mTap = "hold";
+                device_log::input(device_log::msg()
+                    << "[touch] double tap and hold: button 0x" << std::hex
+                    << static_cast<int>(held.mouseMask) << std::dec << " held, "
+                    << (nowMs - st.lastTapMs) << "ms after the tap");
+            }
         } else if (fingers > 0) {
             // ⭐ A SECOND FINGER SOON AFTER THE FIRST is a scroll that started
             // late: the cursor goes back to where the first finger landed, and
@@ -1132,7 +1181,8 @@ inline void step(const void *deviceKey, const std::string &section,
         } else if (st.sessionActive) {
             measure_clock(st, lay, data, len, nowMs, false, kind);
             const long long heldMs = nowMs - st.sessionStart;
-            if (tapsOn && !st.sessionMoved && heldMs <= kTapMaxMs) {
+            // ⓘ Not a double tap's hold: its lift was the button's up already.
+            if (tapsOn && !st.sessionMoved && heldMs <= kTapMaxMs && !st.sessionTapDrag) {
                 // ⓘ Whichever of the two this tap was. A double click is still
                 // simply two taps, with no special case -- that has not changed.
                 // ⚠️ A finger count with no action set does NOTHING, rather than
