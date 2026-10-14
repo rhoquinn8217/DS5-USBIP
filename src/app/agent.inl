@@ -1014,9 +1014,10 @@ static bool stop_bridge_session(const std::wstring &busId)
 
 // BRIDGE_STOP from TV `owner`, calling from `peer`: only its own sessions, or
 // one with no proof from the address it was started from (tv_sessions.inl's
-// may_stop). False with *notYours set when the session is another TV's.
+// may_stop; addressOnly, that alone). False with *notYours set when the
+// session is another TV's.
 static bool stop_bridge_session_for(const std::wstring &busId, const std::string &owner, uint32_t peer,
-                                    bool *notYours)
+                                    bool *notYours, bool addressOnly)
 {
     if (notYours) *notYours = false;
     bool byAddress = false;
@@ -1024,11 +1025,11 @@ static bool stop_bridge_session_for(const std::wstring &busId, const std::string
         std::lock_guard<std::mutex> lock(g_agent_sessions_mutex);
         const AgentBridgeSession *session = find_bridge_session_locked(busId);
         if (!session) return false;
-        if (!tv_sessions::may_stop(session->owner, session->onlyPeer, owner, peer)) {
+        if (!tv_sessions::may_stop(session->owner, session->onlyPeer, owner, peer, addressOnly)) {
             if (notYours) *notYours = true;
             return false;
         }
-        byAddress = !tv_sessions::same_tv(session->owner, owner);
+        byAddress = addressOnly || !tv_sessions::same_tv(session->owner, owner);
     }
     if (byAddress) {
         device_log::session_w() << L"agent bridge stop without a proof busid=" << busId
@@ -1151,6 +1152,12 @@ static void handle_agent_client(SOCKET client, const sockaddr_in &peer)
     // ⭐ The TV asking, when its proof was PROVEN: tv_sessions.inl says what it
     // decides, and why nothing less than proven may name a TV.
     std::string owner;
+    // ⭐ A STOP FROM THE INTERNET THAT SENT NO PROOF, IN "on" MODE (2026-10-13).
+    // A TV sends its stop plainly when a busy listener leaves its challenge
+    // unanswered, and refusing it here would leave its bridge holding its
+    // port: so it goes on, and may stop only a bridge started from its own
+    // address (tv_sessions.inl's may_stop). A wrong proof is still refused.
+    bool stopByAddressOnly = false;
     if (command == "BRIDGE_START" || command == "BRIDGE_STOP") {
         const PairedTvMode mode = paired_tv_mode();
         if (mode != PairedTvMode::Off) {
@@ -1177,6 +1184,9 @@ static void handle_agent_client(SOCKET client, const sockaddr_in &peer)
                     if (paired_tv::split(std::string(line), &unsigned_, &proof)) owner = proof.fingerprint;
                 }
                 const bool letIn = paired_tv::lets_in(verdict, need);
+                stopByAddressOnly = !letIn && mode == PairedTvMode::On && command == "BRIDGE_STOP" &&
+                                    verdict == paired_tv::Verdict::Missing;
+                const bool refused = !letIn && mode == PairedTvMode::On && !stopByAddressOnly;
                 char peerIp[INET_ADDRSTRLEN] = {};
                 inet_ntop(AF_INET, &peer.sin_addr, peerIp, sizeof(peerIp));
                 device_log::session_s()
@@ -1184,9 +1194,10 @@ static void handle_agent_client(SOCKET client, const sockaddr_in &peer)
                     << (who.empty() ? std::string() : " (" + who + ")")
                     << (need == paired_tv::Need::Required ? "" : "; none is needed from the home network")
                     << (!letIn && mode == PairedTvMode::Log ? "; let in, the check is log-only" : "")
-                    << (!letIn && mode == PairedTvMode::On ? "; REFUSED" : "")
+                    << (stopByAddressOnly ? "; it may stop only a bridge started from this address" : "")
+                    << (refused ? "; REFUSED" : "")
                     << (haveDevices ? std::string() : "; the host's paired devices could not be read from " + narrow_ascii(where));
-                if (!letIn && mode == PairedTvMode::On) {
+                if (refused) {
                     send_text(client, std::string("ERR ") + paired_tv::describe(verdict) + "\n");
                     return;
                 }
@@ -1281,7 +1292,7 @@ static void handle_agent_client(SOCKET client, const sockaddr_in &peer)
         // remove the virtual device instead of leaving a stale export.
         const std::wstring busId = widen_ascii(busIdAscii.c_str(), busIdAscii.size());
         bool notYours = false;
-        if (stop_bridge_session_for(busId, owner, peerAddr, &notYours)) {
+        if (stop_bridge_session_for(busId, owner, peerAddr, &notYours, stopByAddressOnly)) {
             send_text(client, "OK bridge stopped\n");
         } else if (notYours) {
             device_log::session_w() << L"agent bridge stop refused busid=" << busId

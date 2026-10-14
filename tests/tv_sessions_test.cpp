@@ -163,15 +163,26 @@ int run_tv_sessions_tests()
         CTM_CHECK(!tv_sessions::may_stop(kTvA, 0, "", 0));                // nor with no address kept
         CTM_CHECK(tv_sessions::may_stop(kTvA, kHere, kTvA, kElsewhere));  // its proof, from anywhere
         CTM_CHECK(tv_sessions::may_stop("", kHere, "", kElsewhere));      // two older apps, as before
+        // ⭐ Under paired_tv_proof = on, a stop from the internet with no proof:
+        // its own address's bridge, whoever proved it, and nothing else.
+        CTM_CHECK(tv_sessions::may_stop(kTvA, kHere, "", kHere, true));
+        CTM_CHECK(tv_sessions::may_stop("", kHere, "", kHere, true));
+        CTM_CHECK(!tv_sessions::may_stop(kTvA, kHere, "", kElsewhere, true));
+        CTM_CHECK(!tv_sessions::may_stop("", kHere, "", kElsewhere, true));  // not an older app's at home
+        CTM_CHECK(!tv_sessions::may_stop("", 0, "", 0, true));               // nor one with no address kept
     }
 
     section("tv sessions: where agent.inl asks");
     {
         const std::string agent = read_agent_text();
         CTM_CHECK(!agent.empty());
-        CTM_CHECK(agent.find("tv_sessions::may_stop(session->owner, session->onlyPeer, owner, peer)") !=
+        CTM_CHECK(agent.find("tv_sessions::may_stop(session->owner, session->onlyPeer, owner, peer, addressOnly)") !=
                   std::string::npos);
-        CTM_CHECK(agent.find("stop_bridge_session_for(busId, owner, peerAddr, &notYours)") != std::string::npos);
+        CTM_CHECK(agent.find("stop_bridge_session_for(busId, owner, peerAddr, &notYours, stopByAddressOnly)") !=
+                  std::string::npos);
+        // Under "on", only a stop that sent NO proof goes on to the address rule.
+        CTM_CHECK(agent.find("command == \"BRIDGE_STOP\" &&\n                                    "
+                             "verdict == paired_tv::Verdict::Missing;") != std::string::npos);
         // A session whose TV never connected goes, and frees its port.
         const size_t failed = agent.find("if (!backendPtr->start(");
         const size_t reap = agent.find("request_bridge_session_reap(session->busId);", failed);

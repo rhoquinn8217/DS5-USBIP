@@ -113,7 +113,7 @@ In `ctm-device-config.txt`, section `[global]`:
 
 | Setting | Meaning |
 |---|---|
-| `paired_tv_proof = on` | the default, and what any value but `log` or `off` means: a TV calling from the internet without a good proof is refused |
+| `paired_tv_proof = on` | the default, and what any value but `log` or `off` means: a TV calling from the internet without a good proof is refused, except a stop with no proof of a bridge started from its own address |
 | `paired_tv_proof = log` | proofs are checked and logged, and no TV is turned away |
 | `paired_tv_proof = off` | nothing is checked, and a bridge port takes a connection from anywhere |
 | `paired_tv_proof_at_home = true` | the home network must prove it too |
