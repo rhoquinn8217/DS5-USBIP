@@ -39,10 +39,18 @@ int run_tray_menu_tests()
     {
         CTM_CHECK(open_on_bridge::parse("1"));
         CTM_CHECK(!open_on_bridge::parse("0"));
-        CTM_CHECK(open_on_bridge::parse(""));       // junk reads as on, as before the switch
-        CTM_CHECK(open_on_bridge::parse("yes"));
+        CTM_CHECK(!open_on_bridge::parse(""));      // junk reads as off, the default since 2026-10-15
+        CTM_CHECK(!open_on_bridge::parse("yes"));
         CTM_CHECK_EQ(open_on_bridge::line(true), std::string("open_on_bridge = 1\n"));
         CTM_CHECK_EQ(open_on_bridge::line(false), std::string("open_on_bridge = 0\n"));
+        CTM_CHECK_EQ(open_on_bridge::default_line(), std::string("open_on_bridge_default = off\n"));
+        // ⭐ Off by default, and for every install once (2026-10-15).
+        CTM_CHECK(!open_on_bridge::kDefault);
+        CTM_CHECK(!open_on_bridge::loaded(false, false, false));   // no file, or no line
+        CTM_CHECK(!open_on_bridge::loaded(true, true, false));     // "on" from before the change: dropped
+        CTM_CHECK(open_on_bridge::loaded(true, true, true));       // turned on since: kept
+        CTM_CHECK(!open_on_bridge::loaded(true, false, true));
+        CTM_CHECK(!open_on_bridge::loaded(false, false, true));
     }
 
     section("open on bridge: whether a bridge opens the window");
