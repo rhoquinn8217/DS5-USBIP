@@ -106,6 +106,7 @@ static void print_usage()
         << L"                                               (the installer: those two put in Vibepollo's list, or taken out)\n"
         << L"  DS5-USBIP old-devices                        (JSON: the old controllers Windows keeps from past bridges; changes nothing)\n"
         << L"  DS5-USBIP remove-old-devices [--report]      (removes them, as an administrator; --report says how it went in a box)\n"
+        << L"  DS5-USBIP tutorial-words-picture <file.bmp> [dpi]  (the tutorial's words as one step shows them, drawn into a picture)\n"
         << L"  (--rest serves an HTTP/JSON control API, loopback-only unless --rest-lan; see docs/rest_api.md.)\n"
         << L"  (agent: --ui opens the Controller Configs window and puts the icon in the tray, where Quit closes it.\n"
         << L"   A person's configs, log and settings live in %LOCALAPPDATA%\\DS5-USBIP. A build's exe has\n"

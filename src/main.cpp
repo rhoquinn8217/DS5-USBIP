@@ -141,6 +141,14 @@ void ui_set_tutorial_seen(bool seen);
 void ui_tutorial_ask();
 bool ui_tutorial_asked();
 void ui_tutorial_take();
+/* The tutorial's words, drawn beside the configs window rather than in it
+ * (tutorial_bubble.inl): shown with what a step says, hidden, and a click on
+ * their Next or Previous handed over once. Defined below, after
+ * tutorial_bubble.inl. */
+void ui_tutorial_words_show(const std::string &count, const std::string &words, bool nextOn,
+                            bool prevShown, const std::string &focus, int ax, int ay);
+void ui_tutorial_words_hide();
+std::string ui_tutorial_words_take_press();
 /* Where the window stands right now, kept for the next one. Called on the way
  * out, while it still exists. */
 void ui_view_remember_pos();
@@ -373,6 +381,8 @@ static bool ctm_window_steering(const void *deviceKey) { return window_move::ste
 #include "app/window_icon.inl"     // ...and keeping them on a window the browser owns
 #include "app/taskbar_rule.inl"    // when the taskbar stays behind the configs window; pure
 #include "app/taskbar_back.inl"    // ...and telling the taskbar so, over a full-screen game
+#include "app/tutorial_bubble_rule.inl"  // where the tutorial's words go beside the configs window, and how they break
+#include "app/tutorial_bubble.inl"       // ...drawn there, in a window that never takes focus
 #include "app/rest_sessions.inl"
 #include "app/rest_config_sessions.inl"   // defines what rest_config.inl declares; needs agent.inl's sessions
 #include "app/service.inl"
@@ -420,6 +430,28 @@ bool ui_tutorial_asked()
 void ui_tutorial_take()
 {
     config_move::take_tutorial();
+}
+void ui_tutorial_words_show(const std::string &count, const std::string &words, bool nextOn,
+                            bool prevShown, const std::string &focus, int ax, int ay)
+{
+    tutorial_bubble::Content c;
+    c.show = true;
+    c.count = tutorial_bubble::wide(count);
+    c.words = tutorial_bubble::wide(words);
+    c.nextOn = nextOn;
+    c.prevShown = prevShown;
+    c.focus = focus;
+    c.ax = ax;
+    c.ay = ay;
+    tutorial_bubble::update(c);
+}
+void ui_tutorial_words_hide()
+{
+    tutorial_bubble::hide();
+}
+std::string ui_tutorial_words_take_press()
+{
+    return tutorial_bubble::take_press();
 }
 void ui_view_remember_pos()
 {
@@ -792,6 +824,9 @@ int wmain(int argc, wchar_t **argv)
     // ⭐ THE OLD CONTROLLERS WINDOWS KEEPS FROM PAST BRIDGES (2026-10-13):
     // old_devices.inl. Not the listener either.
     if (mode == L"old-devices") return old_devices::list_mode();
+    // ⓘ The tutorial's words drawn into a picture, to look at with no window
+    // and no page (tutorial_bubble.inl).
+    if (mode == L"tutorial-words-picture") return tutorial_bubble::picture_mode(argc, argv);
     if (mode == L"remove-old-devices") {
         bool report = false;
         for (int i = 2; i < argc; ++i) {

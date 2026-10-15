@@ -719,6 +719,54 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
             return true;
         }
 
+        // ⭐ THE TUTORIAL'S WORDS, OUTSIDE THE WINDOW (rhoquinn8217,
+        // 2026-10-14: *"We need to move the descriptions so that they don't
+        // cover any of the browser box."*). The page POSTs what a step says
+        // and where its lit part sits, and the listener draws the words beside
+        // the window (tutorial_bubble.inl); {"show": false} takes them away. A
+        // GET of tutorial-press hands over a click on their Next or Previous,
+        // once, for the page to act on.
+        if (what == "tutorial-bubble") {
+            if (req.method != "POST") {
+                *out = rest_error_response(405, "method not allowed", "Allow: POST, OPTIONS\r\n");
+                return true;
+            }
+            RestJson json;
+            std::string parseError;
+            if (!rest_parse_flat_json(req.body, &json, &parseError)) {
+                *out = rest_error_response(400, parseError);
+                return true;
+            }
+            auto flag = [&](const char *key) {
+                auto it = json.bools.find(key);
+                return it != json.bools.end() && it->second;
+            };
+            auto text = [&](const char *key) {
+                auto it = json.strings.find(key);
+                return it == json.strings.end() ? std::string() : it->second;
+            };
+            auto number = [&](const char *key, int fallback) {
+                auto it = json.numbers.find(key);
+                return it == json.numbers.end() ? fallback : static_cast<int>(it->second);
+            };
+            if (flag("show")) {
+                ui_tutorial_words_show(text("count"), text("words"), flag("next_on"), flag("prev_shown"),
+                                       text("focus"), number("ax", 500), number("ay", 500));
+            } else {
+                ui_tutorial_words_hide();
+            }
+            *out = rest_http_response(200, R"({"ok":true})");
+            return true;
+        }
+        if (what == "tutorial-press") {
+            if (req.method != "GET") {
+                *out = rest_error_response(405, "method not allowed", "Allow: GET, OPTIONS\r\n");
+                return true;
+            }
+            *out = rest_http_response(200, std::string(R"({"press":")") + ui_tutorial_words_take_press() + R"("})");
+            return true;
+        }
+
         if (req.method != "POST") {
             *out = rest_error_response(405, "method not allowed", "Allow: GET, POST, OPTIONS\r\n");
             return true;
@@ -979,6 +1027,8 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
             // this is the path meant to be reliable.
             device_log::input(device_log::msg()
                 << "ui/closed: the page reported its own teardown");
+            // ⓘ The tutorial's words have nothing left to stand beside.
+            ui_tutorial_words_hide();
             // The other way out -- the X, or the browser going away. The
             // window may still be up for a moment; if it is, its place is
             // worth having.

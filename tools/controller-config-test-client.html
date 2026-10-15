@@ -2675,18 +2675,10 @@
   #tutCard h3 { margin:0 0 1.2vh; font-size:5vh; }
   #tutCard p { margin:0 0 2.4vh; font-size:3.6vh; line-height:1.45; color:#c9cdd6; }
   #tutCard .tutBtns { display:flex; gap:1.4vw; justify-content:center; }
-  #tutWrap { max-width:52vw; }
-  #tutBubble { background:#1d2030; border:1px solid #f0b429; border-radius:10px;
-               padding:1.6vh 1.8vw; color:#e8e8ea; font-size:3.6vh; line-height:1.5; }
-  #tutBubble .tcount { display:block; font-size:2.6vh; color:#9aa4b2; margin-bottom:.4vh; }
-  /* ⓘ A name in the words: lit, and never broken at its dashes. */
-  .tut-hl { color:#f0b429; border:1px solid #f0b429; border-radius:6px; padding:0 .5vw;
-            white-space:nowrap; font-weight:600; }
-  #tutNav { display:flex; flex-wrap:wrap; gap:1vw; justify-content:flex-end; margin-top:1.2vh; }
   #tutRoot button { font-size:3.8vh; padding:1vh 2.2vw; white-space:nowrap; }
-  /* ⓘ Greyed out but solid: the page's own see-through grey let the footer's
-     words show through Next. */
-  #tutRoot button[disabled] { opacity:1; background:#1a1b20; border-color:#2c2e36; color:#5d6270; }
+  /* ⓘ The words and their Next and Previous are drawn by the listener, outside
+     the window; these two are stand-ins the pad's halo can rest on. */
+  #tutProxies { display:none; }
 </style>
 </head>
 <body>
@@ -12319,7 +12311,15 @@ function selfTest() {
 //   <name> to <what it does>" with the name lit (*"Don't replace the button
 //   with instructions when instructions are given. Instead just gray it
 //   out"*); doing it moves on by itself;
-// - a name never breaks at its dashes (*"Don't wrap it on it's dashes"*).
+// - a name never breaks at its dashes (*"Don't wrap it on it's dashes"*);
+// - ⭐ and the words, with their Next and Previous, sit OUTSIDE the window
+//   (*"We need to move the descriptions so that they don't cover any of the
+//   browser box."*, after a run on the hardware). A page cannot draw there,
+//   so the listener does, in a window that never takes focus
+//   (tutorial_bubble.inl), above this one first. The page sends what they
+//   say and where the lit part is, and collects a click on Next or
+//   Previous; the pad walks to hidden stand-ins for the two, and the
+//   listener draws its halo on them.
 //
 // ⛔⛔ EVERYTHING ELSE IS LOCKED (*"During the tutorial, everything should be
 // locked out except when the user is instructed to do something"*). Keys and
@@ -12344,11 +12344,15 @@ var TUT_SEEN = null;         // what the listener keeps; null until it answers
 var TUT_ASKED = false;       // the tray asked, and it has not started yet
 var TUT_ENDED_HERE = false;  // this window ended one; another waits to be asked
 var TUT_LAST_HOLES = '';
+var TUT_WORDS_SENT = '';     // the words last sent, to send only a change
+var TUT_ANCHOR = { ax: 500, ay: 500 };   // the lit part's middle, thousandths of the view
+var TUT_PRESS_TIMER = null;
 
 function tutById(id) { return document.getElementById(id); }
 
-// A name in the words, lit and never broken at a dash.
-function tutHl(name) { return '<span class="tut-hl">' + esc(name) + '</span>'; }
+// A name in the words, lit, and never broken at a dash: the listener draws
+// what is between [[ and ]] that way.
+function tutHl(name) { return '[[' + name + ']]'; }
 
 // ⓘ Start shows while this controller has no config to pick, New after.
 function tutStartBtn() {
@@ -12494,22 +12498,56 @@ function tutBegin(ordinal) {
       '<rect x="0" y="0" width="100%" height="100%" fill="#000" fill-opacity="0.72" ' +
         'mask="url(#tutMask)"/></svg>' +
     '<div id="tutCard" class="tutFloat"></div>' +
-    '<div id="tutWrap" class="tutFloat"><div id="tutBubble"></div>' +
-      '<div id="tutNav"><button id="tutNext" class="go" onclick="tutNext()">Next</button>' +
-      '<button id="tutPrev" onclick="tutPrev()">Previous</button></div></div>' +
+    '<div id="tutProxies"><button id="tutNext" onclick="tutNext()">Next</button>' +
+      '<button id="tutPrev" onclick="tutPrev()">Previous</button></div>' +
     '<button id="tutEnd" class="tutFloat" onclick="tutEndPressed()">End tutorial</button>';
   document.body.appendChild(root);
+  TUT_WORDS_SENT = '';
+  // ⓘ A click on the words' Next or Previous waits in the listener until
+  // asked for; asked often enough that it feels like a click.
+  TUT_PRESS_TIMER = setInterval(tutPollPress, 150);
   tutRender();
   requestAnimationFrame(tutFrame);
 }
 
+// ⭐ THE WORDS, SENT TO THE LISTENER, which draws them beside the window
+// (tutorial_bubble.inl): what a step says, its count, whether Next can be
+// pressed and Previous is there, which of the two the pad's halo is on, and
+// the lit part's middle. Only a change is sent; none at all while the intro
+// or the question is up, or after the end.
+function tutSendWords() {
+  var s = tutStep();
+  var body;
+  if (!s) {
+    body = { show: false };
+  } else {
+    var on = GP_FOCUS[GP_INDEX];
+    body = { show: true, count: (TUT.at + 1) + ' of ' + tutSteps().length, words: s.words(),
+             next_on: !s.act, prev_shown: TUT.at > 0,
+             focus: on === tutById('tutNext') ? 'next' : on === tutById('tutPrev') ? 'prev' : '',
+             ax: TUT_ANCHOR.ax, ay: TUT_ANCHOR.ay };
+  }
+  var key = JSON.stringify(body);
+  if (key === TUT_WORDS_SENT) return;
+  TUT_WORDS_SENT = key;
+  call('POST', '/api/v1/ui/tutorial-bubble', body, true).catch(function () {});
+}
+
+function tutPollPress() {
+  if (!TUT) return;
+  call('GET', '/api/v1/ui/tutorial-press', undefined, true).then(function (d) {
+    if (!TUT || !d) return;
+    if (d.press === 'next') tutNext();
+    else if (d.press === 'prev') tutPrev();
+  }).catch(function () {});
+}
+
 function tutRender() {
   if (!TUT) return;
-  var card = tutById('tutCard'), wrap = tutById('tutWrap'), end = tutById('tutEnd');
+  var card = tutById('tutCard'), end = tutById('tutEnd');
   var steps = tutSteps();
   if (TUT.phase === 'intro' || TUT.phase === 'ask') {
     card.style.display = 'block';
-    wrap.style.display = 'none';
     end.style.display = 'none';
     if (TUT.phase === 'intro') {
       card.innerHTML = '<h3>Simple mode tutorial</h3>' +
@@ -12533,13 +12571,11 @@ function tutRender() {
   } else {
     var s = steps[TUT.at];
     card.style.display = 'none';
-    wrap.style.display = 'block';
     end.style.display = 'block';
-    tutById('tutBubble').innerHTML = '<span class="tcount">' + (TUT.at + 1) + ' of ' +
-      steps.length + '</span>' + s.words();
+    // ⓘ The stand-ins: the pad reaches Next only while it can be pressed,
+    // and Previous only after the first step.
     var nx = tutById('tutNext'), pv = tutById('tutPrev');
     nx.disabled = !!s.act;
-    nx.classList.toggle('go', !s.act);
     pv.style.display = TUT.at === 0 ? 'none' : '';
     // ⓘ On the last step End tutorial IS the thing to do, so it is lit as one.
     end.classList.toggle('go', s.act === 'end');
@@ -12603,6 +12639,8 @@ function tutKeepGoing() {
 function tutFinish(seen) {
   if (!TUT) return;
   TUT = null;
+  if (TUT_PRESS_TIMER) { clearInterval(TUT_PRESS_TIMER); TUT_PRESS_TIMER = null; }
+  tutSendWords();     // no step now: the listener takes the words away
   var root = tutById('tutRoot');
   if (root && root.parentNode) root.parentNode.removeChild(root);
   if (seen) {
@@ -12680,6 +12718,7 @@ function tutCollect() {
   if (at >= 0) GP_INDEX = at;
   else if (GP_INDEX >= GP_FOCUS.length) GP_INDEX = 0;
   gpPaint();
+  tutSendWords();     // the halo may be on Next or Previous, drawn outside
 }
 
 function tutMove(dir) {
@@ -12687,6 +12726,7 @@ function tutMove(dir) {
   GP_INDEX = Math.max(0, Math.min(GP_FOCUS.length - 1, GP_INDEX + dir));
   if (TUT) TUT.focus = GP_FOCUS[GP_INDEX];
   gpPaint();
+  tutSendWords();
 }
 
 function tutPress() {
@@ -12799,7 +12839,12 @@ function tutLayout(s) {
   if (TUT.phase === 'step') {
     var endR = tutPlaceEnd();
     var r = tutRectOf(tutLit(s));
-    tutPlaceWrap(r, endR);
+    var vw = window.innerWidth;
+    TUT_ANCHOR = r
+      ? { ax: Math.max(0, Math.min(1000, Math.round((r.left + r.width / 2) / vw * 1000))),
+          ay: Math.max(0, Math.min(1000, Math.round((r.top + r.height / 2) / vh * 1000))) }
+      : { ax: 500, ay: 500 };
+    tutSendWords();
     if (r) holes.push(r);
     holes.push(endR);
   }
@@ -12826,55 +12871,6 @@ function tutPlaceEnd() {
   end.style.right = Math.max(8, Math.round(c ? window.innerWidth - c.right : 16)) + 'px';
   end.style.bottom = Math.max(8, Math.round(c ? window.innerHeight - c.top + gap : 16)) + 'px';
   return end.getBoundingClientRect();
-}
-
-// The words go under what is lit, else over it, else beside it, else along
-// whichever edge has more room; never off the window, and clear of End
-// tutorial in its corner.
-function tutPlaceWrap(r, endR) {
-  var wrap = tutById('tutWrap');
-  var vw = window.innerWidth, vh = window.innerHeight;
-  var m = 10, gap = Math.round(vh * 0.03) + 6;
-  wrap.style.maxWidth = '';      // the stylesheet's, unless it goes beside
-  var w = wrap.offsetWidth, h = wrap.offsetHeight;
-  var x, y;
-  if (!r) {
-    x = (vw - w) / 2;
-    y = (vh - h) / 2;
-  } else {
-    x = r.left + r.width / 2 - w / 2;
-    if (r.bottom + gap + h <= vh - m) {
-      y = r.bottom + gap;
-    } else if (r.top - gap - h >= m) {
-      y = r.top - gap - h;
-    } else {
-      // ⓘ Beside it, narrowed to the room there, rather than over it: a tall
-      // thing like the pre-set list fills the height, and words laid across
-      // its top hid its title.
-      var leftRoom = r.left - gap - m, rightRoom = vw - r.right - gap - m;
-      var room = Math.max(leftRoom, rightRoom);
-      if (room >= Math.min(w, vw * 0.26)) {
-        if (room < w) {
-          wrap.style.maxWidth = Math.floor(room) + 'px';
-          w = wrap.offsetWidth;
-          h = wrap.offsetHeight;
-        }
-        x = leftRoom > rightRoom ? r.left - gap - w : r.right + gap;
-        y = r.top + r.height / 2 - h / 2;
-      } else {
-        y = r.top > vh - r.bottom ? m : vh - m - h;
-      }
-    }
-  }
-  x = Math.max(m, Math.min(vw - m - w, x));
-  y = Math.max(m, Math.min(vh - m - h, y));
-  if (endR && x < endR.right + 4 && x + w > endR.left - 4 &&
-      y < endR.bottom + 4 && y + h > endR.top - 4) {
-    if (endR.left - 8 - w >= m) x = endR.left - 8 - w;
-    else y = Math.max(m, endR.top - 8 - h);
-  }
-  wrap.style.left = Math.round(x) + 'px';
-  wrap.style.top = Math.round(y) + 'px';
 }
 
 function startPage() {
