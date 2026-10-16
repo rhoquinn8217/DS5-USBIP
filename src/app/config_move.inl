@@ -809,8 +809,9 @@ inline void snap_next(HWND hwnd)
 inline const char *state_file() { return "window-state.txt"; }
 
 // ⭐ OPEN ON BRIDGE (rhoquinn8217, 2026-10-09), kept with the window's place
-// and size; open_on_bridge.inl says what it means. On until it is turned off.
-inline std::atomic_bool g_openOnBridge{true};
+// and size; open_on_bridge.inl says what it means. Off until it is turned on,
+// since 2026-10-15.
+inline std::atomic_bool g_openOnBridge{open_on_bridge::kDefault};
 
 inline void state_save()
 {
@@ -829,7 +830,7 @@ inline void state_save()
         << "size_advanced = " << g_size.load() << "\n"
         << "size_simple = " << g_sizeCompact.load() << "\n"
         << "size_quick = " << g_sizeQuick.load() << "\n";
-    out << open_on_bridge::line(g_openOnBridge.load());
+    out << open_on_bridge::default_line() << open_on_bridge::line(g_openOnBridge.load());
     {
         std::lock_guard<std::mutex> lock(g_ordinalMutex);
         if (!g_ordinal.empty()) out << "ordinal = " << g_ordinal << "\n";
@@ -867,6 +868,11 @@ inline void state_load()
     // file says whether it counted three sizes or two.
     bool advancedTwo = false;
     int advancedRaw = -1;
+    // ⓘ Open on bridge is decided after the whole file is read too: its line
+    // counts only beside the default's line (open_on_bridge::loaded).
+    bool openSeen = false;
+    bool openOn = false;
+    bool openDefaultSeen = false;
     while (std::getline(f, line)) {
         if (line.empty() || line[0] == '#') continue;
         const size_t eq = line.find('=');
@@ -885,7 +891,12 @@ inline void state_load()
             continue;
         }
         if (key == open_on_bridge::kKey) {
-            g_openOnBridge.store(open_on_bridge::parse(val));
+            openSeen = true;
+            openOn = open_on_bridge::parse(val);
+            continue;
+        }
+        if (key == open_on_bridge::kDefaultKey) {
+            openDefaultSeen = true;
             continue;
         }
         // ⚠️ T-253: this must sit ABOVE the atoi fallback -- these values
@@ -930,6 +941,7 @@ inline void state_load()
         else if (key == "size_simple") g_sizeCompact.store(n);
         else if (key == "size_quick") g_sizeQuick.store(n);
     }
+    g_openOnBridge.store(open_on_bridge::loaded(openSeen, openOn, openDefaultSeen));
     if (advancedRaw >= 0) {
         // ⭐ The small size went on 2026-10-02 (kSizes). An index saved under
         // three sizes is one too high under two -- medium was 1 and is 0 now
