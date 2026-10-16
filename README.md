@@ -59,7 +59,10 @@ those, or a [DS5Dongle](https://github.com/awalol/DS5Dongle) to stay wireless.
 2. Start rhoquinn8217/aurora-tv on the television.
 3. Turn on **Enable Device Bridging** in **Settings (⚙️) → USB Bridge**.
 4. Start the stream to the host.
-5. Press and hold the touchpad with two fingers for a second.
+5. The DualSense bridges itself. It is set to auto bridge by default, both at a
+   stream's start and when it connects during one.<br>
+   *To bridge by hand instead, or after unticking it under Auto Bridge: press
+   and hold the touchpad with two fingers for a second.*
 6. DS5-USBIP will open showing that the DualSense is natively connected.<br>
    *Optional (Recommended): Create and set a new "touchpad-to-mouse (DS5|DS4)"
    pre-set and try it out.*
