@@ -5,6 +5,14 @@
 ![transport](https://img.shields.io/badge/transport-USB%2FIP-2ea44f)
 ![fork of CTM-Bridge/CTM-USBIP](https://img.shields.io/badge/fork%20of-CTM--Bridge%2FCTM--USBIP-lightgrey)
 
+> **NOTICE:** If you want to use a DualSense with audio-based rumble on your
+> webOS TV, [aurora-tv](https://github.com/GuiDev1994/aurora-tv) and
+> [Vibepollo](https://github.com/Nonary/Vibepollo) already support it and will
+> likely support speaker audio eventually. DS5-USBIP and
+> [rhoquinn8217/aurora-tv](https://github.com/rhoquinn8217/aurora-tv) already
+> have both, with DS5-USBIP working alongside Vibepollo, however the bridging
+> process is a required step that can mostly be automated.
+
 DS5-USBIP is a fork of [ciprianmisaila's
 CTM-USBIP](https://github.com/CTM-Bridge/CTM-USBIP) that offers a DualSense
 connected to a webOS TV a connection to a host PC over the network or the
