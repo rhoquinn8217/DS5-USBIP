@@ -1198,7 +1198,11 @@ inline void step(const void *deviceKey, const std::string &section,
             // ⭐ AN ARMED TOUCH THAT LIFTED BEFORE BECOMING THE HOLD WAS A TAP:
             // the first tap's held-back click goes now, and this tap's click
             // follows on the same spot, just below -- a double-click.
-            if (st.tapDragArmed) fire_click(st);
+            bool clickedJustNow = false;
+            if (st.tapDragArmed) {
+                fire_click(st);
+                clickedJustNow = true;
+            }
             // ⓘ Not a double tap's hold: its lift was the button's up already.
             if (tapsOn && !st.sessionMoved && heldMs <= kTapMaxMs && !st.sessionTapDrag) {
                 // ⓘ Whichever of the two this tap was. A double click is still
@@ -1255,11 +1259,23 @@ inline void step(const void *deviceKey, const std::string &section,
                         st.clickMask = static_cast<uint8_t>(st.clickMask | mask);
                         st.clickAtMs = nowMs + kTapDragMs;
                         st.clickWaitsForDrag = true;
-                    } else if (place) {
-                        put_back(st, tx, ty, nowMs, why);
+                    } else if (place || clickedJustNow) {
+                        // ⛔⛔ AND NEVER IN THE SAME MOMENT AS A CLICK JUST SENT
+                        // (rhoquinn8217, 2026-10-15: "I need to triple click
+                        // icons in the desktop to perform a double click"). The
+                        // virtual mouse sends one click at a time, and clicks
+                        // asked for at once merge into ONE: a quick double tap's
+                        // held-back click and its own went out together, and
+                        // Windows saw a single click. This one waits its turn.
+                        if (place) {
+                            put_back(st, tx, ty, nowMs, why);
+                        } else {
+                            st.placeX = tx;
+                            st.placeY = ty;
+                        }
                         st.clickMask = static_cast<uint8_t>(st.clickMask | mask);
                         st.clickAtMs = nowMs + kClickSettleMs;
-                        if (st.checkUntil < st.clickAtMs + 10) st.checkUntil = st.clickAtMs + 10;
+                        if (place && st.checkUntil < st.clickAtMs + 10) st.checkUntil = st.clickAtMs + 10;
                     } else {
                         ctm_mouse_device::add_click(mask);
                         ctm_gyro_mouse_ensure_mouse_started();

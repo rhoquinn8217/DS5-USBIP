@@ -54,6 +54,11 @@ int g_oskProgram = -1;
 long g_cursorX = 0;
 long g_cursorY = 0;
 int g_placeCount = 0;
+// ⓘ The time of the step each click was asked for in. The real mouse merges
+// clicks asked for in the same moment into one (mouse_device.inl), so two
+// clicks at one time here are ONE click on the PC.
+long long g_stepNow = 0;
+std::vector<long long> g_clickTimes;
 // ⓘ Where the cursor was when a drag let go, for a drop's place.
 long g_dropX = -1;
 
@@ -62,6 +67,8 @@ void reset_stubs()
     g_cursorX = 0;
     g_cursorY = 0;
     g_placeCount = 0;
+    g_stepNow = 0;
+    g_clickTimes.clear();
     g_dropX = -1;
     g_cfg.clear();
     g_configModeEffective = false;
@@ -210,7 +217,12 @@ inline void cursor_place(long x, long y)
 namespace ctm_mouse_device {
 namespace {   // internal linkage, same reason as above
 inline void add_wheel(int ticks) { g_wheelSum += ticks; }
-inline void add_click(uint8_t mask) { g_lastClick = mask; ++g_clickCount; }
+inline void add_click(uint8_t mask)
+{
+    g_lastClick = mask;
+    ++g_clickCount;
+    g_clickTimes.push_back(g_stepNow);
+}
 inline void set_drag_for(const void *deviceKey, uint8_t mask)
 {
     if (mask == 0 && g_dragFor.count(deviceKey) != 0) g_dropX = g_cursorX;
@@ -287,6 +299,7 @@ const void *kDev = reinterpret_cast<const void *>(0x2);
 
 void run_step(std::vector<uint8_t> &r, long long nowMs)
 {
+    g_stepNow = nowMs;
     ctm_touch_mouse::step(kDev, "ds5", r.data(), r.size(), nowMs);
 }
 
@@ -969,8 +982,14 @@ int run_touch_mouse_tests()
         CTM_CHECK_EQ(static_cast<int>(g_dragMask), 0x00);   // armed, not pressed
         set_point(r, 0, false, 2, 302, 301);
         run_step(r, 250);
+        CTM_CHECK_EQ(g_clickCount, 1);                      // the held-back click
+        run_step(r, 270);
+        CTM_CHECK_EQ(g_clickCount, 1);                      // this tap's waits its turn
+        run_step(r, 281);
         CTM_CHECK_EQ(g_clickCount, 2);                      // both clicks: a double-click
         CTM_CHECK_EQ(static_cast<int>(g_lastClick), 0x01);
+        // ⛔ Asked for at two moments, or the mouse makes them one click.
+        CTM_CHECK(g_clickTimes.size() == 2 && g_clickTimes[1] - g_clickTimes[0] >= 30);
         CTM_CHECK_EQ(static_cast<int>(g_dropX), -1);        // and never a press
         CTM_CHECK_EQ(static_cast<int>(g_cursorX), 1000);    // on the first click's spot
         run_step(r, 700);
