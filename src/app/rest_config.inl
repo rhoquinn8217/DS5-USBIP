@@ -57,12 +57,14 @@ struct RestDeviceView {
     int inputRateHz = 0;
     int arrivalRateHz = 0;
     bool takesRateLimit = false;
-    std::string pollingRate;    // lowercased; "" when the settings say nothing
+    std::string pollingRate;    // the controller's own limit; "" for Real time
     int rateLimitHz = 0;        // 0 is none
 };
 static std::vector<RestDeviceView> rest_collect_devices();
 static bool rest_link_device(const std::string &ordinal, const std::string &configName,
                              std::string *error);
+static bool rest_set_polling_rate(const std::string &ordinal, const std::string &value,
+                                  std::string *error);
 static bool rest_find_device(const std::string &ordinal, RestDeviceView *out);
 
 // The name the shared section answers to in the API. Reserved, so a real config
@@ -483,8 +485,7 @@ static std::string rest_keys_json()
 {"key":"master_rumble_gain","type":"int","min":0,"max":500,"default":100,"help":"Scales all rumble. 100 is unchanged."},
 {"key":"rumble_gain_heavy","type":"int","min":0,"max":500,"default":100,"help":"Heavy weight only. Multiplies with master."},
 {"key":"rumble_gain_soft","type":"int","min":0,"max":500,"default":100,"help":"Soft weight only. Multiplies with master."},
-{"key":"rumble_floor","type":"int","min":0,"max":100,"default":12,"help":"Weakest motor value the game can actually feel, as a percentage. Below its start-up threshold a motor does not spin, so a faint cue becomes silence; this lifts it back. 0 turns the floor off. It never makes a resting pad buzz."},
-{"key":"polling_rate","type":"choice","choices":["real_time","500","250","125"],"default":"real_time","name":"Rate limit","help":"The most input reports a second Windows gets from this controller. Real time passes on every report the moment it arrives. A number is a ceiling: a report that comes early waits for its turn, and the newest always wins, so nothing piles up. Controllers only. The settings page sets it in the polling rate column."}
+{"key":"rumble_floor","type":"int","min":0,"max":100,"default":12,"help":"Weakest motor value the game can actually feel, as a percentage. Below its start-up threshold a motor does not spin, so a faint cue becomes silence; this lifts it back. 0 turns the floor off. It never makes a resting pad buzz."}
 ])CTMKEYS";
     const std::string names = R"CTMKEYS(,
 "key_names":[
@@ -564,11 +565,15 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
     }
 
     // POST /api/v1/devices/{ordinal}/link   {"config":"name"} or {} to unlink
+    // POST /api/v1/devices/{ordinal}/polling_rate   {"polling_rate":"250"}: the
+    //   controller's own limit, "real_time" or nothing for none
     static const char kDevPrefix[] = "/api/v1/devices/";
     if (req.path.compare(0, sizeof(kDevPrefix) - 1, kDevPrefix) == 0) {
         const std::string rest = req.path.substr(sizeof(kDevPrefix) - 1);
         const size_t slash = rest.find('/');
-        if (slash == std::string::npos || rest.substr(slash) != "/link") {
+        const std::string action =
+            slash == std::string::npos ? std::string() : rest.substr(slash);
+        if (action != "/link" && action != "/polling_rate") {
             *out = rest_error_response(404, "unknown path");
             return true;
         }
@@ -581,6 +586,18 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
         std::string parseError;
         if (!req.body.empty() && !rest_parse_flat_json(req.body, &json, &parseError)) {
             *out = rest_error_response(400, parseError);
+            return true;
+        }
+        if (action == "/polling_rate") {
+            const auto rate = json.strings.find("polling_rate");
+            const std::string value =
+                rate == json.strings.end() ? std::string() : rate->second;
+            std::string rateError;
+            if (!rest_set_polling_rate(ordinal, value, &rateError)) {
+                *out = rest_error_response(400, rateError);
+                return true;
+            }
+            *out = rest_http_response(200, rest_devices_json());
             return true;
         }
         auto it = json.strings.find("config");

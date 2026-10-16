@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.85 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.86 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,13 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.86 The polling limit is the controller's own, kept by the
+            listener for that controller whatever config it reads, so a
+            change of config never moves it (rhoquinn8217: "keep it with
+            the controller"). The dropdown needs no config any more, and
+            writes to the controller rather than to its config. A
+            controller that reports no serial keeps its limit until it is
+            unbridged.
     2.66.85 Quick's config selector no longer opens. Outside the footer
             it is the only stop: the d-pad's up and down, the arrow keys
             and the mouse wheel step it straight to the next config,
@@ -2013,7 +2020,7 @@
        ⓘ The same number as VERSION at the top of this file, by hand. It sat
        at 2.66.4 for thirty-four versions while VERSION moved on. -->
   <label class="muted">version</label>
-  <span class="barCell"><span class="fixedField" id="pageVersion" title="This page's version. The program's own is in the window's title.">2.66.85</span></span>
+  <span class="barCell"><span class="fixedField" id="pageVersion" title="This page's version. The program's own is in the window's title.">2.66.86</span></span>
   <label class="muted" for="base">agent</label>
   <span class="barCell">
   <input id="base" value="http://127.0.0.1:48053" size="26">
@@ -3047,8 +3054,13 @@ function refreshBatteries(list) {
 // ⭐⭐ THE POLLING RATE COLUMN (2.66.82; rhoquinn8217, 2026-10-13: "show the
 // read out and the limit in the same column. (polling rate)/[rate limit] rate
 // limit is a drop down"). The readout is the reports a second Windows is
-// getting from the device now; the dropdown is the most it may get, kept in
-// the linked config as polling_rate (usbip/input_pace.inl in the listener).
+// getting from the device now; the dropdown is the most it may get
+// (usbip/input_pace.inl in the listener).
+// ⭐ KEPT FOR THE CONTROLLER, NOT IN A CONFIG (2.66.86; rhoquinn8217,
+// 2026-10-16: "keep it with the controller"). It was the linked config's
+// polling_rate, so stepping through configs moved it too. The listener keeps
+// it by the controller's serial (config/polling_limits.inl), and one with
+// no serial for as long as it is bridged.
 // ⓘ In Advanced's two tables, and in Simple under the controller's name
 // (rhoquinn8217, 2026-10-15: "add polling rate and rate limit selector
 // under controller nickname and battery in simple mode"). Not in Quick.
@@ -3090,10 +3102,9 @@ function rateSelectValue(d) {
 }
 
 // Why the dropdown cannot be used here, or '' when it can.
+// ⓘ No config is needed since 2.66.86: the limit is the controller's own.
 function rateLockReason(d) {
-  if (!d.supports_config) return 'This controller takes no config, so it has no rate limit.';
-  if (!d.linked_config) return 'Link a config to set a rate limit: the limit is kept in the config.';
-  return '';
+  return d.takes_rate_limit ? '' : 'This device is never limited.';
 }
 
 function rateTag(d) {
@@ -3107,8 +3118,11 @@ function rateTag(d) {
       return '<option value="' + c[0] + '"' + (c[0] === value ? ' selected' : '') + '>' +
              c[1] + '</option>';
     }).join('');
+    var kept = normSerial(d.serial)
+      ? 'kept for this controller, whatever config it reads'
+      : 'kept until it is unbridged, since it reports no serial to be remembered by';
     var title = lock || ('The most reports a second Windows may get from this controller, ' +
-                'kept in ' + d.linked_config + '. Real time passes on every report the moment ' +
+                kept + '. Real time passes on every report the moment ' +
                 'it arrives. A number is a ' +
                 'ceiling: a report that comes early waits for its turn, and the newest ' +
                 'always wins, so nothing piles up.');
@@ -3160,8 +3174,12 @@ function setRateLimit(sel) {
   var d = (RATE_LIST || []).concat(LAST_DEVICES || []).filter(function (x) {
     return String(x.ordinal) === ord;
   })[0];
-  if (!d || !d.linked_config) return;
-  postSetting(d.linked_config, 'polling_rate', sel.value);
+  if (!d || !d.takes_rate_limit) return;
+  // ⭐ TO THE CONTROLLER, not to a config (2.66.86).
+  call('POST', '/api/v1/devices/' + encodeURIComponent(ord) + '/polling_rate',
+       { polling_rate: sel.value })
+    .then(function () { setConn('polling limit → ' + sel.value, 'good'); })
+    .catch(function () {});
   // ⓘ The readout answers once a second of reports has been counted at the
   // new rate, so it is asked again shortly rather than at the next poll.
   setTimeout(pollRates, 1300);
@@ -10198,8 +10216,8 @@ function selfTest() {
                  polling_rate: '125', rate_limit_hz: 125 };
     ok('a keyboard shows its rate and no limit',
        rateTag(kb).indexOf('0 Hz') >= 0 && rateTag(kb).indexOf('<select') < 0, rateTag(kb));
-    ok('a controller with no config has the limit greyed, saying why',
-       rateTag(loose).indexOf(' disabled') >= 0 && rateTag(loose).indexOf('Link a config') >= 0,
+    ok('a controller with no config can set its limit: it is the controller\'s own',
+       rateTag(loose).indexOf(' disabled') < 0 && rateTag(loose).indexOf('<select') >= 0,
        rateTag(loose));
     ok('a linked controller can set its limit, showing the one that applies',
        rateTag(held).indexOf(' disabled') < 0 &&
@@ -10233,9 +10251,10 @@ function selfTest() {
     rsel.value = '125';
     setRateLimit(rsel);
     call = rateCall;
-    ok('a limit chosen is written to the linked config, and nowhere else',
+    ok('a limit chosen is written to the controller, and to no config',
        rsent.length === 1 &&
-       rsent[0] === 'POST /api/v1/configs/pad/settings {"polling_rate":"125"}', rsent.join(' | '));
+       rsent[0] === 'POST /api/v1/devices/ds5_usb_8/polling_rate {"polling_rate":"125"}',
+       rsent.join(' | '));
     document.body.removeChild(rbox);
     RATE_LIST = savedRates;
   }

@@ -278,14 +278,34 @@ public:
                device_button_section_for(profile_.device_descriptor) != nullptr;
     }
 
-    // What this device's settings say for polling_rate, lowercased, or empty:
-    // the linked config's, or the shared section's when none is linked.
+    // ⭐ THE CONTROLLER'S OWN LIMIT (config/polling_limits.inl; rhoquinn8217,
+    // 2026-10-16: "keep it with the controller"): "500", "250" or "125",
+    // or empty for Real time. Kept by the controller's serial, so a change
+    // of config never moves it. ⓘ It was the linked config's polling_rate
+    // until then, which config files may still carry and nothing reads.
+    // ⓘ A controller with no usable serial keeps one for this bridge only.
     std::string rate_limit_setting() const
     {
         if (!takes_rate_limit()) return std::string();
-        const std::string section = device_settings_section(
-            device_button_section_for(profile_.device_descriptor), linked_config());
-        return device_config_str(section.c_str(), "polling_rate");
+        const std::string serial = physical_serial();
+        if (ctm_polling_limit_has_identity(serial)) return ctm_polling_limit_get(serial);
+        std::lock_guard<std::mutex> lock(physicalSerialMutex_);
+        return bridgeRateLimit_;
+    }
+
+    // Sets it: "500", "250" or "125", or "real_time" or empty for none.
+    // False, changing nothing, for a device that takes no limit or a value
+    // the page does not offer.
+    bool set_rate_limit_setting(const std::string &value)
+    {
+        if (!takes_rate_limit()) return false;
+        const std::string serial = physical_serial();
+        if (ctm_polling_limit_has_identity(serial)) return ctm_polling_limit_set(serial, value);
+        const int hz = input_pace::limit_hz(value);
+        if (hz == 0 && !value.empty() && value != "real_time") return false;
+        std::lock_guard<std::mutex> lock(physicalSerialMutex_);
+        bridgeRateLimit_ = hz > 0 ? value : std::string();
+        return true;
     }
 
     // The limit in reports a second, or 0 for none.
@@ -726,10 +746,11 @@ public:
         const int limit = rate_limit_hz();
         want_fine_timer(limit > 0);
         if (limit != loggedLimit_.exchange(limit)) {
-            const std::string linked = linked_config();
             device_log::usb_s() << "input rate limit: "
                 << (limit > 0 ? std::to_string(limit) + " a second" : std::string("none"))
-                << ", from " << (linked.empty() ? std::string("the shared settings") : linked)
+                << (ctm_polling_limit_has_identity(physical_serial())
+                    ? ", this controller's own"
+                    : ", for this bridge: the controller reports no serial")
                 << std::endl;
         }
 
@@ -2213,6 +2234,8 @@ private:
     std::wstring fallbackSerial_;
     std::string physicalSerial_;
     std::string linkedConfig_;
+    // A controller with no usable serial: its polling limit, for this bridge.
+    std::string bridgeRateLimit_;
     std::mutex unknownLogMutex_;
     std::map<std::string, uint64_t> unknownLogCounts_;
     std::chrono::steady_clock::time_point unknownLogLastFlush_;
