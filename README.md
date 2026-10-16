@@ -10,8 +10,8 @@
 > [Vibepollo](https://github.com/Nonary/Vibepollo) already support it and will
 > likely support speaker audio eventually. DS5-USBIP and
 > [rhoquinn8217/aurora-tv](https://github.com/rhoquinn8217/aurora-tv) already
-> have both, with DS5-USBIP working alongside Vibepollo, however the bridging
-> process is a required step that can mostly be automated.
+> have both, with DS5-USBIP working alongside Vibepollo, however controllers
+> require a bridging step which can mostly be automated.
 
 DS5-USBIP is a fork of [ciprianmisaila's
 CTM-USBIP](https://github.com/CTM-Bridge/CTM-USBIP) that offers a DualSense
