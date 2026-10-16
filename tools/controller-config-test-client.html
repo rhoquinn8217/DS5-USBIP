@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.83 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.84 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,17 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.84 On the config selector, in every layout, Square unlinks the
+            controller, as Unlink beside it does, and Triangle auto links
+            it or, when it already auto links, removes that, asking
+            first, as the lit 🗘 does; in Advanced too, where Set auto
+            link only sets. Neither acts while the selector's list is
+            open. From a keyboard, U and A, their first letters, as P
+            and R are; Space stays on/off. Every legend names
+            Triangle, "auto link", and Simple's and Quick's name Square,
+            "unlink"; Advanced's Square still reads on/off. Simple shows
+            the polling rate and the rate limit directly under the
+            controller's name and battery, as Advanced's tables do.
     2.66.83 The rate limit's first choice reads Real time, as the
             DS5Dongle and its forks call theirs, and is saved as
             real_time. A config that says max, its name in 2.66.82,
@@ -1375,6 +1386,11 @@
                        display:flex; align-items:center; justify-content:center;
                        flex-wrap:wrap; }
   #compactBox .ckind { font-size:4.5vh; color:#71737c; text-align:center; margin-top:0.8vh; }
+  /* ⭐ Simple's polling rate and rate limit, directly under the name and
+     battery (2.66.84): at the footer buttons' size, the dropdown as wide as
+     its words rather than the config selector's 47vw. */
+  #compactBox .crate { font-size:3.4vh; color:#c8c9ce; text-align:center; margin-top:0.6vh; }
+  #compactBox .crate select { font-size:3.4vh; padding:0.5vh 1vw; min-width:0; }
   /* ⓘ Two thirds of what it was (rhoquinn8217, 2026-09-09). */
   #compactBox select { font-size:4.2vh; padding:0.8vh 1.4vw; min-width:47vw; }
   #compactBox .cbig { font-size:8.1vh; padding:2vh 5vw; }
@@ -1973,7 +1989,7 @@
        ⓘ The same number as VERSION at the top of this file, by hand. It sat
        at 2.66.4 for thirty-four versions while VERSION moved on. -->
   <label class="muted">version</label>
-  <span class="barCell"><span class="fixedField" id="pageVersion" title="This page's version. The program's own is in the window's title.">2.66.83</span></span>
+  <span class="barCell"><span class="fixedField" id="pageVersion" title="This page's version. The program's own is in the window's title.">2.66.84</span></span>
   <label class="muted" for="base">agent</label>
   <span class="barCell">
   <input id="base" value="http://127.0.0.1:48053" size="26">
@@ -3009,8 +3025,9 @@ function refreshBatteries(list) {
 // limit is a drop down"). The readout is the reports a second Windows is
 // getting from the device now; the dropdown is the most it may get, kept in
 // the linked config as polling_rate (usbip/input_pace.inl in the listener).
-// ⓘ Advanced only, because the two tables it sits in are: not in Simple or
-// Quick "yet", in their words.
+// ⓘ In Advanced's two tables, and in Simple under the controller's name
+// (rhoquinn8217, 2026-10-15: "add polling rate and rate limit selector
+// under controller nickname and battery in simple mode"). Not in Quick.
 // ⛔ A keyboard or a mouse shows the rate alone. The listener never limits
 // one: a mouse report is a movement, and one thinned out is distance the
 // cursor never travels.
@@ -3124,11 +3141,11 @@ function setRateLimit(sel) {
 
 // ⭐ ONCE A SECOND, while a readout is on screen. POLL_MS is four seconds, and
 // a rate that answers a new limit four seconds late reads as the limit not
-// working. ⓘ Nothing is asked while none is showing: Simple, Quick, another
-// tab, or the window out of sight.
+// working. ⓘ Nothing is asked while none is showing: Quick, another tab, or
+// the window out of sight. Simple shows one under the name since 2.66.84.
 var RATE_MS = 1000;
 function pollRates() {
-  if (STOPPED || COMPACT || document.hidden) return;
+  if (STOPPED || document.hidden) return;
   var showing = false;
   document.querySelectorAll('.prate').forEach(function (el) {
     if (el.offsetParent !== null) showing = true;
@@ -3316,6 +3333,8 @@ function deviceIcons(parts) {
 // lines converging"), U+2398, U+2387, U+22D4, U+2442. The last two render out
 // of a fallback font and look wrong beside the rest.
 var PAD_LEGEND_PS = {
+  // ⭐ On the config selector (2.66.84): Square unlinks, Triangle auto links.
+  unlink: '\u25a1', autolink: '\u25b3',
   select: '\u2715', close: '\u25cb', toggle: '\u25a1',
   resize: '\\|/', position: '\u2630', shoulder: 'L1/R1',
   // ⭐ The d-pad is the same shape on every pad, so both tables carry the
@@ -3324,6 +3343,7 @@ var PAD_LEGEND_PS = {
   dpad: '\u271c'
 };
 var PAD_LEGEND_XBOX = {
+  unlink: 'X', autolink: 'Y',
   select: 'A', close: 'B', toggle: 'X',
   // ⭐⭐ THE MARKS ON THE BUTTONS, NOT THEIR NAMES (rhoquinn8217,
   // 2026-09-21). ⓘ View is the two-rectangles button and Menu the
@@ -3824,6 +3844,9 @@ function isBindingKey(key) {
 // this ticket -- if either is still dead, this table is lying and should be
 // trimmed rather than left to mislead.
 var KEY_LEGEND = {
+  // ⭐ U AND A, THEIR FIRST LETTERS, AS P AND R ARE (rhoquinn8217,
+  // 2026-10-15: "U and A", over Space and L). Space stays on/off.
+  unlink: 'U', autolink: 'A',
   select: 'Enter', close: 'Esc', toggle: 'Space',
   resize: 'R', position: 'P', shoulder: 'Q/E',
   dpad: '\u2725'
@@ -5392,6 +5415,86 @@ function gpToggleManaged() {
   if (!box) return;
   box.checked = !box.checked;
   box.dispatchEvent(new Event('change'));
+}
+
+// ⭐⭐ SQUARE AND TRIANGLE ON THE CONFIG SELECTOR (rhoquinn8217, 2026-10-15:
+// "Pressing square when you are on the config selector unlinks it, all
+// modes" and "Pressing triangle when you are on the config selector auto
+// links it, all modes"). Each PRESSES THE BUTTON BESIDE THE SELECTOR, so it
+// does what that button does, asks what it asks, and does nothing while it is
+// greyed: Unlink for Square, and for Triangle the auto-link button, 🗘 in
+// Simple and Quick, which sets the auto link or, lit, removes it, asking
+// first.
+// ⭐ ADVANCED TOGGLES TOO (rhoquinn8217, 2026-10-15: "remove it also in
+// advanced"). Its Set auto link only ever sets, and Remove auto link sits
+// in the row above, so Triangle there reads the claim itself
+// (autoLinkToggle) rather than pressing either.
+// ⓘ Not while the selector's list is open: a choice half made is not the
+// config either button acts on.
+// ⓘ The button's own handler is called rather than a click sent, because a
+// click moves the pad's halo to what was clicked, and the halo should stay
+// on the selector it was pressed on.
+function configPickerOf(el) {
+  if (!el || el.tagName !== 'SELECT' || el === GP_SELECTING) return null;
+  if (el.id === 'cpick' || el.id.indexOf('pick-') === 0) return el;
+  return null;
+}
+
+// ⓘ Advanced's Unlink is found by what it calls: it carries no class, and
+// its greyed form calls nothing, so a greyed one is never found.
+function pressBesidePicker(pick, which) {
+  var row = pick.parentNode;
+  if (!row) return;
+  var want = pick.id === 'cpick'
+    ? (which === 'unlink' ? 'button.cunlink-btn' : 'button.cauto-btn')
+    : 'button[onclick^="unlinkConfirmed("]';
+  var btn = row.querySelector(want);
+  if (!btn || btn.disabled || typeof btn.onclick !== 'function') return;
+  btn.onclick.call(btn);
+}
+
+// Square: unlink on the config selector, the setting's managed box anywhere
+// else, as before.
+function gpSquare() {
+  if (!gpUnlink()) gpToggleManaged();
+}
+
+// Unlink on the config selector: Square's job there, and U's from a
+// keyboard. True when the halo was on a selector, whether or not there was
+// a config to unlink.
+function gpUnlink() {
+  var pick = configPickerOf(GP_FOCUS[GP_INDEX]);
+  if (!pick) return false;
+  pressBesidePicker(pick, 'unlink');
+  return true;
+}
+
+// Triangle, and A from a keyboard: auto link on the config selector, or
+// remove the one standing; nothing anywhere else.
+function gpTriangle() {
+  var pick = configPickerOf(GP_FOCUS[GP_INDEX]);
+  if (!pick) return;
+  if (pick.id === 'cpick') pressBesidePicker(pick, 'auto');
+  else autoLinkToggle(pick.id.slice('pick-'.length));
+}
+
+// Advanced's Triangle: what 🗘 does in Simple and Quick, decided from the
+// claim the way paintCompact lights it. With no serial there is nothing to
+// remember the controller by, and with no config and no claim nothing to
+// set or remove. Removing asks first; setting asks when it replaces another
+// config's claim.
+function autoLinkToggle(ordinal) {
+  var d = deviceByOrdinal(ordinal);
+  if (!d) return;
+  var mySerial = normSerial(d.serial);
+  if (!mySerial) return;
+  var claimedBy = claimOf(mySerial);
+  var linked = d.linked_config || '';
+  if (claimedBy && (!linked || claimedBy.toLowerCase() === linked.toLowerCase())) {
+    stopAutoLink(claimedBy, mySerial, whoIs(d.ordinal));
+  } else if (linked) {
+    setAutoLink(d.ordinal, linked, mySerial, claimedBy);
+  }
 }
 
 // ⭐ A redraw must not move the page under you. renderTabs rebuilds panes with
@@ -7024,7 +7127,9 @@ var CONFIG_MODE_KEYS = {
   KeyE: function () { gpKeyCoarse(1); },
   Enter: function () { gpKeySelect(); },
   KeyZ: function () { gpKeyBack(); },
-  KeyX: function () { gpToggleManaged(); }
+  KeyX: function () { gpSquare(); },
+  // ⭐ Triangle, which reached nothing here until 2.66.84 (rebind.inl).
+  KeyY: function () { gpTriangle(); }
   // ⛔ NO KeyC. Create resizes the window now (rhoquinn8217, 2026-09-20) and
   // the listener reads it from the raw report, so it no longer sends a key --
   // see rebind.inl. It used to cycle compact and full, then after T-233 only
@@ -7126,6 +7231,12 @@ function compactMove(dx, dy) {
     var big = box.querySelector('button.cbig');
     if (big) topRow.push(big);
   }
+  // ⭐ Simple's rate limit (2.66.84) is a row of its own above the selector
+  // row: up from the config picker reaches it, and down from it lands on the
+  // picker by the rule below.
+  var rateRow = Array.prototype.slice.call(box.querySelectorAll('.crate select'))
+    .filter(function (e) { return !e.disabled; });
+  if (rateRow.length) rows.push(rateRow);
   if (topRow.length) rows.push(topRow);
   var foot = Array.prototype.slice.call(box.querySelectorAll('.cfoot button'));
   if (foot.length) rows.push(foot);
@@ -7886,6 +7997,13 @@ var PLAIN_KEYS = {
   Enter:      function () { gpKeySelect(); },
   Escape:     function () { gpKeyBack(); },
   Space:      function () { gpToggleManaged(); },
+  // ⭐ U UNLINKS AND A AUTO LINKS, on the config selector (2.66.84;
+  // rhoquinn8217, 2026-10-15: "U and A"). A letter typed into a name is
+  // still that letter: this handler returns early while a text box has
+  // focus, and on any modifier, so the pad's Ctrl+Alt+Shift+A (the d-pad's
+  // left) never arrives here.
+  KeyU:       function () { gpUnlink(); },
+  KeyA:       function () { gpTriangle(); },
 
   // ⭐⭐ Q AND E DID NOT WORK FROM A KEYBOARD, AND THE REASON WAS ONE LINE
   // (rhoquinn8217, 2026-09-24: *"I should mention that Q and E currently don't
@@ -8799,6 +8917,14 @@ function paintCompact() {
             side(prev, 'l', '\u25c2 ' + shoulder[0]) +
             '<div class="ccur"><div class="cname">' + esc(nameFor(d.ordinal)) +
             batteryTags(partsOf(d.ordinal)) + '</div>' +
+            // ⭐ THE POLLING RATE AND THE RATE LIMIT, IN SIMPLE, DIRECTLY
+            // UNDER THE NAME AND BATTERY (rhoquinn8217, 2026-10-15: "add
+            // polling rate and rate limit selector under controller nickname
+            // and battery in simple mode"; shown it under the model line,
+            // "under name and battery"). Advanced's own readout and
+            // dropdown, kept current by pollRates.
+            // ⓘ Not in Quick, whose window has no line to spare.
+            (QUICK ? '' : '<div class="crate">' + rateTags(partsOf(d.ordinal)) + '</div>') +
             // ⓘ The marks follow the model name here too, as on the tabs.
             '<div class="ckind"><span class="cklabel">' + esc(deviceLabelShort(d)) + '</span>' +
             deviceIcons(partsOf(d.ordinal)) + '</div></div>' +
@@ -8909,6 +9035,8 @@ function paintCompact() {
             // 2026-10-02: *"Add L1/R1 LB/RB and Q/E in the quick mode legend
             // also"*), following the input in hand like the ring's keys.
             LG.shoulder + ' controller | ' +
+            // ⭐ Square and Triangle on the config selector (2.66.84).
+            LG.unlink + ' unlink | ' + LG.autolink + ' auto link | ' +
             LG.position + ' position | ' + LG.resize + ' resize | ' +
             // ⓘ "to close", as Simple's says: Circle goes to Close now
             // (2026-10-02) rather than closing.
@@ -8921,6 +9049,8 @@ function paintCompact() {
             '<div class="clegend">' +
             LG.shoulder + ' controller | ' + LG.select + ' select | ' +
             LG.dpad + ' move | ' +
+            // ⭐ Square and Triangle on the config selector (2.66.84).
+            LG.unlink + ' unlink | ' + LG.autolink + ' auto link | ' +
             LG.position + ' position | ' + LG.resize + ' resize | ' +
             LG.close + ' to close</div>' +
             '<div class="cinfo" title="Click for the next tip" ' +
@@ -9044,7 +9174,7 @@ function gpPoll() {
     // person may not be using -- leaving the keys undiscoverable.
     // ⓘ T-247: no `keyboard —` prefix. The destination line to the right of
     // this one says what is reaching the page; this says only how to drive it.
-    hint.textContent = 'arrows move, Enter select, Esc back, Space on/off' +
+    hint.textContent = 'arrows move, Enter select, Esc back, Space on/off, A auto link' +
                        '   ·   press a controller button to use a pad';
     GP_HINT_SHOWN = null;
     bar.className = '';
@@ -9095,6 +9225,9 @@ function gpPoll() {
   var barChanged = false;
   var legend = LGA.shoulder + ' controller | ' + LGA.select +
                ' select | ' + LGA.dpad + ' move | ' + LGA.toggle + ' on/off | ' +
+               // ⭐ Triangle on the config selector (2.66.84). Square keeps
+               // on/off here, by their word, though it unlinks there too.
+               LGA.autolink + ' auto link | ' +
                LGA.position + ' position | ' + LGA.resize + ' resize | ' +
                LGA.close + ' footer/close';
   if (!GP_EDITING && GP_HINT_SHOWN !== legend) {
@@ -9273,7 +9406,8 @@ function gpPoll() {
   // window except inside a text box. ⓘ The page must not answer to a different
   // button depending on whether the pad arrived through the browser or the
   // listener's gate.
-  if (edge(2)) gpToggleManaged();    // square: managed / unmanaged
+  if (edge(2)) gpSquare();           // square: unlink on the selector, else managed
+  if (edge(3)) gpTriangle();         // triangle: auto link on the selector
 
   // ⛔ pressed(), NOT edge(). edge() WRITES GP_PREV as it reads, so calling it
   // here consumed the press and everything below saw nothing -- cross stopped
@@ -10027,6 +10161,122 @@ function selfTest() {
     ok('a device that takes no config is offered none',
        configsFor({ kind: 'hid', supports_config: false }).length === 0);
     CONFIGS = savedConfigs;
+  }
+
+  // 10. ⭐ SQUARE AND TRIANGLE ON THE CONFIG SELECTOR, AND U AND A (2.66.84).
+  //     Square presses Unlink beside the selector and Triangle the auto-link
+  //     button, or in Advanced decides from the claim. Stand-ins catch every
+  //     call, so nothing is unlinked or claimed for real.
+  {
+    ok('the legends: unlink and auto link are \u25a1 \u25b3, X Y, U A',
+       PAD_LEGEND_PS.unlink === '\u25a1' && PAD_LEGEND_PS.autolink === '\u25b3' &&
+       PAD_LEGEND_XBOX.unlink === 'X' && PAD_LEGEND_XBOX.autolink === 'Y' &&
+       KEY_LEGEND.unlink === 'U' && KEY_LEGEND.autolink === 'A');
+    ok('a keyboard: U unlinks, A auto links, Space still toggles, L does nothing',
+       String(PLAIN_KEYS.KeyU).indexOf('gpUnlink') >= 0 &&
+       String(PLAIN_KEYS.KeyA).indexOf('gpTriangle') >= 0 &&
+       String(PLAIN_KEYS.Space).indexOf('gpToggleManaged') >= 0 && !PLAIN_KEYS.KeyL);
+    ok('the pad through the listener: Square and Triangle',
+       String(CONFIG_MODE_KEYS.KeyX).indexOf('gpSquare') >= 0 &&
+       String(CONFIG_MODE_KEYS.KeyY).indexOf('gpTriangle') >= 0);
+
+    var keepFocus = GP_FOCUS, keepIndex = GP_INDEX, keepSelecting = GP_SELECTING;
+    var keepDevices = LAST_DEVICES, keepConfigs = CONFIGS;
+    var keepUnlink = window.unlinkConfirmed, keepStop = window.stopAutoLink,
+        keepSet = window.setAutoLink;
+    var calls = [];
+    window.unlinkConfirmed = function (o) { calls.push('unlink ' + o); };
+    window.stopAutoLink = function (c, s) { calls.push('stop ' + c + ' ' + s); };
+    window.setAutoLink = function (o, c, s, by) {
+      calls.push('set ' + o + ' ' + c + ' ' + s + ' ' + (by || '-'));
+    };
+    window.__selUnlink = 0;
+    window.__selAuto = 0;
+    try {
+      // Simple and Quick: the two buttons in the selector row.
+      var row = document.createElement('div');
+      var unlinkBtn = document.createElement('button');
+      unlinkBtn.className = 'cunlink-btn';
+      unlinkBtn.setAttribute('onclick', '__selUnlink++');
+      var cpick = document.createElement('select');
+      cpick.id = 'cpick';
+      var autoBtn = document.createElement('button');
+      autoBtn.className = 'cauto-btn';
+      autoBtn.setAttribute('onclick', '__selAuto++');
+      row.appendChild(unlinkBtn); row.appendChild(cpick); row.appendChild(autoBtn);
+      GP_FOCUS = [cpick]; GP_INDEX = 0; GP_SELECTING = null;
+      gpSquare();
+      ok('Simple and Quick: Square on the selector presses Unlink',
+         window.__selUnlink === 1 && window.__selAuto === 0);
+      gpUnlink();
+      ok('Simple and Quick: U does the same', window.__selUnlink === 2);
+      gpTriangle();
+      ok('Simple and Quick: Triangle presses the auto-link button',
+         window.__selAuto === 1 && window.__selUnlink === 2);
+      unlinkBtn.disabled = true;
+      gpSquare();
+      ok('a greyed Unlink is not pressed', window.__selUnlink === 2);
+      unlinkBtn.disabled = false;
+      GP_SELECTING = cpick;
+      gpSquare(); gpUnlink(); gpTriangle();
+      ok('nothing while the selector\'s list is open',
+         window.__selUnlink === 2 && window.__selAuto === 1);
+      GP_SELECTING = null;
+      var other = document.createElement('select');
+      other.id = 'modepick-test';
+      GP_FOCUS = [other];
+      gpUnlink(); gpTriangle();
+      ok('nothing on any other control',
+         window.__selUnlink === 2 && window.__selAuto === 1);
+
+      // Advanced: Unlink found by what it calls; Triangle decides from the
+      // claim, as the lit or unlit 🗘 does.
+      var arow = document.createElement('div');
+      var apick = document.createElement('select');
+      apick.id = 'pick-selftest_1';
+      var aunlink = document.createElement('button');
+      aunlink.setAttribute('onclick', "unlinkConfirmed('selftest_1')");
+      arow.appendChild(apick); arow.appendChild(aunlink);
+      GP_FOCUS = [apick]; GP_INDEX = 0;
+      gpSquare();
+      ok('Advanced: Square on the selector presses Unlink',
+         calls.join('|') === 'unlink selftest_1', calls.join('|'));
+      var pad = { ordinal: 'selftest_1', serial: 'AA:BB:CC:DD:EE:FF', linked_config: 'cfg_a' };
+      LAST_DEVICES = [pad];
+      var cases = [
+        ['linked and auto linked: remove it', 'cfg_a', [{ name: 'cfg_a', auto_link: ['aabbccddeeff'] }],
+         'stop cfg_a aabbccddeeff'],
+        ['linked, auto linked by nothing: set it', 'cfg_a', [{ name: 'cfg_a', auto_link: [] }],
+         'set selftest_1 cfg_a aabbccddeeff -'],
+        ['linked, another config auto links it: set, saying which it replaces', 'cfg_a',
+         [{ name: 'cfg_a', auto_link: [] }, { name: 'cfg_b', auto_link: ['aabbccddeeff'] }],
+         'set selftest_1 cfg_a aabbccddeeff cfg_b'],
+        ['no config, a claim standing: remove it', '',
+         [{ name: 'cfg_b', auto_link: ['aabbccddeeff'] }], 'stop cfg_b aabbccddeeff'],
+        ['no config, no claim: nothing', '', [{ name: 'cfg_b', auto_link: [] }], '']
+      ];
+      cases.forEach(function (c) {
+        calls = [];
+        pad.linked_config = c[1];
+        CONFIGS = c[2];
+        gpTriangle();
+        ok('Advanced Triangle, ' + c[0], calls.join('|') === c[3], calls.join('|'));
+      });
+      calls = [];
+      pad.serial = '';
+      pad.linked_config = 'cfg_a';
+      CONFIGS = [{ name: 'cfg_a', auto_link: [] }];
+      gpTriangle();
+      ok('Advanced Triangle, no serial: nothing to remember it by',
+         calls.length === 0, calls.join('|'));
+    } finally {
+      GP_FOCUS = keepFocus; GP_INDEX = keepIndex; GP_SELECTING = keepSelecting;
+      LAST_DEVICES = keepDevices; CONFIGS = keepConfigs;
+      window.unlinkConfirmed = keepUnlink; window.stopAutoLink = keepStop;
+      window.setAutoLink = keepSet;
+      delete window.__selUnlink;
+      delete window.__selAuto;
+    }
   }
 
   // Leave the page as it was found.

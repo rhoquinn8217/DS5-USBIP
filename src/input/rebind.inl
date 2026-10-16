@@ -298,7 +298,11 @@ inline const GateBinding kConfigModeKeys[] = {
     // integers have increment steps that beat typing a number from a sofa. So
     // the collision is nearly theoretical, and when it happens you notice and
     // step off the box.
-    { kBtnFaceLeft,  "KeyX",  CTM_GATE_MODS },   // square: toggle
+    { kBtnFaceLeft,  "KeyX",  CTM_GATE_MODS },   // square: toggle; unlink on the config selector
+    // ⭐ TRIANGLE REACHES THE PAGE (rhoquinn8217, 2026-10-15: "Pressing
+    // triangle when you are on the config selector auto links it, all
+    // modes"). It sent nothing here until then.
+    { kBtnFaceUp,    "KeyY",  CTM_GATE_MODS },   // triangle: auto link on the config selector
 };
 
 inline void apply(const void *deviceKey,
@@ -682,9 +686,11 @@ inline void apply(const void *deviceKey,
         }
 
         for (const GateBinding &g : kConfigModeKeys) {
-            // ⛔ Square belongs to the keyboard while a text box has focus;
-            // sending the toggle as well would do both.
-            if (g.standardIndex == kBtnFaceLeft && ctm_rebind_editing_field()) continue;
+            // ⛔ Square and Triangle belong to the keyboard while a text box
+            // has focus, where they are backspace and space; sending the
+            // page's keys as well would do both.
+            if ((g.standardIndex == kBtnFaceLeft || g.standardIndex == kBtnFaceUp) &&
+                ctm_rebind_editing_field()) continue;
             const bool held = is_pressed(*layout, data, len, g.standardIndex);
             // ⛔ Cleared whether or not it is held, so a button released this
             // frame cannot leave a stale bit behind.

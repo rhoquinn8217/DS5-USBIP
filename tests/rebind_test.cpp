@@ -505,6 +505,36 @@ int run_rebind_tests()
         CTM_CHECK(keys_are(kPadA, {0x28}));            // Enter
     }
 
+    section("config mode: Triangle types Ctrl+Shift+Alt+Y and Square Ctrl+Shift+Alt+X, for the config selector");
+    {
+        // ⓘ Triangle reached nothing here until the config selector gave it
+        // auto link; Square's X is the toggle it always was.
+        reset();
+        ctm_rebind_set_config_mode(true);
+        g_windowInFront = true;
+        const std::vector<uint8_t> out = send(kPadA, pressing({kBtnFaceUp}));
+        CTM_CHECK(keys_are(kPadA, {0x1c}));            // Y
+        CTM_CHECK_EQ(static_cast<int>(mods_of(kPadA)), 0x07);
+        CTM_CHECK(out == at_rest());
+        send(kPadA, pressing({kBtnFaceLeft}));
+        CTM_CHECK(keys_are(kPadA, {0x1b}));            // X
+    }
+
+    section("config mode: while a name is being typed, Triangle and Square type nothing for the page");
+    {
+        // ⓘ They are space and backspace on the virtual keyboard then, and
+        // a page key as well would do both.
+        reset();
+        ctm_rebind_set_config_mode(true);
+        g_windowInFront = true;
+        ctm_rebind_set_editing_field(true);
+        send(kPadA, pressing({kBtnFaceUp}));
+        CTM_CHECK(keys_are(kPadA, {}));
+        send(kPadA, pressing({kBtnFaceLeft}));
+        CTM_CHECK(keys_are(kPadA, {}));
+        ctm_rebind_set_editing_field(false);
+    }
+
     section("config mode: with the window behind, the pad works as it does in a game");
     {
         // ⓘ This returned before the bindings, so the game behind got the raw
