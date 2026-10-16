@@ -10,8 +10,8 @@
 > [Vibepollo](https://github.com/Nonary/Vibepollo) already support it and will
 > likely support speaker audio eventually. DS5-USBIP and
 > [rhoquinn8217/aurora-tv](https://github.com/rhoquinn8217/aurora-tv) already
-> have both, with DS5-USBIP working alongside Vibepollo, however the bridging
-> process is a required step that can mostly be automated.
+> have both, with DS5-USBIP working alongside Vibepollo, however controllers
+> require a bridging step which can mostly be automated.
 
 DS5-USBIP is a fork of [ciprianmisaila's
 CTM-USBIP](https://github.com/CTM-Bridge/CTM-USBIP) that offers a DualSense
@@ -59,7 +59,10 @@ those, or a [DS5Dongle](https://github.com/awalol/DS5Dongle) to stay wireless.
 2. Start rhoquinn8217/aurora-tv on the television.
 3. Turn on **Enable Device Bridging** in **Settings (⚙️) → USB Bridge**.
 4. Start the stream to the host.
-5. Press and hold the touchpad with two fingers for a second.
+5. The DualSense bridges itself. It is set to auto bridge by default, both at a
+   stream's start and when it connects during one.<br>
+   *To bridge by hand instead, or after unticking it under Auto Bridge: press
+   and hold the touchpad with two fingers for a second.*
 6. DS5-USBIP will open showing that the DualSense is natively connected.<br>
    *Optional (Recommended): Create and set a new "touchpad-to-mouse (DS5|DS4)"
    pre-set and try it out.*
