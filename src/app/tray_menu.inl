@@ -2,7 +2,8 @@
 //
 // ⭐ WHAT THE MENU IS (rhoquinn8217, 2026-10-02, in their order):
 //
-//     DS5-USBIP                      a title, larger and bold; choosing it
+//     DS5-USBIP v0.2.0 (N)           a title, larger and bold, the running
+//                                    build after it; choosing it
 //     2 devices connected            closes the menu. A count under it
 //     ----------------------------
 //     Devices                    >   one line per device; choosing one opens
@@ -42,9 +43,17 @@
 #include <string>
 #include <vector>
 
+#include "ctm/product.h"
+
 namespace tray_menu {
 
 inline const wchar_t *const kTitle = L"DS5-USBIP";
+// ⭐ WHICH BUILD IS RUNNING, BESIDE THE TITLE (rhoquinn8217, 2026-10-15: "I
+// want the version number next to the DS5-USBIP title in the menu tray";
+// with the v, as the Controller Configs window's title has it, and smaller
+// or lighter than the name). From product.h, as the tooltip's is, so the
+// two can never disagree.
+inline const wchar_t *const kVersion = L"v" PRODUCT_VERSION_DISPLAY;
 inline const wchar_t *const kDevices = L"Devices";
 inline const wchar_t *const kOpenConfig = L"Open Controller Configs";
 // ⭐ Where a person's configs are (rhoquinn8217, 2026-10-12): their own folder

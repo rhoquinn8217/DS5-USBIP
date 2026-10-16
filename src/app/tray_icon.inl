@@ -154,22 +154,37 @@ inline HBITMAP header_picture(const std::wstring &count, UINT dpi)
     LOGFONTW titleFace = countFace;
     titleFace.lfHeight = MulDiv(titleFace.lfHeight, 140, 100);
     titleFace.lfWeight = FW_BOLD;
+    // ⭐ The version after the title (tray_menu::kVersion): smaller than the
+    // menu's text, and drawn lighter below, so the name stays the title.
+    LOGFONTW versionFace = countFace;
+    versionFace.lfHeight = MulDiv(versionFace.lfHeight, 85, 100);
     const HFONT titleFont = CreateFontIndirectW(&titleFace);
     const HFONT countFont = CreateFontIndirectW(&countFace);
-    if (titleFont == nullptr || countFont == nullptr) {
+    const HFONT versionFont = CreateFontIndirectW(&versionFace);
+    if (titleFont == nullptr || countFont == nullptr || versionFont == nullptr) {
         if (titleFont != nullptr) DeleteObject(titleFont);
         if (countFont != nullptr) DeleteObject(countFont);
+        if (versionFont != nullptr) DeleteObject(versionFont);
         return nullptr;
     }
 
     const HDC screen = GetDC(nullptr);
     const HDC dc = CreateCompatibleDC(screen);
     const std::wstring title = tray_menu::kTitle;
-    SIZE titleSize = {}, countSize = {};
+    const std::wstring version = tray_menu::kVersion;
+    SIZE titleSize = {}, countSize = {}, versionSize = {};
+    TEXTMETRICW titleMetrics = {}, versionMetrics = {};
     HGDIOBJ oldFont = SelectObject(dc, titleFont);
     GetTextExtentPoint32W(dc, title.c_str(), static_cast<int>(title.size()), &titleSize);
+    GetTextMetricsW(dc, &titleMetrics);
     SelectObject(dc, countFont);
     GetTextExtentPoint32W(dc, count.c_str(), static_cast<int>(count.size()), &countSize);
+    SelectObject(dc, versionFont);
+    GetTextExtentPoint32W(dc, version.c_str(), static_cast<int>(version.size()), &versionSize);
+    GetTextMetricsW(dc, &versionMetrics);
+    // ⓘ The version sits a small gap after the name, on the name's baseline.
+    const int versionGap = MulDiv(6, dpi, 96);
+    const LONG titleLine = titleSize.cx + versionGap + versionSize.cx;
 
     // ⛔⛔ NEVER NARROWER THAN THE MENU'S WIDEST LINE, OR IT IS A BLACK BOX
     // (rhoquinn8217, 2026-10-02: *"the tray menu title is now a black box"*).
@@ -182,7 +197,7 @@ inline HBITMAP header_picture(const std::wstring &count, UINT dpi)
     // pointer's own highlight showing through.
     // ⓘ The lines are the main menu's, both of the keyboard's wordings among
     // them, measured in the menu's font, which is the count's.
-    LONG widest = titleSize.cx > countSize.cx ? titleSize.cx : countSize.cx;
+    LONG widest = titleLine > countSize.cx ? titleLine : countSize.cx;
     const std::wstring lines[] = {
         tray_menu::kDevices, tray_menu::kOpenConfig, tray_menu::keyboard_line(false),
         tray_menu::keyboard_line(true), tray_menu::kConfigMode, tray_menu::kRemoveOld,
@@ -217,6 +232,14 @@ inline HBITMAP header_picture(const std::wstring &count, UINT dpi)
         SetTextColor(dc, RGB(255, 255, 255));
         SelectObject(dc, titleFont);
         TextOutW(dc, 0, above, title.c_str(), static_cast<int>(title.size()));
+        // ⓘ Lighter by drawing it grey: the coverage below is the white's
+        // brightness, so this is the menu's ink at about 60%, in any theme.
+        SelectObject(dc, versionFont);
+        SetTextColor(dc, RGB(150, 150, 150));
+        TextOutW(dc, titleSize.cx + versionGap,
+                 above + titleMetrics.tmAscent - versionMetrics.tmAscent,
+                 version.c_str(), static_cast<int>(version.size()));
+        SetTextColor(dc, RGB(255, 255, 255));
         SelectObject(dc, countFont);
         TextOutW(dc, 0, above + titleSize.cy + between, count.c_str(), static_cast<int>(count.size()));
         GdiFlush();
@@ -240,6 +263,7 @@ inline HBITMAP header_picture(const std::wstring &count, UINT dpi)
     ReleaseDC(nullptr, screen);
     DeleteObject(titleFont);
     DeleteObject(countFont);
+    DeleteObject(versionFont);
     return picture;
 }
 
@@ -408,7 +432,8 @@ inline void show_menu(HWND hwnd)
     } else {
         // ⓘ No picture to be had: the same two lines in the menu's own font.
         // Smaller than asked for, and still there.
-        AppendMenuW(menu, MF_STRING, kIdHeader, tray_menu::kTitle);
+        const std::wstring titleLine = std::wstring(tray_menu::kTitle) + L" " + tray_menu::kVersion;
+        AppendMenuW(menu, MF_STRING, kIdHeader, titleLine.c_str());
         AppendMenuW(menu, MF_STRING, kIdHeader, count.c_str());
     }
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);

@@ -209,6 +209,10 @@ int run_tray_menu_tests()
         CTM_CHECK_EQ(narrow(tray_menu::kOpenOnBridge), std::string("Open on bridge"));
         CTM_CHECK_EQ(narrow(tray_menu::kOpenFolder), std::string("Open configs folder"));
         CTM_CHECK_EQ(narrow(tray_menu::kTitle), std::string("DS5-USBIP"));
+        // ⓘ The version beside it: a v, then the tooltip's own words for it,
+        // as the Controller Configs window's title has them.
+        CTM_CHECK_EQ(narrow(tray_menu::kVersion), std::string("v") + PRODUCT_VERSION_DISPLAY);
+        CTM_CHECK(narrow(tray_menu::kVersion).rfind("v" PRODUCT_VERSION " (", 0) == 0);
         CTM_CHECK_EQ(narrow(tray_menu::kQuit), std::string("Quit"));
     }
 
