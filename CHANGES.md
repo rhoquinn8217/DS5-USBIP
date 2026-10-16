@@ -160,6 +160,7 @@ carry it; upstream's own history is unchanged.
 | 2026-10-14 | The touchpad: lifting the finger no longer moves the cursor off the spot. A finger rolls as it leaves the pad and the cursor followed the roll, so the tap after it clicked beside the target. When the last finger lifts after pointing, the cursor goes back to where it was 60 ms before, if the finger was nearly still just before that; a flick keeps its place, and a press-and-drag drops where the finger stopped | `66ec88b`, merge `1766525` |
 | 2026-10-15 | Open on bridge is off until it is turned on, so a DualSense the TV bridges by itself opens no Controller Configs window; an existing install is turned off once, and a choice made after that is kept. | `9517637` |
 | 2026-10-15 | The touchpad: double tap and hold drags (`touchpad_double_tap_drag`). With it on, a single tap clicks 0.3 s late, held back so the next touch can still become the drag; a touch that lands in that time near the tap, rests 150 ms and then slides holds the tap's button until the last finger lifts; sliding sooner points, the tap's click sent first, so a window's X still closes; a second tap that lifts first is a double-click. Windows makes a double-click on the second press, which is why the click has to wait | `aed7dcf`, `37799cd`, `c79a85f`, `7d5e182`, merge `746cca9` |
+| 2026-10-15 | The tray menu's title shows the running build: DS5-USBIP, then v0.2.0 (N), smaller than the menu's text and lighter, on the title's baseline. It is the version the tooltip and the Controller Configs window's title show, from `product.h` | `1ba7db9`, merge `df5d61e` |
 
 ## Files changed
 
@@ -171,7 +172,7 @@ ENet library, removed with the ENet transport).
 ```
  .gitattributes                                |    48 +
  .gitignore                                    |    41 +-
- CHANGES.md                                    |   383 +
+ CHANGES.md                                    |   384 +
  LINK                                          |     0
  README.md                                     |   297 +-
  app/compatibility.manifest                    |    27 +
@@ -257,8 +258,8 @@ ENet library, removed with the ENet transport).
  src/app/stream_start.inl                      |   159 +
  src/app/taskbar_back.inl                      |   169 +
  src/app/taskbar_rule.inl                      |    64 +
- src/app/tray_icon.inl                         |   778 ++
- src/app/tray_menu.inl                         |   184 +
+ src/app/tray_icon.inl                         |   803 ++
+ src/app/tray_menu.inl                         |   193 +
  src/app/tv_sessions.inl                       |   162 +
  src/app/ui_page.inl                           |   140 +
  src/app/window_icon.inl                       |   242 +
@@ -364,7 +365,7 @@ ENet library, removed with the ENet transport).
  tests/taskbar_rule_test.cpp                   |    46 +
  tests/tests_main.cpp                          |   181 +
  tests/touch_mouse_test.cpp                    |  2095 +++++
- tests/tray_menu_test.cpp                      |   216 +
+ tests/tray_menu_test.cpp                      |   220 +
  tests/trigger_click_test.cpp                  |   901 +++
  tests/trigger_effect_test.cpp                 |   529 ++
  tests/tv_sessions_test.cpp                    |   191 +
@@ -379,5 +380,5 @@ ENet library, removed with the ENet transport).
  tools/create-desktop-shortcut.bat             |    46 +
  tools/create-desktop-shortcut.ps1             |   148 +
  tools/osk-mockups.py                          |   103 +
- 210 files changed, 60270 insertions(+), 1568 deletions(-)
+ 210 files changed, 60309 insertions(+), 1568 deletions(-)
 ```
