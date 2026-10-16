@@ -180,6 +180,18 @@ constexpr long kDoubleTapNearPx = 16;
 // the tap's click never sent; lifting first makes it a tap, and both clicks
 // go, the double-click it always was.
 constexpr long long kTapDragMs = 300;
+// ⭐⭐ AND THE HOLD IN "DOUBLE TAP AND HOLD" IS REAL (rhoquinn8217, 2026-10-15).
+// Any movement made the armed touch the drag, and two things a person does
+// all the time became drags they did not mean: tapping a window's X and
+// sliding away at once ("it registers that as a drag, the window doesn't
+// close and I create a rectangle selection": the finger slid 3 to 59 ms
+// after landing), and a quick second tap that rolled 19 to 35 units, past
+// kStillUnits, which as a drag that never moved was ONE click, no double.
+// ➡️ So the touch must rest inside kStillUnits for this long before it
+// slides to become the drag. Sliding sooner is pointing: the tap's click
+// goes first, where it was, and the cursor moves. A starting value, on their
+// "lets try it and see"; the log's line says when each touch slid.
+constexpr long long kTapDragHoldMs = 150;
 
 // ⭐ A FINGER LIFTED MID-STROKE IS PART OF THE SCROLL (2026-09-30). Between
 // strokes, the Edge reports the finger left behind sliding toward the other as
@@ -1315,17 +1327,25 @@ inline void step(const void *deviceKey, const std::string &section,
         }
     }
 
-    // ⭐ AN ARMED TOUCH DECIDES (kTapDragMs). Moving past kStillUnits, or staying
-    // down past kTapMaxMs, makes it the hold: the tap's click is never sent, and
-    // the button goes down once, here, where the tap clicked and before this
-    // report moves the cursor, and stays down until the last finger lifts. A
-    // second finger, or the setting gone, makes it something else, and the
-    // tap's click goes.
+    // ⭐ AN ARMED TOUCH DECIDES AS IT SLIDES (kTapDragMs, kTapDragHoldMs). Having
+    // rested inside kStillUnits for kTapDragHoldMs, sliding makes it the hold:
+    // the tap's click is never sent, and the button goes down once, here, where
+    // the tap clicked and before this report moves the cursor, until the last
+    // finger lifts. Sliding sooner is pointing: the tap's click goes now, where
+    // it was, and the cursor follows. A second finger, or the setting gone,
+    // makes it something else, and the click goes. Lifting first: see the lift.
     if (st.tapDragArmed && (fingers >= 2 || !tapDragOn)) {
         fire_click(st);
     } else if (st.tapDragArmed && fingers == 1 &&
-               (travel_from(st.stillX0, st.stillY0, only) > kStillUnits ||
-                nowMs - st.sessionStart > kTapMaxMs)) {
+               travel_from(st.stillX0, st.stillY0, only) > kStillUnits &&
+               nowMs - st.sessionStart < kTapDragHoldMs) {
+        device_log::input(device_log::msg()
+            << "[touch] double tap and hold: slid " << (nowMs - st.sessionStart)
+            << "ms into the touch, before the hold: pointing, the tap's click sent");
+        fire_click(st);
+        st.mTap = "slid";
+    } else if (st.tapDragArmed && fingers == 1 &&
+               travel_from(st.stillX0, st.stillY0, only) > kStillUnits) {
         binding::Target held;
         held.kind = binding::kMouseButton;
         held.mouseMask = st.clickMask;
@@ -1421,7 +1441,9 @@ inline void step(const void *deviceKey, const std::string &section,
             if (st.pressStill && travel_from(st.pressX0, st.pressY0, only) > kStillUnits) {
                 st.pressStill = false;
             }
-            const bool still = st.pressStill ||
+            // ⓘ And an armed touch, until it has decided (kTapDragHoldMs): a
+            // drag's press has to land where the tap clicked.
+            const bool still = st.pressStill || st.tapDragArmed ||
                                (tapsOn && !st.cursorLive && (nowMs - st.sessionStart) <= kTapMaxMs);
             const int step = travel_from(st.lastX, st.lastY, only);
             if (still) {

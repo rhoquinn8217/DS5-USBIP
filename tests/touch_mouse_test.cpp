@@ -941,21 +941,21 @@ int run_touch_mouse_tests()
         run_step(r, 260);
         CTM_CHECK_EQ(static_cast<int>(g_dragMask), 0x00);   // no press yet: Windows would
                                                             // call it a double-click
-        set_point(r, 0, true, 2, 315, 300);      // inside the still zone
-        run_step(r, 270);
+        set_point(r, 0, true, 2, 315, 300);      // resting, inside the still zone
+        for (int t = 270; t <= 400; t += 10) run_step(r, t);
         CTM_CHECK_EQ(static_cast<int>(g_dragMask), 0x00);
         CTM_CHECK_EQ(static_cast<int>(g_cursorX), 1000);
-        set_point(r, 0, true, 2, 325, 300);      // past it: the press, where the tap was
-        run_step(r, 280);
+        set_point(r, 0, true, 2, 325, 300);      // past it after the hold: the press
+        run_step(r, 411);
         CTM_CHECK_EQ(static_cast<int>(g_dragMask), 0x01);
         for (int i = 3; i <= 15; ++i) {
             set_point(r, 0, true, 2, 305 + 10 * i, 300);
-            run_step(r, 260 + 10 * i);
+            run_step(r, 401 + 10 * i);
         }
         CTM_CHECK(g_cursorX > 1100);             // dragging
         CTM_CHECK_EQ(static_cast<int>(g_dragMask), 0x01);
         set_point(r, 0, false, 2, 455, 300);
-        run_step(r, 420);
+        run_step(r, 560);
         CTM_CHECK_EQ(static_cast<int>(g_dragMask), 0x00);
         CTM_CHECK_EQ(g_clickCount, 0);           // the tap's click became the press
         run_step(r, 800);
@@ -1076,11 +1076,12 @@ int run_touch_mouse_tests()
         run_step(r, 60);
         set_point(r, 0, true, 2, 305, 300);
         run_step(r, 200);
+        run_step(r, 300);
         set_point(r, 0, true, 2, 330, 300);
-        run_step(r, 210);
+        run_step(r, 360);
         CTM_CHECK_EQ(static_cast<int>(g_dragMask), 0x01);
         g_cfg.erase("touchpad_double_tap_drag");
-        run_step(r, 220);
+        run_step(r, 370);
         CTM_CHECK_EQ(static_cast<int>(g_dragMask), 0x00);
     }
 
@@ -1103,7 +1104,7 @@ int run_touch_mouse_tests()
         CTM_CHECK_EQ(static_cast<int>(g_lastClick), 0x01);
     }
 
-    section("touch: a second touch held still becomes the hold after 0.4 s");
+    section("touch: a second touch held still, then slid, drags; nothing is pressed while it rests");
     {
         reset_stubs();
         fresh_device();
@@ -1121,11 +1122,76 @@ int run_touch_mouse_tests()
         CTM_CHECK_EQ(static_cast<int>(g_dragMask), 0x00);
         CTM_CHECK_EQ(g_clickCount, 0);           // still deciding, and nothing sent
         run_step(r, 601);
-        CTM_CHECK_EQ(static_cast<int>(g_dragMask), 0x01);
-        set_point(r, 0, false, 2, 302, 300);
+        CTM_CHECK_EQ(static_cast<int>(g_dragMask), 0x00);   // no press by time alone
+        set_point(r, 0, true, 2, 330, 300);
+        run_step(r, 620);
+        CTM_CHECK_EQ(static_cast<int>(g_dragMask), 0x01);   // slid after resting: the drag
+        set_point(r, 0, false, 2, 330, 300);
         run_step(r, 900);
         CTM_CHECK_EQ(static_cast<int>(g_dragMask), 0x00);
         CTM_CHECK_EQ(g_clickCount, 0);
+    }
+
+    section("touch: tap, then touch and slide away at once, points, and the tap clicks first");
+    {
+        // rhoquinn8217, 2026-10-15: tapping a window's X and sliding away
+        // dragged the X instead of clicking it.
+        reset_stubs();
+        fresh_device();
+        g_cfg["touchpad_to_mouse"] = "true";
+        g_cfg["touchpad_one_finger_tap"] = "MouseLeft";
+        g_cfg["touchpad_double_tap_drag"] = "true";
+        g_cursorX = 1000;
+        g_cursorY = 500;
+        auto r = rest_report();
+        set_point(r, 0, true, 1, 300, 300);      // the tap on the X
+        run_step(r, 0);
+        set_point(r, 0, false, 1, 300, 300);
+        run_step(r, 60);
+        set_point(r, 0, true, 2, 305, 300);      // 200 ms later, a touch that slides at once
+        run_step(r, 260);
+        set_point(r, 0, true, 2, 330, 300);
+        run_step(r, 270);
+        CTM_CHECK_EQ(g_clickCount, 1);           // the X's click, where it was
+        CTM_CHECK_EQ(static_cast<int>(g_dragMask), 0x00);
+        for (int i = 1; i <= 15; ++i) {
+            set_point(r, 0, true, 2, 330 + 10 * i, 300);
+            run_step(r, 270 + 10 * i);
+        }
+        CTM_CHECK(g_cursorX > 1100);             // and it pointed away
+        CTM_CHECK_EQ(static_cast<int>(g_dragMask), 0x00);
+        set_point(r, 0, false, 2, 480, 300);
+        run_step(r, 430);
+        run_step(r, 900);
+        CTM_CHECK_EQ(g_clickCount, 1);           // and nothing more
+    }
+
+    section("touch: a quick second tap that rolls is still a double-click");
+    {
+        reset_stubs();
+        fresh_device();
+        g_cfg["touchpad_to_mouse"] = "true";
+        g_cfg["touchpad_one_finger_tap"] = "MouseLeft";
+        g_cfg["touchpad_double_tap_drag"] = "true";
+        g_cursorX = 1000;
+        g_cursorY = 500;
+        auto r = rest_report();
+        set_point(r, 0, true, 1, 300, 300);
+        run_step(r, 0);
+        set_point(r, 0, false, 1, 300, 300);
+        run_step(r, 60);
+        set_point(r, 0, true, 2, 302, 301);
+        run_step(r, 200);
+        set_point(r, 0, true, 2, 330, 305);      // a 28-unit roll, 30 ms in
+        run_step(r, 230);
+        set_point(r, 0, false, 2, 330, 305);
+        run_step(r, 260);
+        run_step(r, 300);
+        CTM_CHECK_EQ(g_clickCount, 2);           // a double-click
+        CTM_CHECK_EQ(static_cast<int>(g_dragMask), 0x00);
+        CTM_CHECK_EQ(static_cast<int>(g_dropX), -1);       // and never a press
+        CTM_CHECK_EQ(static_cast<int>(g_cursorX), 1000);   // on the first click's spot
+        CTM_CHECK(g_clickTimes.size() == 2 && g_clickTimes[1] > g_clickTimes[0]);
     }
 
     section("touch: a second finger on the armed touch lets the tap's click go");
