@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.84 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.85 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,19 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.85 Quick's config selector no longer opens. Outside the footer
+            it is the only stop: the d-pad's up and down, the arrow keys
+            and the mouse wheel step it straight to the next config,
+            which links once the steps stop, and Cross or Enter on it
+            opens the rate limit, which sits to the right of the device
+            type. Quick's Unlink and auto-link buttons are gone (Square
+            and Triangle still do both, now without a button to press),
+            and its footer is reached only by Circle or Esc, as
+            Advanced's is, landing on Close. Simple's rate line moves
+            under the device type. Quick's legend names the two presses:
+            "⇅ config" in every set, and "polling limit" after ✕, A or
+            Enter. A switch of layout made from inside a footer leaves it
+            behind.
     2.66.84 On the config selector, in every layout, Square unlinks the
             controller, as Unlink beside it does, and Triangle auto links
             it or, when it already auto links, removes that, asking
@@ -1386,10 +1399,21 @@
                        display:flex; align-items:center; justify-content:center;
                        flex-wrap:wrap; }
   #compactBox .ckind { font-size:4.5vh; color:#71737c; text-align:center; margin-top:0.8vh; }
-  /* ⭐ Simple's polling rate and rate limit, directly under the name and
-     battery (2.66.84): at the footer buttons' size, the dropdown as wide as
-     its words rather than the config selector's 47vw. */
-  #compactBox .crate { font-size:3.4vh; color:#c8c9ce; text-align:center; margin-top:0.6vh; }
+  /* ⭐ Simple's polling rate and rate limit, under the device type (2.66.85;
+     2.66.84 had them under the name): at the footer buttons' size, the
+     dropdown as wide as its words rather than the config selector's 47vw. */
+  #compactBox .crate { font-size:3.4vh; color:#c8c9ce; text-align:center; margin-top:1.2vh; }
+  /* ⭐ Quick's, to the right of the device type (2.66.85): smaller than the
+     line, and never the part that gives way; the model name shortens first.
+     ⓘ Its select is out of reach of Quick's own rule for selects, which is
+     the config selector's size. */
+  #compactBox .ckind .crate-q { flex:0 0 auto; margin-left:0.5em; font-size:0.62em;
+                              color:#c8c9ce; align-self:center; }
+  body.quick #compactBox .ckind .crate-q select { font-size:1em; padding:0.15em 0.4em;
+                                                 min-width:0; max-width:none; }
+  /* ⭐ Quick's footer zone (2.66.85), lit while Circle has the pad in it, as
+     Advanced's bar is. */
+  #compactBox .cbar.gp-zone { background:#22252e; border-top-color:#6c8cff; }
   #compactBox .crate select { font-size:3.4vh; padding:0.5vh 1vw; min-width:0; }
   /* ⓘ Two thirds of what it was (rhoquinn8217, 2026-09-09). */
   #compactBox select { font-size:4.2vh; padding:0.8vh 1.4vw; min-width:47vw; }
@@ -1989,7 +2013,7 @@
        ⓘ The same number as VERSION at the top of this file, by hand. It sat
        at 2.66.4 for thirty-four versions while VERSION moved on. -->
   <label class="muted">version</label>
-  <span class="barCell"><span class="fixedField" id="pageVersion" title="This page's version. The program's own is in the window's title.">2.66.84</span></span>
+  <span class="barCell"><span class="fixedField" id="pageVersion" title="This page's version. The program's own is in the window's title.">2.66.85</span></span>
   <label class="muted" for="base">agent</label>
   <span class="barCell">
   <input id="base" value="http://127.0.0.1:48053" size="26">
@@ -3088,8 +3112,13 @@ function rateTag(d) {
                 'it arrives. A number is a ' +
                 'ceiling: a report that comes early waits for its turn, and the newest ' +
                 'always wins, so nothing piles up.');
+    // ⓘ The compact views' mouse handling, as their config selector has: in
+    // Simple and Quick a click opens it in the window, as the pad does,
+    // rather than as a native list unrolling past the window's edge.
+    // pickerActivate leaves Advanced's tables their native dropdown.
     html += ' / <select data-ord="' + esc(String(d.ordinal)) + '" title="' + esc(title) + '"' +
-            (lock ? ' disabled' : '') + ' onchange="setRateLimit(this)">' + opts + '</select>';
+            (lock ? ' disabled' : '') + ' onmousedown="pickerActivate(event,this)"' +
+            ' onclick="pickerClickEnd(this)" onchange="setRateLimit(this)">' + opts + '</select>';
   }
   return html + '</span>';
 }
@@ -3334,6 +3363,10 @@ function deviceIcons(parts) {
 // of a fallback font and look wrong beside the rest.
 var PAD_LEGEND_PS = {
   // ⭐ On the config selector (2.66.84): Square unlinks, Triangle auto links.
+  // ⭐ ⇅ IS QUICK'S CONFIG STEP, THE SAME MARK IN ALL THREE SETS (2.66.85;
+  // rhoquinn8217, 2026-10-16: "⇅ config - should be clear for ps, xbox and
+  // keyboard"): the d-pad's up and down, the stick's, the arrow keys.
+  updown: '\u21c5',
   unlink: '\u25a1', autolink: '\u25b3',
   select: '\u2715', close: '\u25cb', toggle: '\u25a1',
   resize: '\\|/', position: '\u2630', shoulder: 'L1/R1',
@@ -3343,7 +3376,7 @@ var PAD_LEGEND_PS = {
   dpad: '\u271c'
 };
 var PAD_LEGEND_XBOX = {
-  unlink: 'X', autolink: 'Y',
+  unlink: 'X', autolink: 'Y', updown: '\u21c5',
   select: 'A', close: 'B', toggle: 'X',
   // ⭐⭐ THE MARKS ON THE BUTTONS, NOT THEIR NAMES (rhoquinn8217,
   // 2026-09-21). ⓘ View is the two-rectangles button and Menu the
@@ -3846,7 +3879,7 @@ function isBindingKey(key) {
 var KEY_LEGEND = {
   // ⭐ U AND A, THEIR FIRST LETTERS, AS P AND R ARE (rhoquinn8217,
   // 2026-10-15: "U and A", over Space and L). Space stays on/off.
-  unlink: 'U', autolink: 'A',
+  unlink: 'U', autolink: 'A', updown: '\u21c5',
   select: 'Enter', close: 'Esc', toggle: 'Space',
   resize: 'R', position: 'P', shoulder: 'Q/E',
   dpad: '\u2725'
@@ -5420,37 +5453,26 @@ function gpToggleManaged() {
 // ⭐⭐ SQUARE AND TRIANGLE ON THE CONFIG SELECTOR (rhoquinn8217, 2026-10-15:
 // "Pressing square when you are on the config selector unlinks it, all
 // modes" and "Pressing triangle when you are on the config selector auto
-// links it, all modes"). Each PRESSES THE BUTTON BESIDE THE SELECTOR, so it
-// does what that button does, asks what it asks, and does nothing while it is
-// greyed: Unlink for Square, and for Triangle the auto-link button, 🗘 in
-// Simple and Quick, which sets the auto link or, lit, removes it, asking
-// first.
+// links it, all modes"). Square does what Unlink does, and asks nothing, as a
+// pick of "(no config)" asks nothing; Triangle does what the 🗘 button does in
+// Simple, deciding from the claim: it sets the auto link, or, when one is
+// standing, removes it, asking first.
 // ⭐ ADVANCED TOGGLES TOO (rhoquinn8217, 2026-10-15: "remove it also in
-// advanced"). Its Set auto link only ever sets, and Remove auto link sits
-// in the row above, so Triangle there reads the claim itself
-// (autoLinkToggle) rather than pressing either.
+// advanced"), though its Set auto link only ever sets.
+// ⭐ AND THEY PRESS NO BUTTON (2.66.85). 2.66.84 pressed the button beside
+// the selector; Quick then lost both buttons (rhoquinn8217, 2026-10-16:
+// "remove unlink and auto link buttons in quick mode"), so the two act on the
+// controller themselves, in every layout, with the decisions the buttons make.
 // ⓘ Not while the selector's list is open: a choice half made is not the
-// config either button acts on.
-// ⓘ The button's own handler is called rather than a click sent, because a
-// click moves the pad's halo to what was clicked, and the halo should stay
-// on the selector it was pressed on.
-function configPickerOf(el) {
-  if (!el || el.tagName !== 'SELECT' || el === GP_SELECTING) return null;
-  if (el.id === 'cpick' || el.id.indexOf('pick-') === 0) return el;
-  return null;
-}
+// config either acts on.
 
-// ⓘ Advanced's Unlink is found by what it calls: it carries no class, and
-// its greyed form calls nothing, so a greyed one is never found.
-function pressBesidePicker(pick, which) {
-  var row = pick.parentNode;
-  if (!row) return;
-  var want = pick.id === 'cpick'
-    ? (which === 'unlink' ? 'button.cunlink-btn' : 'button.cauto-btn')
-    : 'button[onclick^="unlinkConfirmed("]';
-  var btn = row.querySelector(want);
-  if (!btn || btn.disabled || typeof btn.onclick !== 'function') return;
-  btn.onclick.call(btn);
+// The controller a config selector belongs to, or '' when `el` is not one:
+// Simple's and Quick's carry it in data-ordinal, Advanced's in its id.
+function pickerOrdinalOf(el) {
+  if (!el || el.tagName !== 'SELECT' || el === GP_SELECTING) return '';
+  if (el.id === 'cpick') return (el.dataset && el.dataset.ordinal) || '';
+  if (el.id.indexOf('pick-') === 0) return el.id.slice('pick-'.length);
+  return '';
 }
 
 // Square: unlink on the config selector, the setting's managed box anywhere
@@ -5463,38 +5485,143 @@ function gpSquare() {
 // keyboard. True when the halo was on a selector, whether or not there was
 // a config to unlink.
 function gpUnlink() {
-  var pick = configPickerOf(GP_FOCUS[GP_INDEX]);
-  if (!pick) return false;
-  pressBesidePicker(pick, 'unlink');
+  var ord = pickerOrdinalOf(GP_FOCUS[GP_INDEX]);
+  if (!ord) return false;
+  // ⓘ A Quick step not yet linked is dropped: unlinking is what was asked.
+  if (QUICK_WANT && QUICK_WANT.ordinal === ord) {
+    clearTimeout(QUICK_WANT_TIMER);
+    QUICK_WANT_TIMER = null;
+    QUICK_WANT = null;
+  }
+  var d = deviceByOrdinal(ord);
+  if (d && d.linked_config) unlinkConfirmed(d.ordinal);
   return true;
 }
 
 // Triangle, and A from a keyboard: auto link on the config selector, or
 // remove the one standing; nothing anywhere else.
 function gpTriangle() {
-  var pick = configPickerOf(GP_FOCUS[GP_INDEX]);
-  if (!pick) return;
-  if (pick.id === 'cpick') pressBesidePicker(pick, 'auto');
-  else autoLinkToggle(pick.id.slice('pick-'.length));
+  var ord = pickerOrdinalOf(GP_FOCUS[GP_INDEX]);
+  if (!ord) return;
+  // ⓘ A Quick step not yet linked goes first, so the claim is for the config
+  // on screen.
+  quickLinkNow();
+  autoLinkToggle(ord);
 }
 
-// Advanced's Triangle: what 🗘 does in Simple and Quick, decided from the
-// claim the way paintCompact lights it. With no serial there is nothing to
-// remember the controller by, and with no config and no claim nothing to
-// set or remove. Removing asks first; setting asks when it replaces another
-// config's claim.
+// What 🗘 does, decided from the claim the way paintCompact lights it. With no
+// serial there is nothing to remember the controller by, and with no config
+// and no claim nothing to set or remove. Removing asks first; setting asks
+// when it replaces another config's claim. The question names the controller
+// as each layout's own button does: by nickname in Simple and Quick, with its
+// serial in Advanced.
 function autoLinkToggle(ordinal) {
   var d = deviceByOrdinal(ordinal);
   if (!d) return;
   var mySerial = normSerial(d.serial);
   if (!mySerial) return;
   var claimedBy = claimOf(mySerial);
-  var linked = d.linked_config || '';
+  var linked = COMPACT ? quickShown(d) : (d.linked_config || '');
   if (claimedBy && (!linked || claimedBy.toLowerCase() === linked.toLowerCase())) {
-    stopAutoLink(claimedBy, mySerial, whoIs(d.ordinal));
+    stopAutoLink(claimedBy, mySerial, COMPACT ? nameFor(d.ordinal) : whoIs(d.ordinal));
   } else if (linked) {
     setAutoLink(d.ordinal, linked, mySerial, claimedBy);
   }
+}
+
+// ⭐⭐ QUICK'S CONFIG SELECTOR STEPS; IT NEVER OPENS (rhoquinn8217,
+// 2026-10-16: "The config is not a selection box that you press x/enter or A
+// to enter. When you are not in the footer area, focus goes to the selection
+// box and only up and down arrow/key work to switch to a config. Mouse scroll
+// will also move up or down on the config selector. It doesn't expand.
+// Pressing x opens the polling limit selector.").
+// ⓘ Outside the footer zone the selector is Quick's only stop, so the d-pad's
+// up and down, the arrow keys and the wheel step it at once, wrapping through
+// "(no config)" as the opened list did. The link follows when the steps stop
+// (QUICK_LINK_MS), so a run of steps gives the pad one config rather than
+// each in turn, and until the listener has it the selector shows the step
+// (quickShown) rather than snapping back on the next poll.
+var QUICK_LINK_MS = 350;
+var QUICK_WANT = null;        // { ordinal, config, at }: stepped to, not yet seen linked
+var QUICK_WANT_TIMER = null;
+var QUICK_WHEEL = 0;          // the wheel's travel since its last step
+
+// What Quick's selector shows for this controller: a step on its way, or what
+// the listener says is linked. A step is let go once the listener agrees, or
+// after five seconds, in case the link never landed.
+function quickShown(d) {
+  if (QUICK_WANT && QUICK_WANT.ordinal === d.ordinal) {
+    var agreed = !QUICK_WANT_TIMER && (d.linked_config || '') === QUICK_WANT.config;
+    if (!agreed && Date.now() - QUICK_WANT.at < 5000) return QUICK_WANT.config;
+    QUICK_WANT = null;
+  }
+  return d.linked_config || '';
+}
+
+// Up or down in Quick, outside the footer zone and anything open: one step.
+// True when it was taken, so the caller does not also move the halo.
+function quickVertical(delta) {
+  if (!COMPACT || !QUICK || FOOTER_MODE || GP_SELECTING || GP_EDITING ||
+      CONFIRM_CB || RENAMING || PRESET_OPEN || PRESET_INFO_OPEN) return false;
+  var sel = document.getElementById('cpick');
+  if (!sel) return false;
+  quickStepConfig(sel, delta);
+  return true;
+}
+
+function quickStepConfig(sel, delta) {
+  focusElement(sel);
+  var n = sel.options.length;
+  if (n < 2) return;
+  sel.selectedIndex = (sel.selectedIndex + delta + n) % n;
+  QUICK_WANT = { ordinal: sel.getAttribute('data-ordinal') || '', config: sel.value,
+                 at: Date.now() };
+  clearTimeout(QUICK_WANT_TIMER);
+  QUICK_WANT_TIMER = setTimeout(quickLinkWanted, QUICK_LINK_MS);
+}
+
+// The step's link, once the steps stop: compactPick's, from what was stepped
+// to rather than from the selector, which may have been painted again since.
+function quickLinkWanted() {
+  QUICK_WANT_TIMER = null;
+  var want = QUICK_WANT;
+  if (!want) return;
+  linkParts(want.ordinal, want.config ? { config: want.config } : {})
+    .then(function () { loadDevices(); loadConfigs(); })
+    .catch(function () {
+      if (QUICK_WANT === want) QUICK_WANT = null;
+      paintCompact();
+    });
+}
+
+// A step taken but not yet linked goes now: Triangle and a change of
+// controller act on the config on screen, not on the one before it.
+function quickLinkNow() {
+  if (!QUICK_WANT_TIMER) return;
+  clearTimeout(QUICK_WANT_TIMER);
+  quickLinkWanted();
+}
+
+// The wheel over Quick's selector: a step per notch, whatever size a mouse
+// reports a notch as, and a touchpad's fine travel adding up the same way.
+function quickWheel(ev) {
+  if (!COMPACT || !QUICK) return;
+  ev.preventDefault();
+  QUICK_WHEEL += ev.deltaMode === 1 ? ev.deltaY * 33 : ev.deltaY;
+  if (Math.abs(QUICK_WHEEL) < 50) return;
+  var dir = QUICK_WHEEL > 0 ? 1 : -1;
+  QUICK_WHEEL = 0;
+  var sel = document.getElementById('cpick');
+  if (sel) quickStepConfig(sel, dir);
+}
+
+// Quick's rate limit, to the right of the device type: what Cross on the
+// config selector opens. The first one that can be used, for a device in
+// several parts.
+function quickRateSelect() {
+  var all = document.querySelectorAll('#compactBox .crate-q select');
+  for (var i = 0; i < all.length; i++) if (!all[i].disabled) return all[i];
+  return null;
 }
 
 // ⭐ A redraw must not move the page under you. renderTabs rebuilds panes with
@@ -6172,7 +6299,13 @@ function gpCollect() {
     // had always said 'select, button' and was the clue for both. Anywhere a
     // focus list is gathered by tag, a new control of a different tag is
     // invisible to it and nothing errors.
-    document.querySelectorAll('#gpbar button, #gpbar select').forEach(function(e) { list.push(e); });
+    // ⭐ Quick's zone is the bar in its compact box (2.66.85), by the same
+    // reach as compactMove's.
+    var zone = (COMPACT && QUICK)
+      ? '#compactBox .cbar > button, #compactBox .cbar > select, ' +
+        '#compactBox .cbar > .cgroup > select, #compactBox .cbar > .cgroup > button'
+      : '#gpbar button, #gpbar select';
+    document.querySelectorAll(zone).forEach(function(e) { list.push(e); });
     GP_FOCUS = list;
     if (GP_INDEX >= list.length) GP_INDEX = 0;
     gpPaint();
@@ -6232,6 +6365,8 @@ function gpCollect() {
     top.querySelectorAll('button, select, input').forEach(function(e) {
       if (e.offsetParent === null || e.disabled || e.type === 'checkbox') return;
       if (e.closest && e.closest('#tabs')) return;   // L1/R1 own the tabs
+      // ⭐ Quick's footer is Circle's alone (2.66.85).
+      if (COMPACT && QUICK && e.closest && e.closest('#compactBox .cbar')) return;
       if (e.closest && e.closest('.prate')) { lateInHead.push(e); return; }
       list.push(e);
     });
@@ -6752,6 +6887,13 @@ function gpActivate() {
   if (!el) return;
 
   if (el.tagName === 'SELECT') {
+    // ⭐ QUICK'S CONFIG SELECTOR NEVER OPENS (2.66.85): ✕ on it opens the
+    // rate limit beside the device type instead. See quickVertical.
+    if (COMPACT && QUICK && el.id === 'cpick') {
+      var rate = quickRateSelect();
+      if (rate && focusElement(rate)) gpActivate();
+      return;
+    }
     GP_SELECTING = el;
     GP_SELECT_WAS = el.selectedIndex;
     el.classList.add('gp-selecting');
@@ -6858,6 +7000,10 @@ function gpSelectEnd(commit) {
   GP_SELECTING = null;
   el.dispatchEvent(new Event('change'));
   GP_SELECT_COMMIT = true;
+  // ⓘ Quick's rate limit was opened from its config selector: back there.
+  if (COMPACT && QUICK && el.closest && el.closest('.crate-q')) {
+    focusElement(document.getElementById('cpick'));
+  }
 }
 
 // ⭐ CONFIG MODE keys.
@@ -7184,6 +7330,7 @@ function gpKeyMove(delta) {
     return;
   }
   if (footerUpLeaves(delta)) return;
+  if (quickVertical(delta)) return;
   if (COMPACT && compactMove(0, delta)) return;
   gpMove(delta);
 }
@@ -7198,11 +7345,9 @@ function compactLanding(cur, dy, topRow, foot, bar) {
   var auto = topRow.filter(function (e) { return e.classList.contains('cauto-btn'); })[0];
   var close = bar.filter(function (e) { return e.classList.contains('cclose'); })[0];
   var newBtn = foot.filter(function (e) { return e.textContent.trim() === 'New'; })[0];
-  if (QUICK) {
-    if (dy > 0 && auto && cur === auto && close) return close;
-    if (dy < 0 && close && cur === close && auto) return auto;
-    return null;
-  }
+  // ⓘ Quick's two landings went with its auto button and its footer's
+  // place in the grid (2.66.85).
+  if (QUICK) return null;
   if (dy > 0 && cur && cur.id === 'cpick' && newBtn) return newBtn;
   return null;
 }
@@ -7251,6 +7396,12 @@ function compactMove(dx, dy) {
     box.querySelectorAll('.cbar > button, .cbar > select, .cbar > .cgroup > select, ' +
                          '.cbar > .cgroup > button'));
   if (bar.length) rows.push(bar);
+  // ⭐ Quick's footer is a zone (2.66.85): in it, the bar alone; out of it,
+  // never the bar.
+  if (QUICK) {
+    rows = FOOTER_MODE ? (bar.length ? [bar] : [])
+                       : rows.filter(function (row) { return row !== bar; });
+  }
   if (!rows.length) return false;
   var cur = GP_FOCUS[GP_INDEX];
   var r = -1, c = 0;
@@ -7448,6 +7599,11 @@ function gpKeyBack() {
   // right away. ... Circle moves focus to the close button."*), which had been
   // kept closing outright as the mid-game view. One press no longer ends the
   // session by itself -- the second press, on the button, does.
+  // ⭐ QUICK: CIRCLE TAKES THE PAD INTO THE FOOTER AND BACK, AS ADVANCED'S
+  // DOES (rhoquinn8217, 2026-10-16: "make the footer section in quick mode
+  // only accessible by pressing circle or esc like advance mode"). It lands
+  // on Close; Circle, Esc or up again comes back to the config selector.
+  if (COMPACT && QUICK) { setFooterMode(!FOOTER_MODE); return; }
   if (COMPACT) {
     // ⛔ BY ITS CLASS: the size button is a button in this bar too, and comes
     // first (2026-10-09).
@@ -7857,7 +8013,20 @@ function restorePlace() {
 }
 
 function setFooterMode(on) {
-  if (on && COMPACT) return;   // the footer bar is hidden in compact; its buttons are in the box
+  // ⭐ QUICK'S FOOTER ZONE (2.66.85): the bar at the foot of the compact box,
+  // lit while it is on, landing on Close and coming back to the config
+  // selector. Simple has none: its footer is in the d-pad's reach.
+  if (COMPACT) {
+    if (on && !QUICK) return;
+    FOOTER_MODE = on;
+    var cbar = document.querySelector('#compactBox .cbar');
+    if (cbar) cbar.classList.toggle('gp-zone', on);
+    gpCollect();
+    if (on) focusElement(document.querySelector('#compactBox .cbar > button.cclose'));
+    else focusElement(document.getElementById('cpick') ||
+                      document.querySelector('#compactBox button.cbig'));
+    return;
+  }
   if (on && !FOOTER_MODE) {
     // ⭐ The SERIAL, not just the ordinal.
     //
@@ -8410,6 +8579,15 @@ function setMode(m, restore) {
   var quick = (m === 'quick');
   var compact = (m !== 'advanced');
   var quickChanged = (quick !== QUICK);
+  // ⓘ A footer zone belongs to the layout it was entered in: a switch made
+  // from the Mode picker inside one leaves it (2.66.85), or the next
+  // layout would gather its focus from a bar no longer on screen.
+  if (FOOTER_MODE && (quick !== QUICK || compact !== COMPACT)) {
+    FOOTER_MODE = false;
+    FOOTER_RETURN = null;
+    var zoneBar = document.getElementById('gpbar');
+    if (zoneBar) zoneBar.classList.remove('gp-zone');
+  }
   QUICK = quick;
   document.body.classList.toggle('quick', quick);
   paintTitle();
@@ -8740,6 +8918,9 @@ function pickerClickEnd(sel) {
   sel.classList.remove('gp-selecting');
   pickerCollapse(sel);
   GP_SELECTING = null;
+  // ⓘ Quick's rate limit, picked with the mouse: the halo goes back to the
+  // config selector, as after a pad's pick, when the repaint below finds it.
+  if (QUICK && sel.closest && sel.closest('.crate-q')) GP_WANT = 'cpick';
   // AND REPAINT. On this path `change` fired while the list was still open, so
   // any repaint it asked for was skipped by the guard in paintCompact. Now
   // that the list is shut there is nothing to protect and the footer needs to
@@ -8769,6 +8950,13 @@ function pickerActivate(ev, sel) {
   // the window, and a native popup is not clipped by the window -- it unrolls
   // downward onto the desktop, outside the thing it belongs to.
   if (!COMPACT && !(sel.classList && sel.classList.contains('modepick'))) return;
+  // ⭐ QUICK'S CONFIG SELECTOR DOES NOT EXPAND (2.66.85): a click puts the
+  // halo on it, and the wheel or up and down step it.
+  if (QUICK && sel.id === 'cpick') {
+    ev.preventDefault();
+    focusElement(sel);
+    return;
+  }
   // ⓘ Counted for EVERY press, including the ones that land on an option
   // while the box is open -- mousedown bubbles from the option to the select.
   PICKER_PRESS++;
@@ -8917,17 +9105,22 @@ function paintCompact() {
             side(prev, 'l', '\u25c2 ' + shoulder[0]) +
             '<div class="ccur"><div class="cname">' + esc(nameFor(d.ordinal)) +
             batteryTags(partsOf(d.ordinal)) + '</div>' +
-            // ⭐ THE POLLING RATE AND THE RATE LIMIT, IN SIMPLE, DIRECTLY
-            // UNDER THE NAME AND BATTERY (rhoquinn8217, 2026-10-15: "add
-            // polling rate and rate limit selector under controller nickname
-            // and battery in simple mode"; shown it under the model line,
-            // "under name and battery"). Advanced's own readout and
-            // dropdown, kept current by pollRates.
-            // ⓘ Not in Quick, whose window has no line to spare.
-            (QUICK ? '' : '<div class="crate">' + rateTags(partsOf(d.ordinal)) + '</div>') +
             // ⓘ The marks follow the model name here too, as on the tabs.
+            // ⭐ QUICK'S POLLING RATE AND RATE LIMIT SIT TO ITS RIGHT
+            // (rhoquinn8217, 2026-10-16: "add polling rate and limit to
+            // the right of the Device Type in quick mode"); Cross on the
+            // config selector opens the limit.
             '<div class="ckind"><span class="cklabel">' + esc(deviceLabelShort(d)) + '</span>' +
-            deviceIcons(partsOf(d.ordinal)) + '</div></div>' +
+            deviceIcons(partsOf(d.ordinal)) +
+            (QUICK ? '<span class="crate-q">' + rateTags(partsOf(d.ordinal)) + '</span>' : '') +
+            '</div>' +
+            // ⭐ SIMPLE'S ARE A LINE OF THEIR OWN UNDER THE DEVICE TYPE
+            // (rhoquinn8217, 2026-10-16: "Move the polling rate and limit
+            // under the Device Type in simple mode"; 2.66.84 had them
+            // under the name and battery). Advanced's own readout and
+            // dropdown, kept current by pollRates.
+            (QUICK ? '' : '<div class="crate">' + rateTags(partsOf(d.ordinal)) + '</div>') +
+            '</div>' +
             side(next, 'r', shoulder[1] + ' \u25b8') +
             '</div>';
     if (!d.supports_config) {
@@ -8962,11 +9155,14 @@ function paintCompact() {
         });
       });
       var autoOn = !!d.linked_config && d.linked_config === claimedBy;
+      // ⓘ Quick shows a step on its way (quickShown); everywhere else it is
+      // the linked config.
+      var shown = QUICK ? quickShown(d) : (d.linked_config || '');
       var opts = '<option value="">(no config)</option>';
       usable.forEach(function (c) {
         var mine = c.name === claimedBy;
         opts += '<option value="' + esc(c.name) + '"' +
-                (c.name === d.linked_config ? ' selected' : '') + '>' + esc(c.name) +
+                (c.name === shown ? ' selected' : '') + '>' + esc(c.name) +
                 (mine ? ' \ud83d\uddd8' : '') + '</option>';
       });
       // ⭐ The 🗘 button sets the claim and, lit, REMOVES it (rhoquinn8217,
@@ -9004,12 +9200,16 @@ function paintCompact() {
       // The selector under a title, sliding with the ring (rhoquinn8217, 2026-09-09).
       html += '<div class="csel' + slide + '">' +
               (QUICK ? '' : '<div class="ctitle">Controller Configs</div>') +
-              '<div class="cselrow">' + unlinkBtn() +
+              // ⭐ QUICK HAS NEITHER BUTTON (rhoquinn8217, 2026-10-16:
+              // "remove unlink and auto link buttons in quick mode"):
+              // Square and Triangle do both, and the wheel steps it.
+              '<div class="cselrow">' + (QUICK ? '' : unlinkBtn()) +
               '<select id="cpick" data-ordinal="' + esc(d.ordinal) + '"' +
               ' onmousedown="pickerActivate(event,this)"' +
               ' onclick="pickerClickEnd(this)"' +
+              (QUICK ? ' onwheel="quickWheel(event)"' : '') +
               ' onchange="compactPick()">' +
-              opts + '</select>' + autoBtn +
+              opts + '</select>' + (QUICK ? '' : autoBtn) +
               '</div></div>' + (QUICK ? '' : foot(true, d.ordinal));
     }
   }
@@ -9029,18 +9229,22 @@ function paintCompact() {
     // simple and quick modes, just like the advance mode."* ⓘ `.cbarText` is
     // `flex:1 1 auto`, so it takes the slack and whatever follows it is pushed
     // to the right -- the order here IS the order on screen.
-    html += '<div class="cbar">' +
+    html += '<div class="cbar' + (FOOTER_MODE ? ' gp-zone' : '') + '">' +
             '<div class="cbarText"><div class="clegend">' +
             // ⓘ The shoulder keys first, as in Simple's (rhoquinn8217,
             // 2026-10-02: *"Add L1/R1 LB/RB and Q/E in the quick mode legend
             // also"*), following the input in hand like the ring's keys.
             LG.shoulder + ' controller | ' +
+            // ⭐ The selector's step and what Cross opens (2.66.85;
+            // rhoquinn8217, 2026-10-16: "✕, A, enter for polling
+            // limit"): Cross's own mark in each set.
+            LG.updown + ' config | ' + LG.select + ' polling limit | ' +
             // ⭐ Square and Triangle on the config selector (2.66.84).
             LG.unlink + ' unlink | ' + LG.autolink + ' auto link | ' +
             LG.position + ' position | ' + LG.resize + ' resize | ' +
-            // ⓘ "to close", as Simple's says: Circle goes to Close now
-            // (2026-10-02) rather than closing.
-            LG.close + ' to close</div></div>' +
+            // ⓘ "footer/close", as Advanced's says: Circle takes the pad
+            // into the footer, onto Close (2.66.85).
+            LG.close + ' footer/close</div></div>' +
             modeGroupHtml() +
             '<button class="cclose" onclick="closeWindow()">Close</button></div>';
   } else {
@@ -9078,6 +9282,8 @@ function paintCompact() {
 }
 
 function gpTab(delta) {
+  // ⓘ A Quick step not yet linked is linked before the controller changes.
+  quickLinkNow();
   // ⛔ NOT WHILE SOMETHING IS OPEN (rhoquinn8217, 2026-09-01: L1/R1 still
   // switched controllers from inside the footer).
   //
@@ -9459,11 +9665,12 @@ function gpPoll() {
 
   // D-pad: fire on the edge, then repeat while held after a short delay.
   // ⓘ Up goes by footerUpLeaves first, as the keys' up does in gpKeyMove.
-  else if (edge(12)) { if (!footerUpLeaves(-1)) gpMove(-1); GP_REPEAT_AT = now + 400; }
-  else if (edge(13)) { gpMove(1); GP_REPEAT_AT = now + 400; }
+  // ⓘ And in Quick, outside its footer, they step the config (2.66.85).
+  else if (edge(12)) { if (!footerUpLeaves(-1) && !quickVertical(-1)) gpMove(-1); GP_REPEAT_AT = now + 400; }
+  else if (edge(13)) { if (!quickVertical(1)) gpMove(1); GP_REPEAT_AT = now + 400; }
   else if ((pressed(12) || pressed(13)) && now >= GP_REPEAT_AT) {
     var vert = pressed(12) ? -1 : 1;
-    if (!footerUpLeaves(vert)) gpMove(vert);
+    if (!footerUpLeaves(vert) && !quickVertical(vert)) gpMove(vert);
     GP_REPEAT_AT = now + 90;
   }
 
@@ -10163,11 +10370,13 @@ function selfTest() {
     CONFIGS = savedConfigs;
   }
 
-  // 10. ⭐ SQUARE AND TRIANGLE ON THE CONFIG SELECTOR, AND U AND A (2.66.84).
-  //     Square presses Unlink beside the selector and Triangle the auto-link
-  //     button, or in Advanced decides from the claim. Stand-ins catch every
-  //     call, so nothing is unlinked or claimed for real.
+  // 10. ⭐ SQUARE AND TRIANGLE ON THE CONFIG SELECTOR, U AND A (2.66.84), AND
+  //     QUICK'S STEPPING SELECTOR (2.66.85). Stand-ins catch every call, so
+  //     nothing is linked, unlinked or claimed for real.
   {
+    ok('the legends: Quick\'s config step is \u21c5 in every set',
+       PAD_LEGEND_PS.updown === '\u21c5' && PAD_LEGEND_XBOX.updown === '\u21c5' &&
+       KEY_LEGEND.updown === '\u21c5');
     ok('the legends: unlink and auto link are \u25a1 \u25b3, X Y, U A',
        PAD_LEGEND_PS.unlink === '\u25a1' && PAD_LEGEND_PS.autolink === '\u25b3' &&
        PAD_LEGEND_XBOX.unlink === 'X' && PAD_LEGEND_XBOX.autolink === 'Y' &&
@@ -10183,66 +10392,59 @@ function selfTest() {
     var keepFocus = GP_FOCUS, keepIndex = GP_INDEX, keepSelecting = GP_SELECTING;
     var keepDevices = LAST_DEVICES, keepConfigs = CONFIGS;
     var keepUnlink = window.unlinkConfirmed, keepStop = window.stopAutoLink,
-        keepSet = window.setAutoLink;
+        keepSet = window.setAutoLink, keepLinkParts = window.linkParts;
+    var keepWant = QUICK_WANT, keepWantTimer = QUICK_WANT_TIMER;
     var calls = [];
     window.unlinkConfirmed = function (o) { calls.push('unlink ' + o); };
     window.stopAutoLink = function (c, s) { calls.push('stop ' + c + ' ' + s); };
     window.setAutoLink = function (o, c, s, by) {
       calls.push('set ' + o + ' ' + c + ' ' + s + ' ' + (by || '-'));
     };
-    window.__selUnlink = 0;
-    window.__selAuto = 0;
+    // ⓘ A link that never answers, so nothing runs after the test is over.
+    window.linkParts = function (o, body) {
+      calls.push('link ' + o + ' ' + ((body && body.config) || '(none)'));
+      return new Promise(function () {});
+    };
+    QUICK_WANT = null;
+    QUICK_WANT_TIMER = null;
     try {
-      // Simple and Quick: the two buttons in the selector row.
-      var row = document.createElement('div');
-      var unlinkBtn = document.createElement('button');
-      unlinkBtn.className = 'cunlink-btn';
-      unlinkBtn.setAttribute('onclick', '__selUnlink++');
-      var cpick = document.createElement('select');
-      cpick.id = 'cpick';
-      var autoBtn = document.createElement('button');
-      autoBtn.className = 'cauto-btn';
-      autoBtn.setAttribute('onclick', '__selAuto++');
-      row.appendChild(unlinkBtn); row.appendChild(cpick); row.appendChild(autoBtn);
-      GP_FOCUS = [cpick]; GP_INDEX = 0; GP_SELECTING = null;
-      gpSquare();
-      ok('Simple and Quick: Square on the selector presses Unlink',
-         window.__selUnlink === 1 && window.__selAuto === 0);
-      gpUnlink();
-      ok('Simple and Quick: U does the same', window.__selUnlink === 2);
-      gpTriangle();
-      ok('Simple and Quick: Triangle presses the auto-link button',
-         window.__selAuto === 1 && window.__selUnlink === 2);
-      unlinkBtn.disabled = true;
-      gpSquare();
-      ok('a greyed Unlink is not pressed', window.__selUnlink === 2);
-      unlinkBtn.disabled = false;
-      GP_SELECTING = cpick;
-      gpSquare(); gpUnlink(); gpTriangle();
-      ok('nothing while the selector\'s list is open',
-         window.__selUnlink === 2 && window.__selAuto === 1);
-      GP_SELECTING = null;
-      var other = document.createElement('select');
-      other.id = 'modepick-test';
-      GP_FOCUS = [other];
-      gpUnlink(); gpTriangle();
-      ok('nothing on any other control',
-         window.__selUnlink === 2 && window.__selAuto === 1);
-
-      // Advanced: Unlink found by what it calls; Triangle decides from the
-      // claim, as the lit or unlit 🗘 does.
-      var arow = document.createElement('div');
-      var apick = document.createElement('select');
-      apick.id = 'pick-selftest_1';
-      var aunlink = document.createElement('button');
-      aunlink.setAttribute('onclick', "unlinkConfirmed('selftest_1')");
-      arow.appendChild(apick); arow.appendChild(aunlink);
-      GP_FOCUS = [apick]; GP_INDEX = 0;
-      gpSquare();
-      ok('Advanced: Square on the selector presses Unlink',
-         calls.join('|') === 'unlink selftest_1', calls.join('|'));
       var pad = { ordinal: 'selftest_1', serial: 'AA:BB:CC:DD:EE:FF', linked_config: 'cfg_a' };
       LAST_DEVICES = [pad];
+      CONFIGS = [{ name: 'cfg_a', auto_link: [] }];
+      // Simple's and Quick's selector carries the ordinal; Advanced's has it
+      // in its id.
+      var cpick = document.createElement('select');
+      cpick.id = 'cpick';
+      cpick.setAttribute('data-ordinal', 'selftest_1');
+      var apick = document.createElement('select');
+      apick.id = 'pick-selftest_1';
+      [cpick, apick].forEach(function (pick) {
+        var where = pick === cpick ? 'Simple and Quick' : 'Advanced';
+        GP_FOCUS = [pick]; GP_INDEX = 0; GP_SELECTING = null;
+        calls = []; pad.linked_config = 'cfg_a';
+        gpSquare();
+        ok(where + ': Square on the selector unlinks',
+           calls.join('|') === 'unlink selftest_1', calls.join('|'));
+        calls = [];
+        gpUnlink();
+        ok(where + ': U does the same', calls.join('|') === 'unlink selftest_1', calls.join('|'));
+        calls = []; pad.linked_config = '';
+        gpSquare();
+        ok(where + ': with no config there is nothing to unlink', calls.length === 0,
+           calls.join('|'));
+        calls = []; pad.linked_config = 'cfg_a'; GP_SELECTING = pick;
+        gpSquare(); gpUnlink(); gpTriangle();
+        ok(where + ': nothing while the selector\'s list is open', calls.length === 0,
+           calls.join('|'));
+        GP_SELECTING = null;
+      });
+      var other = document.createElement('select');
+      other.id = 'modepick-test';
+      GP_FOCUS = [other]; calls = [];
+      gpUnlink(); gpTriangle();
+      ok('nothing on any other control', calls.length === 0, calls.join('|'));
+
+      // Triangle decides as the lit or unlit 🗘 does, in every layout.
       var cases = [
         ['linked and auto linked: remove it', 'cfg_a', [{ name: 'cfg_a', auto_link: ['aabbccddeeff'] }],
          'stop cfg_a aabbccddeeff'],
@@ -10255,27 +10457,61 @@ function selfTest() {
          [{ name: 'cfg_b', auto_link: ['aabbccddeeff'] }], 'stop cfg_b aabbccddeeff'],
         ['no config, no claim: nothing', '', [{ name: 'cfg_b', auto_link: [] }], '']
       ];
-      cases.forEach(function (c) {
-        calls = [];
-        pad.linked_config = c[1];
-        CONFIGS = c[2];
-        gpTriangle();
-        ok('Advanced Triangle, ' + c[0], calls.join('|') === c[3], calls.join('|'));
+      [cpick, apick].forEach(function (pick) {
+        GP_FOCUS = [pick]; GP_INDEX = 0;
+        cases.forEach(function (c) {
+          calls = []; pad.linked_config = c[1]; CONFIGS = c[2];
+          gpTriangle();
+          ok((pick === cpick ? 'Simple and Quick' : 'Advanced') + ' Triangle, ' + c[0],
+             calls.join('|') === c[3], calls.join('|'));
+        });
       });
-      calls = [];
-      pad.serial = '';
-      pad.linked_config = 'cfg_a';
+      calls = []; pad.serial = ''; pad.linked_config = 'cfg_a';
       CONFIGS = [{ name: 'cfg_a', auto_link: [] }];
+      GP_FOCUS = [apick];
       gpTriangle();
-      ok('Advanced Triangle, no serial: nothing to remember it by',
-         calls.length === 0, calls.join('|'));
+      ok('Triangle, no serial: nothing to remember it by', calls.length === 0, calls.join('|'));
+      pad.serial = 'AA:BB:CC:DD:EE:FF';
+
+      // Quick's selector steps: at once on screen, wrapping through
+      // "(no config)", and linked once, when the steps stop.
+      var qsel = document.createElement('select');
+      qsel.setAttribute('data-ordinal', 'selftest_1');
+      ['', 'cfg_a', 'cfg_b'].forEach(function (v) {
+        var o = document.createElement('option');
+        o.value = v;
+        o.textContent = v || '(no config)';
+        qsel.appendChild(o);
+      });
+      qsel.selectedIndex = 1;
+      pad.linked_config = 'cfg_a';
+      calls = [];
+      quickStepConfig(qsel, 1);
+      ok('Quick: a step shows the next config at once',
+         qsel.value === 'cfg_b' && !!QUICK_WANT && QUICK_WANT.config === 'cfg_b', qsel.value);
+      ok('Quick: and links nothing while the steps go on',
+         calls.length === 0 && !!QUICK_WANT_TIMER, calls.join('|'));
+      ok('Quick: meanwhile a repaint shows the step, not the linked config',
+         quickShown(pad) === 'cfg_b');
+      quickStepConfig(qsel, 1);
+      ok('Quick: past the last config it wraps to (no config)',
+         qsel.value === '' && QUICK_WANT.config === '', qsel.value);
+      quickStepConfig(qsel, -1);
+      clearTimeout(QUICK_WANT_TIMER);
+      quickLinkWanted();
+      ok('Quick: when the steps stop, one link, for the config on screen',
+         calls.join('|') === 'link selftest_1 cfg_b', calls.join('|'));
+      ok('Quick: the step holds until the listener says it is linked',
+         quickShown(pad) === 'cfg_b' && !!QUICK_WANT);
+      pad.linked_config = 'cfg_b';
+      ok('Quick: and then lets go', quickShown(pad) === 'cfg_b' && QUICK_WANT === null);
     } finally {
+      clearTimeout(QUICK_WANT_TIMER);
+      QUICK_WANT = keepWant; QUICK_WANT_TIMER = keepWantTimer;
       GP_FOCUS = keepFocus; GP_INDEX = keepIndex; GP_SELECTING = keepSelecting;
       LAST_DEVICES = keepDevices; CONFIGS = keepConfigs;
       window.unlinkConfirmed = keepUnlink; window.stopAutoLink = keepStop;
-      window.setAutoLink = keepSet;
-      delete window.__selUnlink;
-      delete window.__selAuto;
+      window.setAutoLink = keepSet; window.linkParts = keepLinkParts;
     }
   }
 
