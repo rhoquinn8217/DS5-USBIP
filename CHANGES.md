@@ -159,6 +159,7 @@ carry it; upstream's own history is unchanged.
 | 2026-10-14 | A polling rate readout and a rate limit for each controller. The Controller Configs window's device tables, in Advanced, show the reports a second Windows is getting from each device, and beside a controller's, a rate limit: Real time, 500, 250 or 125 Hz, kept in its linked config as `polling_rate`. Real time, the DS5Dongle's and its forks' name for it, passes every report on the moment it arrives; under a limit the newest report always goes, so nothing queues behind it. A keyboard or a mouse is never limited. Tested on a DualSense Edge through a DS5dongle: about 640 a second at Real time, every one reaching Windows, and 500, 250 and 125 held | `c0c80a6`, `81383ba`, merge `6cd5b9a` |
 | 2026-10-14 | The touchpad: lifting the finger no longer moves the cursor off the spot. A finger rolls as it leaves the pad and the cursor followed the roll, so the tap after it clicked beside the target. When the last finger lifts after pointing, the cursor goes back to where it was 60 ms before, if the finger was nearly still just before that; a flick keeps its place, and a press-and-drag drops where the finger stopped | `66ec88b`, merge `1766525` |
 | 2026-10-15 | Open on bridge is off until it is turned on, so a DualSense the TV bridges by itself opens no Controller Configs window; an existing install is turned off once, and a choice made after that is kept. | `9517637` |
+| 2026-10-15 | The touchpad: double tap and hold drags (`touchpad_double_tap_drag`). With it on, a single tap clicks 0.3 s late, held back so the next touch can still become the drag; a touch that lands in that time near the tap, rests 150 ms and then slides holds the tap's button until the last finger lifts; sliding sooner points, the tap's click sent first, so a window's X still closes; a second tap that lifts first is a double-click. Windows makes a double-click on the second press, which is why the click has to wait | `aed7dcf`, `37799cd`, `c79a85f`, `7d5e182`, merge `746cca9` |
 
 ## Files changed
 
@@ -170,7 +171,7 @@ ENet library, removed with the ENet transport).
 ```
  .gitattributes                                |    48 +
  .gitignore                                    |    41 +-
- CHANGES.md                                    |   381 +
+ CHANGES.md                                    |   383 +
  LINK                                          |     0
  README.md                                     |   297 +-
  app/compatibility.manifest                    |    27 +
@@ -224,7 +225,7 @@ ENet library, removed with the ENet transport).
  src/app/agent_session_sweep.inl               |   333 +
  src/app/cli.inl                               |    63 +-
  src/app/common.inl                            |   166 +-
- src/app/config_move.inl                       |  1186 +++
+ src/app/config_move.inl                       |  1198 +++
  src/app/console_attach.inl                    |    82 +
  src/app/control_caller.inl                    |    48 +
  src/app/device_capabilities.inl               |    75 +
@@ -236,14 +237,14 @@ ENet library, removed with the ENet transport).
  src/app/nickname.inl                          |    90 +
  src/app/old_devices.inl                       |   267 +
  src/app/old_devices_rule.inl                  |    91 +
- src/app/open_on_bridge.inl                    |    62 +
+ src/app/open_on_bridge.inl                    |    92 +
  src/app/open_ui.inl                           |   709 ++
  src/app/overlay_window.inl                    |  2303 ++++++
  src/app/paired_tv.inl                         |   495 ++
  src/app/protocol_level.inl                    |    77 +
  src/app/quit_request.inl                      |    28 +
  src/app/rest.inl                              |   885 +++
- src/app/rest_config.inl                       |  1337 ++++
+ src/app/rest_config.inl                       |  1338 ++++
  src/app/rest_config_sessions.inl              |   211 +
  src/app/rest_sessions.inl                     |    33 +
  src/app/rest_shared_section.inl               |    55 +
@@ -300,7 +301,7 @@ ENet library, removed with the ENet transport).
  src/input/pad_press.inl                       |   116 +
  src/input/rebind.inl                          |  1309 +++
  src/input/stick_mouse.inl                     |   474 ++
- src/input/touch_mouse.inl                     |  1419 ++++
+ src/input/touch_mouse.inl                     |  1570 ++++
  src/input/trigger_click.inl                   |   857 ++
  src/input/trigger_effect.inl                  |   637 ++
  src/log/capped_log.inl                        |   117 +
@@ -362,8 +363,8 @@ ENet library, removed with the ENet transport).
  tests/stream_commands_test.cpp                |   118 +
  tests/taskbar_rule_test.cpp                   |    46 +
  tests/tests_main.cpp                          |   181 +
- tests/touch_mouse_test.cpp                    |  1787 +++++
- tests/tray_menu_test.cpp                      |   208 +
+ tests/touch_mouse_test.cpp                    |  2095 +++++
+ tests/tray_menu_test.cpp                      |   216 +
  tests/trigger_click_test.cpp                  |   901 +++
  tests/trigger_effect_test.cpp                 |   529 ++
  tests/tv_sessions_test.cpp                    |   191 +
@@ -378,5 +379,5 @@ ENet library, removed with the ENet transport).
  tools/create-desktop-shortcut.bat             |    46 +
  tools/create-desktop-shortcut.ps1             |   148 +
  tools/osk-mockups.py                          |   103 +
- 210 files changed, 59758 insertions(+), 1568 deletions(-)
+ 210 files changed, 60270 insertions(+), 1568 deletions(-)
 ```
