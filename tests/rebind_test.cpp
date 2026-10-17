@@ -197,8 +197,17 @@ inline void blank_report(const ctm_rebind::Layout &, uint8_t *, size_t) {}
 inline void forget_device(const void *) {}
 }  // namespace ctm_overlay
 bool g_steering = false;
+// ⓘ The layout the page last named, Quick or not: the gate gives the page
+// R3 in Quick alone.
+bool g_quickView = false;
 namespace config_move {
 inline bool handle_report(const void *, const ctm_rebind::Layout &, uint8_t *, size_t) { return g_steering; }
+inline bool view_get(bool *compact, bool *quick, std::string *)
+{
+    if (compact) *compact = g_quickView;
+    if (quick) *quick = g_quickView;
+    return true;
+}
 }  // namespace config_move
 bool ctm_overlay_opened_for_page() { return false; }
 void ctm_overlay_hide() {}
@@ -221,6 +230,7 @@ using ctm_rebind::kBtnL1;
 using ctm_rebind::kBtnR2;
 using ctm_rebind::kBtnStart;
 using ctm_rebind::kBtnDpadUp;
+using ctm_rebind::kBtnR3;
 
 int g_padA = 0;
 int g_padB = 0;
@@ -533,6 +543,28 @@ int run_rebind_tests()
         send(kPadA, pressing({kBtnFaceLeft}));
         CTM_CHECK(keys_are(kPadA, {}));
         ctm_rebind_set_editing_field(false);
+    }
+
+    section("config mode: R3 types Ctrl+Shift+Alt+L in Quick alone, for its polling limit");
+    {
+        // ⓘ Outside Quick it does what the config binds it to, and while a
+        // name is being typed it is the virtual keyboard's size.
+        reset();
+        ctm_rebind_set_config_mode(true);
+        g_windowInFront = true;
+        g_quickView = false;
+        send(kPadA, pressing({kBtnR3}));
+        CTM_CHECK(keys_are(kPadA, {}));
+        g_quickView = true;
+        const std::vector<uint8_t> out = send(kPadA, pressing({kBtnR3}));
+        CTM_CHECK(keys_are(kPadA, {0x0f}));            // L
+        CTM_CHECK_EQ(static_cast<int>(mods_of(kPadA)), 0x07);
+        CTM_CHECK(out == at_rest());
+        ctm_rebind_set_editing_field(true);
+        send(kPadA, pressing({kBtnR3}));
+        CTM_CHECK(keys_are(kPadA, {}));
+        ctm_rebind_set_editing_field(false);
+        g_quickView = false;
     }
 
     section("config mode: with the window behind, the pad works as it does in a game");

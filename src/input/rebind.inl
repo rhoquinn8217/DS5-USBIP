@@ -303,7 +303,22 @@ inline const GateBinding kConfigModeKeys[] = {
     // triangle when you are on the config selector auto links it, all
     // modes"). It sent nothing here until then.
     { kBtnFaceUp,    "KeyY",  CTM_GATE_MODS },   // triangle: auto link on the config selector
+    // ⭐ R3 OPENS QUICK'S POLLING LIMIT (rhoquinn8217, 2026-10-16: "R3 will
+    // be the key that lets you reach the rate limit"), and only in Quick:
+    // gate_claims leaves it to the config in Simple and Advanced, and it
+    // is the virtual keyboard's size while a name is being typed.
+    { kBtnR3,        "KeyL",  CTM_GATE_MODS },   // R3: Quick's polling limit
 };
+
+// ⓘ Whether the page has this button: every one in the table, but R3
+// only while the window is in Quick; elsewhere it does what the config
+// binds it to, as it did before.
+inline bool gate_claims(int standardIndex)
+{
+    if (standardIndex != kBtnR3) return true;
+    bool quick = false;
+    return config_move::view_get(nullptr, &quick, nullptr) && quick;
+}
 
 inline void apply(const void *deviceKey,
                   const std::vector<unsigned char> &descriptor,
@@ -688,9 +703,11 @@ inline void apply(const void *deviceKey,
         for (const GateBinding &g : kConfigModeKeys) {
             // ⛔ Square and Triangle belong to the keyboard while a text box
             // has focus, where they are backspace and space; sending the
-            // page's keys as well would do both.
-            if ((g.standardIndex == kBtnFaceLeft || g.standardIndex == kBtnFaceUp) &&
+            // page's keys as well would do both. R3 is its size there.
+            if ((g.standardIndex == kBtnFaceLeft || g.standardIndex == kBtnFaceUp ||
+                 g.standardIndex == kBtnR3) &&
                 ctm_rebind_editing_field()) continue;
+            if (!gate_claims(g.standardIndex)) continue;
             const bool held = is_pressed(*layout, data, len, g.standardIndex);
             // ⛔ Cleared whether or not it is held, so a button released this
             // frame cannot leave a stale bit behind.
@@ -767,7 +784,7 @@ inline void apply(const void *deviceKey,
         for (int i = 0; i < kButtonCount; ++i) {
             bool claimed = false;
             for (const GateBinding &g : kConfigModeKeys) {
-                if (g.standardIndex == i) { claimed = true; break; }
+                if (g.standardIndex == i && gate_claims(i)) { claimed = true; break; }
             }
             if (claimed) continue;
 

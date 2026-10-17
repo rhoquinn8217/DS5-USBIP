@@ -33,19 +33,31 @@
             steps to it. The wheel, its title and "unlink" and "auto link",
             each with its button's mark, stand in one centred panel, the
             title on the panel's top edge, naming the device type and
-            "Config" (the device type left the ring for it). ✕ on the wheel
-            does nothing. The polling rate and limit stand in the footer,
-            before the mode picker, the limit reached only from the footer's
-            zone; the legend, centred before them, keeps position, resize and
-            footer/close, and the footer is no longer lit while the pad is
-            in it (rhoquinn8217: "Intention is to lessen the legend area").
+            "Config" (the device type left the ring for it). ✕ (A, Enter)
+            on the wheel links the config on screen at once, without the
+            short wait a step leaves for the next. The polling rate and limit
+            follow the battery after a " | " (rhoquinn8217: "move the polling
+            /rate limit after the battery"), R3's mark where the limit's
+            arrow was, RS on an Xbox pad and L on a keyboard, the one press
+            that opens it ("R3 will be the key that lets you reach the rate
+            limit"); the window is narrower, 0.225 of the screen from
+            0.278, so the footer's legend has half the room either side
+            ("shrink the entire window"), the wheel's panel keeping its
+            size; the footer's legend keeps
+            position, resize and footer/close, and the footer is no longer
+            lit while the pad is in it (rhoquinn8217: "Intention is to lessen
+            the legend area").
             Every legend draws each button as it looks: a PlayStation shape,
             or an Xbox letter, Menu or View, in a circle, a shoulder button
             in a box with a rounded top, the d-pad as a cross and a
             keyboard's key as a key cap, all level on the line, the entries
             set apart by space rather than " | ", each legend in a box of
             its own. Simple's tips and the L1 and R1 beside the ring's
-            neighbours draw theirs the same way. Simple's and Advanced's
+            neighbours draw theirs the same way, and Create's outer strokes
+            are three quarters of the middle one's length (half, then "1.5x
+            bigger"), the middle one raised 1.8 of the mark's 20, its foot
+            above theirs ("can the "|" be shifted up slightly?", then "a
+            little more by the same distance", twice). Simple's and Advanced's
             selectors are titled "Controller Config", in white just above
             the box at the left; Advanced's "currently linked config" line
             goes.
@@ -1353,6 +1365,7 @@
          fill:none; stroke:currentColor; stroke-width:1.25; stroke-linejoin:round;
          stroke-linecap:round; }
   .kps text { fill:currentColor; stroke:none; font-size:13px; }
+  .kps text.k2 { font-size:10px; }
   .kdpad { width:1.08em; height:1.08em; flex:0 0 auto; vertical-align:-0.17em;
           fill:none; stroke:currentColor; stroke-width:1.25; stroke-linejoin:round; }
   /* ⭐ A SHOULDER BUTTON IN A SHOULDER BUTTON'S SHAPE (rhoquinn8217,
@@ -1395,10 +1408,11 @@
      so that it covers the Label and the unlink and auto link symbols ...
      Center the container area"): the title over the wheel, its two
      presses beside it, one panel in the select's old colours, centred by
-     the row as one. */
+     the row as one. ⓘ Its gaps, 2.47 and 2.72vw, are the 14 and 16 px they
+     were before the window narrowed (2.66.87). */
   body.quick #compactBox .cpick-wrap { position:relative; display:inline-grid;
-    grid-template-columns:auto auto; align-items:center; column-gap:2.2vw;
-    row-gap:0; padding:3.6vh 2vw 0.7vh; flex:0 1 auto; min-width:0;
+    grid-template-columns:auto auto; align-items:center; column-gap:2.72vw;
+    row-gap:0; padding:5.6vh 2.47vw 4.4vh; flex:0 1 auto; min-width:0;
     max-width:86vw; box-sizing:border-box; background:#1d1f26;
     border:1px solid #2c2e36; border-radius:8px; }
   body.quick #compactBox .cwheel { position:relative; display:inline-flex; grid-column:1;
@@ -1413,10 +1427,25 @@
      bottom ("doesn't need to curve in, they just need to fade"). */
   /* ⓘ Wider at the sides than the select needs: a row draws a name, the
      claim's mark most of all, a little wider than the select measures it. */
-  body.quick #compactBox .cpick-wrap select { opacity:0; height:2.8em;
-    padding-left:0.9em; padding-right:0.9em; }
+  /* ⓘ The wheel's text smaller than Quick's other controls, the select's and
+     the drum's alike so the drum covers the select exactly (rhoquinn8217,
+     2026-10-16: "make the text for the config selector a little bit
+     smaller", then "shrink the text in the wheel so it's well defined"),
+     in a box of its own height, 2.5 lines of the 11vh text it had ("increase
+     the height of the wheel area to 2.5 lines"), which shows the configs
+     either side nearly whole. */
+  body.quick #compactBox .cpick-wrap select { opacity:0; height:33vh; font-size:9.5vh;
+    padding-left:0.9em; padding-right:0.9em;
+    /* ⓘ At least 53.3vw, which makes the config name area half as wide
+       again as the names it held, 301 px of frame at 150% (rhoquinn8217,
+       2026-10-16: "widen the container to include longer named configs.
+       1.5x increase", then "The config name area should have only grown
+       1.5x"); a longer name widens it further, to the wheel's 58vw. It was
+       43.2vw until the window narrowed from 0.278 of the screen to 0.225
+       (2.66.87), and is the same width. */
+    min-width:53.3vw; }
   body.quick #compactBox .cdrum { position:absolute; inset:0; pointer-events:none;
-    border-radius:6px; font-size:12.6vh; }
+    border-radius:6px; font-size:9.5vh; }
   body.quick #compactBox .cdrum-frame { position:absolute; left:0.18em; right:0.18em;
     top:50%; height:1.3em; margin-top:-0.65em; box-sizing:border-box;
     border:2px solid #3a3d47; border-radius:0.22em; background:#262833; }
@@ -1424,8 +1453,8 @@
     border-color:#6c8cff; background:#2a3566; }
   body.quick #compactBox .cdrum-view { position:absolute; inset:0; overflow:hidden;
     border-radius:inherit;
-    -webkit-mask-image:linear-gradient(to bottom, transparent, #000 27%, #000 73%, transparent);
-            mask-image:linear-gradient(to bottom, transparent, #000 27%, #000 73%, transparent); }
+    -webkit-mask-image:linear-gradient(to bottom, transparent, #000 31%, #000 69%, transparent);
+            mask-image:linear-gradient(to bottom, transparent, #000 31%, #000 69%, transparent); }
   body.quick #compactBox .cdrum-track { position:absolute; left:0; right:0; top:50%; height:0; }
   body.quick #compactBox .cdrum-row { position:absolute; left:0; right:0;
     height:1.2em; margin-top:-0.6em; line-height:1.2em; padding:0 0.5em;
@@ -1540,14 +1569,16 @@
   #compactBox .cpick-wrap { flex:0 1 auto; min-width:47vw; }
   #compactBox .cpick-wrap select { min-width:0; flex:1 1 auto; }
   #compactBox .cpick-label { left:0.9em; padding:0 0.35em; font-size:2.4vh; }
-  /* ⭐ QUICK'S CENTRED ON ITS PANEL'S TOP EDGE (rhoquinn8217, 2026-10-16:
-     "center the config selector label to the container and have the label
-     overlap the upper edge of the container"). The edge stops behind its
-     letters: the page's colour behind their top half and the panel's
-     behind their bottom half, so the gap reads as the edge's own and no
-     block shows (the dark patch over the blue ring was refused). */
-  body.quick #compactBox .cpick-label { font-size:5.6vh; left:50%; top:0; bottom:auto;
-    transform:translate(-50%, -50%); padding:0 0.45em;
+  /* ⭐ QUICK'S ON ITS PANEL'S TOP EDGE, AT THE LEFT (rhoquinn8217, 2026-10-16:
+     "have the label overlap the upper edge of the container", then "Set
+     the label to the top ... side of the container still overlapping the
+     edge" and "i meant top left"), set in past the rounded corner. The
+     edge stops behind its letters: the page's colour behind their top half
+     and the panel's behind their bottom half, so the gap reads as the
+     edge's own and no block shows (the dark patch over the blue ring was
+     refused). */
+  body.quick #compactBox .cpick-label { font-size:5.6vh; left:0.9em; top:0; bottom:auto;
+    transform:translateY(-50%); padding:0 0.45em;
     background:linear-gradient(to bottom, #15161a 50%, #1d1f26 50%); }
   /* The room above each selector row that the title stands in. */
   .f:has(> .cpick-wrap) { padding-top:8px; }   /* a margin collapses into the table's */
@@ -1567,13 +1598,22 @@
      line, and never the part that gives way; the model name shortens first.
      ⓘ Its select is out of reach of Quick's own rule for selects, which is
      the config selector's size. */
-  /* ⭐ Quick's polling rate and limit at the footer's right (2.66.87), at the
-     footer's own size; its legend stays centred in the room before them
-     (rhoquinn8217, 2026-10-16: "don't left align the legend"). */
-  body.quick #compactBox .cbar > .crate-q { flex:0 0 auto; font-size:6.9vh;
-                                           color:#c8c9ce; white-space:nowrap; }
+  /* ⭐ Quick's polling rate and limit after the battery and a " | " (2.66.87),
+     smaller than the name and in their own weight. */
+  body.quick #compactBox .cname .cnsep { font-size:7vh; font-weight:400; color:#71737c;
+    margin:0 0.5em; }
+  body.quick #compactBox .cname > .crate-q { font-size:7vh; font-weight:400;
+    color:#c8c9ce; white-space:nowrap; }
   body.quick #compactBox .crate-q select { font-size:1em; padding:0.15em 0.4em;
                                           min-width:0; max-width:none; }
+  /* ⭐ Quick's limit with R3's mark where its arrow was (2.66.87): the arrow
+     gone, the box padded on the right for the mark, which a click passes
+     through to the box. */
+  body.quick #compactBox .crate-q .rpick { position:relative; display:inline-block; }
+  body.quick #compactBox .crate-q .rpick select { appearance:none; -webkit-appearance:none;
+    padding-right:1.75em; }
+  body.quick #compactBox .crate-q .rmark { position:absolute; right:0.4em; top:50%;
+    transform:translateY(-50%); display:flex; align-items:center; pointer-events:none; }
   /* ⓘ Quick's footer zone (2.66.85) is NOT lit (rhoquinn8217, 2026-10-16:
      "the whole area is lit up and looks odd"): the halo on Close says where
      the pad is. */
@@ -3263,7 +3303,7 @@ function rateLockReason(d) {
   return d.takes_rate_limit ? '' : 'This device is never limited.';
 }
 
-function rateTag(d) {
+function rateTag(d, mark) {
   var html = '<span class="prate" data-ord="' + esc(String(d.ordinal)) + '">' +
              '<span class="prate-hz" title="' + esc(rateTitle(d)) + '">' +
              esc(rateHzText(d)) + '</span>';
@@ -3286,18 +3326,30 @@ function rateTag(d) {
     // Simple and Quick a click opens it in the window, as the pad does,
     // rather than as a native list unrolling past the window's edge.
     // pickerActivate leaves Advanced's tables their native dropdown.
-    html += ' / ' +
-            '<select data-ord="' + esc(String(d.ordinal)) + '" title="' + esc(title) + '"' +
-            (lock ? ' disabled' : '') + ' onmousedown="pickerActivate(event,this)"' +
-            ' onclick="pickerClickEnd(this)" onchange="setRateLimit(this)">' + opts + '</select>';
+    var pick = '<select data-ord="' + esc(String(d.ordinal)) + '" title="' + esc(title) + '"' +
+               (lock ? ' disabled' : '') + ' onmousedown="pickerActivate(event,this)"' +
+               ' onclick="pickerClickEnd(this)" onchange="setRateLimit(this)">' + opts + '</select>';
+    // ⭐ IN QUICK, R3'S MARK WHERE ITS ARROW WAS (2.66.87; rhoquinn8217,
+    // 2026-10-16: "replace the down carrot next to the rate limit and replace
+    // with (R3) in a circle. R3 will be the key that lets you reach the rate
+    // limit"): the press that opens it, drawn as the legends draw theirs,
+    // inside the box, and a click passes through it to the box.
+    if (mark) pick = '<span class="rpick">' + pick + '<span class="rmark">' + mark + '</span></span>';
+    html += ' / ' + pick;
   }
   return html + '</span>';
 }
 
 // ⓘ One per part, as the battery gauges are: two halves under one name each
-// have their own rate.
-function rateTags(parts) {
-  return (parts || []).map(function (d) { return rateTag(d); }).join(' ');
+// have their own rate. `mark` goes on the first limit alone, the one R3
+// opens (gpRate).
+function rateTags(parts, mark) {
+  var marked = false;
+  return (parts || []).map(function (d) {
+    var m = mark && !marked && d.takes_rate_limit ? mark : '';
+    if (m) marked = true;
+    return rateTag(d, m);
+  }).join(' ');
 }
 
 // ⭐ THE READOUTS FOLLOW THE POLL, in place, like the gauges: a rate changes
@@ -3545,6 +3597,9 @@ var PAD_LEGEND_PS = {
   unlink: '\u25a1', autolink: '\u25b3',
   select: '\u2715', close: '\u25cb', toggle: '\u25a1',
   resize: '\\|/', position: '\u2630', shoulder: 'L1/R1',
+  // ⭐ R3 opens Quick's polling limit (2.66.87), RS on an Xbox pad and L
+  // on a keyboard, its mark where the limit's arrow was.
+  rate: 'R3',
   // ⭐ The d-pad is the same shape on every pad, so both tables carry the
   // same glyph. It lives here rather than in the strings, so a family that
   // ever needs a different one has somewhere to put it.
@@ -3559,7 +3614,7 @@ var PAD_LEGEND_XBOX = {
   // on an older pad. The glyphs say the same thing without needing either
   // generation's word for it, and they sit at the width of the PlayStation
   // set beside them instead of putting two English words in a row of symbols.
-  resize: '\u29c9', position: '\u2630', shoulder: 'LB/RB',
+  resize: '\u29c9', position: '\u2630', shoulder: 'LB/RB', rate: 'RS',
   dpad: '\u271c'
 };
 
@@ -3689,7 +3744,15 @@ var PS_SHAPES = {
   '\u25b3': '<path d="M10 5.2L14.3 12.6L5.7 12.6Z"/>',
   '\u25cb': '<circle cx="10" cy="10" r="3.9"/>',
   '\u2630': '<path d="M6.4 7.3H13.6M6.4 10H13.6M6.4 12.7H13.6"/>',
-  '\\|/': '<path d="M7 6.9L8.4 13.1M10 6.7V13.3M13 6.9L11.6 13.1"/>'
+  // ⓘ Create's three strokes set apart, so they read \ | / rather than a W
+  // (rhoquinn8217, 2026-10-16: "put space between the characters"), the
+  // outer two three quarters of the middle's length and standing low beside
+  // it, as smaller characters would on its line: half ("reduce the font
+  // size of the "\" and "/" to half"), then half as long again
+  // ("increase the current sizes of "\" and "/" to 1.5x bigger"); the middle
+  // one raised 1.8 of the mark's 20, its foot above theirs ("can the "|" be
+  // shifted up slightly?", then "a little more by the same distance", twice).
+  '\\|/': '<path d="M5.34 7.7L6.9 12.8M10 4.8V11.6M14.66 7.7L13.1 12.8"/>'
 };
 // ⓘ An Xbox pad's two marks that are not letters, drawn the same way:
 // Menu's three lines, as Options', and View's two rectangles, the front one
@@ -3759,9 +3822,13 @@ function keyCap(glyph, set) {
     return '<svg class="kps" viewBox="0 0 20 20" aria-hidden="true">' +
            '<circle cx="10" cy="10" r="9"/>' + PAD_SHAPES[glyph] + '</svg>';
   }
+  // ⓘ Two characters, R3 or RS, at 10 rather than 13, so they fit the
+  // circle; centred the same way, 3.5 below the middle (2.66.87).
+  var two = String(glyph).length > 1;
   return '<svg class="kps" viewBox="0 0 20 20" role="img" aria-label="' + esc(String(glyph)) + '">' +
          '<circle cx="10" cy="10" r="9"/>' +
-         '<text x="10" y="14.55" text-anchor="middle">' + esc(String(glyph)) + '</text></svg>';
+         '<text x="10" y="' + (two ? '13.5" class="k2' : '14.55') + '" text-anchor="middle">' +
+         esc(String(glyph)) + '</text></svg>';
 }
 
 function padLegend() {
@@ -4148,7 +4215,7 @@ var KEY_LEGEND = {
   // 2026-10-15: "U and A", over Space and L). Space stays on/off.
   unlink: 'U', autolink: 'A', updown: '\u21c5',
   select: 'Enter', close: 'Esc', toggle: 'Space',
-  resize: 'R', position: 'P', shoulder: 'Q/E',
+  resize: 'R', position: 'P', shoulder: 'Q/E', rate: 'L',
   dpad: '\u2725'
 };
 
@@ -5787,6 +5854,23 @@ function gpUnlink() {
 
 // Triangle, and A from a keyboard: auto link on the config selector, or
 // remove the one standing; nothing anywhere else.
+// ⭐ R3 OPENS QUICK'S POLLING LIMIT (2.66.87; rhoquinn8217, 2026-10-16: "R3
+// will be the key that lets you reach the rate limit"), RS on an Xbox pad
+// and L on a keyboard: the halo goes to it, open, from wherever it was, the
+// footer's zone included. Up and down step it; ✕ or R3 again keeps the
+// choice, ○ puts the old one back, and either way the halo goes back to
+// the config wheel (gpSelectEnd). Nothing in Simple or Advanced.
+function gpRate() {
+  if (!COMPACT || !QUICK) return;
+  var sel = document.querySelector('#compactBox .crate-q select:not(:disabled)');
+  if (!sel) return;
+  if (GP_SELECTING === sel) { gpSelectEnd(true); return; }
+  if (GP_SELECTING || GP_EDITING || CONFIRM_CB || RENAMING || PRESET_OPEN ||
+      PRESET_INFO_OPEN) return;
+  if (FOOTER_MODE) setFooterMode(false);
+  if (focusElement(sel)) gpActivate();
+}
+
 function gpTriangle() {
   var ord = pickerOrdinalOf(GP_FOCUS[GP_INDEX]);
   if (!ord) return;
@@ -6643,11 +6727,8 @@ function gpCollect() {
     // invisible to it and nothing errors.
     // ⭐ Quick's zone is the bar in its compact box (2.66.85), by the same
     // reach as compactMove's.
-    // ⓘ And the polling limit in the bar (2.66.87), the one place the pad
-    // changes it in Quick.
     var zone = (COMPACT && QUICK)
-      ? '#compactBox .cbar > .crate-q select:not(:disabled), ' +
-        '#compactBox .cbar > button, #compactBox .cbar > select, ' +
+      ? '#compactBox .cbar > button, #compactBox .cbar > select, ' +
         '#compactBox .cbar > .cgroup > select, #compactBox .cbar > .cgroup > button'
       : '#gpbar button, #gpbar select';
     document.querySelectorAll(zone).forEach(function(e) { list.push(e); });
@@ -6710,7 +6791,9 @@ function gpCollect() {
     top.querySelectorAll('button, select, input').forEach(function(e) {
       if (e.offsetParent === null || e.disabled || e.type === 'checkbox') return;
       if (e.closest && e.closest('#tabs')) return;   // L1/R1 own the tabs
-      // ⭐ Quick's footer is Circle's alone (2.66.85).
+      // ⭐ Quick's footer is Circle's alone (2.66.85). ⓘ Its polling limit is
+      // in the list, for R3 to put the halo on (gpRate), and out of the
+      // d-pad's reach, which compactMove's rows decide.
       if (COMPACT && QUICK && e.closest && e.closest('#compactBox .cbar')) return;
       if (e.closest && e.closest('.prate')) { lateInHead.push(e); return; }
       list.push(e);
@@ -7232,12 +7315,12 @@ function gpActivate() {
   if (!el) return;
 
   if (el.tagName === 'SELECT') {
-    // ⭐ QUICK'S CONFIG SELECTOR NEVER OPENS (2.66.85), and ✕ on it does
-    // nothing: the rate limit it opened for a while is reached in the footer
-    // alone (rhoquinn8217, 2026-10-16: "remove the square/A/Enter button
-    // function for the rate limit. Let it only be changed if the user moves
-    // to it from the footer area"). See quickVertical.
-    if (COMPACT && QUICK && el.id === 'cpick') return;
+    // ⭐ QUICK'S CONFIG SELECTOR NEVER OPENS (2.66.85). ✕ on it links the
+    // config on screen at once, without the short wait a step leaves for
+    // the next (2.66.87; rhoquinn8217, 2026-10-16: "Let X/A/Enter be what
+    // you recommended before"); the rate limit it opened for a while is
+    // R3's (gpRate). See quickVertical.
+    if (COMPACT && QUICK && el.id === 'cpick') { quickLinkNow(); return; }
     GP_SELECTING = el;
     GP_SELECT_WAS = el.selectedIndex;
     el.classList.add('gp-selecting');
@@ -7267,7 +7350,7 @@ function gpActivate() {
     // preference. `config_move.inl` gives Quick a size table of ITS OWN:
     //
     //     Simple  kCompactSizes  0.45  x 0.45  of the screen
-    //     Quick   kQuickSizes    0.278 x 0.150   (0.185 wide until 2026-10-02)
+    //     Quick   kQuickSizes    0.225 x 0.150   (0.278 until 2.66.87, 0.185 until 2026-10-02)
     //
     // ➡️ **Simple's window is THREE TIMES TALLER than Quick's.** So the
     // postcard reasoning was measured on Quick and never applied to Simple --
@@ -7344,6 +7427,11 @@ function gpSelectEnd(commit) {
   GP_SELECTING = null;
   el.dispatchEvent(new Event('change'));
   GP_SELECT_COMMIT = true;
+  // ⓘ Quick's polling limit closed: the halo goes back to the config
+  // wheel, where R3 found it (2.66.87).
+  if (COMPACT && QUICK && !FOOTER_MODE && el.closest && el.closest('.crate-q')) {
+    focusElement(document.getElementById('cpick'));
+  }
 }
 
 // ⭐ CONFIG MODE keys.
@@ -7615,7 +7703,10 @@ var CONFIG_MODE_KEYS = {
   KeyZ: function () { gpKeyBack(); },
   KeyX: function () { gpSquare(); },
   // ⭐ Triangle, which reached nothing here until 2.66.84 (rebind.inl).
-  KeyY: function () { gpTriangle(); }
+  KeyY: function () { gpTriangle(); },
+  // ⭐ R3, which reaches the page in Quick alone (2.66.87, rebind.inl):
+  // Quick's polling limit.
+  KeyL: function () { gpRate(); }
   // ⛔ NO KeyC. Create resizes the window now (rhoquinn8217, 2026-09-20) and
   // the listener reads it from the raw report, so it no longer sends a key --
   // see rebind.inl. It used to cycle compact and full, then after T-233 only
@@ -7733,8 +7824,7 @@ function compactMove(dx, dy) {
   // ⓘ The selector row above got this right, and is the precedent:
   // `selRow.querySelectorAll('select, button')`.
   var bar = Array.prototype.slice.call(
-    box.querySelectorAll('.cbar > .crate-q select:not(:disabled), ' +
-                         '.cbar > button, .cbar > select, .cbar > .cgroup > select, ' +
+    box.querySelectorAll('.cbar > button, .cbar > select, .cbar > .cgroup > select, ' +
                          '.cbar > .cgroup > button'));
   if (bar.length) rows.push(bar);
   // ⭐ Quick's footer is a zone (2.66.85): in it, the bar alone; out of it,
@@ -8514,6 +8604,9 @@ var PLAIN_KEYS = {
   // left) never arrives here.
   KeyU:       function () { gpUnlink(); },
   KeyA:       function () { gpTriangle(); },
+  // ⭐ L OPENS QUICK'S POLLING LIMIT, as R3 does on a pad (2.66.87): L for
+  // limit, its first letter, as U and A are theirs.
+  KeyL:       function () { gpRate(); },
 
   // ⭐⭐ Q AND E DID NOT WORK FROM A KEYBOARD, AND THE REASON WAS ONE LINE
   // (rhoquinn8217, 2026-09-24: *"I should mention that Q and E currently don't
@@ -8969,13 +9062,14 @@ function compactSize() {
 
 // ⓘ Quick's window: the smaller of its two sizes, which rhoquinn8217 named
 // medium and large (2026-09-09); the listener's table agrees.
-// ⭐ HALF AS WIDE AGAIN SINCE 2026-10-02, at the width they dragged it to
-// (kQuickSizes in config_move.inl says why). ⛔ This number and that table
+// ⭐ HALF AS WIDE AGAIN SINCE 2026-10-02, at the width they dragged it to,
+// and 0.225 since 2.66.87, so the footer's legend has half the room either
+// side (kQuickSizes in config_move.inl says why). ⛔ This number and that table
 // are TWO PLACERS: a switch sizes the window here, the resize button there,
 // and 2.66.49 changed only the listener's, so a switch opened at the old
 // width.
 function quickSize() {
-  compactHome(Math.round(screen.availWidth * 0.278),
+  compactHome(Math.round(screen.availWidth * 0.225),
               Math.round(screen.availHeight * 0.15));
 }
 
@@ -9452,7 +9546,15 @@ function paintCompact() {
     html += '<div class="ccar' + slide + '">' +
             side(prev, 'l', '\u25c2 ' + shoulderMark(shoulder[0])) +
             '<div class="ccur"><div class="cname">' + esc(nameFor(d.ordinal)) +
-            batteryTags(partsOf(d.ordinal)) + '</div>' +
+            batteryTags(partsOf(d.ordinal)) +
+            // ⭐ QUICK'S POLLING RATE AND LIMIT AFTER THE BATTERY (2.66.87;
+            // rhoquinn8217, 2026-10-16: "move the polling /rate limit after the
+            // battery separated by a " | ""), the limit opened by R3, whose
+            // mark stands where its arrow was ("R3 will be the key that lets
+            // you reach the rate limit").
+            (QUICK ? '<span class="cnsep">|</span><span class="crate-q">' +
+                     rateTags(partsOf(d.ordinal), keyCap(padLegend().rate)) + '</span>' : '') +
+            '</div>' +
             // ⓘ The marks follow the model name here too, as on the tabs.
             // ⭐ NOT IN QUICK (2.66.87; rhoquinn8217, 2026-10-16: "Remove Device
             // type"): its name is in the selector's title there instead.
@@ -9634,12 +9736,6 @@ function paintCompact() {
                         // ⓘ "footer/close", as Advanced's says: Circle takes the
                         // pad into the footer, onto Close (2.66.85).
                         [keyCap(LG.close), 'footer/close']]) + '</div></div>' +
-            // ⭐ THE POLLING RATE AND LIMIT AT THE FOOTER'S RIGHT (2.66.87), after
-            // the legend, which takes the slack and pushes them against the
-            // mode picker; the limit reached by moving to it in the footer's
-            // zone ("Let it only be changed if the user moves to it from the
-            // footer area").
-            (d ? '<span class="crate-q">' + rateTags(partsOf(d.ordinal)) + '</span>' : '') +
             modeGroupHtml() +
             '<button class="cclose" onclick="closeWindow()">Close</button></div>';
   } else {
@@ -9986,6 +10082,7 @@ function gpPoll() {
     }
     if (edge(0)) gpSelectEnd(true);
     if (edge(1)) gpSelectEnd(false);
+    if (edge(11) && GP_SELECTING) gpRate();   // R3 again keeps the limit's choice
     edge(2); edge(3); edge(4); edge(5);   // consume, so they do not fire on release
     requestAnimationFrame(gpPoll);
     return;
@@ -10012,6 +10109,7 @@ function gpPoll() {
   // listener's gate.
   if (edge(2)) gpSquare();           // square: unlink on the selector, else managed
   if (edge(3)) gpTriangle();         // triangle: auto link on the selector
+  if (edge(11)) gpRate();            // R3: Quick's polling limit
 
   // ⛔ pressed(), NOT edge(). edge() WRITES GP_PREV as it reads, so calling it
   // here consumed the press and everything below saw nothing -- cross stopped
@@ -10787,13 +10885,18 @@ function selfTest() {
        PAD_LEGEND_PS.unlink === '\u25a1' && PAD_LEGEND_PS.autolink === '\u25b3' &&
        PAD_LEGEND_XBOX.unlink === 'X' && PAD_LEGEND_XBOX.autolink === 'Y' &&
        KEY_LEGEND.unlink === 'U' && KEY_LEGEND.autolink === 'A');
-    ok('a keyboard: U unlinks, A auto links, Space still toggles, L does nothing',
+    ok('a keyboard: U unlinks, A auto links, Space still toggles, L opens Quick\'s limit',
        String(PLAIN_KEYS.KeyU).indexOf('gpUnlink') >= 0 &&
        String(PLAIN_KEYS.KeyA).indexOf('gpTriangle') >= 0 &&
-       String(PLAIN_KEYS.Space).indexOf('gpToggleManaged') >= 0 && !PLAIN_KEYS.KeyL);
-    ok('the pad through the listener: Square and Triangle',
+       String(PLAIN_KEYS.Space).indexOf('gpToggleManaged') >= 0 &&
+       String(PLAIN_KEYS.KeyL).indexOf('gpRate') >= 0);
+    ok('the pad through the listener: Square, Triangle and R3',
        String(CONFIG_MODE_KEYS.KeyX).indexOf('gpSquare') >= 0 &&
-       String(CONFIG_MODE_KEYS.KeyY).indexOf('gpTriangle') >= 0);
+       String(CONFIG_MODE_KEYS.KeyY).indexOf('gpTriangle') >= 0 &&
+       String(CONFIG_MODE_KEYS.KeyL).indexOf('gpRate') >= 0);
+    ok('the legends: Quick\'s polling limit is R3, RS, L',
+       PAD_LEGEND_PS.rate === 'R3' && PAD_LEGEND_XBOX.rate === 'RS' &&
+       KEY_LEGEND.rate === 'L');
 
     var keepFocus = GP_FOCUS, keepIndex = GP_INDEX, keepSelecting = GP_SELECTING;
     var keepDevices = LAST_DEVICES, keepConfigs = CONFIGS;
@@ -10911,6 +11014,24 @@ function selfTest() {
          quickShown(pad) === 'cfg_b' && !!QUICK_WANT);
       pad.linked_config = 'cfg_b';
       ok('Quick: and then lets go', quickShown(pad) === 'cfg_b' && QUICK_WANT === null);
+
+      // ✕ on the wheel links the step at once, not when the wait runs out
+      // (2.66.87). Stepped with nothing to focus, then pressed on it.
+      var keepCompact = COMPACT, keepQuick = QUICK;
+      qsel.id = 'cpick';
+      GP_FOCUS = [];
+      calls = [];
+      quickStepConfig(qsel, 1);
+      try {
+        COMPACT = true; QUICK = true;
+        GP_FOCUS = [qsel]; GP_INDEX = 0; GP_SELECTING = null;
+        gpActivate();
+      } finally {
+        COMPACT = keepCompact; QUICK = keepQuick;
+      }
+      ok('Quick: \u2715 on the wheel links the config on screen at once',
+         calls.join('|') === 'link selftest_1 (none)' && GP_SELECTING === null,
+         calls.join('|'));
     } finally {
       clearTimeout(QUICK_WANT_TIMER);
       QUICK_WANT = keepWant; QUICK_WANT_TIMER = keepWantTimer;

@@ -1289,9 +1289,13 @@ inline int draw_mark(HDC dc, int x, int y, int h, const wchar_t *glyph, COLORREF
                 line(6.4f, 10.0f, 13.6f, 10.0f);
                 line(6.4f, 12.7f, 13.6f, 12.7f);
             } else if (std::wcscmp(glyph, L"\\|/") == 0) {          // Create
-                line(7.0f, 6.9f, 8.4f, 13.1f);
-                line(10.0f, 6.7f, 10.0f, 13.3f);
-                line(13.0f, 6.9f, 11.6f, 13.1f);
+                // ⓘ The strokes set apart, as on the page (2.66.87), so they
+                // read \ | / rather than a W, the outer two three quarters
+                // of the middle's length and standing low beside it, the
+                // middle one raised 1.8 of the mark's 20, its foot above theirs.
+                line(5.34f, 7.7f, 6.9f, 12.8f);
+                line(10.0f, 4.8f, 10.0f, 11.6f);
+                line(14.66f, 7.7f, 13.1f, 12.8f);
             } else if (std::wcscmp(glyph, L"\u29c9") == 0) {      // View
                 // ⓘ The rectangle behind, only where it shows, then the one in front.
                 const Gdiplus::PointF back[4] = { at(8.0f, 8.7f), at(8.0f, 6.1f),

@@ -140,9 +140,19 @@ inline std::atomic_bool g_compact{false};
 // the ask was the width, and a long model name on the line under the name
 // was what it had no room for.
 //
-//   medium  0.278 x 0.150   what the page opens Quick at
+//   medium  0.278 x 0.150   (until 2026-10-16; below)
 //   large   0.346 x 0.187
-inline const SizeShare kQuickSizes[2] = { { 0.278, 0.150 }, { 0.346, 0.187 } };
+// ⭐ NARROWER, SO THE FOOTER'S LEGEND HAS HALF THE ROOM EITHER SIDE
+// (rhoquinn8217, 2026-10-16: "shrink the entire window so that the space on
+// the left and right of the legend is reduce to half"). At 150% on a work
+// area 3840 wide, 0.278 left 153 px before the legend and 187 after it,
+// and 0.225 leaves 71 and 99. Large keeps its 1.245 times medium.
+// The page's widths are in vw, and its config wheel is set wider in vw to
+// stay the size it was.
+//
+//   medium  0.225 x 0.150   what the page opens Quick at
+//   large   0.280 x 0.187
+inline const SizeShare kQuickSizes[2] = { { 0.225, 0.150 }, { 0.280, 0.187 } };
 inline std::atomic_int  g_sizeQuick{0};
 inline std::atomic_bool g_quick{false};
 
