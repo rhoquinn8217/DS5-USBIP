@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.86 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.87 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,30 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.87 Quick's config selector is a wheel (rhoquinn8217: "build out a
+            Wheel / Drum Picker for the config selector"): its choice in a
+            frame fixed in the middle, which alone carries the halo, the
+            configs either side flat and fading toward the top and bottom,
+            sliding a step at a time; a click on the config above or below
+            steps to it. The wheel, its title and "unlink" and "auto link",
+            each with its button's mark, stand in one centred panel, the
+            title on the panel's top edge, naming the device type and
+            "Config" (the device type left the ring for it). ✕ on the wheel
+            does nothing. The polling rate and limit stand in the footer,
+            before the mode picker, the limit reached only from the footer's
+            zone; the legend, centred before them, keeps position, resize and
+            footer/close, and the footer is no longer lit while the pad is
+            in it (rhoquinn8217: "Intention is to lessen the legend area").
+            Every legend draws each button as it looks: a PlayStation shape,
+            or an Xbox letter, Menu or View, in a circle, a shoulder button
+            in a box with a rounded top, the d-pad as a cross and a
+            keyboard's key as a key cap, all level on the line, the entries
+            set apart by space rather than " | ", each legend in a box of
+            its own. Simple's tips and the L1 and R1 beside the ring's
+            neighbours draw theirs the same way. Simple's and Advanced's
+            selectors are titled "Controller Config", in white just above
+            the box at the left; Advanced's "currently linked config" line
+            goes.
     2.66.86 The polling limit is the controller's own, kept by the
             listener for that controller whatever config it reads, so a
             change of config never moves it (rhoquinn8217: "keep it with
@@ -1311,7 +1335,6 @@
   /* ⓘ The name a little larger than the kind under it, no more
      (rhoquinn8217, 2026-09-09). */
   body.quick #compactBox .cname { font-size:15vh; line-height:1.05; }
-  body.quick #compactBox .ccur .ckind { font-size:12vh; margin-top:0.45vh; }
   body.quick #compactBox .cside { font-size:12vh; }
   body.quick #compactBox .cside small { font-size:9vh; }
   body.quick #compactBox .cside .ckind { font-size:9vh; margin-top:0.45vh; }
@@ -1319,6 +1342,96 @@
   body.quick #compactBox .cside.r { padding-left:1ch; }
   body.quick #compactBox .csel { gap:0; }
   body.quick #compactBox .cselrow { gap:2vw; width:100%; justify-content:center; }
+  /* ⭐ A button's mark beside what it does, in Quick (2.66.87; rhoquinn8217,
+     2026-10-16: "use a circle around the X/A square/X, triangle/Y so they
+     look like buttons"): a pad's button in a circle, and a keyboard's key in
+     a key cap, "since a key looks like a key". Sized by the text it sits in.
+     ⭐ A pad's mark is DRAWN (keyCap), a PlayStation shape, an Xbox pad's
+     Menu or View, or a letter, in a circle: the shape sits in the circle's
+     centre, and every mark stands level on the line. */
+  .kps { width:1.08em; height:1.08em; flex:0 0 auto; vertical-align:-0.17em;
+         fill:none; stroke:currentColor; stroke-width:1.25; stroke-linejoin:round;
+         stroke-linecap:round; }
+  .kps text { fill:currentColor; stroke:none; font-size:13px; }
+  .kdpad { width:1.08em; height:1.08em; flex:0 0 auto; vertical-align:-0.17em;
+          fill:none; stroke:currentColor; stroke-width:1.25; stroke-linejoin:round; }
+  /* ⭐ A SHOULDER BUTTON IN A SHOULDER BUTTON'S SHAPE (rhoquinn8217,
+     2026-10-16: "for shoulder button can you put them into this shape
+     instead of a circle?", drawn as a box with its top corners well
+     rounded and its bottom ones square; then "the shoulder buttons in the
+     legend aren't centered. Widen them a little."). DRAWN, as the
+     PlayStation marks are, at their height and on their line: a box of
+     text sits on the line by its text, and stood 2.5 px lower than the
+     round marks beside it. A little wider than tall, for two characters;
+     the label centred by construction (shoulderMark). */
+  .kshoulder { width:1.296em; height:1.08em; flex:0 0 auto; vertical-align:-0.17em;
+               fill:none; stroke:currentColor; stroke-width:1.25; stroke-linejoin:round; }
+  .kshoulder text { fill:currentColor; stroke:none; font-size:12px; }
+  .lgi { white-space:nowrap; }
+  /* ⭐ The legend in a box of its own, in every mode (rhoquinn8217,
+     2026-10-16), its entries a short gap apart ("less space between
+     button in the legend"). It wraps between entries when a window is
+     narrow, and the box then holds both lines. */
+  .lgbox { display:inline-flex; flex-wrap:wrap; justify-content:center;
+           align-items:center; column-gap:0.7em; row-gap:0.2em;
+           padding:0.25em 0.7em; border:1px solid #3a3d47; border-radius:6px; }
+  /* Quick's footer has no height to spare: the box stands no taller than
+     the mode picker beside it. */
+  body.quick #compactBox .lgbox { padding:0.06em 0.6em; }
+  .kpair > * + * { margin-left:0.15em; }
+  .kcap { display:inline-block; min-width:1em; padding:0 0.28em;
+          border:1px solid currentColor; border-radius:0.3em; font-size:0.78em;
+          line-height:1.3; text-align:center; flex:0 0 auto; }
+  /* Quick's two presses, stacked to the right of its selector: green while an
+     auto link stands, faint while there is nothing to do. */
+  body.quick #compactBox .chints { display:flex; flex-direction:column;
+    align-items:flex-start; gap:0.8vh; flex:0 0 auto; grid-column:2; grid-row:1; }
+  body.quick #compactBox .chint { display:flex; align-items:center; gap:0.35em;
+    font-size:6.2vh; color:#9a9ca5; white-space:nowrap; }
+  body.quick #compactBox .chint.on { color:#7fd18c; }
+  body.quick #compactBox .chint.off { opacity:0.4; }
+  /* Quick's selector steps and never opens: no arrow; ⇅ is in the legend. */
+  /* ⭐ QUICK'S PANEL (2.66.87; rhoquinn8217, 2026-10-16: "Expand the container
+     so that it covers the Label and the unlink and auto link symbols ...
+     Center the container area"): the title over the wheel, its two
+     presses beside it, one panel in the select's old colours, centred by
+     the row as one. */
+  body.quick #compactBox .cpick-wrap { position:relative; display:inline-grid;
+    grid-template-columns:auto auto; align-items:center; column-gap:2.2vw;
+    row-gap:0; padding:3.6vh 2vw 0.7vh; flex:0 1 auto; min-width:0;
+    max-width:86vw; box-sizing:border-box; background:#1d1f26;
+    border:1px solid #2c2e36; border-radius:8px; }
+  body.quick #compactBox .cwheel { position:relative; display:inline-flex; grid-column:1;
+    grid-row:1; min-width:0; max-width:58vw; }
+  body.quick #compactBox .cpick-wrap select { appearance:none; -webkit-appearance:none;
+    max-width:100%; }
+  /* ⭐ QUICK'S WHEEL (2.66.87): the select unseen beneath; a plain panel; a
+     frame in its middle around the chosen config, which alone takes the
+     halo (rhoquinn8217, 2026-10-16: "The halo shouldn't go around the
+     whole box though. It should only cover the selected config"); the
+     rows flat, sliding through the frame, faded toward the top and
+     bottom ("doesn't need to curve in, they just need to fade"). */
+  /* ⓘ Wider at the sides than the select needs: a row draws a name, the
+     claim's mark most of all, a little wider than the select measures it. */
+  body.quick #compactBox .cpick-wrap select { opacity:0; height:2.8em;
+    padding-left:0.9em; padding-right:0.9em; }
+  body.quick #compactBox .cdrum { position:absolute; inset:0; pointer-events:none;
+    border-radius:6px; font-size:12.6vh; }
+  body.quick #compactBox .cdrum-frame { position:absolute; left:0.18em; right:0.18em;
+    top:50%; height:1.3em; margin-top:-0.65em; box-sizing:border-box;
+    border:2px solid #3a3d47; border-radius:0.22em; background:#262833; }
+  body.quick #compactBox .cwheel:has(> select.gp-focus) .cdrum-frame {
+    border-color:#6c8cff; background:#2a3566; }
+  body.quick #compactBox .cdrum-view { position:absolute; inset:0; overflow:hidden;
+    border-radius:inherit;
+    -webkit-mask-image:linear-gradient(to bottom, transparent, #000 27%, #000 73%, transparent);
+            mask-image:linear-gradient(to bottom, transparent, #000 27%, #000 73%, transparent); }
+  body.quick #compactBox .cdrum-track { position:absolute; left:0; right:0; top:50%; height:0; }
+  body.quick #compactBox .cdrum-row { position:absolute; left:0; right:0;
+    height:1.2em; margin-top:-0.6em; line-height:1.2em; padding:0 0.5em;
+    text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    color:#9a9ca5; }
+  body.quick #compactBox .cdrum-row.on { color:#e8e8ea; }
   /* The selector may shrink below its longest name rather than push the
      button off the edge; a long name is clipped inside it.
      ⛔ THE CAP IS WHAT KEEPS IT IN (2026-09-19): a flex item clamped by
@@ -1401,7 +1514,47 @@
   #compactBox .ccar.slide-l, #compactBox .csel.slide-l { animation:cslide-l .26s ease-out; }
   /* The selector and its title travel with the ring (rhoquinn8217, 2026-09-09). */
   #compactBox .csel { display:flex; flex-direction:column; align-items:center; gap:1.2vh; }
-  #compactBox .ctitle { font-size:3vh; color:#71737c; text-align:center; }
+  /* ⭐ THE SELECTOR'S TITLE AT ITS TOP EDGE, at the left (rhoquinn8217,
+     2026-10-16: "add/move the controller configs selection label to
+     overlap the top left part of the box"), standing JUST ABOVE the edge
+     and its focus ring, with nothing behind it (the same day: "move the
+     label up so it doesn't cut into the box as much. Is there a way to
+     make the text background transparent instead of a black cutout?").
+     Across the edge it needed the page's colour behind it to hide the
+     ring, and that showed as a dark gap in the blue. ⓘ .gp-focus draws
+     the ring 2 to 5 px outside the edge, so the title's foot, descenders
+     and all, is 5 px above the edge, and each row makes room for it.
+     ⓘ The selector is wrapped in both views now, and the WRAPPER is the
+     row's flex item: Simple's 47vw floor moves to it, and the selector
+     inside may shrink with it, as the selector could when it was the
+     item itself. Quick's own wrapper rules, further up, still win there.
+     ⭐ ONE TITLE FOR ALL THREE MODES (rhoquinn8217, 2026-10-16: "make the
+     label consistent between all modes"): Advanced's at the size of the
+     field heading it replaced, the compact views' by their own scale. */
+  .cpick-wrap { position:relative; display:inline-flex; align-items:center; }
+  /* ⓘ In the page's white, the colour of the value in the box (rhoquinn8217,
+     2026-10-16: "Can you make the label white"). */
+  .cpick-label { position:absolute; left:10px; bottom:calc(100% + 5px); z-index:1;
+    padding:0 5px; font-size:11px; line-height:1.25; color:#e8e8ea; font-weight:600;
+    white-space:nowrap; pointer-events:none; }
+  #compactBox .cpick-wrap { flex:0 1 auto; min-width:47vw; }
+  #compactBox .cpick-wrap select { min-width:0; flex:1 1 auto; }
+  #compactBox .cpick-label { left:0.9em; padding:0 0.35em; font-size:2.4vh; }
+  /* ⭐ QUICK'S CENTRED ON ITS PANEL'S TOP EDGE (rhoquinn8217, 2026-10-16:
+     "center the config selector label to the container and have the label
+     overlap the upper edge of the container"). The edge stops behind its
+     letters: the page's colour behind their top half and the panel's
+     behind their bottom half, so the gap reads as the edge's own and no
+     block shows (the dark patch over the blue ring was refused). */
+  body.quick #compactBox .cpick-label { font-size:5.6vh; left:50%; top:0; bottom:auto;
+    transform:translate(-50%, -50%); padding:0 0.45em;
+    background:linear-gradient(to bottom, #15161a 50%, #1d1f26 50%); }
+  /* The room above each selector row that the title stands in. */
+  .f:has(> .cpick-wrap) { padding-top:8px; }   /* a margin collapses into the table's */
+  #compactBox .csel { padding-top:1.4vh; }
+  /* ⓘ Room for the upper half of Quick's title, which stands on its panel's
+     top edge (2.66.87). */
+  body.quick #compactBox .csel { padding-top:3.2vh; }
   #compactBox .cname { font-size:9vh; font-weight:600; text-align:center; line-height:1.1;
                        display:flex; align-items:center; justify-content:center;
                        flex-wrap:wrap; }
@@ -1414,13 +1567,16 @@
      line, and never the part that gives way; the model name shortens first.
      ⓘ Its select is out of reach of Quick's own rule for selects, which is
      the config selector's size. */
-  #compactBox .ckind .crate-q { flex:0 0 auto; margin-left:0.5em; font-size:0.62em;
-                              color:#c8c9ce; align-self:center; }
-  body.quick #compactBox .ckind .crate-q select { font-size:1em; padding:0.15em 0.4em;
-                                                 min-width:0; max-width:none; }
-  /* ⭐ Quick's footer zone (2.66.85), lit while Circle has the pad in it, as
-     Advanced's bar is. */
-  #compactBox .cbar.gp-zone { background:#22252e; border-top-color:#6c8cff; }
+  /* ⭐ Quick's polling rate and limit at the footer's right (2.66.87), at the
+     footer's own size; its legend stays centred in the room before them
+     (rhoquinn8217, 2026-10-16: "don't left align the legend"). */
+  body.quick #compactBox .cbar > .crate-q { flex:0 0 auto; font-size:6.9vh;
+                                           color:#c8c9ce; white-space:nowrap; }
+  body.quick #compactBox .crate-q select { font-size:1em; padding:0.15em 0.4em;
+                                          min-width:0; max-width:none; }
+  /* ⓘ Quick's footer zone (2.66.85) is NOT lit (rhoquinn8217, 2026-10-16:
+     "the whole area is lit up and looks odd"): the halo on Close says where
+     the pad is. */
   #compactBox .crate select { font-size:3.4vh; padding:0.5vh 1vw; min-width:0; }
   /* ⓘ Two thirds of what it was (rhoquinn8217, 2026-09-09). */
   #compactBox select { font-size:4.2vh; padding:0.8vh 1.4vw; min-width:47vw; }
@@ -2020,7 +2176,7 @@
        ⓘ The same number as VERSION at the top of this file, by hand. It sat
        at 2.66.4 for thirty-four versions while VERSION moved on. -->
   <label class="muted">version</label>
-  <span class="barCell"><span class="fixedField" id="pageVersion" title="This page's version. The program's own is in the window's title.">2.66.86</span></span>
+  <span class="barCell"><span class="fixedField" id="pageVersion" title="This page's version. The program's own is in the window's title.">2.66.87</span></span>
   <label class="muted" for="base">agent</label>
   <span class="barCell">
   <input id="base" value="http://127.0.0.1:48053" size="26">
@@ -3130,7 +3286,8 @@ function rateTag(d) {
     // Simple and Quick a click opens it in the window, as the pad does,
     // rather than as a native list unrolling past the window's edge.
     // pickerActivate leaves Advanced's tables their native dropdown.
-    html += ' / <select data-ord="' + esc(String(d.ordinal)) + '" title="' + esc(title) + '"' +
+    html += ' / ' +
+            '<select data-ord="' + esc(String(d.ordinal)) + '" title="' + esc(title) + '"' +
             (lock ? ' disabled' : '') + ' onmousedown="pickerActivate(event,this)"' +
             ' onclick="pickerClickEnd(this)" onchange="setRateLimit(this)">' + opts + '</select>';
   }
@@ -3140,7 +3297,7 @@ function rateTag(d) {
 // ⓘ One per part, as the battery gauges are: two halves under one name each
 // have their own rate.
 function rateTags(parts) {
-  return (parts || []).map(rateTag).join(' ');
+  return (parts || []).map(function (d) { return rateTag(d); }).join(' ');
 }
 
 // ⭐ THE READOUTS FOLLOW THE POLL, in place, like the gauges: a rate changes
@@ -3515,6 +3672,98 @@ function notepadPress(pad) {
 // ⓘ Advanced can sit on Overview or the Editor, where no pad is shown -- then
 // the first bridged controller answers, and a DualSense answers when nothing
 // is bridged at all, because that is this project's primary device.
+// ⭐ A BUTTON'S MARK BESIDE WHAT IT DOES, in Quick (2.66.87; rhoquinn8217,
+// 2026-10-16: "I want to move button description from the legend an next to
+// the area that they matter in a easy to understand way"). The mark of the
+// input in hand, from padLegend(): a pad's button in a circle, as the
+// buttons are, and a keyboard's key in a key cap.
+// ⭐ A PLAYSTATION BUTTON IS ITS SHAPE IN A CIRCLE, CENTRED (rhoquinn8217,
+// 2026-10-16: "Try to use circles around the playstation symbols again but
+// try to center playstation symbols in the circle"). A font's ✕ □ △ sit at
+// different heights and sizes, so they are DRAWN: a circle and the shape,
+// centred by construction (the triangle on its centroid), in the text's
+// colour. ⓘ Any other mark the set holds falls back to text in a circle.
+var PS_SHAPES = {
+  '\u2715': '<path d="M6.6 6.6L13.4 13.4M13.4 6.6L6.6 13.4"/>',
+  '\u25a1': '<rect x="6.6" y="6.6" width="6.8" height="6.8"/>',
+  '\u25b3': '<path d="M10 5.2L14.3 12.6L5.7 12.6Z"/>',
+  '\u25cb': '<circle cx="10" cy="10" r="3.9"/>',
+  '\u2630': '<path d="M6.4 7.3H13.6M6.4 10H13.6M6.4 12.7H13.6"/>',
+  '\\|/': '<path d="M7 6.9L8.4 13.1M10 6.7V13.3M13 6.9L11.6 13.1"/>'
+};
+// ⓘ An Xbox pad's two marks that are not letters, drawn the same way:
+// Menu's three lines, as Options', and View's two rectangles, the front one
+// whole and the back one showing above it and to its right.
+var PAD_SHAPES = {
+  '\u2630': '<path d="M6.4 7.3H13.6M6.4 10H13.6M6.4 12.7H13.6"/>',
+  '\u29c9': '<path d="M8 8.7V6.1H14.4V11.3H12M5.6 8.7H12V13.9H5.6Z"/>'
+};
+// ⓘ The two marks that are not round buttons (2.66.87): the d-pad, drawn as
+// a cross on either pad, and the shoulder pair, each in a shoulder button's
+// shape (shoulderMark).
+var DPAD_SVG = '<svg class="kdpad" viewBox="0 0 20 20" aria-hidden="true">' +
+               '<path d="M7.6 3.2H12.4V7.6H16.8V12.4H12.4V16.8H7.6V12.4H3.2V7.6H7.6Z"/></svg>';
+// ⭐ A SHOULDER BUTTON IN ITS OWN SHAPE (rhoquinn8217, 2026-10-16: first
+// "put L1/R1 LB/RB in side of a circle as well", then "for shoulder button
+// can you put them into this shape instead of a circle?"): a box with a
+// rounded top, as a shoulder button has, in the legends and beside the
+// neighbours in the ring alike. A keyboard's Q and E stay key caps.
+// ⭐ DRAWN, so it sits level with the round marks ("the shoulder buttons in
+// the legend aren't centered. Widen them a little."): 24 by 20, the round
+// marks' 20 high, the top corners on a radius of 6. The label is centred
+// on the box's middle, y 10: a capital is 0.7 of the size in Segoe UI, so
+// at 12 its baseline is 4.2 below that. It is named for a screen reader,
+// as it carries words, where the PlayStation shapes are hidden.
+function shoulderMark(k) {
+  if (padLegend() === KEY_LEGEND) return '<span class="kcap">' + esc(k) + '</span>';
+  return '<svg class="kshoulder" viewBox="0 0 24 20" role="img" aria-label="' + esc(k) + '">' +
+         '<path d="M1.1 18.9V7.1A6 6 0 0 1 7.1 1.1H16.9A6 6 0 0 1 22.9 7.1V18.9Z"/>' +
+         '<text x="12" y="14.2" text-anchor="middle">' + esc(k) + '</text></svg>';
+}
+function shoulderCaps(pair) {
+  return '<span class="kpair">' + String(pair).split('/').map(shoulderMark).join('') + '</span>';
+}
+
+// ⭐ A LEGEND'S ENTRIES, SET APART BY SPACE, NOT " | " (rhoquinn8217,
+// 2026-10-16: "remove the "|" separator and use outside of the legend",
+// then "less space between button in the legend"): each mark already
+// starts an entry. An entry never breaks across lines.
+// ⭐ AND THE LEGEND IN A BOX OF ITS OWN, in every mode (rhoquinn8217,
+// 2026-10-16: "Can you put a box around the legend in each mode"), drawn
+// here so all three get the same box. ⓘ Only the legend: Advanced's bar
+// shows other lines in the same place (editing a value, the window
+// behind), and those stand bare.
+function legendLine(items) {
+  return '<span class="lgbox">' + items.map(function (it) {
+    return '<span class="lgi">' + it[0] + ' ' + it[1] + '</span>';
+  }).join('') + '</span>';
+}
+// ⓘ `set` names the legend set to draw from, for a mark that is the same
+// whatever is in hand (a tip about the DS5's own gesture); otherwise the
+// input in hand decides, as everywhere else.
+function keyCap(glyph, set) {
+  var legend = set || padLegend();
+  if (legend === KEY_LEGEND) return '<span class="kcap">' + esc(String(glyph)) + '</span>';
+  if (glyph === '\u271c') return DPAD_SVG;
+  if (legend === PAD_LEGEND_PS && PS_SHAPES[glyph]) {
+    return '<svg class="kps" viewBox="0 0 20 20" aria-hidden="true">' +
+           '<circle cx="10" cy="10" r="9"/>' + PS_SHAPES[glyph] + '</svg>';
+  }
+  // ⭐ ANY OTHER PAD'S BUTTON IS DRAWN TOO (rhoquinn8217, 2026-10-16: "the
+  // shoulder buttons in the legend aren't centered"): an Xbox pad's Menu and
+  // View as their shapes, a letter as text, in the same circle. A circle of
+  // TEXT sits on the line by its letter, and stood 1.7 px below the drawn
+  // marks beside it. The letter is centred as shoulderMark's label is: at 13
+  // a capital is 9.1 tall, so its baseline is 4.55 below the middle.
+  if (PAD_SHAPES[glyph]) {
+    return '<svg class="kps" viewBox="0 0 20 20" aria-hidden="true">' +
+           '<circle cx="10" cy="10" r="9"/>' + PAD_SHAPES[glyph] + '</svg>';
+  }
+  return '<svg class="kps" viewBox="0 0 20 20" role="img" aria-label="' + esc(String(glyph)) + '">' +
+         '<circle cx="10" cy="10" r="9"/>' +
+         '<text x="10" y="14.55" text-anchor="middle">' + esc(String(glyph)) + '</text></svg>';
+}
+
 function padLegend() {
   // ⭐⭐ A REAL KEYBOARD FIRST, because it is the only one of the three that
   // is known from the PRESS ITSELF rather than from a device list. 🔗
@@ -3948,25 +4197,38 @@ function noteInputSource(what) {
 //
 // ⓘ `<b>` is allowed and nothing here is user text, so there is nothing to
 // escape. 🔗 The same reasoning as the legend a few lines above.
+// ⭐ THE BUTTONS DRAWN AS THE LEGEND DRAWS THEM (rhoquinn8217, 2026-10-16:
+// "Update the hints to use the boxed/circled buttons"). Each such tip is a
+// function, so its marks are drawn when it is shown, as hint 8's are.
 var FOOTER_HINTS = [
-  'To bring this window back: <b>hold two fingers on the touchpad and press ' +
-  '☰</b> (DS5/DS4 only), or click the tray icon and choose ' +
-  '<b>Open Controller Configs</b>.',
+  // ⓘ A PlayStation pad's Options whatever is in hand: the gesture is the
+  // DS5's and DS4's alone.
+  function () {
+    return 'To bring this window back: <b>hold two fingers on the touchpad and press</b> ' +
+      keyCap('☰', PAD_LEGEND_PS) + ' (DS5/DS4 only), or click the tray icon and choose ' +
+      '<b>Open Controller Configs</b>.';
+  },
 
   'DS5-USBIP keeps running in the <b>background</b> when this window is ' +
   'closed. To stop it, click the <b>tray icon</b> by the clock and choose ' +
   '<b>Quit</b>.',
 
-  'Hold <b>☰</b> and move the <b>left stick</b> to drag this window. Tap it ' +
-  'instead and the window steps between three spots.',
+  // ⓘ Options on a PlayStation pad and Menu on an Xbox one, drawn alike.
+  function () {
+    return 'Hold ' + keyCap('☰', PAD_LEGEND_PS) + ' and move the <b>left stick</b> to ' +
+      'drag this window. Tap it instead and the window steps between three spots.';
+  },
 
   'Click the <b>tray icon</b> and choose <b>Open Controller Configs</b> to ' +
   'bring back this window. You can also open the DS5-USBIP virtual keyboard ' +
   'from there.',
 
-  'Give a pad a <b>stick, gyro or touchpad to mouse</b> preset and it drives ' +
-  'this PC with no mouse or keyboard. Presets use <b>□/X</b> to open the ' +
-  'DS5-USBIP virtual keyboard.',
+  // ⓘ Both pads' buttons, as the words always gave both.
+  function () {
+    return 'Give a pad a <b>stick, gyro or touchpad to mouse</b> preset and it drives ' +
+      'this PC with no mouse or keyboard. Presets use ' + keyCap('□', PAD_LEGEND_PS) +
+      '/' + keyCap('X', PAD_LEGEND_XBOX) + ' to open the DS5-USBIP virtual keyboard.';
+  },
 
   "Bridged controllers don't reach the <b>game</b> while this window is open. " +
   'However, when the window is open, the buttons will always follow the ' +
@@ -3982,8 +4244,8 @@ var FOOTER_HINTS = [
   // repaints when the input changes (noteInputSource, pollLastPress).
   function () {
     var L = padLegend(), sh = L.shoulder.split('/');
-    return '<b>' + sh[0] + '</b> and <b>' + sh[1] + '</b> change controller, <b>' +
-      L.position + '</b> moves this window, <b>' + L.resize + '</b> resizes it.';
+    return shoulderMark(sh[0]) + ' and ' + shoulderMark(sh[1]) + ' change controller, ' +
+      keyCap(L.position) + ' moves this window, ' + keyCap(L.resize) + ' resizes it.';
   },
 
   // ⓘ The wording of this one and of the two after it is rhoquinn8217's
@@ -4776,12 +5038,19 @@ function buildDevicePane(d) {
     : '<button disabled title="this controller already reads no config">' +
       'Unlink \ud83d\udec7</button>';
 
-  head += '<div class="f"><span>currently linked config</span>' +
+  // ⭐ THE SELECTOR'S TITLE AT ITS TOP EDGE, AS IN SIMPLE AND QUICK (2.66.87;
+  // rhoquinn8217, 2026-10-16: "make the label consistent between all
+  // modes"), in place of the "currently linked config" line above it.
+  head += '<div class="f">' +
           // ⭐ Links on selection. Everything else on this page saves as you
           // change it, so an Apply here was inconsistent -- and one more D-pad
           // step between the picker and the buttons beside it.
+          // ⓘ In a DIV: `.f > span:first-child`, the rule that made the old
+          // line a heading across the row, would take a span wrapper.
+          '<div class="cpick-wrap"><label class="cpick-label" for="pick-' + esc(d.ordinal) + '">' +
+          'Controller Config</label>' +
           '<select id="pick-' + esc(d.ordinal) + '"' +
-          ' onchange="applyPick(\'' + esc(d.ordinal) + '\')">' + options + '</select>' +
+          ' onchange="applyPick(\'' + esc(d.ordinal) + '\')">' + options + '</select></div>' +
           // ⛔ Greyed, with the reason, on a device that takes no config: the
           // agent would refuse the link, and New would leave an unlinked
           // config behind for nothing.
@@ -5587,11 +5856,75 @@ function quickVertical(delta) {
   return true;
 }
 
+// ⭐ QUICK'S CONFIG SELECTOR AS A WHEEL (2.66.87; rhoquinn8217, 2026-10-16:
+// "build out a Wheel / Drum Picker for the config selector: A
+// mobile-inspired vertical roller ... fading out items at the top and bottom
+// edges", then "The selection doesn't need to curve in, they just need to
+// fade. The halo ... should only cover the selected config"). The select
+// stays, unseen, beneath it and keeps the focus, the halo's place, the
+// wheel, the steps and the link; the wheel only DRAWS what the select
+// holds: its choice in a frame fixed in the middle, which alone takes the
+// halo, and the configs either side, flat, fading toward the edges.
+// ⓘ It wraps as the steps do, so the first config has the last above it.
+// A step SLIDES it: the rows are laid out from the new choice and the track
+// starts moved back by that step, then slides home through the frame.
+var DRUM_PITCH_EM = 1.2;      // between neighbouring rows
+var DRUM_ROLL_MS = 220;
+var DRUM_LAST = null;         // { ord, at }: what the drum last showed
+var DRUM_ROLL = null;         // { from, t0, ms }: a roll under way
+
+function drumRows(sel) {
+  var n = sel.options.length, at = Math.max(0, sel.selectedIndex), html = '';
+  for (var k = -3; k <= 3; k++) {
+    if (n < 2 && k !== 0) continue;
+    var i = ((at + k) % n + n) % n;
+    html += '<span class="cdrum-row' + (k === 0 ? ' on' : '') + '" style="top:' +
+            (k * DRUM_PITCH_EM) + 'em">' + esc(sel.options[i].text) + '</span>';
+  }
+  return html;
+}
+
+// Lays the rows out from the select's choice and slides the track from
+// where it was. `delta`: the step just taken; null on a repaint, which
+// works it out from what the drum last showed (a pick made elsewhere), or
+// carries on a roll the repaint cut into.
+function drumPaint(delta) {
+  var sel = document.getElementById('cpick');
+  var track = document.querySelector('#compactBox .cdrum-track');
+  if (!sel || !track) return;
+  var ord = sel.getAttribute('data-ordinal') || '';
+  var n = sel.options.length, at = sel.selectedIndex;
+  track.innerHTML = drumRows(sel);
+  if (delta == null) {
+    delta = 0;
+    if (DRUM_LAST && DRUM_LAST.ord === ord && DRUM_LAST.at !== at && n > 1) {
+      delta = ((at - DRUM_LAST.at) % n + n) % n;        // forward
+      if (delta > n / 2) delta -= n;                     // or back, if shorter
+    }
+  }
+  DRUM_LAST = { ord: ord, at: at };
+  var now = performance.now(), from = 0, ms = DRUM_ROLL_MS;
+  if (delta) {
+    from = Math.max(-2, Math.min(2, delta)) * DRUM_PITCH_EM;
+    DRUM_ROLL = { from: from, t0: now, ms: ms };
+  } else if (DRUM_ROLL && now - DRUM_ROLL.t0 < DRUM_ROLL.ms) {
+    ms = DRUM_ROLL.ms - (now - DRUM_ROLL.t0);
+    from = DRUM_ROLL.from * ms / DRUM_ROLL.ms;
+  }
+  if (!from) return;
+  track.style.transition = 'none';
+  track.style.transform = 'translateY(' + from + 'em)';
+  void track.offsetHeight;      // the start is laid out before the slide
+  track.style.transition = 'transform ' + Math.round(ms) + 'ms cubic-bezier(.2,.7,.3,1)';
+  track.style.transform = '';
+}
+
 function quickStepConfig(sel, delta) {
   focusElement(sel);
   var n = sel.options.length;
   if (n < 2) return;
   sel.selectedIndex = (sel.selectedIndex + delta + n) % n;
+  drumPaint(delta);
   QUICK_WANT = { ordinal: sel.getAttribute('data-ordinal') || '', config: sel.value,
                  at: Date.now() };
   clearTimeout(QUICK_WANT_TIMER);
@@ -5631,15 +5964,6 @@ function quickWheel(ev) {
   QUICK_WHEEL = 0;
   var sel = document.getElementById('cpick');
   if (sel) quickStepConfig(sel, dir);
-}
-
-// Quick's rate limit, to the right of the device type: what Cross on the
-// config selector opens. The first one that can be used, for a device in
-// several parts.
-function quickRateSelect() {
-  var all = document.querySelectorAll('#compactBox .crate-q select');
-  for (var i = 0; i < all.length; i++) if (!all[i].disabled) return all[i];
-  return null;
 }
 
 // ⭐ A redraw must not move the page under you. renderTabs rebuilds panes with
@@ -6319,8 +6643,11 @@ function gpCollect() {
     // invisible to it and nothing errors.
     // ⭐ Quick's zone is the bar in its compact box (2.66.85), by the same
     // reach as compactMove's.
+    // ⓘ And the polling limit in the bar (2.66.87), the one place the pad
+    // changes it in Quick.
     var zone = (COMPACT && QUICK)
-      ? '#compactBox .cbar > button, #compactBox .cbar > select, ' +
+      ? '#compactBox .cbar > .crate-q select:not(:disabled), ' +
+        '#compactBox .cbar > button, #compactBox .cbar > select, ' +
         '#compactBox .cbar > .cgroup > select, #compactBox .cbar > .cgroup > button'
       : '#gpbar button, #gpbar select';
     document.querySelectorAll(zone).forEach(function(e) { list.push(e); });
@@ -6905,13 +7232,12 @@ function gpActivate() {
   if (!el) return;
 
   if (el.tagName === 'SELECT') {
-    // ⭐ QUICK'S CONFIG SELECTOR NEVER OPENS (2.66.85): ✕ on it opens the
-    // rate limit beside the device type instead. See quickVertical.
-    if (COMPACT && QUICK && el.id === 'cpick') {
-      var rate = quickRateSelect();
-      if (rate && focusElement(rate)) gpActivate();
-      return;
-    }
+    // ⭐ QUICK'S CONFIG SELECTOR NEVER OPENS (2.66.85), and ✕ on it does
+    // nothing: the rate limit it opened for a while is reached in the footer
+    // alone (rhoquinn8217, 2026-10-16: "remove the square/A/Enter button
+    // function for the rate limit. Let it only be changed if the user moves
+    // to it from the footer area"). See quickVertical.
+    if (COMPACT && QUICK && el.id === 'cpick') return;
     GP_SELECTING = el;
     GP_SELECT_WAS = el.selectedIndex;
     el.classList.add('gp-selecting');
@@ -7018,10 +7344,6 @@ function gpSelectEnd(commit) {
   GP_SELECTING = null;
   el.dispatchEvent(new Event('change'));
   GP_SELECT_COMMIT = true;
-  // ⓘ Quick's rate limit was opened from its config selector: back there.
-  if (COMPACT && QUICK && el.closest && el.closest('.crate-q')) {
-    focusElement(document.getElementById('cpick'));
-  }
 }
 
 // ⭐ CONFIG MODE keys.
@@ -7411,7 +7733,8 @@ function compactMove(dx, dy) {
   // ⓘ The selector row above got this right, and is the precedent:
   // `selRow.querySelectorAll('select, button')`.
   var bar = Array.prototype.slice.call(
-    box.querySelectorAll('.cbar > button, .cbar > select, .cbar > .cgroup > select, ' +
+    box.querySelectorAll('.cbar > .crate-q select:not(:disabled), ' +
+                         '.cbar > button, .cbar > select, .cbar > .cgroup > select, ' +
                          '.cbar > .cgroup > button'));
   if (bar.length) rows.push(bar);
   // ⭐ Quick's footer is a zone (2.66.85): in it, the bar alone; out of it,
@@ -8936,9 +9259,10 @@ function pickerClickEnd(sel) {
   sel.classList.remove('gp-selecting');
   pickerCollapse(sel);
   GP_SELECTING = null;
-  // ⓘ Quick's rate limit, picked with the mouse: the halo goes back to the
-  // config selector, as after a pad's pick, when the repaint below finds it.
-  if (QUICK && sel.closest && sel.closest('.crate-q')) GP_WANT = 'cpick';
+  // ⓘ Quick's rate limit, picked with the mouse outside the footer zone: the
+  // halo goes back to the config selector when the repaint below finds it,
+  // as the footer is out of the pad's reach there.
+  if (QUICK && !FOOTER_MODE && sel.closest && sel.closest('.crate-q')) GP_WANT = 'cpick';
   // AND REPAINT. On this path `change` fired while the list was still open, so
   // any repaint it asked for was skipped by the guard in paintCompact. Now
   // that the list is shut there is nothing to protect and the footer needs to
@@ -8970,9 +9294,15 @@ function pickerActivate(ev, sel) {
   if (!COMPACT && !(sel.classList && sel.classList.contains('modepick'))) return;
   // ⭐ QUICK'S CONFIG SELECTOR DOES NOT EXPAND (2.66.85): a click puts the
   // halo on it, and the wheel or up and down step it.
+  // ⓘ On its drum (2.66.87), a click on the config showing above or below
+  // the front one steps to it, as a tap on a phone's picker does.
   if (QUICK && sel.id === 'cpick') {
     ev.preventDefault();
     focusElement(sel);
+    var box = sel.getBoundingClientRect();
+    var y = box.height ? (ev.clientY - box.top) / box.height : 0.5;
+    if (y < 0.28) quickStepConfig(sel, -1);
+    else if (y > 0.72) quickStepConfig(sel, 1);
     return;
   }
   // ⓘ Counted for EVERY press, including the ones that land on an option
@@ -9120,18 +9450,15 @@ function paintCompact() {
     // ⓘ Quick shows the whole ring too (rhoquinn8217, 2026-09-09): the kind
     // under the name, and the L1 and R1 neighbours with theirs.
     html += '<div class="ccar' + slide + '">' +
-            side(prev, 'l', '\u25c2 ' + shoulder[0]) +
+            side(prev, 'l', '\u25c2 ' + shoulderMark(shoulder[0])) +
             '<div class="ccur"><div class="cname">' + esc(nameFor(d.ordinal)) +
             batteryTags(partsOf(d.ordinal)) + '</div>' +
             // ⓘ The marks follow the model name here too, as on the tabs.
-            // ⭐ QUICK'S POLLING RATE AND RATE LIMIT SIT TO ITS RIGHT
-            // (rhoquinn8217, 2026-10-16: "add polling rate and limit to
-            // the right of the Device Type in quick mode"); Cross on the
-            // config selector opens the limit.
-            '<div class="ckind"><span class="cklabel">' + esc(deviceLabelShort(d)) + '</span>' +
-            deviceIcons(partsOf(d.ordinal)) +
-            (QUICK ? '<span class="crate-q">' + rateTags(partsOf(d.ordinal)) + '</span>' : '') +
-            '</div>' +
+            // ⭐ NOT IN QUICK (2.66.87; rhoquinn8217, 2026-10-16: "Remove Device
+            // type"): its name is in the selector's title there instead.
+            (QUICK ? '' : '<div class="ckind"><span class="cklabel">' +
+                          esc(deviceLabelShort(d)) + '</span>' +
+                          deviceIcons(partsOf(d.ordinal)) + '</div>') +
             // ⭐ SIMPLE'S ARE A LINE OF THEIR OWN UNDER THE DEVICE TYPE
             // (rhoquinn8217, 2026-10-16: "Move the polling rate and limit
             // under the Device Type in simple mode"; 2.66.84 had them
@@ -9139,7 +9466,7 @@ function paintCompact() {
             // dropdown, kept current by pollRates.
             (QUICK ? '' : '<div class="crate">' + rateTags(partsOf(d.ordinal)) + '</div>') +
             '</div>' +
-            side(next, 'r', shoulder[1] + ' \u25b8') +
+            side(next, 'r', shoulderMark(shoulder[1]) + ' \u25b8') +
             '</div>';
     if (!d.supports_config) {
       // ⛔ No Start on a device that takes no config (2.65.0). A keyboard or a
@@ -9215,19 +9542,60 @@ function paintCompact() {
         autoBtn = '<button class="cauto-btn" onclick="compactAutoLink()" title="auto link ' +
                   esc(d.linked_config) + ' to this controller">' + autoLbl + '</button>';
       }
-      // The selector under a title, sliding with the ring (rhoquinn8217, 2026-09-09).
+      // ⭐ QUICK'S TWO PRESSES, STACKED TO THE RIGHT OF THE SELECTOR THEY ACT ON
+      // (2.66.87; rhoquinn8217, 2026-10-16: "Stack the unlink and auto link
+      // button descriptions", then "move the unlink and auto link to the
+      // right of the config selector"). Green while an auto link stands (Triangle
+      // then removes it, as the lit 🗘 did), faint while there is nothing to do.
+      var quickHints = function () {
+        var lit = !!mySerial && !!claimedBy && (!shown || shown === claimedBy);
+        var idle = !mySerial || (!shown && !claimedBy);
+        return '<span class="chints">' +
+               '<span class="chint' + (shown ? '' : ' off') + '">' +
+               keyCap(LG.unlink) + 'unlink</span>' +
+               '<span class="chint' + (lit ? ' on' : idle ? ' off' : '') + '">' +
+               keyCap(LG.autolink) + 'auto link</span></span>';
+      };
+      // The selector, sliding with the ring (rhoquinn8217, 2026-09-09).
+      // ⭐ ITS TITLE STANDS AT ITS TOP EDGE, AT THE LEFT (2.66.87; rhoquinn8217,
+      // 2026-10-16: "add/move the controller configs selection label to
+      // overlap the top left part of the box"), in Quick as well as Simple,
+      // where it was a line of its own above the row. A label for the
+      // selector, which a click passes straight through to.
       html += '<div class="csel' + slide + '">' +
-              (QUICK ? '' : '<div class="ctitle">Controller Configs</div>') +
               // ⭐ QUICK HAS NEITHER BUTTON (rhoquinn8217, 2026-10-16:
               // "remove unlink and auto link buttons in quick mode"):
               // Square and Triangle do both, and the wheel steps it.
               '<div class="cselrow">' + (QUICK ? '' : unlinkBtn()) +
+              '<span class="cpick-wrap"><label class="cpick-label" for="cpick">' +
+              // ⓘ Singular, as in Advanced: the box holds the one config this
+              // controller uses; the window holding them all is "Controller
+              // Configs" (rhoquinn8217, 2026-10-16).
+              // ⭐ QUICK'S NAMES THE DEVICE TYPE IN PLACE OF "Controller", with
+              // no symbol (rhoquinn8217, 2026-10-16: "Replace "Controller" in
+              // the config selector label with the Device type, but don't add
+              // the controller symbol"), the ring having lost it.
+              (QUICK ? esc(deviceLabelShort(d)) : 'Controller') + ' Config</label>' +
+              // ⭐ QUICK'S WHEEL IN A PANEL WITH ITS TITLE AND ITS TWO PRESSES
+              // (rhoquinn8217, 2026-10-16: "Expand the container so that it
+              // covers the Label and the unlink and auto link symbols"), the
+              // panel centred as one ("Center the container area"). The wheel
+              // is the select and the drum drawn over it, in a box of their own.
+              (QUICK ? '<span class="cwheel">' : '') +
               '<select id="cpick" data-ordinal="' + esc(d.ordinal) + '"' +
               ' onmousedown="pickerActivate(event,this)"' +
               ' onclick="pickerClickEnd(this)"' +
               (QUICK ? ' onwheel="quickWheel(event)"' : '') +
               ' onchange="compactPick()">' +
-              opts + '</select>' + (QUICK ? '' : autoBtn) +
+              opts + '</select>' +
+              // ⓘ The drum over it, drawn by drumPaint after the box is, and
+              // its two presses beside it in the panel. No mark for the step:
+              // the wheel says up and down by itself ("The intention of using
+              // this is to remove the up/down symbol").
+              (QUICK ? '<span class="cdrum" aria-hidden="true"><span class="cdrum-frame"></span>' +
+                       '<span class="cdrum-view"><span class="cdrum-track"></span></span></span>' +
+                       '</span>' + quickHints() : '') + '</span>' +
+              (QUICK ? '' : autoBtn) +
               '</div></div>' + (QUICK ? '' : foot(true, d.ordinal));
     }
   }
@@ -9248,33 +9616,43 @@ function paintCompact() {
     // `flex:1 1 auto`, so it takes the slack and whatever follows it is pushed
     // to the right -- the order here IS the order on screen.
     html += '<div class="cbar' + (FOOTER_MODE ? ' gp-zone' : '') + '">' +
+            // ⭐ THE LEGEND AT THE FOOTER'S LEFT (rhoquinn8217, 2026-10-16:
+            // "switch the legend with the polling rate/rate limit, left
+            // aligning the legend and right aligning the polling rate/rate
+            // limit"); the rate and limit follow it, below.
             '<div class="cbarText"><div class="clegend">' +
             // ⓘ The shoulder keys first, as in Simple's (rhoquinn8217,
             // 2026-10-02: *"Add L1/R1 LB/RB and Q/E in the quick mode legend
             // also"*), following the input in hand like the ring's keys.
-            LG.shoulder + ' controller | ' +
-            // ⭐ The selector's step and what Cross opens (2.66.85;
-            // rhoquinn8217, 2026-10-16: "✕, A, enter for polling
-            // limit"): Cross's own mark in each set.
-            LG.updown + ' config | ' + LG.select + ' polling limit | ' +
-            // ⭐ Square and Triangle on the config selector (2.66.84).
-            LG.unlink + ' unlink | ' + LG.autolink + ' auto link | ' +
-            LG.position + ' position | ' + LG.resize + ' resize | ' +
-            // ⓘ "footer/close", as Advanced's says: Circle takes the pad
-            // into the footer, onto Close (2.66.85).
-            LG.close + ' footer/close</div></div>' +
+            // ⭐ ONLY WHAT HAS NO PLACE OF ITS OWN (2.66.87): the controller
+            // keys stand beside the neighbours in the ring, and unlink, auto
+            // link and the config's step beside what they act on.
+            // ⭐ EACH MARK DRAWN AS ITS BUTTON, as beside the controls
+            // (2.66.87; rhoquinn8217, 2026-10-16: "Can you do the circles
+            // around the buttons in the legends?").
+            legendLine([[keyCap(LG.position), 'position'], [keyCap(LG.resize), 'resize'],
+                        // ⓘ "footer/close", as Advanced's says: Circle takes the
+                        // pad into the footer, onto Close (2.66.85).
+                        [keyCap(LG.close), 'footer/close']]) + '</div></div>' +
+            // ⭐ THE POLLING RATE AND LIMIT AT THE FOOTER'S RIGHT (2.66.87), after
+            // the legend, which takes the slack and pushes them against the
+            // mode picker; the limit reached by moving to it in the footer's
+            // zone ("Let it only be changed if the user moves to it from the
+            // footer area").
+            (d ? '<span class="crate-q">' + rateTags(partsOf(d.ordinal)) + '</span>' : '') +
             modeGroupHtml() +
             '<button class="cclose" onclick="closeWindow()">Close</button></div>';
   } else {
     html += '<div class="cbar">' +
             '<div class="cbarText">' +
             '<div class="clegend">' +
-            LG.shoulder + ' controller | ' + LG.select + ' select | ' +
-            LG.dpad + ' move | ' +
-            // ⭐ Square and Triangle on the config selector (2.66.84).
-            LG.unlink + ' unlink | ' + LG.autolink + ' auto link | ' +
-            LG.position + ' position | ' + LG.resize + ' resize | ' +
-            LG.close + ' to close</div>' +
+            // ⭐ Each mark drawn as its button, as in Quick (2.66.87).
+            legendLine([[shoulderCaps(LG.shoulder), 'controller'], [keyCap(LG.select), 'select'],
+                        [keyCap(LG.dpad), 'move'],
+                        // ⭐ Square and Triangle on the config selector (2.66.84).
+                        [keyCap(LG.unlink), 'unlink'], [keyCap(LG.autolink), 'auto link'],
+                        [keyCap(LG.position), 'position'], [keyCap(LG.resize), 'resize'],
+                        [keyCap(LG.close), 'to close']]) + '</div>' +
             '<div class="cinfo" title="Click for the next tip" ' +
             'onmouseenter="HINT_HELD = true" onmouseleave="HINT_HELD = false" ' +
             'onmousedown="hintPressed(event)" onmouseup="hintReleased(event)">' +
@@ -9283,6 +9661,7 @@ function paintCompact() {
             '<button class="cclose" onclick="closeWindow()">Close</button></div>';
   }
   box.innerHTML = html;
+  if (QUICK) drumPaint(null);
   gpCollect();
   // ⭐ THE HALO STAYS WHERE IT WAS across a repaint (rhoquinn8217, 2026-09-09:
   // it jumped back to the selector whenever the device poll redrew the box,
@@ -9447,13 +9826,14 @@ function gpPoll() {
   // and then reading the bar's height forced a layout of the whole page sixty
   // times a second. While a value is being edited, its own hint (below) stands.
   var barChanged = false;
-  var legend = LGA.shoulder + ' controller | ' + LGA.select +
-               ' select | ' + LGA.dpad + ' move | ' + LGA.toggle + ' on/off | ' +
-               // ⭐ Triangle on the config selector (2.66.84). Square keeps
-               // on/off here, by their word, though it unlinks there too.
-               LGA.autolink + ' auto link | ' +
-               LGA.position + ' position | ' + LGA.resize + ' resize | ' +
-               LGA.close + ' footer/close';
+  // ⭐ Each mark drawn as its button, as in Simple and Quick (2.66.87).
+  var legend = legendLine([[shoulderCaps(LGA.shoulder), 'controller'], [keyCap(LGA.select), 'select'],
+                           [keyCap(LGA.dpad), 'move'], [keyCap(LGA.toggle), 'on/off'],
+                           // ⭐ Triangle on the config selector (2.66.84). Square keeps
+                           // on/off here, by their word, though it unlinks there too.
+                           [keyCap(LGA.autolink), 'auto link'],
+                           [keyCap(LGA.position), 'position'], [keyCap(LGA.resize), 'resize'],
+                           [keyCap(LGA.close), 'footer/close']]);
   if (!GP_EDITING && GP_HINT_SHOWN !== legend) {
     hint.innerHTML = legend;
     GP_HINT_SHOWN = legend;
@@ -10282,12 +10662,19 @@ function selfTest() {
     var savedInput = INPUT_LAST, savedKind = LAST_PRESS_KIND;
     INPUT_LAST = 'keyboard';
     ok('hint 8 names Q, E, P and R for a keyboard',
-       hintHtml(7).indexOf('<b>Q</b>') >= 0 && hintHtml(7).indexOf('From a keyboard') < 0, hintHtml(7));
+       hintHtml(7).indexOf('<span class="kcap">Q</span>') >= 0 &&
+       hintHtml(7).indexOf('From a keyboard') < 0, hintHtml(7));
     INPUT_LAST = 'pad';
     LAST_PRESS_KIND = 'xbox';
-    ok('hint 8 names LB and RB for an Xbox pad', hintHtml(7).indexOf('<b>LB</b>') >= 0, hintHtml(7));
+    ok('hint 8 names LB and RB for an Xbox pad', hintHtml(7).indexOf('aria-label="LB"') >= 0, hintHtml(7));
     LAST_PRESS_KIND = 'ds5';
-    ok('hint 8 names L1 and R1 for a DualSense', hintHtml(7).indexOf('<b>L1</b>') >= 0, hintHtml(7));
+    ok('hint 8 names L1 and R1 for a DualSense', hintHtml(7).indexOf('aria-label="L1"') >= 0, hintHtml(7));
+    // ⓘ The tips draw their buttons as the legend does (2.66.87): Options in
+    // hint 1 and hint 3, Square and an Xbox pad's X in hint 5.
+    ok('the tips draw their buttons',
+       hintHtml(0).indexOf('class="kps"') >= 0 && hintHtml(2).indexOf('class="kps"') >= 0 &&
+       hintHtml(4).indexOf('aria-label="X"') >= 0 && hintHtml(4).indexOf('<b>□') < 0,
+       hintHtml(4));
     INPUT_LAST = savedInput;
     LAST_PRESS_KIND = savedKind;
 
