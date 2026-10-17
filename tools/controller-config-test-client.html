@@ -47,8 +47,9 @@
             selector container but also shrink the height of the window"),
             and L1 and R1 stand on its top corners ("place them on the top left
             and top right corner of the config selector container"); the
-            wheel shows 2.9 lines, from 2.5 ("Increase the wheel to show
-            2.8-3 lines"); R3's mark where the limit's
+            wheel shows 3.5 lines, from 2.5 ("Increase the wheel to show
+            2.8-3 lines", then "increase the wheel size to 3.5 lines"), the
+            window as much taller, 0.140 of the screen; R3's mark where the limit's
             arrow was, RS on an Xbox pad and L on a keyboard, the one press
             that opens it ("R3 will be the key that lets you reach the rate
             limit"); the window is narrower, 0.225 of the screen from
@@ -71,12 +72,14 @@
             little more by the same distance", twice). Simple's and Advanced's
             selectors are titled "Controller Config", in white just above
             the box at the left; Advanced's "currently linked config" line
-            goes. The mode picker carries a title, "Mode", just above its box
-            at the left in all three views (rhoquinn8217: "Without the "Mode"
-            it's really hard to tell
+            goes. The mode picker carries a title, "Mode", across its bottom
+            edge at the left, in all three views (rhoquinn8217: "Without the
+            "Mode" it's really hard to tell
             what it's for", then "Instead of adding MODE to the options the
             label "MODE" to the mode selector similar to the config selector
-            container label", then "Push it up to clear it").
+            container label", then "Let's move it to the bottom of the mode
+            selection box", and "to the bottom left instead. It's to close to
+            the lock symbol").
     2.66.86 The polling limit is the controller's own, kept by the
             listener for that controller whatever config it reads, so a
             change of config never moves it (rhoquinn8217: "keep it with
@@ -1172,11 +1175,11 @@
      "increase the height of config selector container but also shrink
      the height of the window"). */
   :root { --vh:1vh; }
-  /* ⓘ Quick's window is 0.130 of the screen tall, from 0.150 (2.66.87), and
-     its page 226.7 px from 268.5 at 150% on a work area 2088 tall (the
-     title bar 44.7 px): 1.1844 times shorter, so its --vh is that much
+  /* ⓘ Quick's window is 0.140 of the screen tall, from 0.150 (2.66.87), and
+     its page 247.6 px from 268.5 at 150% on a work area 2088 tall (the
+     title bar 44.7 px): 1.0843 times shorter, so its --vh is that much
      larger and every size stays what it was. */
-  body.quick { --vh:calc(1vh * 1.1844); }
+  body.quick { --vh:calc(1vh * 1.0843); }
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
   /* ⓘ Bottom padding leaves room for the fixed status bar, or it would cover
@@ -1368,7 +1371,7 @@
   /* ⓘ The room above the name and the room under the selector are the same
      (rhoquinn8217, 2026-09-09): no fixed padding at the top, and the content
      centred in what is left above the footer. */
-  body.quick #compactBox { padding:0 2.5vw calc(2.65 * var(--vh)); }
+  body.quick #compactBox { padding:0 2.5vw calc(5.25 * var(--vh)); }
   body.quick #compactBox .cmain { padding-top:0; gap:calc(3.75 * var(--vh)); justify-content:center; }
   body.quick #compactBox .cmain.centre { gap:calc(3 * var(--vh)); justify-content:center; }
   body.quick #compactBox .ccar { gap:2vw; }
@@ -1468,12 +1471,14 @@
      the drum's alike so the drum covers the select exactly (rhoquinn8217,
      2026-10-16: "make the text for the config selector a little bit
      smaller", then "shrink the text in the wheel so it's well defined"),
-     in a box of its own height, 2.9 lines of the 11vh text it had
+     in a box of its own height, 3.5 lines of the 11vh text it had
      ("increase the height of the wheel area to 2.5 lines", then "Increase
-     the wheel to show 2.8-3 lines"), which shows the configs either side
-     whole. It was 33vh; the panel's padding above and below took the
-     difference, so the panel stands as tall as it did. */
-  body.quick #compactBox .cwheel > select { opacity:0; height:calc(38.3 * var(--vh)); font-size:calc(9.5 * var(--vh));
+     the wheel to show 2.8-3 lines", then "increase the wheel size to 3.5
+     lines"), which shows the configs either side whole and the ones two
+     away fading at its ends. 33vh, then 38.3 with the panel's padding
+     taking the difference; the panel and the window are taller for the
+     rest. */
+  body.quick #compactBox .cwheel > select { opacity:0; height:calc(46.2 * var(--vh)); font-size:calc(9.5 * var(--vh));
     padding-left:0.9em; padding-right:0.9em;
     /* ⓘ At least 53.3vw, which makes the config name area half as wide
        again as the names it held, 301 px of frame at 150% (rhoquinn8217,
@@ -1492,11 +1497,10 @@
     border-color:#6c8cff; background:#2a3566; }
   body.quick #compactBox .cdrum-view { position:absolute; inset:0; overflow:hidden;
     border-radius:inherit;
-    /* ⓘ Clear for the outer 6% at either end (2.66.87): the wheel is tall
-       enough since then that the foot of the config two above showed at
-       its top, faintly. */
-    -webkit-mask-image:linear-gradient(to bottom, transparent 6%, #000 34%, #000 66%, transparent 94%);
-            mask-image:linear-gradient(to bottom, transparent 6%, #000 34%, #000 66%, transparent 94%); }
+    /* ⓘ Solid over the frame and fading to nothing at the ends, where the
+       configs two away show at 3.5 lines (2.66.87). */
+    -webkit-mask-image:linear-gradient(to bottom, transparent, #000 37%, #000 63%, transparent);
+            mask-image:linear-gradient(to bottom, transparent, #000 37%, #000 63%, transparent); }
   body.quick #compactBox .cdrum-track { position:absolute; left:0; right:0; top:50%; height:0; }
   body.quick #compactBox .cdrum-row { position:absolute; left:0; right:0;
     height:1.2em; margin-top:-0.6em; line-height:1.2em; padding:0 0.5em;
@@ -1515,10 +1519,7 @@
   #compactBox .cselrow { position:relative; }
   body.quick #compactBox .cauto-btn,
   body.quick #compactBox .cselrow .cunlink-btn { font-size:calc(12.6 * var(--vh)); padding:calc(1.5 * var(--vh)) 1.6vw; }
-  /* ⓘ 8.25 above the footer's row, from 3.75, for the mode picker's title
-     (2.66.87), and the box's room under the footer 2.65 from 5.25: the
-     window keeps its size, the room around the panel giving the rest. */
-  body.quick #compactBox .cbar { padding-top:calc(8.25 * var(--vh)); gap:3vw; }
+  body.quick #compactBox .cbar { padding-top:calc(3.75 * var(--vh)); gap:3vw; }
   /* ⓘ Quick has the SAME fault and is fixed with it. Only Simple was
      reported, but its picker fell to the 12.6vh config-selector rule in
      exactly the same way, and leaving it would be the next report. */
@@ -1981,26 +1982,33 @@
      than the cluster's 16 and its own 8. ⓘ The picker sets the group's
      height and the button stretches to it, so the two cannot drift apart. */
   .modeclose { display:inline-flex; align-items:center; gap:7px; margin-left:8px; }
-  /* ⓘ 15 px above the bar's row, from 8, for the mode picker's title over
-     it (2.66.87). */
-  #gpbar { padding-top:15px; }
   .modegroup { display:inline-flex; align-items:stretch; }
-  /* ⭐ THE MODE PICKER'S TITLE, JUST ABOVE ITS BOX AT THE LEFT (2.66.87;
-     rhoquinn8217, 2026-10-17: "the label "MODE" to the mode selector
-     similar to the config selector container label", then "Lets not have
-     mode on overlap the edge of the selector box. Push it up to clear
-     it."), as Simple's config title stands: nothing behind it, its letters
-     standing on the focus ring's outer edge, 5 px above the box ("Move it
-     lower so it lands flush with the halo"; the ring is drawn 2 to 5 px
-     outside; 0.33em is the line's room under the letters, which have no
-     descender). A little smaller than each view's config
-     title; a click passes through to the picker. */
+  /* ⭐ THE MODE PICKER'S TITLE ACROSS ITS BOTTOM EDGE, AT THE LEFT (2.66.87;
+     rhoquinn8217, 2026-10-17: "the
+     label "MODE" to the mode selector similar to the config selector
+     container label", then "Mode label awkwardly pushes all the elements
+     in the footer down. Let's move it to the bottom of the mode selection
+     box. Have it over lap the edge of the box and centered on the entire
+     box that includes both the mode selector and the size button", then
+     "Move Mode label to the bottom left instead. It's to close to the lock
+     symbol and it could be confusing"), 0.9em in. The
+     picker's colour behind the part of it inside the box and the bar's
+     behind the rest, so the edge stops behind the letters and no block
+     shows; the picker's focus colour inside while the pad is on it, so its
+     ring is notched, not patched. The edge crosses it 38% from its top,
+     which keeps it off the picker's own text. A little smaller than each
+     view's config title; a click passes through to the picker. */
   .modegroup, .cgroup { position:relative; }
-  .modelabel { position:absolute; left:0.9em; bottom:calc(100% + 5px - 0.33em); z-index:2;
-    padding:0 0.35em; font-size:10px; line-height:1.25; color:#e8e8ea;
-    font-weight:600; white-space:nowrap; pointer-events:none; }
-  #compactBox .cbar .modelabel { font-size:calc(2.4 * var(--vh)); }
+  .modelabel { position:absolute; left:0.9em; top:100%; transform:translateY(-38%);
+    z-index:2; padding:0 0.45em; font-size:10px; line-height:1.25; color:#e8e8ea;
+    font-weight:600; white-space:nowrap; pointer-events:none; background:#1d1f26; }
+  .modegroup:has(> select.gp-focus) > .modelabel {
+    background:linear-gradient(to bottom, #2a3566 38%, #1d1f26 38%); }
+  #compactBox .cbar .modelabel { font-size:calc(2.4 * var(--vh));
+    background:linear-gradient(to bottom, #1d1f26 38%, #15161a 38%); }
   body.quick #compactBox .cbar .modelabel { font-size:calc(4.8 * var(--vh)); }
+  #compactBox .cbar .cgroup:has(> select.gp-focus) > .modelabel {
+    background:linear-gradient(to bottom, #2a3566 38%, #15161a 38%); }
   .modeclose #modePick, .modeclose #closeBtn { margin-left:0; }
   .modegroup #modePick { border-top-right-radius:0; border-bottom-right-radius:0; }
   #sizeBtn { padding:0 6px; font-size:13px; line-height:1; color:#ffd166;
@@ -7439,7 +7447,7 @@ function gpActivate() {
     // preference. `config_move.inl` gives Quick a size table of ITS OWN:
     //
     //     Simple  kCompactSizes  0.45  x 0.45  of the screen
-    //     Quick   kQuickSizes    0.225 x 0.130   (0.278 x 0.150 until 2.66.87, 0.185 wide until 2026-10-02)
+    //     Quick   kQuickSizes    0.225 x 0.140   (0.278 x 0.150 until 2.66.87, 0.185 wide until 2026-10-02)
     //
     // ➡️ **Simple's window is THREE TIMES TALLER than Quick's.** So the
     // postcard reasoning was measured on Quick and never applied to Simple --
@@ -9166,14 +9174,14 @@ function compactSize() {
 // medium and large (2026-09-09); the listener's table agrees.
 // ⭐ HALF AS WIDE AGAIN SINCE 2026-10-02, at the width they dragged it to,
 // and 0.225 since 2.66.87, so the footer's legend has half the room either
-// side, and 0.130 tall from 0.150, its sizes kept by --vh (kQuickSizes in
+// side, and 0.140 tall from 0.150, its sizes kept by --vh (kQuickSizes in
 // config_move.inl says why). ⛔ This number and that table
 // are TWO PLACERS: a switch sizes the window here, the resize button there,
 // and 2.66.49 changed only the listener's, so a switch opened at the old
 // width.
 function quickSize() {
   compactHome(Math.round(screen.availWidth * 0.225),
-              Math.round(screen.availHeight * 0.130));
+              Math.round(screen.availHeight * 0.140));
 }
 
 function sizeForMode() {
