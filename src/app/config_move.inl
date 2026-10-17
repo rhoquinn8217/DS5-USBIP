@@ -161,9 +161,15 @@ inline std::atomic_bool g_compact{false};
 // page's sizes are in a unit of its own, --vh, which Quick makes the old
 // window's height in hundredths, so nothing on it gets smaller.
 //
-//   medium  0.225 x 0.143   what the page opens Quick at
-//   large   0.280 x 0.178
-inline const SizeShare kQuickSizes[2] = { { 0.225, 0.143 }, { 0.280, 0.178 } };
+// ⭐ LARGER FOR A TELEVISION (rhoquinn8217, 2026-10-17: "quick mode's small size
+// is too small. make the large size the small one and create a new large size
+// that is bigger than that"): medium is the old large, grown with what it
+// holds since (its configs larger, the choice set apart, the smaller text
+// larger), and large keeps 1.244 times its width and 1.288 its page's height.
+//
+//   medium  0.313 x 0.196   what the page opens Quick at
+//   large   0.390 x 0.246
+inline const SizeShare kQuickSizes[2] = { { 0.313, 0.196 }, { 0.390, 0.246 } };
 inline std::atomic_int  g_sizeQuick{0};
 inline std::atomic_bool g_quick{false};
 
