@@ -35,6 +35,20 @@
 #pragma comment(lib, "user32.lib")
 #pragma comment(lib, "gdi32.lib")
 
+// ⓘ GDI+ for the pad's button marks alone (draw_mark): plain GDI draws no
+// smooth curve, and a circle a few pixels across comes out stepped.
+// objidl.h first, as WIN32_LEAN_AND_MEAN leaves out the COM types
+// gdiplus.h needs.
+#include <objidl.h>
+#include <gdiplus.h>
+#include <cwchar>
+#pragma comment(lib, "gdiplus.lib")
+// ⛔ rpcndr.h, under objidl.h, defines `small` as `char`, and paint() has a
+// font of that name: left defined, it does not compile.
+#ifdef small
+#undef small
+#endif
+
 // ⓘ Defined in osk.inl, which already knows how to hand a steam:// URL to the
 // shell. ⛔ Declared at GLOBAL scope, not inside the namespace below -- put
 // inside, it becomes ctm_overlay::ctm_overlay_open_steam and never links.
@@ -1203,6 +1217,115 @@ inline void release_current(const void *who)
     if (changed) invalidate();
 }
 
+// ⭐ A PAD BUTTON'S MARK, DRAWN AS THE CONTROLLER CONFIGS WINDOW DRAWS IT
+// (rhoquinn8217, 2026-10-16: "update button in the keyboard legend as well
+// including where you put the button symbols on the space and back space
+// keys"): a circle with the button's shape or letter in it, or a shoulder
+// button's box with a rounded top. The page's own geometry: a square 20
+// units high, scaled to `h`. The outline anti-aliased with GDI+; letters with
+// GDI, as every other label here, centred on their capitals (Segoe UI's are
+// 0.7 of the size). Returns the width it took: a shoulder's box is 24 units
+// wide, a circle 20.
+inline bool shoulder_mark(const wchar_t *g)
+{
+    return g != nullptr && (g[0] == L'L' || g[0] == L'R') && g[1] != 0 && g[2] == 0 &&
+           (g[1] == L'1' || g[1] == L'2' || g[1] == L'B' || g[1] == L'T');
+}
+
+inline int mark_width(const wchar_t *glyph, int h)
+{
+    return shoulder_mark(glyph) ? (h * 6 + 2) / 5 : h;
+}
+
+inline int draw_mark(HDC dc, int x, int y, int h, const wchar_t *glyph, COLORREF colour)
+{
+    // ⓘ Started once and left running: the keyboard can open any time.
+    static ULONG_PTR gdiplusToken = 0;
+    static const bool gdiplusUp = [] {
+        Gdiplus::GdiplusStartupInput in;
+        return Gdiplus::GdiplusStartup(&gdiplusToken, &in, nullptr) == Gdiplus::Ok;
+    }();
+    const bool shoulder = shoulder_mark(glyph);
+    const int w = mark_width(glyph, h);
+    const float s = h / 20.0f;
+    // ⓘ Without GDI+ the mark falls back to its symbol as text.
+    bool letters = shoulder || !gdiplusUp;
+    if (gdiplusUp) {
+        Gdiplus::Graphics g(dc);
+        g.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
+        g.SetPixelOffsetMode(Gdiplus::PixelOffsetModeHalf);
+        Gdiplus::Pen pen(Gdiplus::Color(255, GetRValue(colour), GetGValue(colour), GetBValue(colour)),
+                         s * 1.25f < 1.0f ? 1.0f : s * 1.25f);
+        pen.SetLineJoin(Gdiplus::LineJoinRound);
+        pen.SetStartCap(Gdiplus::LineCapRound);
+        pen.SetEndCap(Gdiplus::LineCapRound);
+        const auto at = [&](float ux, float uy) { return Gdiplus::PointF(x + ux * s, y + uy * s); };
+        const auto line = [&](float x0, float y0, float x1, float y1) {
+            g.DrawLine(&pen, at(x0, y0), at(x1, y1));
+        };
+        if (shoulder) {
+            Gdiplus::GraphicsPath box;
+            box.AddLine(at(1.1f, 18.9f), at(1.1f, 7.1f));
+            box.AddArc(x + 1.1f * s, y + 1.1f * s, 12.0f * s, 12.0f * s, 180.0f, 90.0f);
+            box.AddLine(at(7.1f, 1.1f), at(16.9f, 1.1f));
+            box.AddArc(x + 10.9f * s, y + 1.1f * s, 12.0f * s, 12.0f * s, 270.0f, 90.0f);
+            box.AddLine(at(22.9f, 7.1f), at(22.9f, 18.9f));
+            box.CloseFigure();
+            g.DrawPath(&pen, &box);
+        } else {
+            g.DrawEllipse(&pen, x + 1.0f * s, y + 1.0f * s, 18.0f * s, 18.0f * s);
+            if (std::wcscmp(glyph, L"\u2715") == 0) {             // Cross
+                line(6.6f, 6.6f, 13.4f, 13.4f);
+                line(13.4f, 6.6f, 6.6f, 13.4f);
+            } else if (std::wcscmp(glyph, L"\u25a1") == 0) {      // Square
+                g.DrawRectangle(&pen, x + 6.6f * s, y + 6.6f * s, 6.8f * s, 6.8f * s);
+            } else if (std::wcscmp(glyph, L"\u25b3") == 0) {      // Triangle, on its centroid
+                const Gdiplus::PointF t[3] = { at(10.0f, 5.2f), at(14.3f, 12.6f), at(5.7f, 12.6f) };
+                g.DrawPolygon(&pen, t, 3);
+            } else if (std::wcscmp(glyph, L"\u25cb") == 0) {      // Circle
+                g.DrawEllipse(&pen, x + 6.1f * s, y + 6.1f * s, 7.8f * s, 7.8f * s);
+            } else if (std::wcscmp(glyph, L"\u2630") == 0) {      // Options, Menu
+                line(6.4f, 7.3f, 13.6f, 7.3f);
+                line(6.4f, 10.0f, 13.6f, 10.0f);
+                line(6.4f, 12.7f, 13.6f, 12.7f);
+            } else if (std::wcscmp(glyph, L"\\|/") == 0) {          // Create
+                line(7.0f, 6.9f, 8.4f, 13.1f);
+                line(10.0f, 6.7f, 10.0f, 13.3f);
+                line(13.0f, 6.9f, 11.6f, 13.1f);
+            } else if (std::wcscmp(glyph, L"\u29c9") == 0) {      // View
+                // ⓘ The rectangle behind, only where it shows, then the one in front.
+                const Gdiplus::PointF back[4] = { at(8.0f, 8.7f), at(8.0f, 6.1f),
+                                                  at(14.4f, 6.1f), at(14.4f, 11.3f) };
+                g.DrawLines(&pen, back, 4);
+                line(14.4f, 11.3f, 12.0f, 11.3f);
+                g.DrawRectangle(&pen, x + 5.6f * s, y + 8.7f * s, 6.4f * s, 5.2f * s);
+            } else {
+                letters = true;                          // A B X Y, and R3 or RS
+            }
+        }
+    }   // ⓘ The Graphics goes before GDI draws on the same DC again.
+    if (letters) {
+        const int n = lstrlenW(glyph);
+        // ⓘ The page's sizes: a shoulder's label at 12 of 20, one letter at 13,
+        // two in a circle at 10.
+        const float em = (shoulder ? 12.0f : n > 1 ? 10.0f : 13.0f) * s;
+        HFONT f = CreateFontW(-(int)(em + 0.5f), 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE, FALSE,
+                              DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+                              CLEARTYPE_QUALITY, VARIABLE_PITCH, L"Segoe UI");
+        HGDIOBJ prevFont = SelectObject(dc, f);
+        const UINT prevAlign = SetTextAlign(dc, TA_CENTER | TA_BASELINE);
+        const COLORREF prevColour = SetTextColor(dc, colour);
+        const float cx = x + (shoulder ? 12.0f : 10.0f) * s;
+        const float baseline = y + 10.0f * s + 0.35f * em;   // half a capital below the middle
+        TextOutW(dc, (int)(cx + 0.5f), (int)(baseline + 0.5f), glyph, n);
+        SetTextColor(dc, prevColour);
+        SetTextAlign(dc, prevAlign);
+        SelectObject(dc, prevFont);
+        DeleteObject(f);
+    }
+    return w;
+}
+
 inline void paint(HWND hwnd)
 {
     PAINTSTRUCT ps;
@@ -1420,13 +1543,13 @@ inline void paint(HWND hwnd)
                             : k.kind == KK_FACE_SQUARE ? (xboxGlyphs ? L"X" : L"\u25a1")
                             : k.kind == KK_FACE_TRIANGLE ? (xboxGlyphs ? L"Y" : L"\u25b3")
                             : nullptr;
+        // ⭐ DRAWN AS THE BUTTON IT IS (2.66.87), as the legend draws it: a face
+        // button in a circle, a shoulder in its box, in the corner the small
+        // symbol had.
         if (hint != nullptr) {
-            RECT s = r;
-            s.right -= 5; s.top += 2;
-            SetTextColor(dc, RGB(0x9d, 0xb4, 0xff));
-            HGDIOBJ prev = SelectObject(dc, small);
-            DrawTextW(dc, hint, -1, &s, DT_RIGHT | DT_TOP | DT_SINGLELINE | DT_NOPREFIX);
-            SelectObject(dc, prev);
+            const int mh = keyH * 26 / 100 < 10 ? 10 : keyH * 26 / 100;
+            draw_mark(dc, r.right - 6 - mark_width(hint, mh), r.top + 5, mh, hint,
+                      RGB(0x9d, 0xb4, 0xff));
         }
     }
 
@@ -1483,22 +1606,45 @@ inline void paint(HWND hwnd)
         // (rhoquinn8217). \|/ is the Create button's three lines going up and
         // outward; ☰ is the Options hamburger. ⛔ A cog or an arrow would be
         // describing the action, which is what the words are for.
-        // ⓘ SEPARATED BY PIPES. Without them the eye groups a word with the
-        // NEXT symbol rather than the one before it, so nothing reads as a
-        // pair (rhoquinn8217, from a screenshot -- "it looks like it's hard to
-        // associate the symbol with the description").
+        // ⓘ SEPARATED BY PIPES once: without them the eye grouped a word with
+        // the NEXT symbol rather than the one before it (rhoquinn8217, from a
+        // screenshot -- "it looks like it's hard to associate the symbol with
+        // the description"). ⭐ Drawn marks do that job now (2.66.87): each
+        // starts its entry, and space sets the entries apart, as on the
+        // Controller Configs window's legends.
         // ⭐⭐ IN THE SYMBOLS OF THE PAD IN HAND (rhoquinn8217, 2026-10-03), the
         // page's two sets: an Xbox pad's face buttons by their letters, View
         // as ⧉ and its stick click as RS.
-        const wchar_t *legend = g_glyphs.load() == GLYPHS_XBOX
-            ? L"A select | X backspace | Y space | \u2630 move | \u29c9 layout | RS size | B close"
-            : L"\u2715 select | \u25a1 backspace | \u25b3 space | "
-            L"\u2630 move | \\|/ layout | R3 size | \u25cb close";
+        // ⭐ EACH BUTTON DRAWN AS THE BUTTON IT IS (rhoquinn8217, 2026-10-16:
+        // "update button in the keyboard legend as well"), by draw_mark.
+        struct Entry { const wchar_t *mark; const wchar_t *word; };
+        static const Entry kPs[] = {
+            { L"\u2715", L"select" }, { L"\u25a1", L"backspace" },
+            { L"\u25b3", L"space" }, { L"\u2630", L"move" },
+            { L"\\|/", L"layout" }, { L"R3", L"size" }, { L"\u25cb", L"close" } };
+        static const Entry kXbox[] = {
+            { L"A", L"select" }, { L"X", L"backspace" }, { L"Y", L"space" },
+            { L"\u2630", L"move" }, { L"\u29c9", L"layout" },
+            { L"RS", L"size" }, { L"B", L"close" } };
+        const Entry *legend = g_glyphs.load() == GLYPHS_XBOX ? kXbox : kPs;
+        const int legendCount = 7;
+        // ⓘ The page's proportions: a mark a little taller than the text's
+        // em, its word a third of an em after it, entries 0.7 em apart.
+        TEXTMETRICW tm = {};
+        GetTextMetricsW(dc, &tm);
+        const int em = tm.tmHeight - tm.tmInternalLeading;
+        const int mh = em * 108 / 100;
+        const int innerGap = em * 3 / 10, outerGap = em * 7 / 10;
         // ⓘ Both widths are measured: the title's positions the legend, the
         // legend's decides whether it fits at all.
-        SIZE ts = {0, 0}, ls = {0, 0};
+        SIZE ts = {0, 0};
         GetTextExtentPoint32W(dc, title, lstrlenW(title), &ts);
-        GetTextExtentPoint32W(dc, legend, lstrlenW(legend), &ls);
+        int legendW = 0;
+        for (int i = 0; i < legendCount; ++i) {
+            SIZE ws = {0, 0};
+            GetTextExtentPoint32W(dc, legend[i].word, lstrlenW(legend[i].word), &ws);
+            legendW += (i > 0 ? outerGap : 0) + mark_width(legend[i].mark, mh) + innerGap + ws.cx;
+        }
         // ⓘ CENTRED in the spacer, not right-aligned: the right edge butts up
         // against the tab's own four buttons, and the legend reads as part of
         // them there. ⭐ Centred it belongs to the window instead.
@@ -1522,9 +1668,23 @@ inline void paint(HWND hwnd)
         RECT lr = pl.r;
         lr.right -= 8;
         lr.left = pl.r.left + 8 + ts.cx + 24;
-        if (lr.right - lr.left >= ls.cx) {
-            DrawTextW(dc, legend, -1, &lr,
-                      DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
+        if (lr.right - lr.left >= legendW) {
+            // ⓘ On the title's line: DT_VCENTER's baseline, and each mark's foot
+            // 0.17 em below it, where the page sets its marks.
+            const int baseline = (lr.top + lr.bottom - tm.tmHeight) / 2 + tm.tmAscent;
+            const int markTop = baseline + em * 17 / 100 - mh;
+            const COLORREF ink = RGB(0x8b, 0x8d, 0x96);
+            const UINT prevAlign = SetTextAlign(dc, TA_LEFT | TA_BASELINE);
+            int x = lr.left + (lr.right - lr.left - legendW) / 2;
+            for (int i = 0; i < legendCount; ++i) {
+                if (i > 0) x += outerGap;
+                x += draw_mark(dc, x, markTop, mh, legend[i].mark, ink) + innerGap;
+                SIZE ws = {0, 0};
+                GetTextExtentPoint32W(dc, legend[i].word, lstrlenW(legend[i].word), &ws);
+                TextOutW(dc, x, baseline, legend[i].word, lstrlenW(legend[i].word));
+                x += ws.cx;
+            }
+            SetTextAlign(dc, prevAlign);
         }
         break;
     }
