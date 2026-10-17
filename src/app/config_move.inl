@@ -155,14 +155,15 @@ inline std::atomic_bool g_compact{false};
 // height of the window"): 0.130 tall from 0.150, which left about 12 px
 // above and below the panel at 150% on a work area 2088 tall; then 0.140,
 // as much taller as the wheel grew to show 3.5 lines ("increase the wheel
-// size to 3.5 lines"). Large 0.174, from 0.187, keeping large's 1.29 times
-// medium's page height. The
+// size to 3.5 lines"), and 0.143 for its config panel's title half as
+// large again ("increase by 1.5 instead"). Large 0.178,
+// from 0.187, keeping large's 1.29 times medium's page height. The
 // page's sizes are in a unit of its own, --vh, which Quick makes the old
 // window's height in hundredths, so nothing on it gets smaller.
 //
-//   medium  0.225 x 0.140   what the page opens Quick at
-//   large   0.280 x 0.174
-inline const SizeShare kQuickSizes[2] = { { 0.225, 0.140 }, { 0.280, 0.174 } };
+//   medium  0.225 x 0.143   what the page opens Quick at
+//   large   0.280 x 0.178
+inline const SizeShare kQuickSizes[2] = { { 0.225, 0.143 }, { 0.280, 0.178 } };
 inline std::atomic_int  g_sizeQuick{0};
 inline std::atomic_bool g_quick{false};
 

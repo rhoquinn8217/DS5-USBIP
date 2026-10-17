@@ -72,14 +72,34 @@
             little more by the same distance", twice). Simple's and Advanced's
             selectors are titled "Controller Config", in white just above
             the box at the left; Advanced's "currently linked config" line
-            goes. The mode picker carries a title, "Mode", across its bottom
-            edge at the left, in all three views (rhoquinn8217: "Without the
-            "Mode" it's really hard to tell
+            goes. The mode picker carries a title, "Window Mode", centred on
+            the top edge of it and its size button, in all three views
+            (rhoquinn8217: "Without the "Mode" it's really hard to tell
             what it's for", then "Instead of adding MODE to the options the
             label "MODE" to the mode selector similar to the config selector
             container label", then "Let's move it to the bottom of the mode
             selection box", and "to the bottom left instead. It's to close to
-            the lock symbol").
+            the lock symbol", and "Change Mode label to "Window Mode"", and
+            "center the mode selector label over the mode selector and size
+            button box"). The
+            legends lose their box ("remove the box around the legend for each
+            mode"), and Quick's config panel's title is half as large again
+            ("Double the size of the Config Selector Label in quick mode", then
+            "revert the config selector label size increase and increase by
+            1.5 instead"), its window 0.143 of the screen tall for it, and it
+            stands beside L1 ("move the Config selector label to the left
+            careful not to overlap the "L1" button"); Quick's configs are 11
+            from 9.5, and the controller's symbol stands over its name.
+            Simple's config selector is Quick's wheel too ("Mock up a SIMPLE
+            MODE with the config selector as a wheel like quick mode"), 3.5
+            lines at 5.4, in a panel with New, Edit, Unlink and Auto link
+            stacked at its right, all one size ("move New, Edit and unlink
+            above the auto link button. Expand the container to include these
+            buttons"): up and down step it, Cross links at once, right moves
+            to the buttons, up and down walk them, and off their ends lie the
+            polling limit above and the footer below. Its title names the
+            device type, at twice its size, and the device's symbol stands
+            before the nickname, the device type line gone.
     2.66.86 The polling limit is the controller's own, kept by the
             listener for that controller whatever config it reads, so a
             change of config never moves it (rhoquinn8217: "keep it with
@@ -1175,11 +1195,11 @@
      "increase the height of config selector container but also shrink
      the height of the window"). */
   :root { --vh:1vh; }
-  /* ⓘ Quick's window is 0.140 of the screen tall, from 0.150 (2.66.87), and
-     its page 247.6 px from 268.5 at 150% on a work area 2088 tall (the
-     title bar 44.7 px): 1.0843 times shorter, so its --vh is that much
+  /* ⓘ Quick's window is 0.143 of the screen tall, from 0.150 (2.66.87), and
+     its page 253.9 px from 268.5 at 150% on a work area 2088 tall (the
+     title bar 44.7 px): 1.0576 times shorter, so its --vh is that much
      larger and every size stays what it was. */
-  body.quick { --vh:calc(1vh * 1.0843); }
+  body.quick { --vh:calc(1vh * 1.0576); }
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
   /* ⓘ Bottom padding leaves room for the fixed status bar, or it would cover
@@ -1412,16 +1432,13 @@
                fill:none; stroke:currentColor; stroke-width:1.25; stroke-linejoin:round; }
   .kshoulder text { fill:currentColor; stroke:none; font-size:12px; }
   .lgi { white-space:nowrap; }
-  /* ⭐ The legend in a box of its own, in every mode (rhoquinn8217,
-     2026-10-16), its entries a short gap apart ("less space between
-     button in the legend"). It wraps between entries when a window is
-     narrow, and the box then holds both lines. */
+  /* ⭐ The legend's entries a short gap apart (rhoquinn8217, 2026-10-16:
+     "less space between button in the legend"), wrapping between entries
+     when a window is narrow. ⓘ No box around it since 2.66.87 (2026-10-17:
+     "remove the box around the legend for each mode"), where one had stood
+     in every mode since the day before. */
   .lgbox { display:inline-flex; flex-wrap:wrap; justify-content:center;
-           align-items:center; column-gap:0.7em; row-gap:0.2em;
-           padding:0.25em 0.7em; border:1px solid #3a3d47; border-radius:6px; }
-  /* Quick's footer has no height to spare: the box stands no taller than
-     the mode picker beside it. */
-  body.quick #compactBox .lgbox { padding:0.06em 0.6em; }
+           align-items:center; column-gap:0.7em; row-gap:0.2em; }
   .kpair > * + * { margin-left:0.15em; }
   .kcap { display:inline-block; min-width:1em; padding:0 0.28em;
           border:1px solid currentColor; border-radius:0.3em; font-size:0.78em;
@@ -1446,10 +1463,12 @@
      --qpb, as the title is placed from it; taller than the 5.6 and 4.4 it
      had (rhoquinn8217, 2026-10-17: "increase the height of config
      selector container"), by the same amount at each, so the clearances
-     either side of the wheel stay equal. As wide as the window allows. */
+     either side of the wheel stayed equal; then 1 of the bottom's moved
+     above, where the title stands half as large again (7.95 and 4.75). As
+     wide as the window allows. */
   body.quick #compactBox .cpick-wrap { position:relative; display:inline-grid;
     grid-template-columns:auto auto auto; align-items:center; column-gap:2.72vw;
-    --qpt:calc(6.95 * var(--vh)); --qpb:calc(5.75 * var(--vh));
+    --qpt:calc(7.95 * var(--vh)); --qpb:calc(4.75 * var(--vh));
     row-gap:0; padding:var(--qpt) 2.47vw var(--qpb); flex:0 1 auto; min-width:0;
     max-width:95vw; box-sizing:border-box; background:#1d1f26;
     border:1px solid #2c2e36; border-radius:8px; }
@@ -1478,7 +1497,7 @@
      away fading at its ends. 33vh, then 38.3 with the panel's padding
      taking the difference; the panel and the window are taller for the
      rest. */
-  body.quick #compactBox .cwheel > select { opacity:0; height:calc(46.2 * var(--vh)); font-size:calc(9.5 * var(--vh));
+  body.quick #compactBox .cwheel > select { opacity:0; height:calc(46.2 * var(--vh)); font-size:calc(11.0 * var(--vh));
     padding-left:0.9em; padding-right:0.9em;
     /* ⓘ At least 53.3vw, which makes the config name area half as wide
        again as the names it held, 301 px of frame at 150% (rhoquinn8217,
@@ -1489,7 +1508,7 @@
        (2.66.87), and is the same width. */
     min-width:53.3vw; }
   body.quick #compactBox .cdrum { position:absolute; inset:0; pointer-events:none;
-    border-radius:6px; font-size:calc(9.5 * var(--vh)); }
+    border-radius:6px; font-size:calc(11.0 * var(--vh)); }
   body.quick #compactBox .cdrum-frame { position:absolute; left:0.18em; right:0.18em;
     top:50%; height:1.3em; margin-top:-0.65em; box-sizing:border-box;
     border:2px solid #3a3d47; border-radius:0.22em; background:#262833; }
@@ -1499,8 +1518,8 @@
     border-radius:inherit;
     /* ⓘ Solid over the frame and fading to nothing at the ends, where the
        configs two away show at 3.5 lines (2.66.87). */
-    -webkit-mask-image:linear-gradient(to bottom, transparent, #000 37%, #000 63%, transparent);
-            mask-image:linear-gradient(to bottom, transparent, #000 37%, #000 63%, transparent); }
+    -webkit-mask-image:linear-gradient(to bottom, transparent, #000 35%, #000 65%, transparent);
+            mask-image:linear-gradient(to bottom, transparent, #000 35%, #000 65%, transparent); }
   body.quick #compactBox .cdrum-track { position:absolute; left:0; right:0; top:50%; height:0; }
   body.quick #compactBox .cdrum-row { position:absolute; left:0; right:0;
     height:1.2em; margin-top:-0.6em; line-height:1.2em; padding:0 0.5em;
@@ -1627,16 +1646,25 @@
      panel's left: 0.9em in from the panel's left, which is the wheel's
      less the panel's padding, and on its top edge, the panel's padding
      above the wheel. */
-  body.quick #compactBox .cpick-label { font-size:calc(5.6 * var(--vh));
-    left:calc(0.9em - 2.47vw); top:calc(-1 * var(--qpt)); bottom:auto;
-    transform:translateY(-50%); padding:0 0.45em;
+  /* ⭐ HALF AS LARGE AGAIN (rhoquinn8217, 2026-10-17: "Double the size of
+     the Config Selector Label in quick mode", then "revert the config
+     selector label size increase and increase by 1.5 instead"), 8.4 from
+     5.6, its text starting where it did: 3.78 is the old size's 0.45em
+     padding and 0.9em offset, less the new padding, from the wheel's left
+     less the panel's. */
+  /* ⭐ BESIDE L1 SINCE 2026-10-17 ("move the Config selector label to the left
+     careful not to overlap the "L1" button"): in a row with L1, .cqtl,
+     which stands where L1 stood, so the title follows it and never meets
+     it. */
+  body.quick #compactBox .cpick-label { font-size:calc(8.4 * var(--vh)); position:static;
+    left:auto; top:auto; bottom:auto; transform:none; padding:0 0.45em;
     background:linear-gradient(to bottom, #15161a 50%, #1d1f26 50%); }
   /* The room above each selector row that the title stands in. */
   .f:has(> .cpick-wrap) { padding-top:8px; }   /* a margin collapses into the table's */
   #compactBox .csel { padding-top:calc(1.4 * var(--vh)); }
   /* ⓘ Room for the upper half of Quick's title, which stands on its panel's
-     top edge (2.66.87). */
-  body.quick #compactBox .csel { padding-top:calc(3.2 * var(--vh)); }
+     top edge (2.66.87), 5.4 since it is half as large again. */
+  body.quick #compactBox .csel { padding-top:calc(5.4 * var(--vh)); }
   #compactBox .cname { font-size:calc(9 * var(--vh)); font-weight:600; text-align:center; line-height:1.1;
                        display:flex; align-items:center; justify-content:center;
                        flex-wrap:wrap; }
@@ -1665,6 +1693,12 @@
     white-space:nowrap; cursor:pointer;
     background:linear-gradient(to bottom, #15161a 50%, #1d1f26 50%); }
   body.quick #compactBox .cqcorner.l { left:0.9em; }
+  body.quick #compactBox .cqtl { position:absolute; top:0; left:calc(5.58 * var(--vh));
+    transform:translateY(-50%); display:flex; align-items:center; gap:0.6vw; z-index:1; }
+  body.quick #compactBox .cqtl > .cqcorner { position:static; transform:none; }
+  /* ⓘ The controller's symbol over its name and battery (2026-10-17: "put
+     the controller symbol above the nickname and battery"). */
+  body.quick #compactBox .cqemo { font-size:calc(8 * var(--vh)); line-height:1; }
   body.quick #compactBox .cqcorner.r { right:0.9em; }
   body.quick #compactBox .cqname { display:flex; flex-direction:column; align-items:center;
     gap:calc(0.8 * var(--vh)); grid-column:1; grid-row:1; min-width:0; }
@@ -1983,32 +2017,62 @@
      height and the button stretches to it, so the two cannot drift apart. */
   .modeclose { display:inline-flex; align-items:center; gap:7px; margin-left:8px; }
   .modegroup { display:inline-flex; align-items:stretch; }
-  /* ⭐ THE MODE PICKER'S TITLE ACROSS ITS BOTTOM EDGE, AT THE LEFT (2.66.87;
-     rhoquinn8217, 2026-10-17: "the
-     label "MODE" to the mode selector similar to the config selector
-     container label", then "Mode label awkwardly pushes all the elements
-     in the footer down. Let's move it to the bottom of the mode selection
-     box. Have it over lap the edge of the box and centered on the entire
-     box that includes both the mode selector and the size button", then
-     "Move Mode label to the bottom left instead. It's to close to the lock
-     symbol and it could be confusing"), 0.9em in. The
-     picker's colour behind the part of it inside the box and the bar's
-     behind the rest, so the edge stops behind the letters and no block
-     shows; the picker's focus colour inside while the pad is on it, so its
-     ring is notched, not patched. The edge crosses it 38% from its top,
-     which keeps it off the picker's own text. A little smaller than each
-     view's config title; a click passes through to the picker. */
+  /* ⭐ THE MODE PICKER'S TITLE, "Window Mode", CENTRED ON THE TOP EDGE OF THE
+     PICKER AND ITS SIZE BUTTON (2.66.87; rhoquinn8217, 2026-10-17, after
+     tries above the box, which pushed the footer down, and on its bottom
+     edge: "center the mode selector label over the mode selector and size
+     button box"). Its letters stand on the edge, most of it above, the
+     bar's colour behind that part so the edge stops behind the letters,
+     nothing behind the rest so the picker's own text is never covered; the
+     pad's focus ring is notched under it. Within the footer's room above
+     the box, so nothing moves. A little smaller than each view's config
+     title; a click passes through to the picker. */
   .modegroup, .cgroup { position:relative; }
-  .modelabel { position:absolute; left:0.9em; top:100%; transform:translateY(-38%);
+  .modelabel { position:absolute; left:50%; top:0; transform:translate(-50%, -60%);
     z-index:2; padding:0 0.45em; font-size:10px; line-height:1.25; color:#e8e8ea;
-    font-weight:600; white-space:nowrap; pointer-events:none; background:#1d1f26; }
-  .modegroup:has(> select.gp-focus) > .modelabel {
-    background:linear-gradient(to bottom, #2a3566 38%, #1d1f26 38%); }
-  #compactBox .cbar .modelabel { font-size:calc(2.4 * var(--vh));
-    background:linear-gradient(to bottom, #1d1f26 38%, #15161a 38%); }
-  body.quick #compactBox .cbar .modelabel { font-size:calc(4.8 * var(--vh)); }
-  #compactBox .cbar .cgroup:has(> select.gp-focus) > .modelabel {
-    background:linear-gradient(to bottom, #2a3566 38%, #15161a 38%); }
+    font-weight:600; white-space:nowrap; pointer-events:none;
+    background:linear-gradient(to bottom, #1d1f26 calc(60% + 1px), transparent calc(60% + 1px)); }
+  #compactBox .cbar .modelabel { font-size:calc(2.4 * var(--vh)); transform:translate(-50%, -70%);
+    background:linear-gradient(to bottom, #15161a calc(70% + 1px), transparent calc(70% + 1px)); }
+  body.quick #compactBox .cbar .modelabel { font-size:calc(4.2 * var(--vh)); }
+  /* ⭐ SIMPLE'S CONFIG SELECTOR AS QUICK'S WHEEL, IN A PANEL WITH ITS BUTTONS
+     (2.66.87; rhoquinn8217, 2026-10-17: "Mock up a SIMPLE MODE with the
+     config selector as a wheel like quick mode", then "move New, Edit and
+     unlink above the auto link button. Expand the container to include
+     these buttons", "make all the buttons ... consistent", "increase the
+     the wheel height and the text size" and "increase the config selector
+     label to 2x"): the wheel 22.7vh, 3.5 lines of its 5.4vh text, at
+     Simple's old selector's width; its four buttons one size, stacked at
+     its right; the title over the panel at twice its size. */
+  body.compact:not(.quick) #compactBox .csel { padding-top:calc(6 * var(--vh)); }
+  body.compact:not(.quick) #compactBox .cpick-label { font-size:calc(4.8 * var(--vh)); }
+  body.compact:not(.quick) #compactBox .cname .devemo { font-size:0.8em; margin-right:0.3em; }
+  body.compact:not(.quick) #compactBox .cpick-wrap { display:inline-grid; grid-template-columns:auto auto; align-items:center;
+    column-gap:2vw; padding:calc(3 * var(--vh)) 2vw; min-width:0; box-sizing:border-box;
+    background:#1d1f26; border:1px solid #2c2e36; border-radius:8px; }
+  body.compact:not(.quick) #compactBox .cwheel { position:relative; display:inline-flex; min-width:47vw; }
+  body.compact:not(.quick) #compactBox .cwheel > select { opacity:0; height:calc(22.7 * var(--vh));
+    font-size:calc(5.4 * var(--vh)); appearance:none; -webkit-appearance:none;
+    width:100%; min-width:0; border:0; padding:0 0.9em; }
+  body.compact:not(.quick) #compactBox .cdrum { position:absolute; inset:0; pointer-events:none; border-radius:6px;
+    font-size:calc(5.4 * var(--vh)); }
+  body.compact:not(.quick) #compactBox .cdrum-frame { position:absolute; left:0.18em; right:0.18em; top:50%;
+    height:1.3em; margin-top:-0.65em; box-sizing:border-box;
+    border:2px solid #3a3d47; border-radius:0.22em; background:#262833; }
+  body.compact:not(.quick) #compactBox .cwheel:has(> select.gp-focus) .cdrum-frame { border-color:#6c8cff; background:#2a3566; }
+  body.compact:not(.quick) #compactBox .cdrum-view { position:absolute; inset:0; overflow:hidden; border-radius:inherit;
+    -webkit-mask-image:linear-gradient(to bottom, transparent, #000 35%, #000 65%, transparent);
+            mask-image:linear-gradient(to bottom, transparent, #000 35%, #000 65%, transparent); }
+  body.compact:not(.quick) #compactBox .cdrum-track { position:absolute; left:0; right:0; top:50%; height:0; }
+  body.compact:not(.quick) #compactBox .cdrum-row { position:absolute; left:0; right:0; height:1.2em; margin-top:-0.6em;
+    line-height:1.2em; padding:0 0.5em; text-align:center; white-space:nowrap;
+    overflow:hidden; text-overflow:ellipsis; color:#9a9ca5; }
+  body.compact:not(.quick) #compactBox .cdrum-row.on { color:#e8e8ea; }
+  body.compact:not(.quick) #compactBox .csbtns { display:flex; flex-direction:column; align-items:stretch;
+    gap:calc(1 * var(--vh)); }
+  body.compact:not(.quick) #compactBox .csbtns > button { font-size:calc(3.6 * var(--vh)); line-height:1.3;
+    padding:calc(0.7 * var(--vh)) 1.6vw; min-width:0; margin:0; border-width:1px;
+    display:flex; align-items:center; justify-content:center; gap:0.35em; }
   .modeclose #modePick, .modeclose #closeBtn { margin-left:0; }
   .modegroup #modePick { border-top-right-radius:0; border-bottom-right-radius:0; }
   #sizeBtn { padding:0 6px; font-size:13px; line-height:1; color:#ffd166;
@@ -2455,7 +2519,7 @@
        little closer than the cluster's own gap. See .modeclose in the style. -->
   <span class="modeclose">
   <span class="modegroup">
-  <label class="modelabel" for="modePick">Mode</label>
+  <label class="modelabel" for="modePick">Window Mode</label>
   <select class="modepick" id="modePick" size="1"
           title="which layout this window opens in"
           onmousedown="pickerActivate(event,this)"
@@ -6027,12 +6091,16 @@ function quickShown(d) {
 }
 
 // Up or down in Quick, outside the footer zone and anything open: one step.
+// ⓘ In Simple too since its selector became a wheel (2.66.87), but only
+// while the halo is on the wheel: there up and down also reach the polling
+// limit, the buttons and the footer.
 // True when it was taken, so the caller does not also move the halo.
 function quickVertical(delta) {
-  if (!COMPACT || !QUICK || FOOTER_MODE || GP_SELECTING || GP_EDITING ||
+  if (!COMPACT || FOOTER_MODE || GP_SELECTING || GP_EDITING ||
       CONFIRM_CB || RENAMING || PRESET_OPEN || PRESET_INFO_OPEN) return false;
   var sel = document.getElementById('cpick');
   if (!sel) return false;
+  if (!QUICK && GP_FOCUS[GP_INDEX] !== sel) return false;
   quickStepConfig(sel, delta);
   return true;
 }
@@ -6137,7 +6205,7 @@ function quickLinkNow() {
 // The wheel over Quick's selector: a step per notch, whatever size a mouse
 // reports a notch as, and a touchpad's fine travel adding up the same way.
 function quickWheel(ev) {
-  if (!COMPACT || !QUICK) return;
+  if (!COMPACT) return;
   ev.preventDefault();
   QUICK_WHEEL += ev.deltaMode === 1 ? ev.deltaY * 33 : ev.deltaY;
   if (Math.abs(QUICK_WHEEL) < 50) return;
@@ -7417,7 +7485,8 @@ function gpActivate() {
     // the next (2.66.87; rhoquinn8217, 2026-10-16: "Let X/A/Enter be what
     // you recommended before"); the rate limit it opened for a while is
     // R3's (gpRate). See quickVertical.
-    if (COMPACT && QUICK && el.id === 'cpick') { quickLinkNow(); return; }
+    // ⓘ Simple's too since its selector became a wheel (2.66.87).
+    if (COMPACT && el.id === 'cpick') { quickLinkNow(); return; }
     GP_SELECTING = el;
     GP_SELECT_WAS = el.selectedIndex;
     el.classList.add('gp-selecting');
@@ -7447,7 +7516,7 @@ function gpActivate() {
     // preference. `config_move.inl` gives Quick a size table of ITS OWN:
     //
     //     Simple  kCompactSizes  0.45  x 0.45  of the screen
-    //     Quick   kQuickSizes    0.225 x 0.140   (0.278 x 0.150 until 2.66.87, 0.185 wide until 2026-10-02)
+    //     Quick   kQuickSizes    0.225 x 0.143   (0.278 x 0.150 until 2.66.87, 0.185 wide until 2026-10-02)
     //
     // ➡️ **Simple's window is THREE TIMES TALLER than Quick's.** So the
     // postcard reasoning was measured on Quick and never applied to Simple --
@@ -7934,6 +8003,35 @@ function compactMove(dx, dy) {
   }
   if (!rows.length) return false;
   var cur = GP_FOCUS[GP_INDEX];
+  // ⭐ SIMPLE'S PANEL (2.66.87): right from the wheel enters its column of
+  // buttons at the one level with the wheel's frame; up and down walk the
+  // column, off its top to the polling limit and off its bottom to the
+  // footer; left goes back to the wheel. Up and down on the wheel step it
+  // (quickVertical), so the column is the way past it.
+  var col = QUICK ? [] : Array.prototype.slice.call(box.querySelectorAll('.csbtns > button'))
+    .filter(function (e) { return !e.disabled; });
+  var wheelSel = document.getElementById('cpick');
+  if (col.length && wheelSel) {
+    var inCol = col.indexOf(cur);
+    if (cur === wheelSel && dx > 0) {
+      var wr = wheelSel.getBoundingClientRect(), mid = wr.top + wr.height / 2;
+      var near = col[0], gapNear = Infinity;
+      col.forEach(function (b) {
+        var r = b.getBoundingClientRect(), g = Math.abs(r.top + r.height / 2 - mid);
+        if (g < gapNear) { gapNear = g; near = b; }
+      });
+      return focusElement(near);
+    }
+    if (inCol >= 0) {
+      if (dx < 0) return focusElement(wheelSel);
+      if (dx > 0) return true;
+      var to = inCol + dy;
+      if (to >= 0 && to < col.length) return focusElement(col[to]);
+      if (dy < 0 && rateRow.length) return focusElement(rateRow[0]);
+      if (dy > 0 && bar.length) return focusElement(bar[0]);
+      return true;
+    }
+  }
   var r = -1, c = 0;
   rows.forEach(function (row, i) {
     var at = row.indexOf(cur);
@@ -8751,7 +8849,7 @@ function sizeButtonHtml() {
 // label"), on the picker's top edge at the left. A click passes through it
 // to the picker. ⓘ Advanced's is written into its bar, below, the same.
 function modeTitleHtml(forId) {
-  return '<label class="modelabel" for="' + forId + '">Mode</label>';
+  return '<label class="modelabel" for="' + forId + '">Window Mode</label>';
 }
 
 function modeGroupHtml() {
@@ -9174,14 +9272,14 @@ function compactSize() {
 // medium and large (2026-09-09); the listener's table agrees.
 // ⭐ HALF AS WIDE AGAIN SINCE 2026-10-02, at the width they dragged it to,
 // and 0.225 since 2.66.87, so the footer's legend has half the room either
-// side, and 0.140 tall from 0.150, its sizes kept by --vh (kQuickSizes in
+// side, and 0.143 tall from 0.150, its sizes kept by --vh (kQuickSizes in
 // config_move.inl says why). ⛔ This number and that table
 // are TWO PLACERS: a switch sizes the window here, the resize button there,
 // and 2.66.49 changed only the listener's, so a switch opened at the old
 // width.
 function quickSize() {
   compactHome(Math.round(screen.availWidth * 0.225),
-              Math.round(screen.availHeight * 0.140));
+              Math.round(screen.availHeight * 0.143));
 }
 
 function sizeForMode() {
@@ -9501,7 +9599,8 @@ function pickerActivate(ev, sel) {
   // halo on it, and the wheel or up and down step it.
   // ⓘ On its drum (2.66.87), a click on the config showing above or below
   // the front one steps to it, as a tap on a phone's picker does.
-  if (QUICK && sel.id === 'cpick') {
+  // ⓘ Simple's too since its selector became a wheel (2.66.87).
+  if (COMPACT && sel.id === 'cpick') {
     ev.preventDefault();
     focusElement(sel);
     var box = sel.getBoundingClientRect();
@@ -9598,7 +9697,7 @@ function paintCompact() {
   // left to right as the config, what to do with it, then the two claims.
   // ⓘ Same act as picking "(no config)", so it asks nothing.
   var unlinkBtn = function () {
-    var lbl = (QUICK ? '' : 'unlink ') + '\ud83d\udec7';
+    var lbl = (QUICK ? '' : 'Unlink ') + '\ud83d\udec7';
     return (d && d.linked_config)
       ? '<button class="cunlink-btn" onclick="compactUnlink()" ' +
         'title="set this controller to No config">' + lbl + '</button>'
@@ -9663,7 +9762,11 @@ function paintCompact() {
     // under the name, and the L1 and R1 neighbours with theirs.
     if (!quickRow) html += '<div class="ccar' + slide + '">' +
             side(prev, 'l', '\u25c2 ' + shoulderMark(shoulder[0])) +
-            '<div class="ccur"><div class="cname">' + esc(nameFor(d.ordinal)) +
+            // ⭐ THE DEVICE'S SYMBOL BEFORE THE NAME (rhoquinn8217, 2026-10-17: "Move
+            // the Device symbol in front of nick name"), in Simple; Quick's ring
+            // row shows only where it has no panel.
+            '<div class="ccur"><div class="cname">' + (QUICK ? '' : deviceIcons(partsOf(d.ordinal))) +
+            esc(nameFor(d.ordinal)) +
             batteryTags(partsOf(d.ordinal)) +
             // ⭐ QUICK'S POLLING RATE AND LIMIT AFTER THE BATTERY (2.66.87;
             // rhoquinn8217, 2026-10-16: "move the polling /rate limit after the
@@ -9673,12 +9776,10 @@ function paintCompact() {
             (QUICK ? '<span class="cnsep">|</span><span class="crate-q">' +
                      rateTags(partsOf(d.ordinal), keyCap(padLegend().rate)) + '</span>' : '') +
             '</div>' +
-            // ⓘ The marks follow the model name here too, as on the tabs.
-            // ⭐ NOT IN QUICK (2.66.87; rhoquinn8217, 2026-10-16: "Remove Device
-            // type"): its name is in the selector's title there instead.
-            (QUICK ? '' : '<div class="ckind"><span class="cklabel">' +
-                          esc(deviceLabelShort(d)) + '</span>' +
-                          deviceIcons(partsOf(d.ordinal)) + '</div>') +
+            // ⓘ No device type line in either view (2.66.87): its name heads
+            // the config panel, and its symbol stands by the nickname (Quick:
+            // "Remove Device type"; Simple: "replace the config selector label
+            // with the controller type like the quick mode").
             // ⭐ SIMPLE'S ARE A LINE OF THEIR OWN UNDER THE DEVICE TYPE
             // (rhoquinn8217, 2026-10-16: "Move the polling rate and limit
             // under the Device Type in simple mode"; 2.66.84 had them
@@ -9720,9 +9821,9 @@ function paintCompact() {
         });
       });
       var autoOn = !!d.linked_config && d.linked_config === claimedBy;
-      // ⓘ Quick shows a step on its way (quickShown); everywhere else it is
-      // the linked config.
-      var shown = QUICK ? quickShown(d) : (d.linked_config || '');
+      // ⓘ The wheel shows a step on its way (quickShown), in both views since
+      // Simple's became one (2.66.87).
+      var shown = quickShown(d);
       var opts = '<option value="">(no config)</option>';
       usable.forEach(function (c) {
         var mine = c.name === claimedBy;
@@ -9741,7 +9842,10 @@ function paintCompact() {
       // ⓘ The mark comes AFTER the word (rhoquinn8217, 2026-09-19), on this
       // button and on Unlink, which is the order Advanced's labels already
       // read in.
-      var autoLbl = (QUICK ? '' : 'auto ') + '\ud83d\uddd8';
+      // ⓘ "Auto link", capitalised as New and Edit beside it (2.66.87;
+      // rhoquinn8217, 2026-10-17: "make all the buttons at the right of the
+      // config selector wheel consistent").
+      var autoLbl = (QUICK ? '' : 'Auto link ') + '\ud83d\uddd8';
       var autoBtn;
       if (!mySerial) {
         autoBtn = '<button class="cauto-btn" disabled title="this controller reports no serial, ' +
@@ -9782,60 +9886,65 @@ function paintCompact() {
       // overlap the top left part of the box"), in Quick as well as Simple,
       // where it was a line of its own above the row. A label for the
       // selector, which a click passes straight through to.
+      // ⭐ THE PANEL'S TITLE NAMES THE DEVICE TYPE, in both views (Quick 2.66.87:
+      // "Replace "Controller" in the config selector label with the Device
+      // type, but don't add the controller symbol"; Simple 2026-10-17: "replace
+      // the config selector label with the controller type like the quick
+      // mode"). ⓘ Singular, as in Advanced: the box holds the one config this
+      // controller uses. A label for the selector, which a click passes
+      // straight through to.
+      var title = '<label class="cpick-label" for="cpick">' + esc(deviceLabelShort(d)) +
+                  ' Config</label>';
+      // ⭐ THE WHEEL, IN BOTH VIEWS (Quick 2.66.87: "build out a Wheel / Drum
+      // Picker for the config selector"; Simple 2026-10-17: "Mock up a SIMPLE
+      // MODE with the config selector as a wheel like quick mode", then "Then
+      // build it"): the select unseen beneath, the drum drawn over it by
+      // drumPaint after the box is, the wheel and up and down stepping it.
+      var wheel = '<span class="cwheel">' +
+                  '<select id="cpick" data-ordinal="' + esc(d.ordinal) + '"' +
+                  ' onmousedown="pickerActivate(event,this)"' +
+                  ' onclick="pickerClickEnd(this)"' +
+                  ' onwheel="quickWheel(event)"' +
+                  ' onchange="compactPick()">' + opts + '</select>' +
+                  '<span class="cdrum" aria-hidden="true"><span class="cdrum-frame"></span>' +
+                  '<span class="cdrum-view"><span class="cdrum-track"></span></span></span>' +
+                  '</span>';
+      // The selector, sliding with the ring (rhoquinn8217, 2026-09-09), in a
+      // panel in both views.
       html += '<div class="csel' + slide + '">' +
-              // ⭐ QUICK HAS NEITHER BUTTON (rhoquinn8217, 2026-10-16:
-              // "remove unlink and auto link buttons in quick mode"):
-              // Square and Triangle do both, and the wheel steps it.
-              '<div class="cselrow">' + (QUICK ? '' : unlinkBtn()) + '<span class="cpick-wrap">' +
-              // ⭐ IN QUICK THE PANEL BEGINS WITH THE NAME, THE BATTERY, AND THE
-              // POLLING RATE AND LIMIT UNDER THEM (2.66.87; rhoquinn8217,
-              // 2026-10-17: "make the contain extend left to contain the
-              // nickname, battery and polling/rate limit"), then the wheel, which
-              // carries the title, so the title stands where it did ("don't
-              // move the config selector label").
-              // ⭐ L1 AND R1 ON THE PANEL'S TOP CORNERS (2.66.87; rhoquinn8217,
-              // 2026-10-17: "place them on the top left and top right corner
-              // of the config selector container"), the ring's keys, there
-              // while there is another controller to go to, as the ring's
-              // neighbours were.
-              (QUICK && many ? '<span class="cqcorner l" onclick="gpTab(-1)">' +
-                               '\u25c2 ' + shoulderMark(shoulder[0]) + '</span>' +
-                               '<span class="cqcorner r" onclick="gpTab(1)">' +
-                               shoulderMark(shoulder[1]) + ' \u25b8' + '</span>' : '') +
-              (QUICK ? '<div class="ccur cqname"><div class="cname">' + esc(nameFor(d.ordinal)) +
-                       batteryTags(partsOf(d.ordinal)) + '</div><div class="crate-q">' +
-                       rateTags(partsOf(d.ordinal), keyCap(padLegend().rate)) + '</div></div>' +
-                       '<span class="cwheel">' : '') +
-              '<label class="cpick-label" for="cpick">' +
-              // ⓘ Singular, as in Advanced: the box holds the one config this
-              // controller uses; the window holding them all is "Controller
-              // Configs" (rhoquinn8217, 2026-10-16).
-              // ⭐ QUICK'S NAMES THE DEVICE TYPE IN PLACE OF "Controller", with
-              // no symbol (rhoquinn8217, 2026-10-16: "Replace "Controller" in
-              // the config selector label with the Device type, but don't add
-              // the controller symbol"), the ring having lost it.
-              (QUICK ? esc(deviceLabelShort(d)) : 'Controller') + ' Config</label>' +
-              // ⭐ QUICK'S WHEEL IN A PANEL WITH ITS TITLE AND ITS TWO PRESSES
-              // (rhoquinn8217, 2026-10-16: "Expand the container so that it
-              // covers the Label and the unlink and auto link symbols"), the
-              // panel centred as one ("Center the container area"). The wheel
-              // is the select and the drum drawn over it, in a box of their own,
-              // opened above with the name block and the title.
-              '<select id="cpick" data-ordinal="' + esc(d.ordinal) + '"' +
-              ' onmousedown="pickerActivate(event,this)"' +
-              ' onclick="pickerClickEnd(this)"' +
-              (QUICK ? ' onwheel="quickWheel(event)"' : '') +
-              ' onchange="compactPick()">' +
-              opts + '</select>' +
-              // ⓘ The drum over it, drawn by drumPaint after the box is, and
-              // its two presses beside it in the panel. No mark for the step:
-              // the wheel says up and down by itself ("The intention of using
-              // this is to remove the up/down symbol").
-              (QUICK ? '<span class="cdrum" aria-hidden="true"><span class="cdrum-frame"></span>' +
-                       '<span class="cdrum-view"><span class="cdrum-track"></span></span></span>' +
-                       '</span>' + quickHints() : '') + '</span>' +
-              (QUICK ? '' : autoBtn) +
-              '</div></div>' + (QUICK ? '' : foot(true, d.ordinal));
+              '<div class="cselrow"><span class="cpick-wrap">' +
+              (QUICK
+                // ⭐ QUICK: L1 AND THE TITLE ON THE PANEL'S TOP EDGE AT THE LEFT, R1
+                // AT ITS RIGHT (2.66.87; rhoquinn8217, 2026-10-17: "place them on
+                // the top left and top right corner of the config selector
+                // container", then "move the Config selector label to the left
+                // careful not to overlap the "L1" button"): the title follows L1
+                // in one row, so it never meets it, whatever L1 reads. L1 and R1
+                // there while there is another controller to go to. Then the
+                // controller's symbol over its name and battery, the polling rate
+                // and limit under them ("put the controller symbol above the
+                // nickname and battery"), the wheel, and its two presses.
+                ? '<span class="cqtl">' +
+                  (many ? '<span class="cqcorner l" onclick="gpTab(-1)">' +
+                          '\u25c2 ' + shoulderMark(shoulder[0]) + '</span>' : '') +
+                  title + '</span>' +
+                  (many ? '<span class="cqcorner r" onclick="gpTab(1)">' +
+                          shoulderMark(shoulder[1]) + ' \u25b8' + '</span>' : '') +
+                  '<div class="ccur cqname"><div class="cqemo">' + deviceIcons(partsOf(d.ordinal)) +
+                  '</div><div class="cname">' + esc(nameFor(d.ordinal)) +
+                  batteryTags(partsOf(d.ordinal)) + '</div><div class="crate-q">' +
+                  rateTags(partsOf(d.ordinal), keyCap(padLegend().rate)) + '</div></div>' +
+                  wheel + quickHints()
+                // ⭐ SIMPLE: THE TITLE OVER THE PANEL, THE WHEEL, AND NEW, EDIT,
+                // UNLINK AND AUTO LINK STACKED AT ITS RIGHT, ALL ONE SIZE
+                // (rhoquinn8217, 2026-10-17: "move New, Edit and unlink above the
+                // auto link button. Expand the container to include these
+                // buttons", then "make all the buttons ... consistent").
+                : title + wheel + '<span class="csbtns">' +
+                  '<button onclick="newConfigFor(\'' + esc(d.ordinal) + '\')">New</button>' +
+                  '<button onclick="setCompact(false)">Edit</button>' +
+                  unlinkBtn() + autoBtn + '</span>') +
+              '</span></div></div>';
     }
   }
   // ⭐ The footer area: the legend and the way back, as large as the rest.
@@ -9897,7 +10006,7 @@ function paintCompact() {
             '<button class="cclose" onclick="closeWindow()">Close</button></div>';
   }
   box.innerHTML = html;
-  if (QUICK) drumPaint(null);
+  drumPaint(null);
   gpCollect();
   // ⭐ THE HALO STAYS WHERE IT WAS across a repaint (rhoquinn8217, 2026-09-09:
   // it jumped back to the selector whenever the device poll redrew the box,
