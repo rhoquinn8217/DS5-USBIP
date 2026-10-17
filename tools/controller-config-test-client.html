@@ -36,8 +36,19 @@
             "Config" (the device type left the ring for it). ✕ (A, Enter)
             on the wheel links the config on screen at once, without the
             short wait a step leaves for the next. The polling rate and limit
-            follow the battery after a " | " (rhoquinn8217: "move the polling
-            /rate limit after the battery"), R3's mark where the limit's
+            stand under the name and battery, inside the config panel at its
+            left, the panel's title where it was (rhoquinn8217: "move the
+            nickname and battery to the left of the config selector
+            container. Move the polling/rate limit under the nickname and
+            battery", then "make the contain extend left to contain the
+            nickname, battery and polling/rate limit but don't move the
+            config selector label"); the panel is taller and the window
+            shorter, every size kept ("increase the height of config
+            selector container but also shrink the height of the window"),
+            and L1 and R1 stand on its top corners ("place them on the top left
+            and top right corner of the config selector container"); the
+            wheel shows 2.9 lines, from 2.5 ("Increase the wheel to show
+            2.8-3 lines"); R3's mark where the limit's
             arrow was, RS on an Xbox pad and L on a keyboard, the one press
             that opens it ("R3 will be the key that lets you reach the rate
             limit"); the window is narrower, 0.225 of the screen from
@@ -60,7 +71,12 @@
             little more by the same distance", twice). Simple's and Advanced's
             selectors are titled "Controller Config", in white just above
             the box at the left; Advanced's "currently linked config" line
-            goes.
+            goes. The mode picker carries a title, "Mode", just above its box
+            at the left in all three views (rhoquinn8217: "Without the "Mode"
+            it's really hard to tell
+            what it's for", then "Instead of adding MODE to the options the
+            label "MODE" to the mode selector similar to the config selector
+            container label", then "Push it up to clear it").
     2.66.86 The polling limit is the controller's own, kept by the
             listener for that controller whatever config it reads, so a
             change of config never moves it (rhoquinn8217: "keep it with
@@ -1149,6 +1165,18 @@
      the href exactly as it is, or the replacement finds nothing. -->
 <link rel="icon" href="/favicon.ico?v=1">
 <style>
+  /* ⭐ THE COMPACT VIEWS' HEIGHT UNIT (2.66.87): every height-based size in
+     them is a number of --vh, which is 1vh, and in Quick the old window's
+     height in hundredths (body.quick, below), so its window can be made
+     shorter without its text getting smaller (rhoquinn8217, 2026-10-17:
+     "increase the height of config selector container but also shrink
+     the height of the window"). */
+  :root { --vh:1vh; }
+  /* ⓘ Quick's window is 0.130 of the screen tall, from 0.150 (2.66.87), and
+     its page 226.7 px from 268.5 at 150% on a work area 2088 tall (the
+     title bar 44.7 px): 1.1844 times shorter, so its --vh is that much
+     larger and every size stays what it was. */
+  body.quick { --vh:calc(1vh * 1.1844); }
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
   /* ⓘ Bottom padding leaves room for the fixed status bar, or it would cover
@@ -1286,7 +1314,7 @@
   /* Compact has a down screen of its own; the full page's cover and help stay hidden. */
   body.compact #downCover, body.compact #offlineHelp { display:none !important; }
   #compactBox .cbad { color:#ff8f8f; }
-  #compactBox .csub { font-size:3vh; color:#c8c9ce; text-align:center; line-height:1.4; max-width:80vw; }
+  #compactBox .csub { font-size:calc(3 * var(--vh)); color:#c8c9ce; text-align:center; line-height:1.4; max-width:80vw; }
   #compactBox { display:none; }
   /* ⭐ SIZED IN VIEWPORT UNITS, ON PURPOSE (rhoquinn8217, 2026-09-09: too much
      empty space; and R3 must change the text too). R3 lives in the listener and
@@ -1300,7 +1328,7 @@
      the viewport takes as its own while html says nothing. */
   body.compact { padding:0; overflow:hidden; }
   body.compact #compactBox { display:flex; flex-direction:column; align-items:center;
-    justify-content:flex-start; gap:0; padding:4vh 4vw 3vh; min-height:100vh;
+    justify-content:flex-start; gap:0; padding:calc(4 * var(--vh)) 4vw calc(3 * var(--vh)); min-height:100vh;
     box-sizing:border-box; }
   /* ⭐ The content centres in the room above the footer; the footer is pinned
      to the bottom of the page (rhoquinn8217, 2026-09-09). */
@@ -1316,7 +1344,7 @@
      the height the preset description needs, and that description is the
      one thing in Simple that cannot shrink. */
   #compactBox .cmain { flex:1 1 auto; width:100%; display:flex; flex-direction:column;
-    align-items:center; justify-content:flex-start; padding-top:13vh; gap:4.5vh; }
+    align-items:center; justify-content:flex-start; padding-top:calc(13 * var(--vh)); gap:calc(4.5 * var(--vh)); }
   /* ⭐ QUICK: Simple with almost everything cut out (rhoquinn8217,
      2026-09-09). The name, the selector with its auto-link button, and a
      footer of a small Advanced and a four-item legend. Margins trimmed, no
@@ -1340,16 +1368,16 @@
   /* ⓘ The room above the name and the room under the selector are the same
      (rhoquinn8217, 2026-09-09): no fixed padding at the top, and the content
      centred in what is left above the footer. */
-  body.quick #compactBox { padding:0 2.5vw 5.25vh; }
-  body.quick #compactBox .cmain { padding-top:0; gap:3.75vh; justify-content:center; }
-  body.quick #compactBox .cmain.centre { gap:3vh; justify-content:center; }
+  body.quick #compactBox { padding:0 2.5vw calc(2.65 * var(--vh)); }
+  body.quick #compactBox .cmain { padding-top:0; gap:calc(3.75 * var(--vh)); justify-content:center; }
+  body.quick #compactBox .cmain.centre { gap:calc(3 * var(--vh)); justify-content:center; }
   body.quick #compactBox .ccar { gap:2vw; }
   /* ⓘ The name a little larger than the kind under it, no more
      (rhoquinn8217, 2026-09-09). */
-  body.quick #compactBox .cname { font-size:15vh; line-height:1.05; }
-  body.quick #compactBox .cside { font-size:12vh; }
-  body.quick #compactBox .cside small { font-size:9vh; }
-  body.quick #compactBox .cside .ckind { font-size:9vh; margin-top:0.45vh; }
+  body.quick #compactBox .cname { font-size:calc(15 * var(--vh)); line-height:1.05; }
+  body.quick #compactBox .cside { font-size:calc(12 * var(--vh)); }
+  body.quick #compactBox .cside small { font-size:calc(9 * var(--vh)); }
+  body.quick #compactBox .cside .ckind { font-size:calc(9 * var(--vh)); margin-top:calc(0.45 * var(--vh)); }
   body.quick #compactBox .cside.l { padding-right:1ch; }
   body.quick #compactBox .cside.r { padding-left:1ch; }
   body.quick #compactBox .csel { gap:0; }
@@ -1398,9 +1426,9 @@
   /* Quick's two presses, stacked to the right of its selector: green while an
      auto link stands, faint while there is nothing to do. */
   body.quick #compactBox .chints { display:flex; flex-direction:column;
-    align-items:flex-start; gap:0.8vh; flex:0 0 auto; grid-column:2; grid-row:1; }
+    align-items:flex-start; gap:calc(0.8 * var(--vh)); flex:0 0 auto; grid-column:3; grid-row:1; }
   body.quick #compactBox .chint { display:flex; align-items:center; gap:0.35em;
-    font-size:6.2vh; color:#9a9ca5; white-space:nowrap; }
+    font-size:calc(6.2 * var(--vh)); color:#9a9ca5; white-space:nowrap; }
   body.quick #compactBox .chint.on { color:#7fd18c; }
   body.quick #compactBox .chint.off { opacity:0.4; }
   /* Quick's selector steps and never opens: no arrow; ⇅ is in the legend. */
@@ -1410,14 +1438,23 @@
      presses beside it, one panel in the select's old colours, centred by
      the row as one. ⓘ Its gaps, 2.47 and 2.72vw, are the 14 and 16 px they
      were before the window narrowed (2.66.87). */
+  /* ⓘ Three columns since 2.66.87: the name block, the wheel, its two
+     presses. Its padding above and below the wheel is named, --qpt and
+     --qpb, as the title is placed from it; taller than the 5.6 and 4.4 it
+     had (rhoquinn8217, 2026-10-17: "increase the height of config
+     selector container"), by the same amount at each, so the clearances
+     either side of the wheel stay equal. As wide as the window allows. */
   body.quick #compactBox .cpick-wrap { position:relative; display:inline-grid;
-    grid-template-columns:auto auto; align-items:center; column-gap:2.72vw;
-    row-gap:0; padding:5.6vh 2.47vw 4.4vh; flex:0 1 auto; min-width:0;
-    max-width:86vw; box-sizing:border-box; background:#1d1f26;
+    grid-template-columns:auto auto auto; align-items:center; column-gap:2.72vw;
+    --qpt:calc(6.95 * var(--vh)); --qpb:calc(5.75 * var(--vh));
+    row-gap:0; padding:var(--qpt) 2.47vw var(--qpb); flex:0 1 auto; min-width:0;
+    max-width:95vw; box-sizing:border-box; background:#1d1f26;
     border:1px solid #2c2e36; border-radius:8px; }
-  body.quick #compactBox .cwheel { position:relative; display:inline-flex; grid-column:1;
+  body.quick #compactBox .cwheel { position:relative; display:inline-flex; grid-column:2;
     grid-row:1; min-width:0; max-width:58vw; }
-  body.quick #compactBox .cpick-wrap select { appearance:none; -webkit-appearance:none;
+  /* ⓘ The wheel's own select, not every one in the panel: the polling limit
+     stands in it too since 2.66.87. */
+  body.quick #compactBox .cwheel > select { appearance:none; -webkit-appearance:none;
     max-width:100%; }
   /* ⭐ QUICK'S WHEEL (2.66.87): the select unseen beneath; a plain panel; a
      frame in its middle around the chosen config, which alone takes the
@@ -1431,10 +1468,12 @@
      the drum's alike so the drum covers the select exactly (rhoquinn8217,
      2026-10-16: "make the text for the config selector a little bit
      smaller", then "shrink the text in the wheel so it's well defined"),
-     in a box of its own height, 2.5 lines of the 11vh text it had ("increase
-     the height of the wheel area to 2.5 lines"), which shows the configs
-     either side nearly whole. */
-  body.quick #compactBox .cpick-wrap select { opacity:0; height:33vh; font-size:9.5vh;
+     in a box of its own height, 2.9 lines of the 11vh text it had
+     ("increase the height of the wheel area to 2.5 lines", then "Increase
+     the wheel to show 2.8-3 lines"), which shows the configs either side
+     whole. It was 33vh; the panel's padding above and below took the
+     difference, so the panel stands as tall as it did. */
+  body.quick #compactBox .cwheel > select { opacity:0; height:calc(38.3 * var(--vh)); font-size:calc(9.5 * var(--vh));
     padding-left:0.9em; padding-right:0.9em;
     /* ⓘ At least 53.3vw, which makes the config name area half as wide
        again as the names it held, 301 px of frame at 150% (rhoquinn8217,
@@ -1445,7 +1484,7 @@
        (2.66.87), and is the same width. */
     min-width:53.3vw; }
   body.quick #compactBox .cdrum { position:absolute; inset:0; pointer-events:none;
-    border-radius:6px; font-size:9.5vh; }
+    border-radius:6px; font-size:calc(9.5 * var(--vh)); }
   body.quick #compactBox .cdrum-frame { position:absolute; left:0.18em; right:0.18em;
     top:50%; height:1.3em; margin-top:-0.65em; box-sizing:border-box;
     border:2px solid #3a3d47; border-radius:0.22em; background:#262833; }
@@ -1453,8 +1492,11 @@
     border-color:#6c8cff; background:#2a3566; }
   body.quick #compactBox .cdrum-view { position:absolute; inset:0; overflow:hidden;
     border-radius:inherit;
-    -webkit-mask-image:linear-gradient(to bottom, transparent, #000 31%, #000 69%, transparent);
-            mask-image:linear-gradient(to bottom, transparent, #000 31%, #000 69%, transparent); }
+    /* ⓘ Clear for the outer 6% at either end (2.66.87): the wheel is tall
+       enough since then that the foot of the config two above showed at
+       its top, faintly. */
+    -webkit-mask-image:linear-gradient(to bottom, transparent 6%, #000 34%, #000 66%, transparent 94%);
+            mask-image:linear-gradient(to bottom, transparent 6%, #000 34%, #000 66%, transparent 94%); }
   body.quick #compactBox .cdrum-track { position:absolute; left:0; right:0; top:50%; height:0; }
   body.quick #compactBox .cdrum-row { position:absolute; left:0; right:0;
     height:1.2em; margin-top:-0.6em; line-height:1.2em; padding:0 0.5em;
@@ -1468,22 +1510,25 @@
      two buttons and their gaps simply overflowed and both buttons were cut
      off at the window edges. The row carries Unlink as well as 🗘 now, so the
      cap has to leave room for both. */
-  body.quick #compactBox select { font-size:12.6vh; padding:1.8vh 1.5vw; min-width:0;
+  body.quick #compactBox select { font-size:calc(12.6 * var(--vh)); padding:calc(1.8 * var(--vh)) 1.5vw; min-width:0;
     max-width:58vw; flex:0 1 auto; }
   #compactBox .cselrow { position:relative; }
   body.quick #compactBox .cauto-btn,
-  body.quick #compactBox .cselrow .cunlink-btn { font-size:12.6vh; padding:1.5vh 1.6vw; }
-  body.quick #compactBox .cbar { padding-top:3.75vh; gap:3vw; }
+  body.quick #compactBox .cselrow .cunlink-btn { font-size:calc(12.6 * var(--vh)); padding:calc(1.5 * var(--vh)) 1.6vw; }
+  /* ⓘ 8.25 above the footer's row, from 3.75, for the mode picker's title
+     (2.66.87), and the box's room under the footer 2.65 from 5.25: the
+     window keeps its size, the room around the panel giving the rest. */
+  body.quick #compactBox .cbar { padding-top:calc(8.25 * var(--vh)); gap:3vw; }
   /* ⓘ Quick has the SAME fault and is fixed with it. Only Simple was
      reported, but its picker fell to the 12.6vh config-selector rule in
      exactly the same way, and leaving it would be the next report. */
   body.quick #compactBox .cbar > button,
-  body.quick #compactBox .cbar select.modepick { font-size:6.9vh;
-    padding:1.5vh 2vw; min-width:0; }
-  body.quick #compactBox .clegend { font-size:6.9vh; }
-  body.quick #compactBox .cempty { font-size:13.5vh; }
-  body.quick #compactBox .csub { font-size:9vh; }
-  body.quick #compactBox .cbig { font-size:15.75vh; padding:2.25vh 4vw; }
+  body.quick #compactBox .cbar select.modepick { font-size:calc(6.9 * var(--vh));
+    padding:calc(1.5 * var(--vh)) 2vw; min-width:0; }
+  body.quick #compactBox .clegend { font-size:calc(6.9 * var(--vh)); }
+  body.quick #compactBox .cempty { font-size:calc(13.5 * var(--vh)); }
+  body.quick #compactBox .csub { font-size:calc(9 * var(--vh)); }
+  body.quick #compactBox .cbig { font-size:calc(15.75 * var(--vh)); padding:calc(2.25 * var(--vh)) 4vw; }
   body.quick #bubbles { display:none !important; }
   /* A screen that is only a message sits in the middle of the room
      (rhoquinn8217, 2026-09-09); the controller screen keeps its place. */
@@ -1496,7 +1541,7 @@
   /* ⭐ Unlink is the same button as the auto-link one, in both views: one rule
      for the pair so they cannot drift apart. */
   #compactBox .cauto-btn,
-  #compactBox .cunlink-btn { font-size:4.2vh; padding:0.6vh 1.4vw; line-height:1; }
+  #compactBox .cunlink-btn { font-size:calc(4.2 * var(--vh)); padding:calc(0.6 * var(--vh)) 1.4vw; line-height:1; }
   #compactBox .cauto-btn.on { color:#7fd18c; border-color:#7fd18c; opacity:1; }
   /* ⛔ NO GREEN IN THE LIST (rhoquinn8217, 2026-09-09). A native option is
      one run of text in one colour, so the mark could never be green on its
@@ -1515,15 +1560,15 @@
     width:100%; overflow:hidden; }
   /* ⓘ The sides sit three characters further out than the gap alone would put
      them (rhoquinn8217, 2026-09-09), and carry the kind under the nickname. */
-  #compactBox .cside { flex:1 1 0; min-width:0; color:#4e515b; font-size:4.5vh;
+  #compactBox .cside { flex:1 1 0; min-width:0; color:#4e515b; font-size:calc(4.5 * var(--vh));
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   #compactBox .cside.l { text-align:right; padding-right:3ch; }
   #compactBox .cside.r { text-align:left; padding-left:3ch; }
   /* The sides are the ring's own buttons for a mouse (rhoquinn8217, 2026-09-09). */
   #compactBox .cside[onclick] { cursor:pointer; }
   #compactBox .cside[onclick]:hover { color:#9aa4b2; }
-  #compactBox .cside small { display:block; font-size:3vh; color:#3d4049; }
-  #compactBox .cside .ckind { font-size:3vh; color:#3d4049; text-align:inherit; margin-top:0.4vh; }
+  #compactBox .cside small { display:block; font-size:calc(3 * var(--vh)); color:#3d4049; }
+  #compactBox .cside .ckind { font-size:calc(3 * var(--vh)); color:#3d4049; text-align:inherit; margin-top:calc(0.4 * var(--vh)); }
   /* ⓘ A long model name ("RONGYUAN 2.4G Wireless Device") and the marks after
      it can be wider than the line, so the name shortens and the marks stay:
      the name ends in an ellipsis, the marks keep their room. And on ONE line:
@@ -1542,7 +1587,7 @@
   #compactBox .ccar.slide-r, #compactBox .csel.slide-r { animation:cslide-r .26s ease-out; }
   #compactBox .ccar.slide-l, #compactBox .csel.slide-l { animation:cslide-l .26s ease-out; }
   /* The selector and its title travel with the ring (rhoquinn8217, 2026-09-09). */
-  #compactBox .csel { display:flex; flex-direction:column; align-items:center; gap:1.2vh; }
+  #compactBox .csel { display:flex; flex-direction:column; align-items:center; gap:calc(1.2 * var(--vh)); }
   /* ⭐ THE SELECTOR'S TITLE AT ITS TOP EDGE, at the left (rhoquinn8217,
      2026-10-16: "add/move the controller configs selection label to
      overlap the top left part of the box"), standing JUST ABOVE the edge
@@ -1568,7 +1613,7 @@
     white-space:nowrap; pointer-events:none; }
   #compactBox .cpick-wrap { flex:0 1 auto; min-width:47vw; }
   #compactBox .cpick-wrap select { min-width:0; flex:1 1 auto; }
-  #compactBox .cpick-label { left:0.9em; padding:0 0.35em; font-size:2.4vh; }
+  #compactBox .cpick-label { left:0.9em; padding:0 0.35em; font-size:calc(2.4 * var(--vh)); }
   /* ⭐ QUICK'S ON ITS PANEL'S TOP EDGE, AT THE LEFT (rhoquinn8217, 2026-10-16:
      "have the label overlap the upper edge of the container", then "Set
      the label to the top ... side of the container still overlapping the
@@ -1577,32 +1622,56 @@
      and the panel's behind their bottom half, so the gap reads as the
      edge's own and no block shows (the dark patch over the blue ring was
      refused). */
-  body.quick #compactBox .cpick-label { font-size:5.6vh; left:0.9em; top:0; bottom:auto;
+  /* ⓘ Placed from the wheel since 2.66.87, the name block having taken the
+     panel's left: 0.9em in from the panel's left, which is the wheel's
+     less the panel's padding, and on its top edge, the panel's padding
+     above the wheel. */
+  body.quick #compactBox .cpick-label { font-size:calc(5.6 * var(--vh));
+    left:calc(0.9em - 2.47vw); top:calc(-1 * var(--qpt)); bottom:auto;
     transform:translateY(-50%); padding:0 0.45em;
     background:linear-gradient(to bottom, #15161a 50%, #1d1f26 50%); }
   /* The room above each selector row that the title stands in. */
   .f:has(> .cpick-wrap) { padding-top:8px; }   /* a margin collapses into the table's */
-  #compactBox .csel { padding-top:1.4vh; }
+  #compactBox .csel { padding-top:calc(1.4 * var(--vh)); }
   /* ⓘ Room for the upper half of Quick's title, which stands on its panel's
      top edge (2.66.87). */
-  body.quick #compactBox .csel { padding-top:3.2vh; }
-  #compactBox .cname { font-size:9vh; font-weight:600; text-align:center; line-height:1.1;
+  body.quick #compactBox .csel { padding-top:calc(3.2 * var(--vh)); }
+  #compactBox .cname { font-size:calc(9 * var(--vh)); font-weight:600; text-align:center; line-height:1.1;
                        display:flex; align-items:center; justify-content:center;
                        flex-wrap:wrap; }
-  #compactBox .ckind { font-size:4.5vh; color:#71737c; text-align:center; margin-top:0.8vh; }
+  #compactBox .ckind { font-size:calc(4.5 * var(--vh)); color:#71737c; text-align:center; margin-top:calc(0.8 * var(--vh)); }
   /* ⭐ Simple's polling rate and rate limit, under the device type (2.66.85;
      2.66.84 had them under the name): at the footer buttons' size, the
      dropdown as wide as its words rather than the config selector's 47vw. */
-  #compactBox .crate { font-size:3.4vh; color:#c8c9ce; text-align:center; margin-top:1.2vh; }
+  #compactBox .crate { font-size:calc(3.4 * var(--vh)); color:#c8c9ce; text-align:center; margin-top:calc(1.2 * var(--vh)); }
   /* ⭐ Quick's, to the right of the device type (2.66.85): smaller than the
      line, and never the part that gives way; the model name shortens first.
      ⓘ Its select is out of reach of Quick's own rule for selects, which is
      the config selector's size. */
   /* ⭐ Quick's polling rate and limit after the battery and a " | " (2.66.87),
      smaller than the name and in their own weight. */
-  body.quick #compactBox .cname .cnsep { font-size:7vh; font-weight:400; color:#71737c;
+  body.quick #compactBox .cname .cnsep { font-size:calc(7 * var(--vh)); font-weight:400; color:#71737c;
     margin:0 0.5em; }
-  body.quick #compactBox .cname > .crate-q { font-size:7vh; font-weight:400;
+  /* ⭐ QUICK'S NAME BLOCK LEFT OF THE CONFIG PANEL (2.66.87; rhoquinn8217,
+     2026-10-17): the name and battery over the polling rate and limit,
+     centred on each other, the panel's first column. */
+  /* ⭐ L1 and R1 on the panel's top corners (2.66.87), on its top edge as
+     its title is, 0.9em in, with the page's colour behind their top half
+     and the panel's behind their bottom half; grey, as unlink is. */
+  body.quick #compactBox .cqcorner { position:absolute; top:0; z-index:1;
+    transform:translateY(-50%); display:flex; align-items:center; gap:0.3em;
+    padding:0 0.45em; font-size:calc(6.2 * var(--vh)); color:#9a9ca5;
+    white-space:nowrap; cursor:pointer;
+    background:linear-gradient(to bottom, #15161a 50%, #1d1f26 50%); }
+  body.quick #compactBox .cqcorner.l { left:0.9em; }
+  body.quick #compactBox .cqcorner.r { right:0.9em; }
+  body.quick #compactBox .cqname { display:flex; flex-direction:column; align-items:center;
+    gap:calc(0.8 * var(--vh)); grid-column:1; grid-row:1; min-width:0; }
+  body.quick #compactBox .cqname > .cname { font-size:calc(11 * var(--vh)); }
+  body.quick #compactBox .cqname > .crate-q { font-size:calc(6.2 * var(--vh)); font-weight:400;
+    color:#c8c9ce; white-space:nowrap; }
+  body.quick #compactBox .cselrow > .cpick-wrap { flex-shrink:0; }
+  body.quick #compactBox .cname > .crate-q { font-size:calc(7 * var(--vh)); font-weight:400;
     color:#c8c9ce; white-space:nowrap; }
   body.quick #compactBox .crate-q select { font-size:1em; padding:0.15em 0.4em;
                                           min-width:0; max-width:none; }
@@ -1617,22 +1686,22 @@
   /* ⓘ Quick's footer zone (2.66.85) is NOT lit (rhoquinn8217, 2026-10-16:
      "the whole area is lit up and looks odd"): the halo on Close says where
      the pad is. */
-  #compactBox .crate select { font-size:3.4vh; padding:0.5vh 1vw; min-width:0; }
+  #compactBox .crate select { font-size:calc(3.4 * var(--vh)); padding:calc(0.5 * var(--vh)) 1vw; min-width:0; }
   /* ⓘ Two thirds of what it was (rhoquinn8217, 2026-09-09). */
-  #compactBox select { font-size:4.2vh; padding:0.8vh 1.4vw; min-width:47vw; }
-  #compactBox .cbig { font-size:8.1vh; padding:2vh 5vw; }
-  #compactBox .cfoot { display:flex; gap:3vw; margin-top:1.5vh; }
-  #compactBox .cfoot button { padding:1.4vh 3vw; font-size:5.4vh; }
-  #compactBox .cempty { color:#c8c9ce; font-size:5.4vh; text-align:center; }
+  #compactBox select { font-size:calc(4.2 * var(--vh)); padding:calc(0.8 * var(--vh)) 1.4vw; min-width:47vw; }
+  #compactBox .cbig { font-size:calc(8.1 * var(--vh)); padding:calc(2 * var(--vh)) 5vw; }
+  #compactBox .cfoot { display:flex; gap:3vw; margin-top:calc(1.5 * var(--vh)); }
+  #compactBox .cfoot button { padding:calc(1.4 * var(--vh)) 3vw; font-size:calc(5.4 * var(--vh)); }
+  #compactBox .cempty { color:#c8c9ce; font-size:calc(5.4 * var(--vh)); text-align:center; }
   /* ⭐ The footer area: the legend and the way back, at the same size as the
      rest of the view, with room around the rule (rhoquinn8217, 2026-09-09). */
   #compactBox .cbar { width:100%; border-top:1px solid #2c2e36; margin-top:auto;
-    padding-top:2.4vh; display:flex; flex-direction:row; align-items:center; gap:3vw; }
+    padding-top:calc(2.4 * var(--vh)); display:flex; flex-direction:row; align-items:center; gap:3vw; }
   #compactBox .cbarText { flex:1 1 auto; min-width:0; display:flex; flex-direction:column;
-    gap:1.4vh; align-items:center; }
+    gap:calc(1.4 * var(--vh)); align-items:center; }
   /* ⓘ Half the size of the rest (rhoquinn8217, 2026-09-09), and green as the
      configurator's legend is while the pad is live. */
-  #compactBox .clegend { font-size:2.3vh; color:#7fd18c; text-align:center; }
+  #compactBox .clegend { font-size:calc(2.3 * var(--vh)); color:#7fd18c; text-align:center; }
   /* ⭐ WHICH LAYOUT THIS IS (rhoquinn8217, 2026-09-09). It leads the legend
      rather than sitting on its own, so it costs no height in a window that
      has none to spare -- and the corner button names the layout you would go
@@ -1658,7 +1727,7 @@
      the cursor is a pointer rather than a move arrow: the click is the thing
      you would not otherwise guess at. */
   #compactBox .cinfo { cursor:pointer; min-height:2.8em;
-                       font-size:2.3vh; color:#c8c9ce; text-align:center; line-height:1.4;
+                       font-size:calc(2.3 * var(--vh)); color:#c8c9ce; text-align:center; line-height:1.4;
     max-width:80vw; }
   #compactBox .cinfo b { color:#e8e8ea; }
   /* ⭐ The footer's two corners: Configurator bottom-left, Close bottom-right,
@@ -1674,8 +1743,8 @@
      ⚠️ `min-width:0` is load-bearing: without it the 47vw from that rule
      still wins on width even though everything else here overrides. */
   #compactBox .cbar > button,
-  #compactBox .cbar select.modepick { flex:0 0 auto; font-size:3.4vh;
-    padding:1.2vh 2.6vw; min-width:0; }
+  #compactBox .cbar select.modepick { flex:0 0 auto; font-size:calc(3.4 * var(--vh));
+    padding:calc(1.2 * var(--vh)) 2.6vw; min-width:0; }
   /* THE PICKER IS TRIMMED ON PADDING, NOT FORCED TO A HEIGHT, AND THAT IS
      WHAT LETS ITS TEXT SIT CENTRED (rhoquinn8217, 2026-09-20: *"The text in
      those buttons doesn't look vertically centered in the button"*).
@@ -1690,7 +1759,7 @@
      Solved, not guessed: bare select + 2 x padding = the button's height.
      Simple 27 + 2 x 0.79vh = 35.2; Quick 20 + 2 x 0.31vh = 21.1.
      Both move if the font or the button's padding above changes. */
-  #compactBox .cbar select.modepick { padding-top:0.79vh; padding-bottom:0.79vh; }
+  #compactBox .cbar select.modepick { padding-top:calc(0.79 * var(--vh)); padding-bottom:calc(0.79 * var(--vh)); }
   /* ⭐⭐ THE MODE IDENTIFIER NOW LIVES ON THE PICKER ITSELF (rhoquinn8217,
      2026-09-20): *"The Mode select clearly show what mode the window is in so
      we don't need the Yellow Bolded mode title in the legend for each mode
@@ -1709,8 +1778,8 @@
     letter-spacing:.08em; text-transform:uppercase; }
   #compactBox .cbar select.modepick option { color:#e8e8ea; font-weight:400;
     letter-spacing:normal; text-transform:none; }
-  body.quick #compactBox .cbar select.modepick { padding-top:0.31vh;
-    padding-bottom:0.31vh; }
+  body.quick #compactBox .cbar select.modepick { padding-top:calc(0.31 * var(--vh));
+    padding-bottom:calc(0.31 * var(--vh)); }
   /* ⭐ THE SIZE BUTTON, FLUSH AGAINST THE PICKER HERE TOO (rhoquinn8217,
      2026-10-09), as in Advanced's footer: the two share .cgroup, which
      stretches the button to the picker's height, so the two cannot differ
@@ -1720,10 +1789,10 @@
      and so does the bar's grid walk in compactMove. */
   #compactBox .cbar > .cgroup { flex:0 0 auto; display:inline-flex; align-items:stretch; }
   #compactBox .cbar .cgroup > select.modepick { border-top-right-radius:0; border-bottom-right-radius:0; }
-  #compactBox .cbar .cgroup > button.csize { flex:0 0 auto; font-size:3.4vh; line-height:1;
+  #compactBox .cbar .cgroup > button.csize { flex:0 0 auto; font-size:calc(3.4 * var(--vh)); line-height:1;
     padding:0 1.2vw; min-width:0; color:#ffd166; background:#1d1f26; border-color:#2c2e36;
     border-left-width:0; border-top-left-radius:0; border-bottom-left-radius:0; }
-  body.quick #compactBox .cbar .cgroup > button.csize { font-size:6.9vh; }
+  body.quick #compactBox .cbar .cgroup > button.csize { font-size:calc(6.9 * var(--vh)); }
   #compactBox .cbar .cgroup > button.csize:hover { background:#262833; }
   #compactBox .cbar > .cgroup + button.cclose { margin-left:-1.8vw; }
   body.compact #confirmBox .confirmCard { font-size:5.1vh; max-width:86vw; }
@@ -1733,11 +1802,11 @@
   /* The confirm box in Quick's small window: the auto-link questions live
      here. Sized to the window like the rest of Quick, and it scrolls inside
      itself rather than past the window's edge. */
-  body.quick #confirmBox .confirmCard { font-size:12.38vh; max-width:94vw; padding:2.25vh 3vw;
-    max-height:96vh; overflow:auto; box-sizing:border-box; }
-  body.quick #confirmBox .confirmCard h2 { font-size:14.62vh; margin-bottom:1.12vh; }
-  body.quick #confirmBox .confirmCard p { font-size:11.25vh; margin-bottom:2.25vh; }
-  body.quick #confirmBox .confirmCard button { font-size:11.25vh; padding:1.65vh 2vw; }
+  body.quick #confirmBox .confirmCard { font-size:calc(12.38 * var(--vh)); max-width:94vw; padding:calc(2.25 * var(--vh)) 3vw;
+    max-height:calc(96 * var(--vh)); overflow:auto; box-sizing:border-box; }
+  body.quick #confirmBox .confirmCard h2 { font-size:calc(14.62 * var(--vh)); margin-bottom:calc(1.12 * var(--vh)); }
+  body.quick #confirmBox .confirmCard p { font-size:calc(11.25 * var(--vh)); margin-bottom:calc(2.25 * var(--vh)); }
+  body.quick #confirmBox .confirmCard button { font-size:calc(11.25 * var(--vh)); padding:calc(1.65 * var(--vh)) 2vw; }
   /* ⭐ THE PRESET BOXES FIT THE COMPACT WINDOW (rhoquinn8217, 2026-09-09).
      ⛔ They share .confirmCard with the confirm box, so the rule above once
      scaled them too: the preset description came out at the size of a
@@ -1912,7 +1981,26 @@
      than the cluster's 16 and its own 8. ⓘ The picker sets the group's
      height and the button stretches to it, so the two cannot drift apart. */
   .modeclose { display:inline-flex; align-items:center; gap:7px; margin-left:8px; }
+  /* ⓘ 15 px above the bar's row, from 8, for the mode picker's title over
+     it (2.66.87). */
+  #gpbar { padding-top:15px; }
   .modegroup { display:inline-flex; align-items:stretch; }
+  /* ⭐ THE MODE PICKER'S TITLE, JUST ABOVE ITS BOX AT THE LEFT (2.66.87;
+     rhoquinn8217, 2026-10-17: "the label "MODE" to the mode selector
+     similar to the config selector container label", then "Lets not have
+     mode on overlap the edge of the selector box. Push it up to clear
+     it."), as Simple's config title stands: nothing behind it, its letters
+     standing on the focus ring's outer edge, 5 px above the box ("Move it
+     lower so it lands flush with the halo"; the ring is drawn 2 to 5 px
+     outside; 0.33em is the line's room under the letters, which have no
+     descender). A little smaller than each view's config
+     title; a click passes through to the picker. */
+  .modegroup, .cgroup { position:relative; }
+  .modelabel { position:absolute; left:0.9em; bottom:calc(100% + 5px - 0.33em); z-index:2;
+    padding:0 0.35em; font-size:10px; line-height:1.25; color:#e8e8ea;
+    font-weight:600; white-space:nowrap; pointer-events:none; }
+  #compactBox .cbar .modelabel { font-size:calc(2.4 * var(--vh)); }
+  body.quick #compactBox .cbar .modelabel { font-size:calc(4.8 * var(--vh)); }
   .modeclose #modePick, .modeclose #closeBtn { margin-left:0; }
   .modegroup #modePick { border-top-right-radius:0; border-bottom-right-radius:0; }
   #sizeBtn { padding:0 6px; font-size:13px; line-height:1; color:#ffd166;
@@ -2359,6 +2447,7 @@
        little closer than the cluster's own gap. See .modeclose in the style. -->
   <span class="modeclose">
   <span class="modegroup">
+  <label class="modelabel" for="modePick">Mode</label>
   <select class="modepick" id="modePick" size="1"
           title="which layout this window opens in"
           onmousedown="pickerActivate(event,this)"
@@ -7350,7 +7439,7 @@ function gpActivate() {
     // preference. `config_move.inl` gives Quick a size table of ITS OWN:
     //
     //     Simple  kCompactSizes  0.45  x 0.45  of the screen
-    //     Quick   kQuickSizes    0.225 x 0.150   (0.278 until 2.66.87, 0.185 until 2026-10-02)
+    //     Quick   kQuickSizes    0.225 x 0.130   (0.278 x 0.150 until 2.66.87, 0.185 wide until 2026-10-02)
     //
     // ➡️ **Simple's window is THREE TIMES TALLER than Quick's.** So the
     // postcard reasoning was measured on Quick and never applied to Simple --
@@ -7800,7 +7889,9 @@ function compactMove(dx, dy) {
   var selRow = box.querySelector('.cselrow');
   if (selRow) {
     Array.prototype.slice.call(selRow.querySelectorAll('select, button')).forEach(function (e) {
-      if (!e.disabled) topRow.push(e);
+      // ⓘ Quick's polling limit stands in this row (2.66.87), and R3 alone
+      // reaches it.
+      if (!e.disabled && !(e.closest && e.closest('.crate-q'))) topRow.push(e);
     });
   }
   if (!topRow.length) {
@@ -8647,8 +8738,17 @@ function sizeButtonHtml() {
          'title="the next size for this window, as Create does on the pad">&#x1F5D7;</button>';
 }
 // The compact bars' Mode picker with the 🗗 against it, one group.
+// ⭐ THE MODE PICKER'S TITLE (2.66.87; rhoquinn8217, 2026-10-17: "the label
+// "MODE" to the mode selector similar to the config selector container
+// label"), on the picker's top edge at the left. A click passes through it
+// to the picker. ⓘ Advanced's is written into its bar, below, the same.
+function modeTitleHtml(forId) {
+  return '<label class="modelabel" for="' + forId + '">Mode</label>';
+}
+
 function modeGroupHtml() {
-  return '<span class="cgroup">' + modePickerHtml('cselMode') + sizeButtonHtml() + '</span>';
+  return '<span class="cgroup">' + modeTitleHtml('cselMode') + modePickerHtml('cselMode') +
+         sizeButtonHtml() + '</span>';
 }
 
 // ⭐ OPEN ON BRIDGE (rhoquinn8217, 2026-10-09): whether a bridge brings this
@@ -8961,6 +9061,8 @@ function modePickerHtml(id) {
   // The padlock, by code point: no escape for any layer to mangle.
   var LOCK = String.fromCodePoint(0x1F512);
   var cur = modeName();
+  // ⓘ The choices name the modes alone: the picker's title says Mode
+  // (2.66.87; modeTitleHtml).
   var opts = [['advanced', 'Advanced'], ['simple', 'Simple'], ['quick', 'Quick']]
     .map(function (m) {
       var label = m[1] + (m[0] === cur ? " " + LOCK : "");
@@ -9064,13 +9166,14 @@ function compactSize() {
 // medium and large (2026-09-09); the listener's table agrees.
 // ⭐ HALF AS WIDE AGAIN SINCE 2026-10-02, at the width they dragged it to,
 // and 0.225 since 2.66.87, so the footer's legend has half the room either
-// side (kQuickSizes in config_move.inl says why). ⛔ This number and that table
+// side, and 0.130 tall from 0.150, its sizes kept by --vh (kQuickSizes in
+// config_move.inl says why). ⛔ This number and that table
 // are TWO PLACERS: a switch sizes the window here, the resize button there,
 // and 2.66.49 changed only the listener's, so a switch opened at the old
 // width.
 function quickSize() {
   compactHome(Math.round(screen.availWidth * 0.225),
-              Math.round(screen.availHeight * 0.15));
+              Math.round(screen.availHeight * 0.130));
 }
 
 function sizeForMode() {
@@ -9512,6 +9615,13 @@ function paintCompact() {
     html += '<div class="cempty">Bridge a controller to start.</div>' + foot(false, '');
   } else {
     var usable = configsFor(d);
+    // ⭐ QUICK'S NAME BESIDE ITS CONFIG PANEL (2.66.87; rhoquinn8217, 2026-10-17:
+    // "move the nickname and battery to the left of the config selector
+    // container. Move the polling/rate limit under the nickname and battery"):
+    // wherever the panel shows, the ring's row goes and the panel's row holds
+    // all of it. Without a panel (Start, a device that takes no config) the
+    // name stays above, as it was.
+    var quickRow = QUICK && d.supports_config && usable.length > 0;
     // ⭐ The ring: the controller in focus in the centre, the previous under
     // L1 on the left, the next under R1 on the right, dimmed (rhoquinn8217,
     // 2026-09-09: there is room to show the others).
@@ -9543,7 +9653,7 @@ function paintCompact() {
     var shoulder = String(LG.shoulder || 'L1/R1').split('/');
     // ⓘ Quick shows the whole ring too (rhoquinn8217, 2026-09-09): the kind
     // under the name, and the L1 and R1 neighbours with theirs.
-    html += '<div class="ccar' + slide + '">' +
+    if (!quickRow) html += '<div class="ccar' + slide + '">' +
             side(prev, 'l', '\u25c2 ' + shoulderMark(shoulder[0])) +
             '<div class="ccur"><div class="cname">' + esc(nameFor(d.ordinal)) +
             batteryTags(partsOf(d.ordinal)) +
@@ -9668,8 +9778,27 @@ function paintCompact() {
               // ⭐ QUICK HAS NEITHER BUTTON (rhoquinn8217, 2026-10-16:
               // "remove unlink and auto link buttons in quick mode"):
               // Square and Triangle do both, and the wheel steps it.
-              '<div class="cselrow">' + (QUICK ? '' : unlinkBtn()) +
-              '<span class="cpick-wrap"><label class="cpick-label" for="cpick">' +
+              '<div class="cselrow">' + (QUICK ? '' : unlinkBtn()) + '<span class="cpick-wrap">' +
+              // ⭐ IN QUICK THE PANEL BEGINS WITH THE NAME, THE BATTERY, AND THE
+              // POLLING RATE AND LIMIT UNDER THEM (2.66.87; rhoquinn8217,
+              // 2026-10-17: "make the contain extend left to contain the
+              // nickname, battery and polling/rate limit"), then the wheel, which
+              // carries the title, so the title stands where it did ("don't
+              // move the config selector label").
+              // ⭐ L1 AND R1 ON THE PANEL'S TOP CORNERS (2.66.87; rhoquinn8217,
+              // 2026-10-17: "place them on the top left and top right corner
+              // of the config selector container"), the ring's keys, there
+              // while there is another controller to go to, as the ring's
+              // neighbours were.
+              (QUICK && many ? '<span class="cqcorner l" onclick="gpTab(-1)">' +
+                               '\u25c2 ' + shoulderMark(shoulder[0]) + '</span>' +
+                               '<span class="cqcorner r" onclick="gpTab(1)">' +
+                               shoulderMark(shoulder[1]) + ' \u25b8' + '</span>' : '') +
+              (QUICK ? '<div class="ccur cqname"><div class="cname">' + esc(nameFor(d.ordinal)) +
+                       batteryTags(partsOf(d.ordinal)) + '</div><div class="crate-q">' +
+                       rateTags(partsOf(d.ordinal), keyCap(padLegend().rate)) + '</div></div>' +
+                       '<span class="cwheel">' : '') +
+              '<label class="cpick-label" for="cpick">' +
               // ⓘ Singular, as in Advanced: the box holds the one config this
               // controller uses; the window holding them all is "Controller
               // Configs" (rhoquinn8217, 2026-10-16).
@@ -9682,8 +9811,8 @@ function paintCompact() {
               // (rhoquinn8217, 2026-10-16: "Expand the container so that it
               // covers the Label and the unlink and auto link symbols"), the
               // panel centred as one ("Center the container area"). The wheel
-              // is the select and the drum drawn over it, in a box of their own.
-              (QUICK ? '<span class="cwheel">' : '') +
+              // is the select and the drum drawn over it, in a box of their own,
+              // opened above with the name block and the title.
               '<select id="cpick" data-ordinal="' + esc(d.ordinal) + '"' +
               ' onmousedown="pickerActivate(event,this)"' +
               ' onclick="pickerClickEnd(this)"' +
@@ -9726,9 +9855,12 @@ function paintCompact() {
             // ⓘ The shoulder keys first, as in Simple's (rhoquinn8217,
             // 2026-10-02: *"Add L1/R1 LB/RB and Q/E in the quick mode legend
             // also"*), following the input in hand like the ring's keys.
-            // ⭐ ONLY WHAT HAS NO PLACE OF ITS OWN (2.66.87): the controller
-            // keys stand beside the neighbours in the ring, and unlink, auto
-            // link and the config's step beside what they act on.
+            // ⭐ ONLY WHAT HAS NO PLACE OF ITS OWN (2.66.87): unlink, auto link
+            // and the config's step beside what they act on, and the
+            // controller keys on the panel's top corners (rhoquinn8217,
+            // 2026-10-17: "move the shoulder butter out of the legend and place
+            // them on the top left and top right corner of the config selector
+            // container").
             // ⭐ EACH MARK DRAWN AS ITS BUTTON, as beside the controls
             // (2.66.87; rhoquinn8217, 2026-10-16: "Can you do the circles
             // around the buttons in the legends?").

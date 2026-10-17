@@ -150,9 +150,17 @@ inline std::atomic_bool g_compact{false};
 // The page's widths are in vw, and its config wheel is set wider in vw to
 // stay the size it was.
 //
-//   medium  0.225 x 0.150   what the page opens Quick at
-//   large   0.280 x 0.187
-inline const SizeShare kQuickSizes[2] = { { 0.225, 0.150 }, { 0.280, 0.187 } };
+// ⭐ AND SHORTER, ITS CONFIG PANEL TALLER (rhoquinn8217, 2026-10-17:
+// "increase the height of config selector container but also shrink the
+// height of the window"): 0.130 tall from 0.150, which leaves about 12 px
+// above and below the panel at 150% on a work area 2088 tall, and 0.161
+// large from 0.187, keeping large's 1.29 times medium's page height. The
+// page's sizes are in a unit of its own, --vh, which Quick makes the old
+// window's height in hundredths, so nothing on it gets smaller.
+//
+//   medium  0.225 x 0.130   what the page opens Quick at
+//   large   0.280 x 0.161
+inline const SizeShare kQuickSizes[2] = { { 0.225, 0.130 }, { 0.280, 0.161 } };
 inline std::atomic_int  g_sizeQuick{0};
 inline std::atomic_bool g_quick{false};
 
