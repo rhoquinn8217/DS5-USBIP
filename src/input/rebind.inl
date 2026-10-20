@@ -304,20 +304,21 @@ inline const GateBinding kConfigModeKeys[] = {
     // modes"). It sent nothing here until then.
     { kBtnFaceUp,    "KeyY",  CTM_GATE_MODS },   // triangle: auto link on the config selector
     // ⭐ R3 OPENS QUICK'S POLLING LIMIT (rhoquinn8217, 2026-10-16: "R3 will
-    // be the key that lets you reach the rate limit"), and only in Quick:
-    // gate_claims leaves it to the config in Simple and Advanced, and it
-    // is the virtual keyboard's size while a name is being typed.
-    { kBtnR3,        "KeyL",  CTM_GATE_MODS },   // R3: Quick's polling limit
+    // be the key that lets you reach the rate limit"), and Simple's since
+    // 2026-10-20 ("The rate limit should only be acessible with R3"):
+    // gate_claims leaves it to the config in Advanced, and it is the
+    // virtual keyboard's size while a name is being typed.
+    { kBtnR3,        "KeyL",  CTM_GATE_MODS },   // R3: the compact views' polling limit
 };
 
 // ⓘ Whether the page has this button: every one in the table, but R3
-// only while the window is in Quick; elsewhere it does what the config
-// binds it to, as it did before.
+// only while the window is in Simple or Quick; in Advanced it does what
+// the config binds it to, as it did before.
 inline bool gate_claims(int standardIndex)
 {
     if (standardIndex != kBtnR3) return true;
-    bool quick = false;
-    return config_move::view_get(nullptr, &quick, nullptr) && quick;
+    bool compact = false;
+    return config_move::view_get(&compact, nullptr, nullptr) && compact;
 }
 
 inline void apply(const void *deviceKey,

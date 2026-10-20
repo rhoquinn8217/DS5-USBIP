@@ -1736,6 +1736,14 @@
      "the whole area is lit up and looks odd"): the halo on Close says where
      the pad is. */
   #compactBox .crate select { font-size:calc(3.4 * var(--vh)); padding:calc(0.5 * var(--vh)) 1vw; min-width:0; }
+  /* ⭐ Simple's limit with R3's mark where its arrow was, as Quick's
+     (rhoquinn8217, 2026-10-20: "in simple mode add the R3 symbol for the
+     rate limit similar to quick mode"). */
+  body.compact:not(.quick) #compactBox .crate .rpick { position:relative; display:inline-block; }
+  body.compact:not(.quick) #compactBox .crate .rpick select { appearance:none; -webkit-appearance:none;
+    padding-right:1.75em; }
+  body.compact:not(.quick) #compactBox .crate .rmark { position:absolute; right:0.4em; top:50%;
+    transform:translateY(-50%); display:flex; align-items:center; pointer-events:none; }
   /* ⓘ Two thirds of what it was (rhoquinn8217, 2026-09-09). */
   #compactBox select { font-size:calc(4.2 * var(--vh)); padding:calc(0.8 * var(--vh)) 1.4vw; min-width:47vw; }
   #compactBox .cbig { font-size:calc(8.1 * var(--vh)); padding:calc(2 * var(--vh)) 5vw; }
@@ -2075,6 +2083,16 @@
      panel is only that top half now, 3.75vh less, and the panel's padding
      took it back, so the panel ends where it did. */
   body.compact:not(.quick) #compactBox .csel { padding-top:calc(2.25 * var(--vh)); }
+  /* ⭐ SIMPLE'S PANEL VIEW CENTRED BETWEEN THE WINDOW'S TOP AND THE FOOTER'S
+     LINE (rhoquinn8217, 2026-10-20: "add space between the controller config
+     container and the line break so that it is the same space between the
+     top edge of the window and the top of the nickname"): the content in the
+     middle of what is left, with 6vh more under it than over it, the box's
+     4vh top padding and the 2vh from the name's line to the top of its
+     letters, so the room over the nickname and the room under the panel
+     match. The notice bubbles keep the window's top right corner. */
+  body.compact:not(.quick) #compactBox .cmain.cpanel { padding-top:0; padding-bottom:calc(6 * var(--vh));
+    justify-content:center; justify-content:safe center; }
   body.compact:not(.quick) #compactBox .cpick-label { font-size:calc(3.6 * var(--vh)); top:0; bottom:auto;
     transform:translateY(-50%); background:linear-gradient(to bottom, #15161a 50%, #1d1f26 50%); }
   body.compact:not(.quick) #compactBox .cname .devemo { font-size:0.8em; margin-right:0.3em; }
@@ -6116,10 +6134,13 @@ function gpUnlink() {
 // and L on a keyboard: the halo goes to it, open, from wherever it was, the
 // footer's zone included. Up and down step it; ✕ or R3 again keeps the
 // choice, ○ puts the old one back, and either way the halo goes back to
-// the config wheel (gpSelectEnd). Nothing in Simple or Advanced.
+// the config wheel (gpSelectEnd). In Simple too since 2026-10-20 ("The rate
+// limit should only be acessible with R3"), its limit under the nickname;
+// nothing in Advanced.
 function gpRate() {
-  if (!COMPACT || !QUICK) return;
-  var sel = document.querySelector('#compactBox .crate-q select:not(:disabled)');
+  if (!COMPACT) return;
+  var sel = document.querySelector('#compactBox .crate-q select:not(:disabled), ' +
+                                   '#compactBox .crate select:not(:disabled)');
   if (!sel) return;
   if (GP_SELECTING === sel) { gpSelectEnd(true); return; }
   if (GP_SELECTING || GP_EDITING || CONFIRM_CB || RENAMING || PRESET_OPEN ||
@@ -7698,10 +7719,12 @@ function gpSelectEnd(commit) {
   GP_SELECTING = null;
   el.dispatchEvent(new Event('change'));
   GP_SELECT_COMMIT = true;
-  // ⓘ Quick's polling limit closed: the halo goes back to the config
-  // wheel, where R3 found it (2.66.87).
-  if (COMPACT && QUICK && !FOOTER_MODE && el.closest && el.closest('.crate-q')) {
-    focusElement(document.getElementById('cpick'));
+  // ⓘ Quick's polling limit closed, or Simple's (2026-10-20): the halo goes
+  // back to the config wheel, where R3 found it (2.66.87), or Start where
+  // there is no wheel. The d-pad has no way to the limit, nor from it.
+  if (COMPACT && !FOOTER_MODE && el.closest && el.closest('.crate-q, .crate')) {
+    focusElement(document.getElementById('cpick') ||
+                 document.querySelector('#compactBox button.cbig'));
   }
 }
 
@@ -8080,12 +8103,10 @@ function compactMove(dx, dy) {
     var big = box.querySelector('button.cbig');
     if (big) topRow.push(big);
   }
-  // ⭐ Simple's rate limit (2.66.84) is a row of its own above the selector
-  // row: up from the config picker reaches it, and down from it lands on the
-  // picker by the rule below.
-  var rateRow = Array.prototype.slice.call(box.querySelectorAll('.crate select'))
-    .filter(function (e) { return !e.disabled; });
-  if (rateRow.length) rows.push(rateRow);
+  // ⭐ R3 ALONE REACHES THE RATE LIMIT, IN SIMPLE AS IN QUICK (rhoquinn8217,
+  // 2026-10-20: "The rate limit should only be acessible with R3"): no row
+  // here holds it. Simple's was a row of its own above the selector row
+  // from 2.66.84, up from the config picker reaching it.
   if (topRow.length) rows.push(topRow);
   var foot = Array.prototype.slice.call(box.querySelectorAll('.cfoot button'));
   if (foot.length) rows.push(foot);
@@ -8110,9 +8131,9 @@ function compactMove(dx, dy) {
   var cur = GP_FOCUS[GP_INDEX];
   // ⭐ SIMPLE'S PANEL (2.66.87): right from the wheel enters its column of
   // buttons at the one level with the wheel's frame; up and down walk the
-  // column, off its top to the polling limit and off its bottom to the
-  // footer; left goes back to the wheel. Up and down on the wheel step it
-  // (quickVertical), so the column is the way past it.
+  // column, stopping at its top (R3 alone reaches the polling limit) and
+  // off its bottom to the footer; left goes back to the wheel. Up and down
+  // on the wheel step it (quickVertical), so the column is the way past it.
   var col = QUICK ? [] : Array.prototype.slice.call(box.querySelectorAll('.csbtns > button'))
     .filter(function (e) { return !e.disabled; });
   var wheelSel = document.getElementById('cpick');
@@ -8132,7 +8153,6 @@ function compactMove(dx, dy) {
       if (dx > 0) return true;
       var to = inCol + dy;
       if (to >= 0 && to < col.length) return focusElement(col[to]);
-      if (dy < 0 && rateRow.length) return focusElement(rateRow[0]);
       // ⓘ Onto the Mode picker, not the bar's first control: the 🗗 is first
       // since it moved to the picker's left (2026-10-19).
       var barPick = bar.filter(function (e) { return e.tagName === 'SELECT'; })[0];
@@ -9820,7 +9840,10 @@ function paintCompact() {
       (withNew ? '<button onclick="newConfigFor(\'' + esc(ordinal) + '\')">New</button>' : '') +
       (ordinal ? '<button onclick="setCompact(false)">Edit</button>' : '') + '</div>';
   };
-  var html = '<div class="cmain' + (!IS_DOWN && !d ? ' centre' : '') + '">';
+  // ⓘ Simple with its config panel stands centred between the window's top
+  // and the footer's line (2026-10-20); see .cmain.cpanel.
+  var panelView = !QUICK && !IS_DOWN && !!d && !!d.supports_config && configsFor(d).length > 0;
+  var html = '<div class="cmain' + (!IS_DOWN && !d ? ' centre' : '') + (panelView ? ' cpanel' : '') + '">';
   if (IS_DOWN) {
     // ⭐ THE LISTENER IS NOT ANSWERING (rhoquinn8217, 2026-09-09). The full
     // page has its cover; compact says the same thing at its own size, with
@@ -9916,8 +9939,12 @@ function paintCompact() {
             // (rhoquinn8217, 2026-10-16: "Move the polling rate and limit
             // under the Device Type in simple mode"; 2.66.84 had them
             // under the name and battery). Advanced's own readout and
-            // dropdown, kept current by pollRates.
-            (QUICK ? '' : '<div class="crate">' + rateTags(partsOf(d.ordinal)) + '</div>') +
+            // dropdown, kept current by pollRates, with R3's mark where its
+            // arrow was, as Quick's (rhoquinn8217, 2026-10-20: "in simple
+            // mode add the R3 symbol for the rate limit similar to quick
+            // mode. The rate limit should only be acessible with R3.").
+            (QUICK ? '' : '<div class="crate">' + rateTags(partsOf(d.ordinal), keyCap(padLegend().rate)) +
+                          '</div>') +
             '</div>' +
             (sidesByPanel ? '' : side(next, 'r', nextKey)) +
             '</div>';
