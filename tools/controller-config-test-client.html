@@ -1736,6 +1736,14 @@
      "the whole area is lit up and looks odd"): the halo on Close says where
      the pad is. */
   #compactBox .crate select { font-size:calc(3.4 * var(--vh)); padding:calc(0.5 * var(--vh)) 1vw; min-width:0; }
+  /* ⭐ SIMPLE'S POLLING RATE AND LIMIT ON THE NAME'S LINE (rhoquinn8217,
+     2026-10-20: "put the controller icon, nickname, battery, polling and
+     rate limit on one line which will give clearance for the message"):
+     after the battery and a " | ", as Quick's, at their own size and
+     weight, on the line's middle. */
+  body.compact:not(.quick) #compactBox .cname > .crate { margin-top:0; font-weight:400; }
+  body.compact:not(.quick) #compactBox .cname .cnsep { font-size:calc(5 * var(--vh)); font-weight:400;
+    color:#71737c; margin:0 0.5em; }
   /* ⭐ Simple's limit with R3's mark where its arrow was, as Quick's
      (rhoquinn8217, 2026-10-20: "in simple mode add the R3 symbol for the
      rate limit similar to quick mode"). */
@@ -9923,28 +9931,24 @@ function paintCompact() {
             '<div class="ccur"><div class="cname">' + (QUICK ? '' : deviceIcons(partsOf(d.ordinal))) +
             esc(nameFor(d.ordinal)) +
             batteryTags(partsOf(d.ordinal)) +
-            // ⭐ QUICK'S POLLING RATE AND LIMIT AFTER THE BATTERY (2.66.87;
-            // rhoquinn8217, 2026-10-16: "move the polling /rate limit after the
-            // battery separated by a " | ""), the limit opened by R3, whose
-            // mark stands where its arrow was ("R3 will be the key that lets
-            // you reach the rate limit").
-            (QUICK ? '<span class="cnsep">|</span><span class="crate-q">' +
-                     rateTags(partsOf(d.ordinal), keyCap(padLegend().rate)) + '</span>' : '') +
+            // ⭐ THE POLLING RATE AND LIMIT AFTER THE BATTERY, IN BOTH VIEWS
+            // (Quick 2.66.87; rhoquinn8217, 2026-10-16: "move the polling /rate
+            // limit after the battery separated by a " | ""; Simple 2026-10-20:
+            // "put the controller icon, nickname, battery, polling and rate
+            // limit on one line which will give clearance for the message"),
+            // the limit opened by R3, whose mark stands where its arrow was
+            // ("R3 will be the key that lets you reach the rate limit").
+            '<span class="cnsep">|</span><span class="' + (QUICK ? 'crate-q' : 'crate') + '">' +
+            rateTags(partsOf(d.ordinal), keyCap(padLegend().rate)) + '</span>' +
             '</div>' +
             // ⓘ No device type line in either view (2.66.87): its name heads
             // the config panel, and its symbol stands by the nickname (Quick:
             // "Remove Device type"; Simple: "replace the config selector label
             // with the controller type like the quick mode").
-            // ⭐ SIMPLE'S ARE A LINE OF THEIR OWN UNDER THE DEVICE TYPE
-            // (rhoquinn8217, 2026-10-16: "Move the polling rate and limit
-            // under the Device Type in simple mode"; 2.66.84 had them
-            // under the name and battery). Advanced's own readout and
-            // dropdown, kept current by pollRates, with R3's mark where its
-            // arrow was, as Quick's (rhoquinn8217, 2026-10-20: "in simple
-            // mode add the R3 symbol for the rate limit similar to quick
-            // mode. The rate limit should only be acessible with R3.").
-            (QUICK ? '' : '<div class="crate">' + rateTags(partsOf(d.ordinal), keyCap(padLegend().rate)) +
-                          '</div>') +
+            // ⓘ Simple's rate and limit were a line of their own under the
+            // name from 2.66.84 (2026-10-16: "Move the polling rate and limit
+            // under the Device Type in simple mode"), with R3's mark since
+            // 2026-10-20 ("The rate limit should only be acessible with R3").
             '</div>' +
             (sidesByPanel ? '' : side(next, 'r', nextKey)) +
             '</div>';
