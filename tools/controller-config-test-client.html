@@ -2120,25 +2120,29 @@
   /* ⭐ THE KEY IN A LARGE ARROW AT THE WINDOW'S EDGE (2026-10-20: "The arrow
      need to be bigger and at the edge ..."): each card reaches 3vw into the
      window's margin, the arrow at its outer end and the name and type at
-     the panel, both on the panel's middle. The arrow 1.62 by 2.64 of the
+     the panel, both on the panel's middle. The arrow 1.62 by 3.53 of the
      card's em ("flatten the triangles and fill them in", "flatten
-     horizontally"), solid in the card's colour, so it brightens with the
-     name under the pointer; the mark in it at the old key line's size, cut
-     out in the window's colour (ringArrow). */
+     horizontally", "Make the triangle base longer"), solid in the card's
+     colour, so it brightens with the name under the pointer; the mark in
+     it at the old key line's size, its box cut out in the window's colour
+     and its label in the card's ("don't fill in the shoulder button
+     symbol") (ringArrow). */
   body.compact:not(.quick) #compactBox .cselrow > .cside { display:flex; align-items:center;
     justify-content:space-between; gap:0.5em; }
   body.compact:not(.quick) #compactBox .cselrow > .cside.l { margin-left:-3vw; }
   body.compact:not(.quick) #compactBox .cselrow > .cside.r { margin-right:-3vw; }
   body.compact:not(.quick) #compactBox .cstext { min-width:0; }
   body.compact:not(.quick) #compactBox .carrow { position:relative; flex:0 0 auto; display:inline-flex;
-    align-items:center; justify-content:flex-end; width:1.616em; height:2.644em; box-sizing:border-box;
+    align-items:center; justify-content:flex-end; width:1.616em; height:3.525em; box-sizing:border-box;
     padding-right:0.147em; }
   body.compact:not(.quick) #compactBox .carrow.r { justify-content:flex-start; padding-right:0; padding-left:0.147em; }
   body.compact:not(.quick) #compactBox .carrow-tri { position:absolute; left:0; top:0; width:100%; height:100%;
     fill:currentColor; stroke:currentColor; stroke-width:1.5; stroke-linejoin:round; }
   body.compact:not(.quick) #compactBox .carrow.r .carrow-tri { transform:scaleX(-1); }
-  body.compact:not(.quick) #compactBox .carrow > .kshoulder { position:relative; font-size:0.68em; color:#15161a; }
-  body.compact:not(.quick) #compactBox .carrow > .kcap { position:relative; font-size:0.55em; color:#15161a; }
+  body.compact:not(.quick) #compactBox .carrow > .kshoulder { position:relative; font-size:0.68em; }
+  body.compact:not(.quick) #compactBox .carrow > .kshoulder path { fill:#15161a; stroke:#15161a; }
+  body.compact:not(.quick) #compactBox .carrow > .kcap { position:relative; font-size:0.55em;
+    background:#15161a; border-color:#15161a; }
   .modeclose #modePick, .modeclose #closeBtn { margin-left:0; }
   .modegroup #modePick { border-top-left-radius:0; border-bottom-left-radius:0; }
   #sizeBtn { padding:0 6px; font-size:13px; line-height:1; color:#ffd166;
@@ -4015,15 +4019,16 @@ function shoulderMark(k) {
 // ⭐ THE RING'S ARROW BESIDE SIMPLE'S PANEL (rhoquinn8217, 2026-10-20: "The
 // arrow need to be bigger and at the edge. It should be big enough that the
 // Shoulder button symbol fits inside of the arrow.", then "flatten the
-// triangles and fill them in" and "flatten horizontally"): a solid triangle
-// pointing out of the window, narrower than tall, with the shoulder button's
-// mark, or a keyboard's key cap, cut out of its broad end. 44 by 72, the tip
-// at the middle of one side: a 24 by 20 mark fits 3 in from the base with
-// 2.5 to spare from the slopes, so the triangle is as narrow as the mark
-// allows. Drawn pointing left; R1's is mirrored.
+// triangles and fill them in", "flatten horizontally", then "don't fill in
+// the shoulder button symbol. Make the triangle base longer"): a solid
+// triangle pointing out of the window, narrower than tall, with the shoulder
+// button's mark, or a keyboard's key cap, cut out of its broad end as a
+// hollow mark, its label in the triangle's colour. 44 by 96, the tip at the
+// middle of one side: a 24 by 20 mark sits 3 in from the base, about the
+// triangle's centre. Drawn pointing left; R1's is mirrored.
 function ringArrow(cls, mark) {
-  return '<span class="carrow ' + cls + '"><svg class="carrow-tri" viewBox="0 0 44 72" aria-hidden="true">' +
-         '<path d="M1 36L43 1V71Z"/></svg>' + mark + '</span>';
+  return '<span class="carrow ' + cls + '"><svg class="carrow-tri" viewBox="0 0 44 96" aria-hidden="true">' +
+         '<path d="M1 48L43 1V95Z"/></svg>' + mark + '</span>';
 }
 function shoulderCaps(pair) {
   return '<span class="kpair">' + String(pair).split('/').map(shoulderMark).join('') + '</span>';
