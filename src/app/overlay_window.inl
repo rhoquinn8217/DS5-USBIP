@@ -1677,7 +1677,11 @@ inline void paint(HWND hwnd)
             // 0.17 em below it, where the page sets its marks.
             const int baseline = (lr.top + lr.bottom - tm.tmHeight) / 2 + tm.tmAscent;
             const int markTop = baseline + em * 17 / 100 - mh;
-            const COLORREF ink = RGB(0x8b, 0x8d, 0x96);
+            // ⭐ THE CONTROLLER CONFIGS WINDOW'S LEGEND GREEN, marks and words
+            // alike (rhoquinn8217, 2026-10-19: "use green legend for all the
+            // virtual keyboards"); the title beside it stays grey.
+            const COLORREF ink = RGB(0x7f, 0xd1, 0x8c);
+            const COLORREF prevInk = SetTextColor(dc, ink);
             const UINT prevAlign = SetTextAlign(dc, TA_LEFT | TA_BASELINE);
             int x = lr.left + (lr.right - lr.left - legendW) / 2;
             for (int i = 0; i < legendCount; ++i) {
@@ -1689,6 +1693,7 @@ inline void paint(HWND hwnd)
                 x += ws.cx;
             }
             SetTextAlign(dc, prevAlign);
+            SetTextColor(dc, prevInk);
         }
         break;
     }

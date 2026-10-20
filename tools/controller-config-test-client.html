@@ -1835,12 +1835,14 @@
      (a sibling sized by its own font and padding stood 4.4 px taller in
      Quick). Close comes 1.2vw after the group rather than the bar's 3vw.
      ⚠️ The picker's rules above find it inside the group (`.cbar select`),
-     and so does the bar's grid walk in compactMove. */
+     and so does the bar's grid walk in compactMove.
+     ⭐ The button on the picker's LEFT since 2026-10-19 (modeGroupHtml), so
+     their shared edge is the picker's left border. */
   #compactBox .cbar > .cgroup { flex:0 0 auto; display:inline-flex; align-items:stretch; }
-  #compactBox .cbar .cgroup > select.modepick { border-top-right-radius:0; border-bottom-right-radius:0; }
+  #compactBox .cbar .cgroup > select.modepick { border-top-left-radius:0; border-bottom-left-radius:0; }
   #compactBox .cbar .cgroup > button.csize { flex:0 0 auto; font-size:calc(3.4 * var(--vh)); line-height:1;
     padding:0 1.2vw; min-width:0; color:#ffd166; background:#1d1f26; border-color:#2c2e36;
-    border-left-width:0; border-top-left-radius:0; border-bottom-left-radius:0; }
+    border-right-width:0; border-top-right-radius:0; border-bottom-right-radius:0; }
   body.quick #compactBox .cbar .cgroup > button.csize { font-size:calc(6.9 * var(--vh)); }
   #compactBox .cbar .cgroup > button.csize:hover { background:#262833; }
   #compactBox .cbar > .cgroup + button.cclose { margin-left:-1.8vw; }
@@ -2055,17 +2057,21 @@
      unlink above the auto link button. Expand the container to include
      these buttons", "make all the buttons ... consistent", "increase the
      the wheel height and the text size" and "increase the config selector
-     label to 2x"): the wheel 22.7vh, 3.5 lines of its 5.4vh text, at
-     Simple's old selector's width; its four buttons one size, stacked at
-     its right; the title over the panel at twice its size. */
+     label to 2x", then "made the wheel 5 lines long"): the wheel 32.4vh,
+     5 lines of its 5.4vh text, the middle one solid and two fading each
+     side, at Simple's old selector's width; its four buttons one size, stacked at
+     its right; the title over the panel at twice its size. ⓘ The panel's
+     padding top and bottom 1.2vh since the 5 lines: at 3vh it met the
+     footer's line, and a tip of three lines would have pushed the footer
+     off the window's bottom; the faded rows are its margin now. */
   body.compact:not(.quick) #compactBox .csel { padding-top:calc(6 * var(--vh)); }
   body.compact:not(.quick) #compactBox .cpick-label { font-size:calc(4.8 * var(--vh)); }
   body.compact:not(.quick) #compactBox .cname .devemo { font-size:0.8em; margin-right:0.3em; }
   body.compact:not(.quick) #compactBox .cpick-wrap { display:inline-grid; grid-template-columns:auto auto; align-items:center;
-    column-gap:2vw; padding:calc(3 * var(--vh)) 2vw; min-width:0; box-sizing:border-box;
+    column-gap:2vw; padding:calc(1.2 * var(--vh)) 2vw; min-width:0; box-sizing:border-box;
     background:#1d1f26; border:1px solid #2c2e36; border-radius:8px; }
   body.compact:not(.quick) #compactBox .cwheel { position:relative; display:inline-flex; min-width:47vw; }
-  body.compact:not(.quick) #compactBox .cwheel > select { opacity:0; height:calc(22.7 * var(--vh));
+  body.compact:not(.quick) #compactBox .cwheel > select { opacity:0; height:calc(32.4 * var(--vh));
     font-size:calc(5.4 * var(--vh)); appearance:none; -webkit-appearance:none;
     width:100%; min-width:0; border:0; padding:0 0.9em; }
   body.compact:not(.quick) #compactBox .cdrum { position:absolute; inset:0; pointer-events:none; border-radius:6px;
@@ -2075,8 +2081,8 @@
     border:2px solid #3a3d47; border-radius:0.22em; background:#262833; }
   body.compact:not(.quick) #compactBox .cwheel:has(> select.gp-focus) .cdrum-frame { border-color:#6c8cff; background:#2a3566; }
   body.compact:not(.quick) #compactBox .cdrum-view { position:absolute; inset:0; overflow:hidden; border-radius:inherit;
-    -webkit-mask-image:linear-gradient(to bottom, transparent, #000 35%, #000 65%, transparent);
-            mask-image:linear-gradient(to bottom, transparent, #000 35%, #000 65%, transparent); }
+    -webkit-mask-image:linear-gradient(to bottom, transparent, #000 40%, #000 60%, transparent);
+            mask-image:linear-gradient(to bottom, transparent, #000 40%, #000 60%, transparent); }
   body.compact:not(.quick) #compactBox .cdrum-track { position:absolute; left:0; right:0; top:50%; height:0; }
   body.compact:not(.quick) #compactBox .cdrum-row { position:absolute; left:0; right:0; height:1.2em; margin-top:-0.6em;
     line-height:1.2em; padding:0 0.5em; text-align:center; white-space:nowrap;
@@ -2088,10 +2094,10 @@
     padding:calc(0.7 * var(--vh)) 1.6vw; min-width:0; margin:0; border-width:1px;
     display:flex; align-items:center; justify-content:center; gap:0.35em; }
   .modeclose #modePick, .modeclose #closeBtn { margin-left:0; }
-  .modegroup #modePick { border-top-right-radius:0; border-bottom-right-radius:0; }
+  .modegroup #modePick { border-top-left-radius:0; border-bottom-left-radius:0; }
   #sizeBtn { padding:0 6px; font-size:13px; line-height:1; color:#ffd166;
-    background:#1d1f26; border-color:#2c2e36; border-left-width:0;
-    border-top-left-radius:0; border-bottom-left-radius:0; }
+    background:#1d1f26; border-color:#2c2e36; border-right-width:0;
+    border-top-right-radius:0; border-bottom-right-radius:0; }
   #sizeBtn:hover { background:#262833; }
   /* ⭐ THE HALO SHOWS WHOLE ON THE PICKER (rhoquinn8217, 2026-10-09: *"halo is
      cut off by the resize button on the mode selector"*). The halo is an
@@ -2534,13 +2540,15 @@
   <span class="modeclose">
   <span class="modegroup">
   <label class="modelabel" for="modePick">Window Mode</label>
+  <!-- ⭐ The 🗗 on the picker's left (rhoquinn8217, 2026-10-19), as in the
+       compact bars. -->
+  <button id="sizeBtn" onclick="sizeNext()"
+          title="the next size for this window, as Create does on the pad">&#x1F5D7;</button>
   <select class="modepick" id="modePick" size="1"
           title="which layout this window opens in"
           onmousedown="pickerActivate(event,this)"
           onclick="pickerClickEnd(this)"
           onchange="pickMode(this.value)"></select>
-  <button id="sizeBtn" onclick="sizeNext()"
-          title="the next size for this window, as Create does on the pad">&#x1F5D7;</button>
   </span>
   <!-- ⓘ Closing releases the gate on the way out, via the pagehide beacon, so
        this is a safe exit rather than a way to strand yourself. -->
@@ -6143,9 +6151,11 @@ var DRUM_ROLL_MS = 220;
 var DRUM_LAST = null;         // { ord, at }: what the drum last showed
 var DRUM_ROLL = null;         // { from, t0, ms }: a roll under way
 
+// ⓘ Four each side: Simple's wheel shows two (2026-10-19), and a roll of two
+// steps starts with the track two rows out.
 function drumRows(sel) {
   var n = sel.options.length, at = Math.max(0, sel.selectedIndex), html = '';
-  for (var k = -3; k <= 3; k++) {
+  for (var k = -4; k <= 4; k++) {
     if (n < 2 && k !== 0) continue;
     var i = ((at + k) % n + n) % n;
     html += '<span class="cdrum-row' + (k === 0 ? ' on' : '') + '" style="top:' +
@@ -8049,7 +8059,10 @@ function compactMove(dx, dy) {
       var to = inCol + dy;
       if (to >= 0 && to < col.length) return focusElement(col[to]);
       if (dy < 0 && rateRow.length) return focusElement(rateRow[0]);
-      if (dy > 0 && bar.length) return focusElement(bar[0]);
+      // ⓘ Onto the Mode picker, not the bar's first control: the 🗗 is first
+      // since it moved to the picker's left (2026-10-19).
+      var barPick = bar.filter(function (e) { return e.tagName === 'SELECT'; })[0];
+      if (dy > 0 && bar.length) return focusElement(barPick || bar[0]);
       return true;
     }
   }
@@ -8873,9 +8886,12 @@ function modeTitleHtml(forId) {
   return '<label class="modelabel" for="' + forId + '">Window Mode</label>';
 }
 
+// ⭐ THE 🗗 ON THE PICKER'S LEFT (2.66.87; rhoquinn8217, 2026-10-19: "put the
+// mode selector on the right side and the resize on the left side in all
+// modes"), and in Advanced's footer the same.
 function modeGroupHtml() {
-  return '<span class="cgroup">' + modeTitleHtml('cselMode') + modePickerHtml('cselMode') +
-         sizeButtonHtml() + '</span>';
+  return '<span class="cgroup">' + modeTitleHtml('cselMode') + sizeButtonHtml() +
+         modePickerHtml('cselMode') + '</span>';
 }
 
 // ⭐ OPEN ON BRIDGE (rhoquinn8217, 2026-10-09): whether a bridge brings this
