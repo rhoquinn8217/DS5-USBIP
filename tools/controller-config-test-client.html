@@ -2060,15 +2060,26 @@
      label to 2x", then "made the wheel 5 lines long"): the wheel 32.4vh,
      5 lines of its 5.4vh text, the middle one solid and two fading each
      side, at Simple's old selector's width; its four buttons one size, stacked at
-     its right; the title over the panel at twice its size. ⓘ The panel's
-     padding top and bottom 1.2vh since the 5 lines: at 3vh it met the
-     footer's line, and a tip of three lines would have pushed the footer
-     off the window's bottom; the faded rows are its margin now. */
-  body.compact:not(.quick) #compactBox .csel { padding-top:calc(6 * var(--vh)); }
-  body.compact:not(.quick) #compactBox .cpick-label { font-size:calc(4.8 * var(--vh)); }
+     its right; the title over the panel at twice its size (on its edge
+     and smaller since 2026-10-19, below). ⓘ The panel's padding is 3vh
+     top and bottom. With the title above the panel it was 1.2vh for the 5
+     lines: at 3vh the panel met the footer's line, and a tip of three lines
+     would have pushed the footer off the window's bottom. The title on the
+     edge gave that room back, and at 1.2vh the wheel's top line ran into
+     its letters. */
+  /* ⭐ THE TITLE ON THE PANEL'S TOP EDGE, AS QUICK'S IS (rhoquinn8217,
+     2026-10-19: "reduce the device type lablel and let it overlap the top
+     edge of the config selector container"): 3.6vh, half as large again as
+     the 2.4 it started at, the step Quick's took; the window's colour behind
+     its top half, the panel's behind its bottom half. The room above the
+     panel is only that top half now, 3.75vh less, and the panel's padding
+     took it back, so the panel ends where it did. */
+  body.compact:not(.quick) #compactBox .csel { padding-top:calc(2.25 * var(--vh)); }
+  body.compact:not(.quick) #compactBox .cpick-label { font-size:calc(3.6 * var(--vh)); top:0; bottom:auto;
+    transform:translateY(-50%); background:linear-gradient(to bottom, #15161a 50%, #1d1f26 50%); }
   body.compact:not(.quick) #compactBox .cname .devemo { font-size:0.8em; margin-right:0.3em; }
   body.compact:not(.quick) #compactBox .cpick-wrap { display:inline-grid; grid-template-columns:auto auto; align-items:center;
-    column-gap:2vw; padding:calc(1.2 * var(--vh)) 2vw; min-width:0; box-sizing:border-box;
+    column-gap:2vw; padding:calc(3 * var(--vh)) 2vw; min-width:0; box-sizing:border-box;
     background:#1d1f26; border:1px solid #2c2e36; border-radius:8px; }
   body.compact:not(.quick) #compactBox .cwheel { position:relative; display:inline-flex; min-width:47vw; }
   body.compact:not(.quick) #compactBox .cwheel > select { opacity:0; height:calc(32.4 * var(--vh));
