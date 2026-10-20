@@ -2117,6 +2117,26 @@
      came out "DualSense ...". One run of text, the symbol after its last word. */
   body.compact:not(.quick) #compactBox .cselrow > .cside .ckind { display:block; white-space:normal; }
   body.compact:not(.quick) #compactBox .cselrow > .cside .ckind .cklabel { overflow:visible; }
+  /* ⭐ THE KEY IN A LARGE ARROW AT THE WINDOW'S EDGE (2026-10-20: "The arrow
+     need to be bigger and at the edge ..."): each card reaches 3vw into the
+     window's margin, the arrow at its outer end and the name and type at
+     the panel, both on the panel's middle. The arrow 2.2 of the card's em,
+     the mark in it at the old key line's size, so the triangle stands three
+     times the mark's height, its lines the mark's weight (ringArrow). */
+  body.compact:not(.quick) #compactBox .cselrow > .cside { display:flex; align-items:center;
+    justify-content:space-between; gap:0.5em; }
+  body.compact:not(.quick) #compactBox .cselrow > .cside.l { margin-left:-3vw; }
+  body.compact:not(.quick) #compactBox .cselrow > .cside.r { margin-right:-3vw; }
+  body.compact:not(.quick) #compactBox .cstext { min-width:0; }
+  body.compact:not(.quick) #compactBox .carrow { position:relative; flex:0 0 auto; display:inline-flex;
+    align-items:center; justify-content:flex-end; width:2.05em; height:2.2em; box-sizing:border-box;
+    padding-right:0.22em; }
+  body.compact:not(.quick) #compactBox .carrow.r { justify-content:flex-start; padding-right:0; padding-left:0.22em; }
+  body.compact:not(.quick) #compactBox .carrow-tri { position:absolute; left:0; top:0; width:100%; height:100%;
+    fill:none; stroke:currentColor; stroke-width:1.25; stroke-linejoin:round; }
+  body.compact:not(.quick) #compactBox .carrow.r .carrow-tri { transform:scaleX(-1); }
+  body.compact:not(.quick) #compactBox .carrow > .kshoulder { position:relative; font-size:0.68em; }
+  body.compact:not(.quick) #compactBox .carrow > .kcap { position:relative; font-size:0.55em; }
   .modeclose #modePick, .modeclose #closeBtn { margin-left:0; }
   .modegroup #modePick { border-top-left-radius:0; border-bottom-left-radius:0; }
   #sizeBtn { padding:0 6px; font-size:13px; line-height:1; color:#ffd166;
@@ -3989,6 +4009,17 @@ function shoulderMark(k) {
   return '<svg class="kshoulder" viewBox="0 0 24 20" role="img" aria-label="' + esc(k) + '">' +
          '<path d="M1.1 18.9V7.1A6 6 0 0 1 7.1 1.1H16.9A6 6 0 0 1 22.9 7.1V18.9Z"/>' +
          '<text x="12" y="14.2" text-anchor="middle">' + esc(k) + '</text></svg>';
+}
+// ⭐ THE RING'S ARROW BESIDE SIMPLE'S PANEL (rhoquinn8217, 2026-10-20: "The
+// arrow need to be bigger and at the edge. It should be big enough that the
+// Shoulder button symbol fits inside of the arrow."): a triangle pointing out
+// of the window, outlined as the marks are, with the shoulder button's mark,
+// or a keyboard's key cap, in its broad end. 56 by 60, the tip at the middle
+// of one side: a 24 by 20 mark fits between the base and the slopes with
+// room for both lines. Drawn pointing left; R1's is mirrored.
+function ringArrow(cls, mark) {
+  return '<span class="carrow ' + cls + '"><svg class="carrow-tri" viewBox="0 0 56 60" aria-hidden="true">' +
+         '<path d="M2 30L54 2V58Z"/></svg>' + mark + '</span>';
 }
 function shoulderCaps(pair) {
   return '<span class="kpair">' + String(pair).split('/').map(shoulderMark).join('') + '</span>';
@@ -9803,7 +9834,7 @@ function paintCompact() {
     var at = Math.max(0, ring.indexOf(d.ordinal));
     var prev = many ? ring[(at - 1 + ring.length) % ring.length] : '';
     var next = many ? ring[(at + 1) % ring.length] : '';
-    var side = function (ord, cls, key) {
+    var side = function (ord, cls, key, byPanel) {
       if (!ord) return '<div class="cside ' + cls + '"></div>';
       var od = deviceByOrdinal(ord);
       // ⓘ Quick shows the key alone -- "◂ L1", "R1 ▸" -- the neighbour's name
@@ -9812,13 +9843,22 @@ function paintCompact() {
         return '<div class="cside ' + cls + '" onclick="gpTab(' + (cls === 'l' ? -1 : 1) + ')">' +
                '<small>' + key + '</small></div>';
       }
-      return '<div class="cside ' + cls + '" onclick="gpTab(' + (cls === 'l' ? -1 : 1) + ')">' +
-             '<small>' + key + '</small>' + esc(nameFor(ord)) +
-             // ⓘ A word joiner holds the symbol to the type's last word: beside
-             // Simple's panel the type wraps (2026-10-19), and the symbol, set off
-             // by a margin rather than a space, fell onto a line of its own.
-             (od ? '<div class="ckind"><span class="cklabel">' + esc(deviceLabelShort(od)) +
-                   '\u2060</span>' + deviceIcons(partsOf(ord)) + '</div>' : '') + '</div>';
+      // ⓘ A word joiner holds the symbol to the type's last word: beside
+      // Simple's panel the type wraps (2026-10-19), and the symbol, set off
+      // by a margin rather than a space, fell onto a line of its own.
+      var kind = od ? '<div class="ckind"><span class="cklabel">' + esc(deviceLabelShort(od)) +
+                      '\u2060</span>' + deviceIcons(partsOf(ord)) + '</div>' : '';
+      var open = '<div class="cside ' + cls + '" onclick="gpTab(' + (cls === 'l' ? -1 : 1) + ')">';
+      // ⭐ BESIDE SIMPLE'S PANEL, THE KEY IN A LARGE ARROW AT THE WINDOW'S
+      // EDGE (rhoquinn8217, 2026-10-20: "The arrow need to be bigger and at
+      // the edge. It should be big enough that the Shoulder button symbol fits
+      // inside of the arrow."): `key` is the mark alone there, and the name
+      // and type keep to the panel.
+      if (byPanel) {
+        var text = '<div class="cstext">' + esc(nameFor(ord)) + kind + '</div>';
+        return open + (cls === 'l' ? ringArrow(cls, key) + text : text + ringArrow(cls, key)) + '</div>';
+      }
+      return open + '<small>' + key + '</small>' + esc(nameFor(ord)) + kind + '</div>';
     };
     var slide = COMPACT_SLIDE > 0 ? ' slide-r' : COMPACT_SLIDE < 0 ? ' slide-l' : '';
     COMPACT_SLIDE = 0;
@@ -9983,7 +10023,7 @@ function paintCompact() {
       // The selector, sliding with the ring (rhoquinn8217, 2026-09-09), in a
       // panel in both views.
       html += '<div class="csel' + slide + '">' +
-              '<div class="cselrow">' + (sidesByPanel ? side(prev, 'l', prevKey) : '') +
+              '<div class="cselrow">' + (sidesByPanel ? side(prev, 'l', shoulderMark(shoulder[0]), true) : '') +
               '<span class="cpick-wrap">' +
               (QUICK
                 // ⭐ QUICK: L1 AND THE TITLE ON THE PANEL'S TOP EDGE AT THE LEFT, R1
@@ -10016,7 +10056,7 @@ function paintCompact() {
                   '<button onclick="newConfigFor(\'' + esc(d.ordinal) + '\')">New</button>' +
                   '<button onclick="setCompact(false)">Edit</button>' +
                   unlinkBtn() + autoBtn + '</span>') +
-              '</span>' + (sidesByPanel ? side(next, 'r', nextKey) : '') + '</div></div>';
+              '</span>' + (sidesByPanel ? side(next, 'r', shoulderMark(shoulder[1]), true) : '') + '</div></div>';
     }
   }
   // ⭐ The footer area: the legend and the way back, as large as the rest.
