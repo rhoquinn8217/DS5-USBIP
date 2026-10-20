@@ -2110,6 +2110,9 @@
      window, the two cards sharing what the panel leaves, each against it. */
   body.compact:not(.quick) #compactBox .csel,
   body.compact:not(.quick) #compactBox .cselrow { width:100%; }
+  /* ⓘ No gap in the row (2026-10-20): each card's arrow stands with its
+     base against the panel's edge. */
+  body.compact:not(.quick) #compactBox .cselrow { gap:0; }
   body.compact:not(.quick) #compactBox .cselrow > .cside.l { padding-right:0; }
   body.compact:not(.quick) #compactBox .cselrow > .cside.r { padding-left:0; }
   /* ⓘ The device type wraps rather than shortening: beside the panel a card
@@ -2117,20 +2120,22 @@
      came out "DualSense ...". One run of text, the symbol after its last word. */
   body.compact:not(.quick) #compactBox .cselrow > .cside .ckind { display:block; white-space:normal; }
   body.compact:not(.quick) #compactBox .cselrow > .cside .ckind .cklabel { overflow:visible; }
-  /* ⭐ THE KEY IN A LARGE ARROW AT THE WINDOW'S EDGE (2026-10-20: "The arrow
-     need to be bigger and at the edge ..."): each card reaches 3vw into the
-     window's margin, the arrow at its outer end and the name and type at
-     the panel, both on the panel's middle. The arrow 1.62 by 3.53 of the
-     card's em ("flatten the triangles and fill them in", "flatten
-     horizontally", "Make the triangle base longer"), solid in the card's
-     colour, so it brightens with the name under the pointer; the mark in
-     it at the old key line's size, its box cut out in the window's colour
-     and its label in the card's ("don't fill in the shoulder button
+  /* ⭐ THE KEY IN A LARGE ARROW AGAINST THE PANEL'S EDGE (2026-10-20: "The
+     arrow need to be bigger and at the edge ...", then "move the arrows so
+     their bases are adjacent to the config selector container edge. The
+     arrow will point toward the controller nickname and type."): each card
+     packs to the panel, the arrow's base against its edge and the name and
+     type half an em past the tip, both on the panel's middle; the card still
+     reaches 3vw into the window's margin, for the name's room. The arrow
+     1.62 by 3.53 of the card's em ("flatten the triangles and fill them
+     in", "flatten horizontally", "Make the triangle base longer"), solid in
+     the card's colour, so it brightens with the name under the pointer; the
+     mark in it at the old key line's size, its box cut out in the window's
+     colour and its label in the card's ("don't fill in the shoulder button
      symbol") (ringArrow). */
-  body.compact:not(.quick) #compactBox .cselrow > .cside { display:flex; align-items:center;
-    justify-content:space-between; gap:0.5em; }
-  body.compact:not(.quick) #compactBox .cselrow > .cside.l { margin-left:-3vw; }
-  body.compact:not(.quick) #compactBox .cselrow > .cside.r { margin-right:-3vw; }
+  body.compact:not(.quick) #compactBox .cselrow > .cside { display:flex; align-items:center; gap:0.5em; }
+  body.compact:not(.quick) #compactBox .cselrow > .cside.l { margin-left:-3vw; justify-content:flex-end; }
+  body.compact:not(.quick) #compactBox .cselrow > .cside.r { margin-right:-3vw; justify-content:flex-start; }
   body.compact:not(.quick) #compactBox .cstext { min-width:0; }
   body.compact:not(.quick) #compactBox .carrow { position:relative; flex:0 0 auto; display:inline-flex;
     align-items:center; justify-content:flex-end; width:1.616em; height:3.525em; box-sizing:border-box;
@@ -4020,8 +4025,10 @@ function shoulderMark(k) {
 // arrow need to be bigger and at the edge. It should be big enough that the
 // Shoulder button symbol fits inside of the arrow.", then "flatten the
 // triangles and fill them in", "flatten horizontally", then "don't fill in
-// the shoulder button symbol. Make the triangle base longer"): a solid
-// triangle pointing out of the window, narrower than tall, with the shoulder
+// the shoulder button symbol. Make the triangle base longer", and "move the
+// arrows so their bases are adjacent to the config selector container
+// edge"): a solid triangle, its base against the panel and its tip at the
+// neighbour's name and type, narrower than tall, with the shoulder
 // button's mark, or a keyboard's key cap, cut out of its broad end as a
 // hollow mark, its label in the triangle's colour. 44 by 96, the tip at the
 // middle of one side: a 24 by 20 mark sits 3 in from the base, about the
@@ -9858,14 +9865,16 @@ function paintCompact() {
       var kind = od ? '<div class="ckind"><span class="cklabel">' + esc(deviceLabelShort(od)) +
                       '\u2060</span>' + deviceIcons(partsOf(ord)) + '</div>' : '';
       var open = '<div class="cside ' + cls + '" onclick="gpTab(' + (cls === 'l' ? -1 : 1) + ')">';
-      // ⭐ BESIDE SIMPLE'S PANEL, THE KEY IN A LARGE ARROW AT THE WINDOW'S
-      // EDGE (rhoquinn8217, 2026-10-20: "The arrow need to be bigger and at
-      // the edge. It should be big enough that the Shoulder button symbol fits
-      // inside of the arrow."): `key` is the mark alone there, and the name
-      // and type keep to the panel.
+      // ⭐ BESIDE SIMPLE'S PANEL, THE KEY IN A LARGE ARROW WHOSE BASE MEETS
+      // THE PANEL'S EDGE (rhoquinn8217, 2026-10-20: "The arrow need to be
+      // bigger ... It should be big enough that the Shoulder button symbol
+      // fits inside of the arrow.", then "move the arrows so their bases are
+      // adjacent to the config selector container edge. The arrow will point
+      // toward the controller nickname and type."): `key` is the mark alone
+      // there; the name and type stand past the arrow's tip.
       if (byPanel) {
         var text = '<div class="cstext">' + esc(nameFor(ord)) + kind + '</div>';
-        return open + (cls === 'l' ? ringArrow(cls, key) + text : text + ringArrow(cls, key)) + '</div>';
+        return open + (cls === 'l' ? text + ringArrow(cls, key) : ringArrow(cls, key) + text) + '</div>';
       }
       return open + '<small>' + key + '</small>' + esc(nameFor(ord)) + kind + '</div>';
     };
