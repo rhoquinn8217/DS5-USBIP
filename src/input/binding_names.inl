@@ -72,6 +72,12 @@ inline const KeyName kKeys[] = {
     {"ControlLeft",0,0x01},{"ShiftLeft",0,0x02},{"AltLeft",0,0x04},
     {"MetaLeft",0,0x08},{"ControlRight",0,0x10},{"ShiftRight",0,0x20},
     {"AltRight",0,0x40},{"MetaRight",0,0x80},
+    // ⭐ A PAIR: the Win key and Tab together, which opens Task View
+    // (rhoquinn8217, 2026-10-20: "add win+tab as rebind option to every button
+    // that can be rebounded"). The one entry with both fields set, the
+    // modifier's bit and the key's usage, and everything that presses a key
+    // presses both. ⓘ Not a KeyboardEvent.code; it reads as what it does.
+    {"Win+Tab",0x2B,0x08},
 };
 
 // ⛔ CASE-INSENSITIVE, because device_config_str LOWERCASES what it returns.

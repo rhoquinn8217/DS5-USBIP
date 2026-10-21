@@ -2257,6 +2257,56 @@ int run_touch_mouse_tests()
         CTM_CHECK_EQ(g_pulseCount, 0);
     }
 
+    section("touch: a swipe up takes a remap's values: a pad button, a mouse click, a key");
+    {
+        // ⓘ rhoquinn8217, 2026-10-20: "Let the two finger swipe up rebind
+        // option have all the rebind options that face buttons have."
+        const char *values[] = { "button_cross", "mouseleft", "metaleft" };
+        for (int v = 0; v < 3; ++v) {
+            reset_stubs();
+            fresh_device();
+            g_cfg["touchpad_two_finger_swipe_up"] = values[v];
+            auto r = rest_report();
+            set_point(r, 0, true, 1, 800, 800);
+            set_point(r, 1, true, 2, 1100, 800);
+            run_step(r, 0);
+            set_point(r, 0, true, 1, 800, 400);
+            set_point(r, 1, true, 2, 1100, 400);
+            run_step(r, 30);
+            if (v == 0) {
+                // ⓘ Standard index 0 is Cross, pressed for a moment.
+                CTM_CHECK_EQ(pad_press::shared().pressed(kDev, 30), 1u);
+                CTM_CHECK_EQ(g_pulseCount, 0);
+            } else if (v == 1) {
+                CTM_CHECK_EQ(g_clickCount, 1);
+                CTM_CHECK_EQ(static_cast<int>(g_lastClick), 0x01);
+                CTM_CHECK_EQ(g_pulseCount, 0);
+            } else {
+                CTM_CHECK_EQ(g_pulseCount, 1);
+                CTM_CHECK_EQ(static_cast<int>(g_pulseModifier), 0x08);
+                CTM_CHECK_EQ(static_cast<int>(g_pulseUsage), 0);
+            }
+            ctm_touch_mouse::forget(kDev);
+        }
+    }
+
+    section("touch: while the pad drives the settings page, a swipe bound to the mouse still clicks");
+    {
+        reset_stubs();
+        fresh_device();
+        g_configModeEffective = true;
+        g_cfg["touchpad_two_finger_swipe_up"] = "mouseright";
+        auto r = rest_report();
+        set_point(r, 0, true, 1, 800, 800);
+        set_point(r, 1, true, 2, 1100, 800);
+        run_step(r, 0);
+        set_point(r, 0, true, 1, 800, 400);
+        set_point(r, 1, true, 2, 1100, 400);
+        run_step(r, 30);
+        CTM_CHECK_EQ(g_clickCount, 1);
+        CTM_CHECK_EQ(static_cast<int>(g_lastClick), 0x02);
+    }
+
     section("touch: a swipe value nothing knows does nothing");
     {
         reset_stubs();

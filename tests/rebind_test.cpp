@@ -381,6 +381,19 @@ int run_rebind_tests()
         CTM_CHECK_EQ(static_cast<int>(mods_of(kPadA)), 0x02);
     }
 
+    section("rebinder: a button bound to Win+Tab holds the Win key and Tab together");
+    {
+        // ⓘ The one name with both halves; either alone would be half of it.
+        reset();
+        g_strings["ds5.rebind_0"] = "win+tab";
+        send(kPadA, pressing({kBtnFaceDown}));
+        CTM_CHECK(keys_are(kPadA, {0x2B}));
+        CTM_CHECK_EQ(static_cast<int>(mods_of(kPadA)), 0x08);
+        send(kPadA, at_rest());
+        CTM_CHECK(keys_are(kPadA, {}));
+        CTM_CHECK_EQ(static_cast<int>(mods_of(kPadA)), 0);
+    }
+
     section("rebinder: Cross to Circle and Circle to Cross both work, whichever the loop meets first");
     {
         reset();

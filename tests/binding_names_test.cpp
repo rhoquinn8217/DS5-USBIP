@@ -103,6 +103,17 @@ int run_binding_names_tests()
         CTM_CHECK_EQ(static_cast<int>(shift.modifier), 0x02);
     }
 
+    section("binding: Win+Tab is the Win key's bit and Tab's usage, in one name");
+    {
+        // ⓘ rhoquinn8217, 2026-10-20: Task View, offered to every button.
+        const binding::Target wt = parse("Win+Tab");
+        CTM_CHECK_EQ(static_cast<int>(wt.kind), static_cast<int>(binding::kKey));
+        CTM_CHECK_EQ(static_cast<int>(wt.usage), 0x2B);
+        CTM_CHECK_EQ(static_cast<int>(wt.modifier), 0x08);
+        CTM_CHECK_EQ(static_cast<int>(parse("win+tab").usage), 0x2B);
+        CTM_CHECK_EQ(static_cast<int>(parse("win+tab").modifier), 0x08);
+    }
+
     section("binding: the config reader's lowercase names the same thing");
     {
         // ⛔ device_config_str LOWERCASES what it returns. Every kind has to

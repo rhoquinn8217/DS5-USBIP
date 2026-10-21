@@ -1043,11 +1043,10 @@ inline void apply(const void *deviceKey,
         if (!active) continue;
         const KeyName *k = key_for(code);
         if (k == nullptr) continue;          // unknown name: bound to nothing
-        if (k->usage == 0) {
-            modifiers = static_cast<uint8_t>(modifiers | k->modifier);
-        } else if (keyCount < 6) {
-            keys[keyCount++] = k->usage;
-        }
+        // ⓘ Both halves of a name: a modifier's bit and a key's usage. Most
+        // names have one; Win+Tab has both, and either alone would press half.
+        modifiers = static_cast<uint8_t>(modifiers | k->modifier);
+        if (k->usage != 0 && keyCount < 6) keys[keyCount++] = k->usage;
     }
 
     // ⭐ T-242 part A: now that every bound button has been cleared, the
