@@ -3,6 +3,7 @@
 //   one finger   moves the cursor, laptop-trackpad style (relative -- lifting
 //                and repositioning does not jump)
 //   two fingers  scroll, emitted as wheel ticks
+//   two fingers slid up  a key, Win+Tab or Win, while two-finger scroll is off
 //   a quick tap  clicks: one finger = left, two fingers = right, the Apple
 //                trackpad convention; double-click is just tapping twice
 //
@@ -208,6 +209,13 @@ constexpr int kStrokeMovingUnits = 30;
 // Pad units of two-finger travel per wheel tick, at scroll speed 100.
 constexpr int kScrollUnitsPerTick = 60;
 
+// ⭐ A TWO-FINGER SWIPE UP (rhoquinn8217, 2026-10-20: "I want to add 2 finger
+// swipe up gesture added to the touchpad section"): the fingers' midpoint this
+// far up the pad from where both came down, and no further across than up.
+// About a quarter of a DualSense's pad, which is 1080 tall, and a third of a
+// DS4's 942.
+constexpr int kSwipeUpUnits = 300;
+
 struct TouchPoint {
     bool down = false;
     int id = -1;
@@ -300,6 +308,13 @@ struct TouchState {
     bool scrollTracking = false;
     float lastAvgY = 0.0f;
     float scrollCarry = 0.0f;
+
+    // ⭐ The two-finger swipe up (kSwipeUpUnits): where the fingers' midpoint
+    // stood when both were down, and whether this touch has swiped already.
+    bool swipeTracking = false;
+    float swipeX0 = 0.0f;
+    float swipeY0 = 0.0f;
+    bool swipeDone = false;
 
     // Tap session: from first finger down to all fingers up. Movement is
     // judged from the AVERAGE of the active fingers, re-anchored whenever the
@@ -595,6 +610,24 @@ inline bool acts_now(const binding::Target &target)
     if (target.kind == binding::kNone) return false;
     if (target.kind == binding::kMouseButton || target.kind == binding::kMouseWheel) return true;
     return !ctm_rebind_config_mode_effective();
+}
+
+// ⭐ WHAT A SWIPE UP DOES: one of a short list for now (rhoquinn8217,
+// 2026-10-20: "It will have only two options for now. 1. press win+tab 2. pres
+// win"), as the config reader hands it back, lowercased. Win+Tab opens Task
+// View, Win alone the Start menu. Anything else does nothing.
+inline binding::Target swipe_target(const std::string &value)
+{
+    binding::Target t;
+    const ctm_rebind::KeyName *win = ctm_rebind::key_for("MetaLeft");
+    const ctm_rebind::KeyName *tab = ctm_rebind::key_for("Tab");
+    if (win == nullptr || tab == nullptr) return t;
+    if (value == "win+tab" || value == "win") {
+        t.kind = binding::kKey;
+        t.modifier = win->modifier;
+        t.usage = value == "win+tab" ? tab->usage : 0;
+    }
+    return t;
 }
 
 // A tap that is not a mouse button. ⓘ A mouse button is a click, and a click
@@ -1005,13 +1038,20 @@ inline void step(const void *deviceKey, const std::string &section,
     // follows is the one-finger tap that clicks, and a drag needs a pointer.
     const bool tapDragOn =
         cursorOn && device_config_bool(section.c_str(), "touchpad_double_tap_drag", false);
+    // ⭐ THE TWO-FINGER SWIPE UP (kSwipeUpUnits), ONLY WHILE TWO-FINGER SCROLL IS
+    // OFF (rhoquinn8217, 2026-10-20, chosen over telling a quick flick from a
+    // scroll and over the swipe taking scroll-up's place): the same two fingers
+    // moving up would scroll as well. One-finger scroll uses one finger.
+    const binding::Target swipeTarget =
+        swipe_target(device_config_str(section.c_str(), "touchpad_two_finger_swipe_up"));
+    const bool swipeOn = swipeTarget.kind != binding::kNone && scrollFingers != 2;
 
     std::lock_guard<std::mutex> lock(g_touchMutex);
     TouchState &st = g_touch[deviceKey];
 
     // ⭐ Everything off: keep no state, so turning a feature on later starts
     // clean rather than against a stale anchor.
-    if (!cursorOn && !scrollOn && !tapsOn && !dragOn) {
+    if (!cursorOn && !scrollOn && !tapsOn && !dragOn && !swipeOn) {
         drop_hold(st, deviceKey);
         if (st.clickMask != 0) fire_click(st);   // a tap already made
         st = TouchState();
@@ -1363,6 +1403,41 @@ inline void step(const void *deviceKey, const std::string &section,
             << static_cast<int>(held.mouseMask) << std::dec << " held, "
             << (nowMs - st.lastTapMs) << "ms after the tap, "
             << (nowMs - st.sessionStart) << "ms into the touch");
+    }
+
+    // ---- Two fingers: swipe up ----------------------------------------------
+    // ⭐ Once per touch, the moment the fingers' midpoint has come kSwipeUpUnits
+    // up from where both were down, no further across than up: the key goes
+    // down and up by the keyboard's own clock, as a tap's does, and not while
+    // the pad drives the configs window (acts_now). ⓘ Measured afresh when two
+    // fingers come down again in the same touch, but it acts once until every
+    // finger has lifted.
+    if (swipeOn && fingers == 2) {
+        const float mx = (static_cast<float>(p1.x) + static_cast<float>(p2.x)) / 2.0f;
+        const float my = (static_cast<float>(p1.y) + static_cast<float>(p2.y)) / 2.0f;
+        if (!st.swipeTracking) {
+            st.swipeTracking = true;
+            st.swipeX0 = mx;
+            st.swipeY0 = my;
+        } else if (!st.swipeDone) {
+            const float up = st.swipeY0 - my;   // the pad's y grows downward
+            const float across = mx > st.swipeX0 ? mx - st.swipeX0 : st.swipeX0 - mx;
+            if (up >= static_cast<float>(kSwipeUpUnits) && across <= up) {
+                st.swipeDone = true;
+                st.sessionMoved = true;   // a swipe is not a tap
+                const bool acts = acts_now(swipeTarget);
+                if (acts) st.mTap = tap_other(deviceKey, section, swipeTarget, nowMs);
+                device_log::input(device_log::msg()
+                    << "[touch] two-finger swipe up: "
+                    << (swipeTarget.usage != 0 ? "Win+Tab" : "Win")
+                    << (acts ? " pressed, " : " not pressed, the pad is driving the configs window, ")
+                    << static_cast<int>(up) << " up and " << static_cast<int>(across)
+                    << " across, " << (nowMs - st.sessionStart) << "ms into the touch");
+            }
+        }
+    } else {
+        st.swipeTracking = false;
+        if (fingers == 0) st.swipeDone = false;
     }
 
     // ---- One finger: cursor -------------------------------------------------

@@ -2091,5 +2091,186 @@ int run_touch_mouse_tests()
         CTM_CHECK_EQ(static_cast<int>(g_dragMask), 0x01);
     }
 
+    // ---- The two-finger swipe up -------------------------------------------
+
+    section("touch: a two-finger swipe up presses Win+Tab once, and is not a tap");
+    {
+        reset_stubs();
+        fresh_device();
+        g_cfg["touchpad_two_finger_swipe_up"] = "win+tab";
+        g_cfg["touchpad_two_finger_tap"] = "MouseRight";
+        auto r = rest_report();
+        set_point(r, 0, true, 1, 800, 800);
+        set_point(r, 1, true, 2, 1100, 800);
+        run_step(r, 0);
+        set_point(r, 0, true, 1, 800, 650);      // 150 up: not yet
+        set_point(r, 1, true, 2, 1100, 650);
+        run_step(r, 20);
+        CTM_CHECK_EQ(g_pulseCount, 0);
+        set_point(r, 0, true, 1, 800, 480);      // 320 up
+        set_point(r, 1, true, 2, 1100, 480);
+        run_step(r, 40);
+        CTM_CHECK_EQ(g_pulseCount, 1);
+        CTM_CHECK_EQ(static_cast<int>(g_pulseModifier), 0x08);   // the left Win key
+        CTM_CHECK_EQ(static_cast<int>(g_pulseUsage), 0x2B);      // Tab
+        CTM_CHECK(g_ensureKeyboardCalls > 0);
+        // ⓘ Once per touch: further up adds nothing, nor does the lift.
+        set_point(r, 0, true, 1, 800, 200);
+        set_point(r, 1, true, 2, 1100, 200);
+        run_step(r, 60);
+        set_point(r, 0, false, 1, 800, 200);
+        set_point(r, 1, false, 2, 1100, 200);
+        run_step(r, 80);
+        CTM_CHECK_EQ(g_pulseCount, 1);
+        CTM_CHECK_EQ(g_clickCount, 0);           // a quick swipe is no right click
+    }
+
+    section("touch: a swipe up set to Win presses the Win key alone");
+    {
+        reset_stubs();
+        fresh_device();
+        g_cfg["touchpad_two_finger_swipe_up"] = "win";
+        auto r = rest_report();
+        set_point(r, 0, true, 1, 800, 900);
+        set_point(r, 1, true, 2, 1100, 900);
+        run_step(r, 0);
+        set_point(r, 0, true, 1, 800, 500);
+        set_point(r, 1, true, 2, 1100, 500);
+        run_step(r, 30);
+        CTM_CHECK_EQ(g_pulseCount, 1);
+        CTM_CHECK_EQ(static_cast<int>(g_pulseModifier), 0x08);
+        CTM_CHECK_EQ(static_cast<int>(g_pulseUsage), 0);
+    }
+
+    section("touch: with two-finger scroll on, a swipe up scrolls and presses nothing");
+    {
+        // ⓘ rhoquinn8217, 2026-10-20: the swipe works only while two-finger
+        // scroll is off.
+        reset_stubs();
+        fresh_device();
+        g_cfg["touchpad_two_finger_swipe_up"] = "win+tab";
+        g_cfg["touchpad_scroll"] = "2";
+        auto r = rest_report();
+        set_point(r, 0, true, 1, 800, 800);
+        set_point(r, 1, true, 2, 1100, 800);
+        run_step(r, 0);
+        set_point(r, 0, true, 1, 800, 400);
+        set_point(r, 1, true, 2, 1100, 400);
+        run_step(r, 30);
+        CTM_CHECK_EQ(g_pulseCount, 0);
+        CTM_CHECK(g_wheelSum != 0);
+    }
+
+    section("touch: one-finger scroll leaves the swipe up working");
+    {
+        reset_stubs();
+        fresh_device();
+        g_cfg["touchpad_two_finger_swipe_up"] = "win+tab";
+        g_cfg["touchpad_scroll"] = "1";
+        auto r = rest_report();
+        set_point(r, 0, true, 1, 800, 800);
+        set_point(r, 1, true, 2, 1100, 800);
+        run_step(r, 0);
+        set_point(r, 0, true, 1, 800, 400);
+        set_point(r, 1, true, 2, 1100, 400);
+        run_step(r, 30);
+        CTM_CHECK_EQ(g_pulseCount, 1);
+        CTM_CHECK_EQ(g_wheelSum, 0);
+    }
+
+    section("touch: a short, sideways or downward slide is not a swipe up");
+    {
+        reset_stubs();
+        fresh_device();
+        g_cfg["touchpad_two_finger_swipe_up"] = "win+tab";
+        auto r = rest_report();
+        // 250 up: short of the 300.
+        set_point(r, 0, true, 1, 800, 800);
+        set_point(r, 1, true, 2, 1100, 800);
+        run_step(r, 0);
+        set_point(r, 0, true, 1, 800, 550);
+        set_point(r, 1, true, 2, 1100, 550);
+        run_step(r, 30);
+        set_point(r, 0, false, 1, 800, 550);
+        set_point(r, 1, false, 2, 1100, 550);
+        run_step(r, 60);
+        // 350 up but 400 across.
+        set_point(r, 0, true, 3, 400, 800);
+        set_point(r, 1, true, 4, 700, 800);
+        run_step(r, 200);
+        set_point(r, 0, true, 3, 800, 450);
+        set_point(r, 1, true, 4, 1100, 450);
+        run_step(r, 230);
+        set_point(r, 0, false, 3, 800, 450);
+        set_point(r, 1, false, 4, 1100, 450);
+        run_step(r, 260);
+        // 400 down.
+        set_point(r, 0, true, 5, 800, 300);
+        set_point(r, 1, true, 6, 1100, 300);
+        run_step(r, 400);
+        set_point(r, 0, true, 5, 800, 700);
+        set_point(r, 1, true, 6, 1100, 700);
+        run_step(r, 430);
+        CTM_CHECK_EQ(g_pulseCount, 0);
+    }
+
+    section("touch: a swipe up acts again on the next touch, and one finger never swipes");
+    {
+        reset_stubs();
+        fresh_device();
+        g_cfg["touchpad_two_finger_swipe_up"] = "win+tab";
+        auto r = rest_report();
+        for (int n = 0; n < 2; ++n) {
+            const long long t = n * 300;
+            set_point(r, 0, true, 1 + 2 * n, 800, 800);
+            set_point(r, 1, true, 2 + 2 * n, 1100, 800);
+            run_step(r, t);
+            set_point(r, 0, true, 1 + 2 * n, 800, 400);
+            set_point(r, 1, true, 2 + 2 * n, 1100, 400);
+            run_step(r, t + 30);
+            set_point(r, 0, false, 1 + 2 * n, 800, 400);
+            set_point(r, 1, false, 2 + 2 * n, 1100, 400);
+            run_step(r, t + 60);
+        }
+        CTM_CHECK_EQ(g_pulseCount, 2);
+        r = rest_report();
+        set_point(r, 0, true, 9, 800, 900);
+        run_step(r, 1000);
+        set_point(r, 0, true, 9, 800, 300);
+        run_step(r, 1030);
+        CTM_CHECK_EQ(g_pulseCount, 2);
+    }
+
+    section("touch: while the pad drives the settings page, a swipe up presses nothing");
+    {
+        reset_stubs();
+        fresh_device();
+        g_configModeEffective = true;
+        g_cfg["touchpad_two_finger_swipe_up"] = "win+tab";
+        auto r = rest_report();
+        set_point(r, 0, true, 1, 800, 800);
+        set_point(r, 1, true, 2, 1100, 800);
+        run_step(r, 0);
+        set_point(r, 0, true, 1, 800, 400);
+        set_point(r, 1, true, 2, 1100, 400);
+        run_step(r, 30);
+        CTM_CHECK_EQ(g_pulseCount, 0);
+    }
+
+    section("touch: a swipe value nothing knows does nothing");
+    {
+        reset_stubs();
+        fresh_device();
+        g_cfg["touchpad_two_finger_swipe_up"] = "alt+tab";
+        auto r = rest_report();
+        set_point(r, 0, true, 1, 800, 800);
+        set_point(r, 1, true, 2, 1100, 800);
+        run_step(r, 0);
+        set_point(r, 0, true, 1, 800, 400);
+        set_point(r, 1, true, 2, 1100, 400);
+        run_step(r, 30);
+        CTM_CHECK_EQ(g_pulseCount, 0);
+    }
+
     return 0;
 }

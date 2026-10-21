@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.83 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.88 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,12 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.88 Touchpad: Two finger swipe up, what sliding two fingers up the
+            touchpad does: nothing, Win+Tab (Task View) or Win (the Start
+            menu). While touchpad_scroll is 2 its row says it does nothing,
+            two-finger scroll moving the same way, and it says so the
+            moment that row changes. (2.66.84 to 2.66.87 are taken on
+            another branch.)
     2.66.83 The rate limit's first choice reads Real time, as the
             DS5Dongle and its forks call theirs, and is saved as
             real_time. A config that says max, its name in 2.66.82,
@@ -1899,6 +1905,9 @@
   .row:last-child { border-bottom:none; }
   .row .name { font-size:13px; color:#b9bbc4; padding-top:6px; }
   .row .name small { display:block; color:#71737c; font-size:11.5px; }
+  /* ⓘ The swipe up's warning (2.66.88) in the warning colour: the rule above
+     outranks .warnc, so a note of its own class says it. */
+  .row .name small.swipewarn { color:#e0c07a; }
   /* An unmanaged row is visibly inert -- the whole point is that the listener
      is not touching it, and that must be obvious at a glance. */
   .row.off .name, .row.off select, .row.off input { opacity:.4; }
@@ -3786,6 +3795,35 @@ var TOUCH_ACTION_KEYS = {
 };
 // ⓘ The words for what these rows had before they took the whole list. A
 // value with no entry here reads as it does on a remap row.
+// ⭐ THE TWO-FINGER SWIPE UP'S CHOICES (2.66.88; rhoquinn8217, 2026-10-20: "It
+// will have only two options for now. 1. press win+tab 2. pres win"), as the
+// config reader saves them, lowercased.
+var SWIPE_UP_LABELS = {
+  '': 'does nothing',
+  'win+tab': 'Win+Tab (Task View)',
+  'win': 'Win (Start menu)'
+};
+// ⭐ AND WHY IT DOES NOTHING WHILE TWO FINGERS SCROLL (rhoquinn8217, 2026-10-20,
+// choosing that the swipe works only while two-finger scroll is off, and that
+// the page says so beside it): the same two fingers moving up would scroll as
+// well. One-finger scroll uses one finger. '' when the swipe can act.
+function swipeUpWarning(scrollValue) {
+  var v = String(scrollValue === undefined || scrollValue === null ? '' : scrollValue).toLowerCase();
+  return (v === '2' || v === 'true')
+    ? 'does nothing while touchpad_scroll is 2: two-finger scroll moves the same way'
+    : '';
+}
+// Redraws the swipe up row's note from the scroll row as it now stands, on a
+// controller's tab or in the editor (prefix). ⓘ Writing one row redraws
+// nothing, so the scroll row's change is passed on from writeOne.
+function paintSwipeUpNote(prefix) {
+  var el = document.getElementById('nt-dv-' + prefix + '-touchpad_two_finger_swipe_up');
+  if (!el) return;
+  var scroll = settingValue(prefix, 'touchpad_scroll');
+  var warn = swipeUpWarning(scroll === null ? '' : scroll);
+  el.className = warn ? 'warnc swipewarn' : '';
+  el.textContent = warn || el.getAttribute('data-help') || '';
+}
 var TOUCH_ACTION_LABELS = {
   '': 'does nothing',
   MouseLeft: 'left click',
@@ -4051,6 +4089,10 @@ function choiceLabel(key, value) {
   // ⓘ The stick's axis row, whose blank is a real choice: player space.
   if (key === 'gyro_stick_axis') {
     return value === '' ? 'player space' : value;
+  }
+  // ⓘ The two-finger swipe up's three (2.66.88): what each does, in words.
+  if (key === 'touchpad_two_finger_swipe_up') {
+    return SWIPE_UP_LABELS[value] !== undefined ? SWIPE_UP_LABELS[value] : value;
   }
   // ⓘ Only the values those rows have words of their own for. Anything else
   // falls through, so a pad button on a gesture row reads "pad: ○ / B" too.
@@ -5216,6 +5258,15 @@ function renderConfigEditor(hostId, configName, prefix, ordinal) {
         var note = inert
           ? '<small class="warnc">' + esc(inert) + '</small>'
           : '<small>' + esc(helpText) + '</small>';
+        // ⭐ The swipe up's warning stands in for its help while two fingers
+        // scroll (swipeUpWarning), and is redrawn when the scroll row changes
+        // (paintSwipeUpNote), so the row never says the wrong one. ⓘ esc()
+        // leaves quotes alone, so the help's are escaped for its attribute.
+        if (!inert && meta.key === 'touchpad_two_finger_swipe_up') {
+          var swipeWarn = swipeUpWarning(current.touchpad_scroll);
+          note = '<small id="nt-' + id + '" data-help="' + esc(helpText).replace(/"/g, '&quot;') + '"' +
+                 (swipeWarn ? ' class="warnc swipewarn"' : '') + '>' + esc(swipeWarn || helpText) + '</small>';
+        }
 
         // ⭐ On the NAME, not only in the help. Someone changing a value reads
         // the label; the help is what you read when the value does not work.
@@ -5346,6 +5397,7 @@ var WRITE_TIMERS = {};
 function writeOne(prefix, configName, key) {
   var value = settingValue(prefix, key);
   if (value === null) return;
+  if (key === 'touchpad_scroll') paintSwipeUpNote(prefix);
   var slot = prefix + '|' + configName + '|' + key;
   if (WRITE_TIMERS[slot]) clearTimeout(WRITE_TIMERS[slot]);
   WRITE_TIMERS[slot] = setTimeout(function() {
@@ -10028,6 +10080,18 @@ function selfTest() {
        configsFor({ kind: 'hid', supports_config: false }).length === 0);
     CONFIGS = savedConfigs;
   }
+
+  // 10. ⭐ THE TWO-FINGER SWIPE UP (2.66.88): its words, and its warning
+  //     while two fingers scroll, not while one does or none.
+  ok('swipe up: win+tab reads as Task View',
+     choiceLabel('touchpad_two_finger_swipe_up', 'win+tab') === 'Win+Tab (Task View)');
+  ok('swipe up: win reads as the Start menu',
+     choiceLabel('touchpad_two_finger_swipe_up', 'win') === 'Win (Start menu)');
+  ok('swipe up: blank does nothing',
+     choiceLabel('touchpad_two_finger_swipe_up', '') === 'does nothing');
+  ok('swipe up: two-finger scroll warns, one finger or none does not',
+     swipeUpWarning('2') !== '' && swipeUpWarning('true') !== '' &&
+     swipeUpWarning('') === '' && swipeUpWarning('0') === '' && swipeUpWarning('1') === '');
 
   // Leave the page as it was found.
   renderTabs(LAST_DEVICES || []);
