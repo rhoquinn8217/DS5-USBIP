@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.89 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.90 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,11 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.90 Touchpad: Two finger swipe down, left and right, each taking
+            the whole remap list as swipe up does. Down says it does
+            nothing while touchpad_scroll is 2, as up does; left and
+            right work whatever it says, two-finger scroll reading only
+            up and down.
     2.66.89 Win+Tab, which opens Task View, is in every remap list, for
             any button and every touchpad gesture. The two finger swipe
             up takes the whole list, as a tap does, where it had three
@@ -3795,13 +3800,20 @@ var GATE_BUTTON_EXTRA = {
 // it here, where it explains the type rather than the absence of a button.
 // ⓘ The touchpad's gestures. "(blank)" on one of these rows means that
 // gesture does nothing -- not "off by default".
-// ⭐ And the two-finger swipe up (2.66.89; rhoquinn8217, 2026-10-20: "Let the
+// ⭐ And the two-finger swipes (2.66.89; rhoquinn8217, 2026-10-20: "Let the
 // two finger swipe up rebind option have all the rebind options that face
-// buttons have"), which had three choices of its own in 2.66.88.
+// buttons have", which had three choices of its own in 2.66.88; down, left
+// and right since 2.66.90, 2026-10-21: "These should also have rebind
+// options like the face buttons").
 var TOUCH_ACTION_KEYS = {
   touchpad_one_finger_tap: 1, touchpad_two_finger_tap: 1, touchpad_press_touch_drag: 1,
-  touchpad_two_finger_swipe_up: 1
+  touchpad_two_finger_swipe_up: 1, touchpad_two_finger_swipe_down: 1,
+  touchpad_two_finger_swipe_left: 1, touchpad_two_finger_swipe_right: 1
 };
+// ⭐ The swipes two-finger scroll shares its movement with, up and down,
+// which do nothing while it is on and say so (swipeUpWarning). ⓘ It reads
+// only up and down, so left and right are not here.
+var SWIPE_SCROLL_KEYS = { touchpad_two_finger_swipe_up: 1, touchpad_two_finger_swipe_down: 1 };
 // ⓘ The words for what these rows had before they took the whole list. A
 // value with no entry here reads as it does on a remap row.
 // ⭐ AND WHY IT DOES NOTHING WHILE TWO FINGERS SCROLL (rhoquinn8217, 2026-10-20,
@@ -3814,16 +3826,18 @@ function swipeUpWarning(scrollValue) {
     ? 'does nothing while touchpad_scroll is 2: two-finger scroll moves the same way'
     : '';
 }
-// Redraws the swipe up row's note from the scroll row as it now stands, on a
-// controller's tab or in the editor (prefix). ⓘ Writing one row redraws
-// nothing, so the scroll row's change is passed on from writeOne.
+// Redraws the up and down swipe rows' notes from the scroll row as it now
+// stands, on a controller's tab or in the editor (prefix). ⓘ Writing one row
+// redraws nothing, so the scroll row's change is passed on from writeOne.
 function paintSwipeUpNote(prefix) {
-  var el = document.getElementById('nt-dv-' + prefix + '-touchpad_two_finger_swipe_up');
-  if (!el) return;
   var scroll = settingValue(prefix, 'touchpad_scroll');
   var warn = swipeUpWarning(scroll === null ? '' : scroll);
-  el.className = warn ? 'warnc swipewarn' : '';
-  el.textContent = warn || el.getAttribute('data-help') || '';
+  Object.keys(SWIPE_SCROLL_KEYS).forEach(function (key) {
+    var el = document.getElementById('nt-dv-' + prefix + '-' + key);
+    if (!el) return;
+    el.className = warn ? 'warnc swipewarn' : '';
+    el.textContent = warn || el.getAttribute('data-help') || '';
+  });
 }
 var TOUCH_ACTION_LABELS = {
   '': 'does nothing',
@@ -5259,11 +5273,11 @@ function renderConfigEditor(hostId, configName, prefix, ordinal) {
         var note = inert
           ? '<small class="warnc">' + esc(inert) + '</small>'
           : '<small>' + esc(helpText) + '</small>';
-        // ⭐ The swipe up's warning stands in for its help while two fingers
-        // scroll (swipeUpWarning), and is redrawn when the scroll row changes
-        // (paintSwipeUpNote), so the row never says the wrong one. ⓘ esc()
+        // ⭐ The up and down swipes' warning stands in for their help while two
+        // fingers scroll (swipeUpWarning), and is redrawn when the scroll row
+        // changes (paintSwipeUpNote), so a row never says the wrong one. ⓘ esc()
         // leaves quotes alone, so the help's are escaped for its attribute.
-        if (!inert && meta.key === 'touchpad_two_finger_swipe_up') {
+        if (!inert && SWIPE_SCROLL_KEYS[meta.key]) {
           var swipeWarn = swipeUpWarning(current.touchpad_scroll);
           note = '<small id="nt-' + id + '" data-help="' + esc(helpText).replace(/"/g, '&quot;') + '"' +
                  (swipeWarn ? ' class="warnc swipewarn"' : '') + '>' + esc(swipeWarn || helpText) + '</small>';
@@ -10092,6 +10106,15 @@ function selfTest() {
   ok('swipe up: two-finger scroll warns, one finger or none does not',
      swipeUpWarning('2') !== '' && swipeUpWarning('true') !== '' &&
      swipeUpWarning('') === '' && swipeUpWarning('0') === '' && swipeUpWarning('1') === '');
+  ok('swipes: down, left and right take the remap list too',
+     isBindingKey('touchpad_two_finger_swipe_down') &&
+     isBindingKey('touchpad_two_finger_swipe_left') &&
+     isBindingKey('touchpad_two_finger_swipe_right'));
+  ok('swipes: the scroll warning belongs to up and down, not to left and right',
+     !!SWIPE_SCROLL_KEYS.touchpad_two_finger_swipe_up &&
+     !!SWIPE_SCROLL_KEYS.touchpad_two_finger_swipe_down &&
+     !SWIPE_SCROLL_KEYS.touchpad_two_finger_swipe_left &&
+     !SWIPE_SCROLL_KEYS.touchpad_two_finger_swipe_right);
 
   // Leave the page as it was found.
   renderTabs(LAST_DEVICES || []);

@@ -2307,6 +2307,107 @@ int run_touch_mouse_tests()
         CTM_CHECK_EQ(static_cast<int>(g_lastClick), 0x02);
     }
 
+    section("touch: a two-finger swipe down, left or right does what its own setting names");
+    {
+        // ⓘ rhoquinn8217, 2026-10-21: "add two finger swipe down, two finger
+        // swipe left , two finder swipe right". Each a different key, so the
+        // press shows which direction was read.
+        struct Case { int x0, y0, x1, y1; uint8_t usage; };
+        const Case cases[] = {
+            { 800, 300, 800, 700, 0x51 },     // down: ArrowDown
+            { 1400, 500, 800, 500, 0x50 },    // left: ArrowLeft
+            { 400, 500, 1000, 500, 0x4F },    // right: ArrowRight
+        };
+        for (const Case &c : cases) {
+            reset_stubs();
+            fresh_device();
+            g_cfg["touchpad_two_finger_swipe_up"] = "keyu";
+            g_cfg["touchpad_two_finger_swipe_down"] = "arrowdown";
+            g_cfg["touchpad_two_finger_swipe_left"] = "arrowleft";
+            g_cfg["touchpad_two_finger_swipe_right"] = "arrowright";
+            auto r = rest_report();
+            set_point(r, 0, true, 1, c.x0, c.y0);
+            set_point(r, 1, true, 2, c.x0 + 300, c.y0);
+            run_step(r, 0);
+            set_point(r, 0, true, 1, c.x1, c.y1);
+            set_point(r, 1, true, 2, c.x1 + 300, c.y1);
+            run_step(r, 30);
+            CTM_CHECK_EQ(g_pulseCount, 1);
+            CTM_CHECK_EQ(static_cast<int>(g_pulseUsage), static_cast<int>(c.usage));
+            ctm_touch_mouse::forget(kDev);
+        }
+    }
+
+    section("touch: sideways needs a quarter of the pad's width, more than up and down");
+    {
+        reset_stubs();
+        fresh_device();
+        g_cfg["touchpad_two_finger_swipe_right"] = "arrowright";
+        auto r = rest_report();
+        set_point(r, 0, true, 1, 400, 500);
+        set_point(r, 1, true, 2, 700, 500);
+        run_step(r, 0);
+        set_point(r, 0, true, 1, 800, 500);      // 400 across: short of 480
+        set_point(r, 1, true, 2, 1100, 500);
+        run_step(r, 30);
+        CTM_CHECK_EQ(g_pulseCount, 0);
+        set_point(r, 0, true, 1, 900, 500);      // 500 across
+        set_point(r, 1, true, 2, 1200, 500);
+        run_step(r, 60);
+        CTM_CHECK_EQ(g_pulseCount, 1);
+    }
+
+    section("touch: with two-finger scroll on, down scrolls and presses nothing, left and right still act");
+    {
+        reset_stubs();
+        fresh_device();
+        g_cfg["touchpad_scroll"] = "2";
+        g_cfg["touchpad_two_finger_swipe_down"] = "arrowdown";
+        g_cfg["touchpad_two_finger_swipe_right"] = "arrowright";
+        auto r = rest_report();
+        set_point(r, 0, true, 1, 800, 300);
+        set_point(r, 1, true, 2, 1100, 300);
+        run_step(r, 0);
+        set_point(r, 0, true, 1, 800, 700);
+        set_point(r, 1, true, 2, 1100, 700);
+        run_step(r, 30);
+        CTM_CHECK_EQ(g_pulseCount, 0);
+        CTM_CHECK(g_wheelSum != 0);
+        set_point(r, 0, false, 1, 800, 700);
+        set_point(r, 1, false, 2, 1100, 700);
+        run_step(r, 60);
+        set_point(r, 0, true, 3, 400, 500);
+        set_point(r, 1, true, 4, 700, 500);
+        run_step(r, 300);
+        set_point(r, 0, true, 3, 1000, 500);
+        set_point(r, 1, true, 4, 1300, 500);
+        run_step(r, 330);
+        CTM_CHECK_EQ(g_pulseCount, 1);
+        CTM_CHECK_EQ(static_cast<int>(g_pulseUsage), 0x4F);
+    }
+
+    section("touch: a scroll that wanders sideways afterwards is still no swipe");
+    {
+        // ⓘ The first direction met decides the touch: down with scroll on is
+        // spent on the scroll, and a later slide right does not turn it into
+        // a right swipe.
+        reset_stubs();
+        fresh_device();
+        g_cfg["touchpad_scroll"] = "2";
+        g_cfg["touchpad_two_finger_swipe_right"] = "arrowright";
+        auto r = rest_report();
+        set_point(r, 0, true, 1, 400, 300);
+        set_point(r, 1, true, 2, 700, 300);
+        run_step(r, 0);
+        set_point(r, 0, true, 1, 400, 700);      // 400 down
+        set_point(r, 1, true, 2, 700, 700);
+        run_step(r, 30);
+        set_point(r, 0, true, 1, 1200, 700);     // then 800 across
+        set_point(r, 1, true, 2, 1500, 700);
+        run_step(r, 60);
+        CTM_CHECK_EQ(g_pulseCount, 0);
+    }
+
     section("touch: a swipe value nothing knows does nothing");
     {
         reset_stubs();

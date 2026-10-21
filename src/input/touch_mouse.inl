@@ -3,7 +3,8 @@
 //   one finger   moves the cursor, laptop-trackpad style (relative -- lifting
 //                and repositioning does not jump)
 //   two fingers  scroll, emitted as wheel ticks
-//   two fingers slid up  whatever its setting names, while two-finger scroll is off
+//   two fingers slid up, down, left or right  whatever that direction's setting
+//                names; up and down only while two-finger scroll is off
 //   a quick tap  clicks: one finger = left, two fingers = right, the Apple
 //                trackpad convention; double-click is just tapping twice
 //
@@ -209,12 +210,20 @@ constexpr int kStrokeMovingUnits = 30;
 // Pad units of two-finger travel per wheel tick, at scroll speed 100.
 constexpr int kScrollUnitsPerTick = 60;
 
-// ⭐ A TWO-FINGER SWIPE UP (rhoquinn8217, 2026-10-20: "I want to add 2 finger
-// swipe up gesture added to the touchpad section"): the fingers' midpoint this
-// far up the pad from where both came down, and no further across than up.
-// About a quarter of a DualSense's pad, which is 1080 tall, and a third of a
-// DS4's 942.
-constexpr int kSwipeUpUnits = 300;
+// ⭐ A TWO-FINGER SWIPE (rhoquinn8217, 2026-10-20: "I want to add 2 finger
+// swipe up gesture added to the touchpad section", then 2026-10-21: "add two
+// finger swipe down, two finger swipe left , two finder swipe right"): the
+// fingers' midpoint this far from where both came down, along its stronger
+// direction. Up or down, about a quarter of a DualSense's pad, which is 1080
+// tall (a third of a DS4's 942); left or right, a quarter of either's 1920.
+constexpr int kSwipeVerticalUnits = 300;
+constexpr int kSwipeSidewaysUnits = 480;
+// The four, in the order their settings and their names are listed.
+enum SwipeDir { kSwipeUp = 0, kSwipeDown, kSwipeLeft, kSwipeRight, kSwipeDirs };
+inline const char *const kSwipeKeys[kSwipeDirs] = {
+    "touchpad_two_finger_swipe_up", "touchpad_two_finger_swipe_down",
+    "touchpad_two_finger_swipe_left", "touchpad_two_finger_swipe_right" };
+inline const char *const kSwipeNames[kSwipeDirs] = { "up", "down", "left", "right" };
 
 struct TouchPoint {
     bool down = false;
@@ -309,7 +318,7 @@ struct TouchState {
     float lastAvgY = 0.0f;
     float scrollCarry = 0.0f;
 
-    // ⭐ The two-finger swipe up (kSwipeUpUnits): where the fingers' midpoint
+    // ⭐ The two-finger swipe (kSwipeVerticalUnits): where the fingers' midpoint
     // stood when both were down, and whether this touch has swiped already.
     bool swipeTracking = false;
     float swipeX0 = 0.0f;
@@ -1031,13 +1040,23 @@ inline void step(const void *deviceKey, const std::string &section,
     // follows is the one-finger tap that clicks, and a drag needs a pointer.
     const bool tapDragOn =
         cursorOn && device_config_bool(section.c_str(), "touchpad_double_tap_drag", false);
-    // ⭐ THE TWO-FINGER SWIPE UP (kSwipeUpUnits), ONLY WHILE TWO-FINGER SCROLL IS
-    // OFF (rhoquinn8217, 2026-10-20, chosen over telling a quick flick from a
-    // scroll and over the swipe taking scroll-up's place): the same two fingers
-    // moving up would scroll as well. One-finger scroll uses one finger.
-    const std::string swipeRaw = device_config_str(section.c_str(), "touchpad_two_finger_swipe_up");
-    const binding::Target swipeTarget = swipe_target(swipeRaw);
-    const bool swipeOn = swipeTarget.kind != binding::kNone && scrollFingers != 2;
+    // ⭐ THE TWO-FINGER SWIPES (kSwipeVerticalUnits), UP AND DOWN ONLY WHILE
+    // TWO-FINGER SCROLL IS OFF (rhoquinn8217, 2026-10-20, for up, chosen over
+    // telling a quick flick from a scroll and over the swipe taking scroll-up's
+    // place): the same two fingers moving up or down would scroll as well.
+    // ⓘ Left and right whatever the scroll does, which reads up and down
+    // alone; and one-finger scroll uses one finger.
+    std::string swipeRaw[kSwipeDirs];
+    binding::Target swipeTarget[kSwipeDirs];
+    bool swipeWants[kSwipeDirs] = {};
+    bool swipeOn = false;
+    for (int d = 0; d < kSwipeDirs; ++d) {
+        swipeRaw[d] = device_config_str(section.c_str(), kSwipeKeys[d]);
+        swipeTarget[d] = swipe_target(swipeRaw[d]);
+        const bool vertical = d == kSwipeUp || d == kSwipeDown;
+        swipeWants[d] = swipeTarget[d].kind != binding::kNone && !(vertical && scrollFingers == 2);
+        if (swipeWants[d]) swipeOn = true;
+    }
 
     std::lock_guard<std::mutex> lock(g_touchMutex);
     TouchState &st = g_touch[deviceKey];
@@ -1398,15 +1417,17 @@ inline void step(const void *deviceKey, const std::string &section,
             << (nowMs - st.sessionStart) << "ms into the touch");
     }
 
-    // ---- Two fingers: swipe up ----------------------------------------------
-    // ⭐ Once per touch, the moment the fingers' midpoint has come kSwipeUpUnits
-    // up from where both were down, no further across than up: the key goes
-    // down and up by the keyboard's own clock, as a tap's does, a pad button is
-    // pressed for a moment, a mouse button clicks where the cursor is, and
-    // nothing but the mouse while the pad drives the configs window
-    // (acts_now). ⓘ Measured afresh when two
-    // fingers come down again in the same touch, but it acts once until every
-    // finger has lifted.
+    // ---- Two fingers: swipe ------------------------------------------------
+    // ⭐ Once per touch, the moment the fingers' midpoint has come far enough
+    // from where both were down along its stronger direction (kSwipeVerticalUnits
+    // up or down, kSwipeSidewaysUnits left or right): that direction's setting
+    // acts, a key down and up by the keyboard's own clock as a tap's is, a pad
+    // button pressed for a moment, a mouse button clicked where the cursor is,
+    // and nothing but the mouse while the pad drives the configs window
+    // (acts_now). ⓘ The first direction met decides the touch, set or not, so
+    // a scroll that wanders never turns into a sideways swipe. Measured afresh
+    // when two fingers come down again in the same touch, but it acts once
+    // until every finger has lifted.
     if (swipeOn && fingers == 2) {
         const float mx = (static_cast<float>(p1.x) + static_cast<float>(p2.x)) / 2.0f;
         const float my = (static_cast<float>(p1.y) + static_cast<float>(p2.y)) / 2.0f;
@@ -1415,26 +1436,38 @@ inline void step(const void *deviceKey, const std::string &section,
             st.swipeX0 = mx;
             st.swipeY0 = my;
         } else if (!st.swipeDone) {
-            const float up = st.swipeY0 - my;   // the pad's y grows downward
-            const float across = mx > st.swipeX0 ? mx - st.swipeX0 : st.swipeX0 - mx;
-            if (up >= static_cast<float>(kSwipeUpUnits) && across <= up) {
+            const float dx = mx - st.swipeX0;
+            const float dy = my - st.swipeY0;   // the pad's y grows downward
+            const float ax = dx < 0 ? -dx : dx;
+            const float ay = dy < 0 ? -dy : dy;
+            int dir = -1;
+            if (ay >= ax && ay >= static_cast<float>(kSwipeVerticalUnits)) {
+                dir = dy < 0 ? kSwipeUp : kSwipeDown;
+            } else if (ax > ay && ax >= static_cast<float>(kSwipeSidewaysUnits)) {
+                dir = dx < 0 ? kSwipeLeft : kSwipeRight;
+            }
+            if (dir >= 0) {
                 st.swipeDone = true;
                 st.sessionMoved = true;   // a swipe is not a tap
-                const bool acts = acts_now(swipeTarget);
-                if (acts && swipeTarget.kind == binding::kMouseButton) {
+                const binding::Target &target = swipeTarget[dir];
+                const bool acts = swipeWants[dir] && acts_now(target);
+                if (acts && target.kind == binding::kMouseButton) {
                     // ⓘ A click, where the cursor is: a swipe has no spot
                     // of its own for it to land on.
-                    ctm_mouse_device::add_click(swipeTarget.mouseMask);
+                    ctm_mouse_device::add_click(target.mouseMask);
                     ctm_gyro_mouse_ensure_mouse_started();
                     st.mTap = "click";
                 } else if (acts) {
-                    st.mTap = tap_other(deviceKey, section, swipeTarget, nowMs);
+                    st.mTap = tap_other(deviceKey, section, target, nowMs);
                 }
                 device_log::input(device_log::msg()
-                    << "[touch] two-finger swipe up: " << swipeRaw
-                    << (acts ? " done, " : " not done, the pad is driving the configs window, ")
-                    << static_cast<int>(up) << " up and " << static_cast<int>(across)
-                    << " across, " << (nowMs - st.sessionStart) << "ms into the touch");
+                    << "[touch] two-finger swipe " << kSwipeNames[dir] << ": "
+                    << (swipeRaw[dir].empty() ? std::string("(nothing set)") : swipeRaw[dir])
+                    << (acts ? " done, " :
+                        !swipeWants[dir] ? " not done, not set or two-finger scroll is on, " :
+                                          " not done, the pad is driving the configs window, ")
+                    << static_cast<int>(dx) << " across and " << static_cast<int>(dy)
+                    << " down, " << (nowMs - st.sessionStart) << "ms into the touch");
             }
         }
     } else {
