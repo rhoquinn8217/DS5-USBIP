@@ -103,7 +103,15 @@
             wheel should land you on "New" all the time"), up and down walk
             the buttons, off their bottom lies the footer, and up from the
             footer lands on Archive ("up from the mode selector or close
-            should bring you to "archive""). Its title names the
+            should bring you to "archive""). A greyed button is no longer
+            stepped over: the pad and the keys land on it, and a press, or
+            a click, says why it is greyed ("don't skip over disable
+            buttons in simple mode. When click, show pop up why they are
+            disabled"). Square on the wheel, in Quick and Simple, turns it
+            to (no config) at once, straight after a step too, and its
+            unlink goes after any link still on its way ("if you press
+            square right away after switch a config, it doesn't do
+            anything"). Its title names the
             device type, at twice its size, and the device's symbol stands
             before the nickname, the device type line gone. That line spans
             the panel, the symbol, nickname and battery from its left edge
@@ -126,8 +134,10 @@
             0.3879 of the screen's height from 0.45, the room over the
             nickname's line and under the panel each halved and nothing on
             it smaller ("shrink the height of the window"). On the
-            wheel, in Simple and Quick, the mouse rings a config in sight
-            above or below the chosen one, and a click sets it and links it
+            wheel, in Simple and Quick, the mouse lights a config in sight
+            above or below the chosen one, in a band fading to the wheel's
+            sides ("don't do a halo, rather a fading highlight"), and a
+            click sets it and links it
             at once ("Make them mouse clickable and set them
             instantaneously"); the pad and the keys still step one at a
             time. Quick is larger
@@ -2205,16 +2215,20 @@
     line-height:1.2em; padding:0 0.5em; text-align:center; white-space:nowrap;
     overflow:hidden; text-overflow:ellipsis; color:#9a9ca5; }
   body.compact:not(.quick) #compactBox .cdrum-row.on { color:#e8e8ea; }
-  /* ⭐ THE CONFIG UNDER THE MOUSE, RINGED, IN SIMPLE AND QUICK (rhoquinn8217,
+  /* ⭐ THE CONFIG UNDER THE MOUSE, LIT, IN SIMPLE AND QUICK (rhoquinn8217,
      2026-10-21: "hovering over unselected configs in the config selector
-     wheel with a mouse should halo/focus on them"): the halo's blue round a
-     config in sight above or below the chosen one, the frame's size, its
-     name at full strength over the fading; a click sets it (drumHover,
+     wheel with a mouse should halo/focus on them", then 2026-10-22: "don't
+     do a halo, rather a fading highlight towards the left and right edges
+     of the config selector wheel"): a band of the lit frame's blue behind a
+     config in sight above or below the chosen one, solid through its middle
+     and fading to nothing at the wheel's sides, its name at full strength
+     over the fading and placed as its row's is; a click sets it (drumHover,
      quickPickRow). The mouse's alone: the pad's halo stays where it was. */
-  #compactBox .cdrum-hover { position:absolute; left:0.18em; right:0.18em; height:1.3em;
+  #compactBox .cdrum-hover { position:absolute; left:0; right:0; height:1.3em;
     margin-top:-0.65em; box-sizing:border-box; display:flex; align-items:center;
-    justify-content:center; padding:0 0.32em; border:2px solid #6c8cff;
-    border-radius:0.22em; background:#1d1f26; color:#e8e8ea; }
+    justify-content:center; padding:0 0.5em; color:#e8e8ea;
+    background:linear-gradient(to right, rgba(42,53,102,0), rgba(42,53,102,0.95) 28%,
+      rgba(42,53,102,0.95) 72%, rgba(42,53,102,0)); }
   #compactBox .cdrum-hover > span { min-width:0; line-height:1.2em; white-space:nowrap;
     overflow:hidden; text-overflow:ellipsis; }
   /* ⓘ Five buttons since 2026-10-22 (Archive), in the wheel's 32.4vh still,
@@ -2223,6 +2237,13 @@
      from 1, the text the size it was. */
   body.compact:not(.quick) #compactBox .csbtns { display:flex; flex-direction:column; align-items:stretch;
     gap:calc(0.55 * var(--vh)); }
+  /* ⭐ GREYED, YET REACHABLE AND PRESSABLE (2026-10-22: "don't skip over
+     disable buttons in simple mode. When click, show pop up why they are
+     disabled"): dimmed by its own colours rather than by opacity, which
+     would dim the pad's halo on it too; a press says why (explainGreyed). */
+  #compactBox button[aria-disabled="true"] { color:#5c5f69; background:#1a1c22; border-color:#2a2c33;
+    cursor:help; }
+  #compactBox button.warn[aria-disabled="true"] { border-color:#4a3234; }
   body.compact:not(.quick) #compactBox .csbtns > button { font-size:calc(3.6 * var(--vh)); line-height:1.3;
     padding:calc(0.5 * var(--vh)) 1.6vw; min-width:0; margin:0; border-width:1px;
     display:flex; align-items:center; justify-content:center; gap:0.35em; }
@@ -6266,17 +6287,43 @@ function gpSquare() {
 // keyboard. True when the halo was on a selector, whether or not there was
 // a config to unlink.
 function gpUnlink() {
-  var ord = pickerOrdinalOf(GP_FOCUS[GP_INDEX]);
+  var el = GP_FOCUS[GP_INDEX];
+  var ord = pickerOrdinalOf(el);
   if (!ord) return false;
-  // ⓘ A Quick step not yet linked is dropped: unlinking is what was asked.
-  if (QUICK_WANT && QUICK_WANT.ordinal === ord) {
-    clearTimeout(QUICK_WANT_TIMER);
-    QUICK_WANT_TIMER = null;
-    QUICK_WANT = null;
-  }
+  if (el.id === 'cpick') { wheelUnlink(ord); return true; }
   var d = deviceByOrdinal(ord);
   if (d && d.linked_config) unlinkConfirmed(d.ordinal);
   return true;
+}
+
+// ⭐ UNLINKING FROM THE WHEEL TURNS IT TO "(no config)" AT ONCE: Square and U
+// on it, and Simple's Unlink (rhoquinn8217, 2026-10-22: "in quick mode, if
+// you press square right away after switch a config, it doesn't do
+// anything. It won't unlink until I move it again."). It dropped a step still
+// waiting and then unlinked only when the listener's last word named a
+// config, so a step off "(no config)" sent nothing and left the wheel on the
+// step, and a step already sent could be skipped or overtaken by the
+// unlink. Now the wheel shows "(no config)" and holds it as a step does
+// (quickShown) until the listener agrees; a step not yet sent is dropped,
+// and the unlink goes after any link of the wheel's still on its way.
+function wheelUnlink(ord) {
+  var d = deviceByOrdinal(ord);
+  var mine = !!QUICK_WANT && QUICK_WANT.ordinal === ord;
+  var waiting = mine && !!QUICK_WANT_TIMER;                       // a step not yet sent
+  var sent = mine && !QUICK_WANT_TIMER && QUICK_WANT.config !== '';  // sent, not yet agreed
+  var linked = !!(d && d.linked_config);
+  clearTimeout(QUICK_WANT_TIMER);
+  QUICK_WANT_TIMER = null;
+  if (!waiting && !sent && !linked) { if (mine) QUICK_WANT = null; return; }
+  QUICK_WANT = { ordinal: ord, config: '', at: Date.now() };
+  var sel = document.getElementById('cpick');
+  if (sel && (sel.getAttribute('data-ordinal') || '') === ord) {
+    sel.selectedIndex = 0;          // "(no config)" leads the list
+    drumPaint(null);
+  }
+  if (!sent && !linked) return;      // the step never went: nothing to undo
+  var go = function () { unlinkConfirmed(ord); };
+  if (QUICK_LINK_INFLIGHT) QUICK_LINK_INFLIGHT.then(go, go); else go();
 }
 
 // Triangle, and A from a keyboard: auto link on the config selector, or
@@ -6345,6 +6392,7 @@ function autoLinkToggle(ordinal) {
 var QUICK_LINK_MS = 350;
 var QUICK_WANT = null;        // { ordinal, config, at }: stepped to, not yet seen linked
 var QUICK_WANT_TIMER = null;
+var QUICK_LINK_INFLIGHT = null;   // the wheel's last link, until it answers
 var QUICK_WHEEL = 0;          // the wheel's travel since its last step
 
 // What Quick's selector shows for this controller: a step on its way, or what
@@ -6470,9 +6518,14 @@ function quickLinkWanted() {
   QUICK_WANT_TIMER = null;
   var want = QUICK_WANT;
   if (!want) return;
-  linkParts(want.ordinal, want.config ? { config: want.config } : {})
-    .then(function () { loadDevices(); loadConfigs(); })
+  // ⓘ Kept until it answers, so an unlink pressed meanwhile goes after it
+  // (wheelUnlink) rather than racing it.
+  var sent = linkParts(want.ordinal, want.config ? { config: want.config } : {});
+  QUICK_LINK_INFLIGHT = sent;
+  var done = function () { if (QUICK_LINK_INFLIGHT === sent) QUICK_LINK_INFLIGHT = null; };
+  sent.then(function () { done(); loadDevices(); loadConfigs(); })
     .catch(function () {
+      done();
       if (QUICK_WANT === want) QUICK_WANT = null;
       paintCompact();
     });
@@ -6504,7 +6557,8 @@ function quickWheel(ev) {
 // with a mouse should halo/focus on them. Make them mouse clickable and set
 // them instantaneously instead of scroll up or down once. This is only with
 // mouse."): the config under the pointer, above or below the chosen one, is
-// ringed in the halo's blue, and a click sets it and links it at once
+// lit in a band fading to the wheel's sides (2026-10-22: "don't do a halo,
+// rather a fading highlight"), and a click sets it and links it at once
 // (quickPickRow). ⓘ Read from where the pointer is against where the rows
 // are drawn: the rows are pictures, never controls, so the pad and the keys
 // cannot reach them and still step one at a time ("Keyboard and controller
@@ -7274,7 +7328,11 @@ function gpCollect() {
   }
 
   if (CONFIRM_CB) {
-    document.querySelectorAll('#confirmBox button').forEach(function(e) { list.push(e); });
+    // ⓘ Not a button hidden for this question: Cancel, when a greyed
+    // button is only saying why (explainGreyed, 2026-10-22).
+    document.querySelectorAll('#confirmBox button').forEach(function(e) {
+      if (e.style.display !== 'none') list.push(e);
+    });
     GP_FOCUS = list;
     if (GP_INDEX >= list.length) GP_INDEX = 0;
     gpPaint();
@@ -8358,7 +8416,7 @@ function compactMove(dx, dy) {
     if (cur === wheelSel && dx > 0) return focusElement(col[0]);
     // ⭐ UP FROM THE FOOTER LANDS ON ARCHIVE (2026-10-22: "up from the mode
     // selector or close should bring you to "archive""), the column's foot,
-    // over them; the lowest that can be pressed while Archive cannot.
+    // over them, greyed or not: a greyed button is reachable (explainGreyed).
     if (dy < 0 && bar.indexOf(cur) >= 0) return focusElement(col[col.length - 1]);
     if (inCol >= 0) {
       if (dx < 0) return focusElement(wheelSel);
@@ -9872,6 +9930,22 @@ function compactAutoUnlink() {
 }
 
 // The compact views' Unlink: the same call the picker's "(no config)" makes.
+// ⭐ A GREYED BUTTON SAYS WHY WHEN PRESSED, IN SIMPLE (rhoquinn8217,
+// 2026-10-22: "don't skip over disable buttons in simple mode. When click,
+// show pop up why they are disabled"): greyed by aria-disabled, not by
+// disabled, so the pad and the keys still land on it and a press or a click
+// still reaches it; its data-why is told in the confirm box with OK alone,
+// Cancel put back as it closes. ⓘ A callback that does nothing, not none:
+// CONFIRM_CB is how the rest of the page knows the box is up, and keeps the
+// halo in it.
+function explainGreyed(btn) {
+  var no = document.querySelector('#confirmBox button:last-of-type');
+  if (no) no.style.display = 'none';
+  CONFIRM_ON_NO = function () { if (no) no.style.display = ''; };
+  askConfirm((btn.textContent || '').trim() + ' is greyed', btn.getAttribute('data-why') || '',
+             function () {});
+}
+
 // Simple's Archive: the config on the wheel, asked first (archive).
 function compactArchive() {
   var sel = document.getElementById('cpick');
@@ -9880,8 +9954,7 @@ function compactArchive() {
 
 function compactUnlink() {
   var d = deviceByOrdinal(ACTIVE);
-  if (!d || !d.linked_config) return;
-  unlinkConfirmed(d.ordinal);
+  if (d) wheelUnlink(d.ordinal);
 }
 
 // ⭐⭐ THE MEASURED EVENT ORDER ON A LISTBOX ROW CLICK (2026-09-20, this
@@ -10079,7 +10152,8 @@ function paintCompact() {
     return (d && d.linked_config)
       ? '<button class="cunlink-btn" onclick="compactUnlink()" ' +
         'title="set this controller to No config">' + lbl + '</button>'
-      : '<button class="cunlink-btn" disabled ' +
+      : '<button class="cunlink-btn" aria-disabled="true" onclick="explainGreyed(this)" ' +
+        'data-why="This controller reads no config, so there is nothing to unlink." ' +
         'title="this controller already reads no config">' + lbl + '</button>';
   };
   var foot = function (withNew, ordinal) {
@@ -10261,8 +10335,10 @@ function paintCompact() {
       var autoLbl = (QUICK ? '' : 'Auto link ') + '\ud83d\uddd8';
       var autoBtn;
       if (!mySerial) {
-        autoBtn = '<button class="cauto-btn" disabled title="this controller reports no serial, ' +
-                  'so there is nothing to remember it by">' + autoLbl + '</button>';
+        autoBtn = '<button class="cauto-btn" aria-disabled="true" onclick="explainGreyed(this)" ' +
+                  'data-why="This controller reports no serial, so there is nothing to ' +
+                  'remember it by." title="this controller reports no serial, so there is ' +
+                  'nothing to remember it by">' + autoLbl + '</button>';
       } else if (!d.linked_config) {
         // ⭐ "AUTO LINK NO CONFIG" MEANS REMOVE THE AUTO LINK (rhoquinn8217,
         // 2026-09-19), and the lit button already means "press to remove"
@@ -10271,7 +10347,10 @@ function paintCompact() {
         autoBtn = claimedBy
           ? '<button class="cauto-btn on" onclick="compactAutoUnlink()" title="no config ' +
             'is set, so this stops ' + esc(claimedBy) + ' auto linking">' + autoLbl + '</button>'
-          : '<button class="cauto-btn" disabled title="pick a config first">' + autoLbl + '</button>';
+          : '<button class="cauto-btn" aria-disabled="true" onclick="explainGreyed(this)" ' +
+            'data-why="Pick a config on the wheel first: auto link remembers this ' +
+            'controller for the config it reads." title="pick a config first">' +
+            autoLbl + '</button>';
       } else if (autoOn) {
         autoBtn = '<button class="cauto-btn on" onclick="compactAutoUnlink()" title="' +
                   esc(d.linked_config) + ' auto links to this controller: press to remove">' + autoLbl + '</button>';
@@ -10286,8 +10365,9 @@ function paintCompact() {
       var archiveBtn = shown
         ? '<button class="carchive-btn warn" onclick="compactArchive()" title="archive ' +
           esc(shown) + '">Archive</button>'
-        : '<button class="carchive-btn warn" disabled title="the wheel shows no config ' +
-          'to archive">Archive</button>';
+        : '<button class="carchive-btn warn" aria-disabled="true" onclick="explainGreyed(this)" ' +
+          'data-why="The wheel shows no config. Pick one on it first, and Archive puts ' +
+          'that one away." title="the wheel shows no config to archive">Archive</button>';
       // ⭐ QUICK'S TWO PRESSES, STACKED TO THE RIGHT OF THE SELECTOR THEY ACT ON
       // (2.66.87; rhoquinn8217, 2026-10-16: "Stack the unlink and auto link
       // button descriptions", then "move the unlink and auto link to the
@@ -11581,6 +11661,8 @@ function selfTest() {
     var keepUnlink = window.unlinkConfirmed, keepStop = window.stopAutoLink,
         keepSet = window.setAutoLink, keepLinkParts = window.linkParts;
     var keepWant = QUICK_WANT, keepWantTimer = QUICK_WANT_TIMER;
+    var keepInflight = QUICK_LINK_INFLIGHT;
+    QUICK_LINK_INFLIGHT = null;
     var calls = [];
     window.unlinkConfirmed = function (o) { calls.push('unlink ' + o); };
     window.stopAutoLink = function (c, s) { calls.push('stop ' + c + ' ' + s); };
@@ -11732,9 +11814,29 @@ function selfTest() {
       ok('the wheel: three above in a list of two wraps round, and links that',
          two.value === 'cfg_a' && calls.join('|') === 'link selftest_1 cfg_a',
          two.value + ' ' + calls.join('|'));
+
+      // Square straight after a step (2026-10-22): a step not yet sent is
+      // dropped, nothing goes, and the wheel reads (no config); a step already
+      // sent is unlinked only once its link has answered (the stub never does).
+      pad.linked_config = ''; QUICK_WANT = null;
+      clearTimeout(QUICK_WANT_TIMER); QUICK_WANT_TIMER = null; QUICK_LINK_INFLIGHT = null;
+      qsel.selectedIndex = 0;
+      quickStepConfig(qsel, 1);
+      GP_FOCUS = [qsel]; GP_INDEX = 0; GP_SELECTING = null; calls = [];
+      gpSquare();
+      ok('the wheel: Square at once after a step off (no config) sends nothing and shows (no config)',
+         calls.length === 0 && !QUICK_WANT_TIMER && quickShown(pad) === '', calls.join('|'));
+      quickStepConfig(qsel, 1);
+      quickLinkNow();
+      GP_FOCUS = [qsel]; GP_INDEX = 0; calls = [];
+      gpSquare();
+      ok('the wheel: Square while the link of a step is on its way waits for it, on (no config)',
+         calls.length === 0 && !!QUICK_LINK_INFLIGHT && !!QUICK_WANT && QUICK_WANT.config === '',
+         calls.join('|'));
     } finally {
       clearTimeout(QUICK_WANT_TIMER);
       QUICK_WANT = keepWant; QUICK_WANT_TIMER = keepWantTimer;
+      QUICK_LINK_INFLIGHT = keepInflight;
       GP_FOCUS = keepFocus; GP_INDEX = keepIndex; GP_SELECTING = keepSelecting;
       LAST_DEVICES = keepDevices; CONFIGS = keepConfigs;
       window.unlinkConfirmed = keepUnlink; window.stopAutoLink = keepStop;
@@ -11751,6 +11853,23 @@ function selfTest() {
      mtexts.join('|') === 'Advanced Mode|Simple Mode|Quick Mode', mtexts.join('|'));
   ok('the mode picker has no title over it, in any view',
      modeGroupHtml().indexOf('modelabel') < 0 && !document.querySelector('.modelabel'));
+  // A greyed button in Simple says why, in the confirm box with OK alone.
+  var greyed = document.createElement('button');
+  greyed.textContent = 'Archive';
+  greyed.setAttribute('data-why', 'The wheel shows no config.');
+  var keepOpener = OVERLAY_OPENER;
+  explainGreyed(greyed);
+  var cancelBtn = document.querySelector('#confirmBox button:last-of-type');
+  ok('a greyed button says why, with OK alone',
+     document.getElementById('confirmBox').style.display === 'flex' &&
+     document.getElementById('confirmTitle').textContent === 'Archive is greyed' &&
+     document.getElementById('confirmText').textContent === 'The wheel shows no config.' &&
+     !!CONFIRM_CB && cancelBtn.style.display === 'none');
+  confirmYes();
+  OVERLAY_OPENER = keepOpener;
+  ok('and closing it puts Cancel back for the next question',
+     document.getElementById('confirmBox').style.display === 'none' &&
+     cancelBtn.style.display === '' && CONFIRM_CB === null);
   // The neighbours beside Simple's panel name the type without its link.
   ok('the neighbours: the type without (USB) or (BT), and nothing else taken off',
      typeWithoutLink('DualSense (USB)') === 'DualSense' &&
