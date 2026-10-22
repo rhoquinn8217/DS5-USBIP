@@ -93,12 +93,17 @@
             lines at 5.4 (from 3.5: "made the wheel 5 lines long"; 7 for a
             day, then "go back to the wheel being 5 lines long"), in a panel
             a little wider ("stretch the config select container
-            horizontally a litte more") with New, Edit, Unlink and Auto link
-            stacked at its right, all one size ("move New, Edit and unlink
-            above the auto link button. Expand the container to include these
-            buttons"): up and down step it, Cross links at once, right moves
-            to the buttons, up and down walk them, and off their ends lie the
-            polling limit above and the footer below. Its title names the
+            horizontally a litte more") with New, Edit, Unlink, Auto link
+            and Archive stacked at its right, all one size ("move New, Edit
+            and unlink above the auto link button. Expand the container to
+            include these buttons", then "Add an archive button below the
+            Auto link button"), Unlink in its word alone and Archive asking
+            first, as Advanced's does: up and down step it, Cross links at
+            once, right moves to New ("moving right from the config selector
+            wheel should land you on "New" all the time"), up and down walk
+            the buttons, off their bottom lies the footer, and up from the
+            footer lands on Archive ("up from the mode selector or close
+            should bring you to "archive""). Its title names the
             device type, at twice its size, and the device's symbol stands
             before the nickname, the device type line gone. That line spans
             the panel, the symbol, nickname and battery from its left edge
@@ -2212,10 +2217,14 @@
     border-radius:0.22em; background:#1d1f26; color:#e8e8ea; }
   #compactBox .cdrum-hover > span { min-width:0; line-height:1.2em; white-space:nowrap;
     overflow:hidden; text-overflow:ellipsis; }
+  /* ⓘ Five buttons since 2026-10-22 (Archive), in the wheel's 32.4vh still,
+     so the panel kept its height and the window its halved margins: each
+     0.5vh of padding over and under, from 0.7, and 0.55vh between them,
+     from 1, the text the size it was. */
   body.compact:not(.quick) #compactBox .csbtns { display:flex; flex-direction:column; align-items:stretch;
-    gap:calc(1 * var(--vh)); }
+    gap:calc(0.55 * var(--vh)); }
   body.compact:not(.quick) #compactBox .csbtns > button { font-size:calc(3.6 * var(--vh)); line-height:1.3;
-    padding:calc(0.7 * var(--vh)) 1.6vw; min-width:0; margin:0; border-width:1px;
+    padding:calc(0.5 * var(--vh)) 1.6vw; min-width:0; margin:0; border-width:1px;
     display:flex; align-items:center; justify-content:center; gap:0.35em; }
   /* ⭐ L1'S AND R1'S CARDS EITHER SIDE OF THE PANEL (rhoquinn8217, 2026-10-19:
      "move previous and next shoulder button controllers to the left and
@@ -8332,24 +8341,25 @@ function compactMove(dx, dy) {
   if (!rows.length) return false;
   var cur = GP_FOCUS[GP_INDEX];
   // ⭐ SIMPLE'S PANEL (2.66.87): right from the wheel enters its column of
-  // buttons at the one level with the wheel's frame; up and down walk the
-  // column, stopping at its top (R3 alone reaches the polling limit) and
-  // off its bottom to the footer; left goes back to the wheel. Up and down
-  // on the wheel step it (quickVertical), so the column is the way past it.
+  // buttons at New (at the one level with the wheel's frame until
+  // 2026-10-22); up and down walk the column, stopping at its top (R3 alone
+  // reaches the polling limit) and off its bottom to the footer, and up
+  // from the footer comes back to its bottom; left goes back to the wheel.
+  // Up and down on the wheel step it (quickVertical), so the column is the
+  // way past it.
   var col = QUICK ? [] : Array.prototype.slice.call(box.querySelectorAll('.csbtns > button'))
     .filter(function (e) { return !e.disabled; });
   var wheelSel = document.getElementById('cpick');
   if (col.length && wheelSel) {
     var inCol = col.indexOf(cur);
-    if (cur === wheelSel && dx > 0) {
-      var wr = wheelSel.getBoundingClientRect(), mid = wr.top + wr.height / 2;
-      var near = col[0], gapNear = Infinity;
-      col.forEach(function (b) {
-        var r = b.getBoundingClientRect(), g = Math.abs(r.top + r.height / 2 - mid);
-        if (g < gapNear) { gapNear = g; near = b; }
-      });
-      return focusElement(near);
-    }
+    // ⭐ RIGHT FROM THE WHEEL LANDS ON NEW, EVERY TIME (rhoquinn8217,
+    // 2026-10-22: "moving right from the config selector wheel should land
+    // you on "New" all the time"): the column's top, which is never greyed.
+    if (cur === wheelSel && dx > 0) return focusElement(col[0]);
+    // ⭐ UP FROM THE FOOTER LANDS ON ARCHIVE (2026-10-22: "up from the mode
+    // selector or close should bring you to "archive""), the column's foot,
+    // over them; the lowest that can be pressed while Archive cannot.
+    if (dy < 0 && bar.indexOf(cur) >= 0) return focusElement(col[col.length - 1]);
     if (inCol >= 0) {
       if (dx < 0) return focusElement(wheelSel);
       if (dx > 0) return true;
@@ -9862,6 +9872,12 @@ function compactAutoUnlink() {
 }
 
 // The compact views' Unlink: the same call the picker's "(no config)" makes.
+// Simple's Archive: the config on the wheel, asked first (archive).
+function compactArchive() {
+  var sel = document.getElementById('cpick');
+  if (sel && sel.value) archive(sel.value);
+}
+
 function compactUnlink() {
   var d = deviceByOrdinal(ACTIVE);
   if (!d || !d.linked_config) return;
@@ -10057,7 +10073,9 @@ function paintCompact() {
   // left to right as the config, what to do with it, then the two claims.
   // ⓘ Same act as picking "(no config)", so it asks nothing.
   var unlinkBtn = function () {
-    var lbl = (QUICK ? '' : 'Unlink ') + '\ud83d\udec7';
+    // ⓘ The word alone in Simple since 2026-10-22 ("in simple mode remove the
+    // symbol next to unlink"); Quick has had no button for it since 2.66.85.
+    var lbl = QUICK ? '\ud83d\udec7' : 'Unlink';
     return (d && d.linked_config)
       ? '<button class="cunlink-btn" onclick="compactUnlink()" ' +
         'title="set this controller to No config">' + lbl + '</button>'
@@ -10261,6 +10279,15 @@ function paintCompact() {
         autoBtn = '<button class="cauto-btn" onclick="compactAutoLink()" title="auto link ' +
                   esc(d.linked_config) + ' to this controller">' + autoLbl + '</button>';
       }
+      // ⭐ ARCHIVE UNDER AUTO LINK, IN SIMPLE (rhoquinn8217, 2026-10-22: "Add an
+      // archive button below the Auto link button in simple mode"): the config
+      // on the wheel, asked first as Advanced's Archive asks (archive), with
+      // its warning border; greyed while the wheel shows no config.
+      var archiveBtn = shown
+        ? '<button class="carchive-btn warn" onclick="compactArchive()" title="archive ' +
+          esc(shown) + '">Archive</button>'
+        : '<button class="carchive-btn warn" disabled title="the wheel shows no config ' +
+          'to archive">Archive</button>';
       // ⭐ QUICK'S TWO PRESSES, STACKED TO THE RIGHT OF THE SELECTOR THEY ACT ON
       // (2.66.87; rhoquinn8217, 2026-10-16: "Stack the unlink and auto link
       // button descriptions", then "move the unlink and auto link to the
@@ -10341,7 +10368,7 @@ function paintCompact() {
                 : title + wheel + '<span class="csbtns">' +
                   '<button onclick="newConfigFor(\'' + esc(d.ordinal) + '\')">New</button>' +
                   '<button onclick="setCompact(false)">Edit</button>' +
-                  unlinkBtn() + autoBtn + '</span>') +
+                  unlinkBtn() + autoBtn + archiveBtn + '</span>') +
               '</span>' + (sidesByPanel ? side(next, 'r', shoulderMark(shoulder[1]), true) : '') + '</div></div>';
     }
   }
