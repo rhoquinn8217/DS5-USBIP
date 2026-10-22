@@ -72,18 +72,16 @@
             little more by the same distance", twice). Simple's and Advanced's
             selectors are titled "Controller Config", in white just above
             the box at the left; Advanced's "currently linked config" line
-            goes. The mode picker carries a title, "Window Mode", centred on
-            the top edge of it and its size button, in all three views
-            (rhoquinn8217: "Without the "Mode" it's really hard to tell
-            what it's for", then "Instead of adding MODE to the options the
-            label "MODE" to the mode selector similar to the config selector
-            container label", then "Let's move it to the bottom of the mode
-            selection box", and "to the bottom left instead. It's to close to
-            the lock symbol", and "Change Mode label to "Window Mode"", and
-            "center the mode selector label over the mode selector and size
-            button box"). The
-            legends lose their box ("remove the box around the legend for each
-            mode"), and Quick's config panel's title is half as large again
+            goes. The mode picker's choices read ADVANCED MODE, SIMPLE MODE
+            and QUICK MODE, in all three views, with no title over it and no
+            padlock beside the current one (rhoquinn8217, after a title,
+            "Window Mode", on its top edge: "remove the Window Mode label and
+            the lock symbol from advance, simple and quick modes", then
+            "ADVANCE -> ADVANCE MODE"), and a switch of mode starts the halo
+            on the config selector ("when switching to modes, always start
+            focus on the config selector"). The legends lose their box
+            ("remove the box around the legend for each mode"), and Quick's
+            config panel's title is half as large again
             ("Double the size of the Config Selector Label in quick mode", then
             "revert the config selector label size increase and increase by
             1.5 instead"), its window 0.143 of the screen tall for it, and it
@@ -91,15 +89,30 @@
             careful not to overlap the "L1" button"); Quick's configs are 11
             from 9.5, and the controller's symbol stands over its name.
             Simple's config selector is Quick's wheel too ("Mock up a SIMPLE
-            MODE with the config selector as a wheel like quick mode"), 3.5
-            lines at 5.4, in a panel with New, Edit, Unlink and Auto link
+            MODE with the config selector as a wheel like quick mode"), 7
+            lines at 5.4 (from 3.5: "made the wheel 5 lines long", then
+            "increase the config selector wheel to 7 lines"), in a panel
+            with New, Edit, Unlink and Auto link
             stacked at its right, all one size ("move New, Edit and unlink
             above the auto link button. Expand the container to include these
             buttons"): up and down step it, Cross links at once, right moves
             to the buttons, up and down walk them, and off their ends lie the
             polling limit above and the footer below. Its title names the
             device type, at twice its size, and the device's symbol stands
-            before the nickname, the device type line gone. Quick is larger
+            before the nickname, the device type line gone. The panel grows
+            downward as the wheel does, the nickname's line staying where it
+            was ("expand the config selector container downward to fit
+            them"), and that line holds the battery, the polling rate and the
+            limit, the rate and limit at the battery's size, a g or a y in
+            the nickname whole ("Lower case "g" in the nickname in simple
+            mode is getting cut at the bottom"). The controllers before and
+            after stand either side of the panel, each past an arrow holding
+            its shoulder button, their names and types half the size. On the
+            wheel, in Simple and Quick, the mouse rings a config in sight
+            above or below the chosen one, and a click sets it and links it
+            at once ("Make them mouse clickable and set them
+            instantaneously"); the pad and the keys still step one at a
+            time. Quick is larger
             for a television: its old large size is its size now, 0.313 x
             0.196 of the screen once its contents grew, and its large one
             0.390 x 0.246 (rhoquinn8217: "quick mode's small size is too
@@ -1586,8 +1599,13 @@
      neighbours sit dimmed either side under L1 and R1, and L1/R1 rotate the
      ring. One controller shows nothing at the sides; two show the same name
      both sides, which is true -- either button reaches it. */
+  /* ⭐ CLIPPED SIDEWAYS ONLY (rhoquinn8217, 2026-10-21: "Lower case "g" in
+     the nickname in simple mode is getting cut at the bottom"): the
+     name's line is 1.1 of its size, and a g or a y reaches below it,
+     which overflow:hidden cut off. ⓘ Nothing under the name covered it,
+     so the row did not move. */
   #compactBox .ccar { display:flex; align-items:center; justify-content:center; gap:3vw;
-    width:100%; overflow:hidden; }
+    width:100%; overflow-x:clip; overflow-y:visible; }
   /* ⓘ The sides sit three characters further out than the gap alone would put
      them (rhoquinn8217, 2026-09-09), and carry the kind under the nickname. */
   #compactBox .cside { flex:1 1 0; min-width:0; color:#4e515b; font-size:calc(4.5 * var(--vh));
@@ -1739,9 +1757,13 @@
   /* ⭐ SIMPLE'S POLLING RATE AND LIMIT ON THE NAME'S LINE (rhoquinn8217,
      2026-10-20: "put the controller icon, nickname, battery, polling and
      rate limit on one line which will give clearance for the message"):
-     after the battery and a " | ", as Quick's, at their own size and
-     weight, on the line's middle. */
-  body.compact:not(.quick) #compactBox .cname > .crate { margin-top:0; font-weight:400; }
+     after the battery and a " | ", as Quick's, in their own weight, on the
+     line's middle; at the battery's size since 2026-10-21 ("in simple mode
+     make font size o polling/rate limit the same as battery"), the
+     gauge's number being 0.8 of the gauge's 0.6 of the name, and the
+     limit's box at its words' size. */
+  body.compact:not(.quick) #compactBox .cname > .crate { margin-top:0; font-weight:400; font-size:0.48em; }
+  body.compact:not(.quick) #compactBox .cname > .crate select { font-size:1em; }
   body.compact:not(.quick) #compactBox .cname .cnsep { font-size:calc(5 * var(--vh)); font-weight:400;
     color:#71737c; margin:0 0.5em; }
   /* ⭐ Simple's limit with R3's mark where its arrow was, as Quick's
@@ -1822,9 +1844,13 @@
      is what pushed the text off centre. Trimming the vertical padding reaches
      the same outer height with nothing compressed.
      Solved, not guessed: bare select + 2 x padding = the button's height.
-     Simple 27 + 2 x 0.79vh = 35.2; Quick 20 + 2 x 0.31vh = 21.1.
+     Simple 27 + 2 x 0.79vh = 35.2; Quick 20 + 2 x 0.31vh = 21.1. Solved
+     again with no arrow (2026-10-21, appearance:none, below), at 1152 x
+     596 and 801 x 243: Simple 28.66 + 2 x 0.864vh = 38.96, Close's;
+     Quick 22.65 + 2 x 0.926 of its vh = 26.92, Close's, which it had
+     fallen 1.5 px short of since Quick grew.
      Both move if the font or the button's padding above changes. */
-  #compactBox .cbar select.modepick { padding-top:calc(0.79 * var(--vh)); padding-bottom:calc(0.79 * var(--vh)); }
+  #compactBox .cbar select.modepick { padding-top:calc(0.864 * var(--vh)); padding-bottom:calc(0.864 * var(--vh)); }
   /* ⭐⭐ THE MODE IDENTIFIER NOW LIVES ON THE PICKER ITSELF (rhoquinn8217,
      2026-09-20): *"The Mode select clearly show what mode the window is in so
      we don't need the Yellow Bolded mode title in the legend for each mode
@@ -1843,8 +1869,28 @@
     letter-spacing:.08em; text-transform:uppercase; }
   #compactBox .cbar select.modepick option { color:#e8e8ea; font-weight:400;
     letter-spacing:normal; text-transform:none; }
-  body.quick #compactBox .cbar select.modepick { padding-top:calc(0.31 * var(--vh));
-    padding-bottom:calc(0.31 * var(--vh)); }
+  /* ⭐ AS WIDE AS THE MODE IT SHOWS, AND NO ARROW, IN ALL THREE VIEWS
+     (2026-10-21): a select is as wide as its longest option, and ADVANCED
+     MODE (rhoquinn8217: "ADVANCE -> ADVANCE MODE") took 75 px from
+     Simple's legend, which went onto a second line and pushed the footer
+     into the config panel; so it is sized to the choice on show, and its
+     down arrow is gone ("remove the down carrot on the mode selector to
+     give room for the entire mode name"). ⛔ And the same width open:
+     sized as its widest while its list was out, it grew under the footer
+     as the list opened, and the legend and tip moved (pickerExpand's
+     slot holds the closed size). */
+  select.modepick { field-sizing:content; appearance:none; -webkit-appearance:none; }
+  /* ⭐ NO SCROLLBAR ON THE OPEN LISTS (rhoquinn8217, 2026-10-21: "When the
+     mode selector opens up, the expanded selector window doesn't need the
+     scroll bar. The polling rate limit selector box in simple and quick
+     modes also don't need a scroll bar."): each opens tall enough for its
+     every choice (pickerExpand), and the bar took the room Real time
+     needed. */
+  select.modepick, #compactBox .crate select, #compactBox .crate-q select { scrollbar-width:none; }
+  select.modepick::-webkit-scrollbar, #compactBox .crate select::-webkit-scrollbar,
+  #compactBox .crate-q select::-webkit-scrollbar { display:none; }
+  body.quick #compactBox .cbar select.modepick { padding-top:calc(0.926 * var(--vh));
+    padding-bottom:calc(0.926 * var(--vh)); }
   /* ⭐ THE SIZE BUTTON, FLUSH AGAINST THE PICKER HERE TOO (rhoquinn8217,
      2026-10-09), as in Advanced's footer: the two share .cgroup, which
      stretches the button to the picker's height, so the two cannot differ
@@ -2049,33 +2095,21 @@
      height and the button stretches to it, so the two cannot drift apart. */
   .modeclose { display:inline-flex; align-items:center; gap:7px; margin-left:8px; }
   .modegroup { display:inline-flex; align-items:stretch; }
-  /* ⭐ THE MODE PICKER'S TITLE, "Window Mode", CENTRED ON THE TOP EDGE OF THE
-     PICKER AND ITS SIZE BUTTON (2.66.87; rhoquinn8217, 2026-10-17, after
-     tries above the box, which pushed the footer down, and on its bottom
-     edge: "center the mode selector label over the mode selector and size
-     button box"). Its letters stand on the edge, most of it above, the
-     bar's colour behind that part so the edge stops behind the letters,
-     nothing behind the rest so the picker's own text is never covered; the
-     pad's focus ring is notched under it. Within the footer's room above
-     the box, so nothing moves. A little smaller than each view's config
-     title; a click passes through to the picker. */
-  .modegroup, .cgroup { position:relative; }
-  .modelabel { position:absolute; left:50%; top:0; transform:translate(-50%, -60%);
-    z-index:2; padding:0 0.45em; font-size:10px; line-height:1.25; color:#e8e8ea;
-    font-weight:600; white-space:nowrap; pointer-events:none;
-    background:linear-gradient(to bottom, #1d1f26 calc(60% + 1px), transparent calc(60% + 1px)); }
-  #compactBox .cbar .modelabel { font-size:calc(2.4 * var(--vh)); transform:translate(-50%, -70%);
-    background:linear-gradient(to bottom, #15161a calc(70% + 1px), transparent calc(70% + 1px)); }
-  body.quick #compactBox .cbar .modelabel { font-size:calc(4.2 * var(--vh)); }
+  /* ⓘ No title over the mode picker since 2026-10-21 (rhoquinn8217:
+     "remove the Window Mode label and the lock symbol from advance, simple
+     and quick modes"): one stood centred on the picker's top edge from
+     2.66.87, and its choices say Mode themselves now (modePickerHtml). */
   /* ⭐ SIMPLE'S CONFIG SELECTOR AS QUICK'S WHEEL, IN A PANEL WITH ITS BUTTONS
      (2.66.87; rhoquinn8217, 2026-10-17: "Mock up a SIMPLE MODE with the
      config selector as a wheel like quick mode", then "move New, Edit and
      unlink above the auto link button. Expand the container to include
      these buttons", "make all the buttons ... consistent", "increase the
      the wheel height and the text size" and "increase the config selector
-     label to 2x", then "made the wheel 5 lines long"): the wheel 32.4vh,
-     5 lines of its 5.4vh text, the middle one solid and two fading each
-     side, at Simple's old selector's width; its four buttons one size, stacked at
+     label to 2x", then "made the wheel 5 lines long", then 2026-10-21:
+     "increase the config selector wheel to 7 lines, keep the font size"):
+     the wheel 45.36vh, 7 lines of its 5.4vh text, the middle one solid
+     and three fading each side, at Simple's old selector's width; its four
+     buttons one size, stacked at
      its right; the title over the panel at twice its size (on its edge
      and smaller since 2026-10-19, below). ⓘ The panel's padding is 3vh
      top and bottom. With the title above the panel it was 1.2vh for the 5
@@ -2091,16 +2125,18 @@
      panel is only that top half now, 3.75vh less, and the panel's padding
      took it back, so the panel ends where it did. */
   body.compact:not(.quick) #compactBox .csel { padding-top:calc(2.25 * var(--vh)); }
-  /* ⭐ SIMPLE'S PANEL VIEW CENTRED BETWEEN THE WINDOW'S TOP AND THE FOOTER'S
-     LINE (rhoquinn8217, 2026-10-20: "add space between the controller config
-     container and the line break so that it is the same space between the
-     top edge of the window and the top of the nickname"): the content in the
-     middle of what is left, with 6vh more under it than over it, the box's
-     4vh top padding and the 2vh from the name's line to the top of its
-     letters, so the room over the nickname and the room under the panel
-     match. The notice bubbles keep the window's top right corner. */
-  body.compact:not(.quick) #compactBox .cmain.cpanel { padding-top:0; padding-bottom:calc(6 * var(--vh));
-    justify-content:center; justify-content:safe center; }
+  /* ⭐ SIMPLE'S PANEL VIEW HELD AT THE TOP, THE PANEL GROWING DOWNWARD
+     (rhoquinn8217, 2026-10-21: "increase the config selector wheel to 7
+     lines, keep the font size and expand the config selector container
+     downward to fit them"): the nickname's line 9vh under the box's top
+     padding, where the view centred with 5 lines put it (2026-10-20: "add
+     space between the controller config container and the line break so
+     that it is the same space between the top edge of the window and the
+     top of the nickname"), so a notice of two lines in the window's top
+     right corner still clears it; the two lines more, 13vh, come out of
+     the room under the panel, which keeps 2vh above the footer's line. */
+  body.compact:not(.quick) #compactBox .cmain.cpanel { padding-top:calc(9 * var(--vh)); padding-bottom:0;
+    justify-content:flex-start; }
   body.compact:not(.quick) #compactBox .cpick-label { font-size:calc(3.6 * var(--vh)); top:0; bottom:auto;
     transform:translateY(-50%); background:linear-gradient(to bottom, #15161a 50%, #1d1f26 50%); }
   body.compact:not(.quick) #compactBox .cname .devemo { font-size:0.8em; margin-right:0.3em; }
@@ -2108,7 +2144,7 @@
     column-gap:2vw; padding:calc(3 * var(--vh)) 2vw; min-width:0; box-sizing:border-box;
     background:#1d1f26; border:1px solid #2c2e36; border-radius:8px; }
   body.compact:not(.quick) #compactBox .cwheel { position:relative; display:inline-flex; min-width:47vw; }
-  body.compact:not(.quick) #compactBox .cwheel > select { opacity:0; height:calc(32.4 * var(--vh));
+  body.compact:not(.quick) #compactBox .cwheel > select { opacity:0; height:calc(45.36 * var(--vh));
     font-size:calc(5.4 * var(--vh)); appearance:none; -webkit-appearance:none;
     width:100%; min-width:0; border:0; padding:0 0.9em; }
   body.compact:not(.quick) #compactBox .cdrum { position:absolute; inset:0; pointer-events:none; border-radius:6px;
@@ -2118,13 +2154,25 @@
     border:2px solid #3a3d47; border-radius:0.22em; background:#262833; }
   body.compact:not(.quick) #compactBox .cwheel:has(> select.gp-focus) .cdrum-frame { border-color:#6c8cff; background:#2a3566; }
   body.compact:not(.quick) #compactBox .cdrum-view { position:absolute; inset:0; overflow:hidden; border-radius:inherit;
-    -webkit-mask-image:linear-gradient(to bottom, transparent, #000 40%, #000 60%, transparent);
-            mask-image:linear-gradient(to bottom, transparent, #000 40%, #000 60%, transparent); }
+    -webkit-mask-image:linear-gradient(to bottom, transparent, #000 42.9%, #000 57.1%, transparent);
+            mask-image:linear-gradient(to bottom, transparent, #000 42.9%, #000 57.1%, transparent); }
   body.compact:not(.quick) #compactBox .cdrum-track { position:absolute; left:0; right:0; top:50%; height:0; }
   body.compact:not(.quick) #compactBox .cdrum-row { position:absolute; left:0; right:0; height:1.2em; margin-top:-0.6em;
     line-height:1.2em; padding:0 0.5em; text-align:center; white-space:nowrap;
     overflow:hidden; text-overflow:ellipsis; color:#9a9ca5; }
   body.compact:not(.quick) #compactBox .cdrum-row.on { color:#e8e8ea; }
+  /* ⭐ THE CONFIG UNDER THE MOUSE, RINGED, IN SIMPLE AND QUICK (rhoquinn8217,
+     2026-10-21: "hovering over unselected configs in the config selector
+     wheel with a mouse should halo/focus on them"): the halo's blue round a
+     config in sight above or below the chosen one, the frame's size, its
+     name at full strength over the fading; a click sets it (drumHover,
+     quickPickRow). The mouse's alone: the pad's halo stays where it was. */
+  #compactBox .cdrum-hover { position:absolute; left:0.18em; right:0.18em; height:1.3em;
+    margin-top:-0.65em; box-sizing:border-box; display:flex; align-items:center;
+    justify-content:center; padding:0 0.32em; border:2px solid #6c8cff;
+    border-radius:0.22em; background:#1d1f26; color:#e8e8ea; }
+  #compactBox .cdrum-hover > span { min-width:0; line-height:1.2em; white-space:nowrap;
+    overflow:hidden; text-overflow:ellipsis; }
   body.compact:not(.quick) #compactBox .csbtns { display:flex; flex-direction:column; align-items:stretch;
     gap:calc(1 * var(--vh)); }
   body.compact:not(.quick) #compactBox .csbtns > button { font-size:calc(3.6 * var(--vh)); line-height:1.3;
@@ -2165,7 +2213,12 @@
   body.compact:not(.quick) #compactBox .cselrow > .cside { display:flex; align-items:center; gap:0.5em; }
   body.compact:not(.quick) #compactBox .cselrow > .cside.l { margin-left:-3vw; justify-content:flex-end; }
   body.compact:not(.quick) #compactBox .cselrow > .cside.r { margin-right:-3vw; justify-content:flex-start; }
-  body.compact:not(.quick) #compactBox .cstext { min-width:0; }
+  /* ⭐ THE NEIGHBOURS' NAMES AND TYPES AT HALF THEIR SIZE (rhoquinn8217,
+     2026-10-21: "in simple mode, reduce the text of the next/previous
+     controller to half it's size"), the arrows as they were. */
+  body.compact:not(.quick) #compactBox .cstext { min-width:0; font-size:0.5em; }
+  body.compact:not(.quick) #compactBox .cselrow > .cside .cstext .ckind { font-size:calc(1.5 * var(--vh));
+    margin-top:calc(0.2 * var(--vh)); }
   body.compact:not(.quick) #compactBox .carrow { position:relative; flex:0 0 auto; display:inline-flex;
     align-items:center; justify-content:flex-end; width:1.616em; height:3.525em; box-sizing:border-box;
     padding-right:0.147em; }
@@ -2616,14 +2669,12 @@
   <span id="gpend">
   <span id="padDest" class="muted">controllers → game</span>
   <!-- T-233: one Mode picker replaces the Simple and Quick buttons. It is
-       filled by paintModePickers(), which runs on every mode change, and it
-       carries the padlock beside whichever mode is current. -->
+       filled by paintModePickers(), which runs on every mode change. -->
   <!-- ⭐ THE PICKER, THE SIZE BUTTON AND CLOSE (rhoquinn8217, 2026-10-09):
        the 🗗 sits flush against the picker at its height, and Close comes a
        little closer than the cluster's own gap. See .modeclose in the style. -->
   <span class="modeclose">
   <span class="modegroup">
-  <label class="modelabel" for="modePick">Window Mode</label>
   <!-- ⭐ The 🗗 on the picker's left (rhoquinn8217, 2026-10-19), as in the
        compact bars. -->
   <button id="sizeBtn" onclick="sizeNext()"
@@ -6254,11 +6305,13 @@ var DRUM_ROLL_MS = 220;
 var DRUM_LAST = null;         // { ord, at }: what the drum last showed
 var DRUM_ROLL = null;         // { from, t0, ms }: a roll under way
 
-// ⓘ Four each side: Simple's wheel shows two (2026-10-19), and a roll of two
-// steps starts with the track two rows out.
+// ⓘ Six each side: Simple's wheel shows three (2026-10-21), and a roll of
+// three steps, a click's longest, starts with the track three rows out.
+var DRUM_REACH = 6;           // rows drawn each side of the choice
+var DRUM_ROLL_ROWS = 3;       // the longest roll; a longer step starts this far out
 function drumRows(sel) {
   var n = sel.options.length, at = Math.max(0, sel.selectedIndex), html = '';
-  for (var k = -4; k <= 4; k++) {
+  for (var k = -DRUM_REACH; k <= DRUM_REACH; k++) {
     if (n < 2 && k !== 0) continue;
     var i = ((at + k) % n + n) % n;
     html += '<span class="cdrum-row' + (k === 0 ? ' on' : '') + '" style="top:' +
@@ -6288,7 +6341,8 @@ function drumPaint(delta) {
   DRUM_LAST = { ord: ord, at: at };
   var now = performance.now(), from = 0, ms = DRUM_ROLL_MS;
   if (delta) {
-    from = Math.max(-2, Math.min(2, delta)) * DRUM_PITCH_EM + (delta > 0 ? 1 : -1) * drumGap();
+    from = Math.max(-DRUM_ROLL_ROWS, Math.min(DRUM_ROLL_ROWS, delta)) * DRUM_PITCH_EM +
+           (delta > 0 ? 1 : -1) * drumGap();
     DRUM_ROLL = { from: from, t0: now, ms: ms };
   } else if (DRUM_ROLL && now - DRUM_ROLL.t0 < DRUM_ROLL.ms) {
     ms = DRUM_ROLL.ms - (now - DRUM_ROLL.t0);
@@ -6306,7 +6360,9 @@ function quickStepConfig(sel, delta) {
   focusElement(sel);
   var n = sel.options.length;
   if (n < 2) return;
-  sel.selectedIndex = (sel.selectedIndex + delta + n) % n;
+  // ⓘ Wrapped either way however far: a click may step three, past a list of two.
+  sel.selectedIndex = ((sel.selectedIndex + delta) % n + n) % n;
+  drumHover(null);
   drumPaint(delta);
   QUICK_WANT = { ordinal: sel.getAttribute('data-ordinal') || '', config: sel.value,
                  at: Date.now() };
@@ -6347,6 +6403,57 @@ function quickWheel(ev) {
   QUICK_WHEEL = 0;
   var sel = document.getElementById('cpick');
   if (sel) quickStepConfig(sel, dir);
+}
+
+// ⭐ THE MOUSE REACHES ANY CONFIG IN SIGHT ON THE WHEEL (rhoquinn8217,
+// 2026-10-21: "hovering over unselected configs in the config selector wheel
+// with a mouse should halo/focus on them. Make them mouse clickable and set
+// them instantaneously instead of scroll up or down once. This is only with
+// mouse."): the config under the pointer, above or below the chosen one, is
+// ringed in the halo's blue, and a click sets it and links it at once
+// (quickPickRow). ⓘ Read from where the pointer is against where the rows
+// are drawn: the rows are pictures, never controls, so the pad and the keys
+// cannot reach them and still step one at a time ("Keyboard and controller
+// should not be able to navigate to unselected configs in the wheel").
+// The row under clientY, counted from the chosen one: the nearest whose
+// middle is in the wheel's window, 0 for the chosen one or for none.
+function drumRowAt(sel, clientY) {
+  var drum = sel.parentNode && sel.parentNode.querySelector('.cdrum');
+  if (!drum || sel.options.length < 2) return 0;
+  var box = drum.getBoundingClientRect();
+  var em = parseFloat(getComputedStyle(drum).fontSize) || 0;
+  if (!em || !box.height) return 0;
+  var at = (clientY - box.top - box.height / 2) / em;
+  var half = box.height / 2 / em;
+  var best = 0;
+  for (var k = -DRUM_REACH; k <= DRUM_REACH; k++) {
+    if (Math.abs(drumTop(k)) >= half) continue;
+    if (Math.abs(drumTop(k) - at) < Math.abs(drumTop(best) - at)) best = k;
+  }
+  return best;
+}
+
+// Rings the config under the pointer, or none: ev null when the pointer has
+// left, or the wheel has just moved under it.
+function drumHover(ev) {
+  var sel = document.getElementById('cpick');
+  var ring = document.querySelector('#compactBox .cdrum-hover');
+  if (!sel || !ring) return;
+  var k = ev ? drumRowAt(sel, ev.clientY) : 0;
+  sel.style.cursor = k ? 'pointer' : '';
+  if (!k) { ring.style.display = 'none'; return; }
+  var n = sel.options.length;
+  ring.firstChild.textContent = sel.options[((sel.selectedIndex + k) % n + n) % n].text;
+  ring.style.top = 'calc(50% + ' + drumTop(k) + 'em)';
+  ring.style.display = '';
+}
+
+// A click on a config in sight: there and then, and linked at once as the
+// pad's Cross links what is on screen; the ring goes until the pointer
+// moves again (quickStepConfig).
+function quickPickRow(sel, k) {
+  quickStepConfig(sel, k);
+  quickLinkNow();
 }
 
 // ⭐ A redraw must not move the page under you. renderTabs rebuilds panes with
@@ -7467,13 +7574,15 @@ function pickerExpand(el) {
   // fit; Quick's is capped at 58vw by `body.quick #compactBox select` so that
   // the row still has room for Unlink and 🗘 beside it -- which is right for
   // the CLOSED box and wrong for the open one, where nothing is beside it.
+  // ⓘ And Simple's rate limit (2026-10-21): at the battery's size its Real
+  // time filled the box's width exactly, with no room left over.
   //
   // ➡️ The longest option is MEASURED in the box's own font rather than
   // guessed at, so a list of short names does not get a silly wide box. Then
   // it is centred on the collapsed box and clamped to the window, the same way
   // the height is -- it grows left and right, not just right.
   var w = Math.round(rect.width);
-  if (QUICK) {
+  if (QUICK || (COMPACT && el.closest && el.closest('#compactBox .crate'))) {
     var cs = getComputedStyle(el);
     var canvas = pickerExpand._canvas ||
                  (pickerExpand._canvas = document.createElement('canvas'));
@@ -8980,20 +9089,12 @@ function sizeButtonHtml() {
          'title="the next size for this window, as Create does on the pad">&#x1F5D7;</button>';
 }
 // The compact bars' Mode picker with the 🗗 against it, one group.
-// ⭐ THE MODE PICKER'S TITLE (2.66.87; rhoquinn8217, 2026-10-17: "the label
-// "MODE" to the mode selector similar to the config selector container
-// label"), on the picker's top edge at the left. A click passes through it
-// to the picker. ⓘ Advanced's is written into its bar, below, the same.
-function modeTitleHtml(forId) {
-  return '<label class="modelabel" for="' + forId + '">Window Mode</label>';
-}
-
 // ⭐ THE 🗗 ON THE PICKER'S LEFT (2.66.87; rhoquinn8217, 2026-10-19: "put the
 // mode selector on the right side and the resize on the left side in all
-// modes"), and in Advanced's footer the same.
+// modes"), and in Advanced's footer the same. ⓘ No title over the two since
+// 2026-10-21 ("remove the Window Mode label"): the choices say Mode.
 function modeGroupHtml() {
-  return '<span class="cgroup">' + modeTitleHtml('cselMode') + sizeButtonHtml() +
-         modePickerHtml('cselMode') + '</span>';
+  return '<span class="cgroup">' + sizeButtonHtml() + modePickerHtml('cselMode') + '</span>';
 }
 
 // ⭐ OPEN ON BRIDGE (rhoquinn8217, 2026-10-09): whether a bridge brings this
@@ -9292,7 +9393,9 @@ function sizeOnOpen() {
 // ⭐ THE MARKER IS THE LOCK. "Locked" means the window stops changing mode on
 // its OWN -- which is the same thing as Create no longer forcing Quick. There
 // is no separate lock state to store: the absence of auto-switching IS the
-// lock, and the padlock beside the current mode says it is on.
+// lock. ⓘ A padlock beside the current mode said so until 2026-10-21
+// (rhoquinn8217: "remove the Window Mode label and the lock symbol"); the
+// lock holds without it.
 // ⓘ rhoquinn8217 chose a GLOBAL lock over a per-config one (2026-09-19), so
 // nothing here is stored per config and the listener is not involved.
 //
@@ -9303,16 +9406,16 @@ function sizeOnOpen() {
 // off the bottom of the window. ⓘ It also means the pad steps it in place,
 // which is the behaviour Quick's config selector already has.
 function modePickerHtml(id) {
-  // The padlock, by code point: no escape for any layer to mangle.
-  var LOCK = String.fromCodePoint(0x1F512);
   var cur = modeName();
-  // ⓘ The choices name the modes alone: the picker's title says Mode
-  // (2.66.87; modeTitleHtml).
-  var opts = [['advanced', 'Advanced'], ['simple', 'Simple'], ['quick', 'Quick']]
+  // ⭐ EACH CHOICE SAYS MODE, AND NO PADLOCK MARKS THE CURRENT ONE (2.66.87;
+  // rhoquinn8217, 2026-10-21: "remove the Window Mode label and the lock
+  // symbol from advance, simple and quick modes", then "ADVANCE -> ADVANCE
+  // MODE"): the picker has no title over it now. ⓘ The style writes them in
+  // capitals, as it did the bare names.
+  var opts = [['advanced', 'Advanced Mode'], ['simple', 'Simple Mode'], ['quick', 'Quick Mode']]
     .map(function (m) {
-      var label = m[1] + (m[0] === cur ? " " + LOCK : "");
       return '<option value="' + m[0] + '"' + (m[0] === cur ? ' selected' : '') +
-             '>' + label + '</option>';
+             '>' + m[1] + '</option>';
     }).join('');
   return '<select class="modepick" id="' + id + '" size="1" ' +
          'title="which layout this window opens in" ' +
@@ -9356,10 +9459,20 @@ function pickMode(v) {
   setMode(v);
 }
 
+// ⭐ A SWITCH OF MODE STARTS THE HALO ON THE CONFIG SELECTOR (rhoquinn8217,
+// 2026-10-21: "when switching to modes, always start focus on the config
+// selector"): the wheel in Simple and Quick, the controller's picker in
+// Advanced, whatever the switch was made from. ⓘ Taken by the next paint of
+// the compact box -- a mouse's pick holds that back until the Mode picker's
+// list has shut (pickerClickEnd) -- or by setCompact in Advanced. Not when
+// a window opens in the mode it remembers (restore).
+var MODE_FOCUS_CONFIG = false;
+
 function setMode(m, restore) {
   var quick = (m === 'quick');
   var compact = (m !== 'advanced');
   var quickChanged = (quick !== QUICK);
+  if (!restore && (quickChanged || compact !== COMPACT)) MODE_FOCUS_CONFIG = true;
   // ⓘ A footer zone belongs to the layout it was entered in: a switch made
   // from the Mode picker inside one leaves it (2.66.85), or the next
   // layout would gather its focus from a bar no longer on screen.
@@ -9513,6 +9626,8 @@ function restoreView() {
 function setCompact(on, restore) {
   on = !!on;
   if (on === COMPACT) return;
+  // ⓘ Edit and "Customize it" come here directly (MODE_FOCUS_CONFIG).
+  if (!restore) MODE_FOCUS_CONFIG = true;
   COMPACT = on;
   document.body.classList.toggle('compact', on);
   paintTitle();
@@ -9538,7 +9653,10 @@ function setCompact(on, restore) {
     if (!restore) fitWindow();
     gpCollect();
     GP_INDEX = 0;
-    gpPaint();
+    // ⭐ On the controller's config picker after a switch (MODE_FOCUS_CONFIG).
+    var toPicker = MODE_FOCUS_CONFIG;
+    MODE_FOCUS_CONFIG = false;
+    if (!(toPicker && focusElement(configPicker()))) gpPaint();
   }
 }
 // Create used to reach the page as KeyC and, since T-233, only moved focus
@@ -9736,16 +9854,16 @@ function pickerActivate(ev, sel) {
   if (!COMPACT && !(sel.classList && sel.classList.contains('modepick'))) return;
   // ⭐ QUICK'S CONFIG SELECTOR DOES NOT EXPAND (2.66.85): a click puts the
   // halo on it, and the wheel or up and down step it.
-  // ⓘ On its drum (2.66.87), a click on the config showing above or below
-  // the front one steps to it, as a tap on a phone's picker does.
+  // ⓘ On its drum (2.66.87), a click on a config in sight above or below
+  // the front one sets it and links it at once (2026-10-21: "set them
+  // instantaneously instead of scroll up or down once"), as a tap on a
+  // phone's picker does (drumRowAt).
   // ⓘ Simple's too since its selector became a wheel (2.66.87).
   if (COMPACT && sel.id === 'cpick') {
     ev.preventDefault();
     focusElement(sel);
-    var box = sel.getBoundingClientRect();
-    var y = box.height ? (ev.clientY - box.top) / box.height : 0.5;
-    if (y < 0.28) quickStepConfig(sel, -1);
-    else if (y > 0.72) quickStepConfig(sel, 1);
+    var row = drumRowAt(sel, ev.clientY);
+    if (row) quickPickRow(sel, row);
     return;
   }
   // ⓘ Counted for EVERY press, including the ones that land on an option
@@ -10068,9 +10186,11 @@ function paintCompact() {
                   ' onmousedown="pickerActivate(event,this)"' +
                   ' onclick="pickerClickEnd(this)"' +
                   ' onwheel="quickWheel(event)"' +
+                  ' onmousemove="drumHover(event)" onmouseleave="drumHover(null)"' +
                   ' onchange="compactPick()">' + opts + '</select>' +
                   '<span class="cdrum" aria-hidden="true"><span class="cdrum-frame"></span>' +
-                  '<span class="cdrum-view"><span class="cdrum-track"></span></span></span>' +
+                  '<span class="cdrum-view"><span class="cdrum-track"></span></span>' +
+                  '<span class="cdrum-hover" style="display:none"><span></span></span></span>' +
                   '</span>';
       // The selector, sliding with the ring (rhoquinn8217, 2026-09-09), in a
       // panel in both views.
@@ -10179,7 +10299,10 @@ function paintCompact() {
   // is gone -- does it land where the next press should go: the selector when
   // there is something to pick, the big button when there is not.
   var have = GP_FOCUS[GP_INDEX];
-  if (!(have && box.contains(have) && focusKeyOf(have) === GP_WANT)) {
+  // ⓘ And there after a switch of mode, wherever the halo was (MODE_FOCUS_CONFIG).
+  var fresh = MODE_FOCUS_CONFIG;
+  MODE_FOCUS_CONFIG = false;
+  if (fresh || !(have && box.contains(have) && focusKeyOf(have) === GP_WANT)) {
     // ⓘ Close by its class: the 🗗 is the bar's first button now (2026-10-09).
     var want = document.getElementById('cpick') || box.querySelector('button.cbig') ||
                box.querySelector('button.cclose') || box.querySelector('button');
@@ -11445,6 +11568,28 @@ function selfTest() {
       ok('Quick: \u2715 on the wheel links the config on screen at once',
          calls.join('|') === 'link selftest_1 (none)' && GP_SELECTING === null,
          calls.join('|'));
+
+      // A click on a config in sight sets it there and then, however far,
+      // and links it without the wait a step leaves (2026-10-21).
+      calls = [];
+      qsel.selectedIndex = 0;
+      quickPickRow(qsel, 2);
+      ok('the wheel: a click two below sets that config and links it at once',
+         qsel.value === 'cfg_b' && calls.join('|') === 'link selftest_1 cfg_b' && !QUICK_WANT_TIMER,
+         qsel.value + ' ' + calls.join('|'));
+      var two = document.createElement('select');
+      two.setAttribute('data-ordinal', 'selftest_1');
+      ['', 'cfg_a'].forEach(function (v) {
+        var o = document.createElement('option');
+        o.value = v;
+        o.textContent = v || '(no config)';
+        two.appendChild(o);
+      });
+      calls = [];
+      quickPickRow(two, -3);
+      ok('the wheel: three above in a list of two wraps round, and links that',
+         two.value === 'cfg_a' && calls.join('|') === 'link selftest_1 cfg_a',
+         two.value + ' ' + calls.join('|'));
     } finally {
       clearTimeout(QUICK_WANT_TIMER);
       QUICK_WANT = keepWant; QUICK_WANT_TIMER = keepWantTimer;
@@ -11454,6 +11599,16 @@ function selfTest() {
       window.setAutoLink = keepSet; window.linkParts = keepLinkParts;
     }
   }
+
+  // The mode picker: each choice says Mode, no padlock, no title (2026-10-21).
+  var mp = document.createElement('div');
+  mp.innerHTML = modePickerHtml('modepick-selftest');
+  var mtexts = Array.prototype.map.call(mp.querySelectorAll('option'),
+                                        function (o) { return o.textContent; });
+  ok('the mode picker reads Advanced Mode, Simple Mode and Quick Mode, no padlock',
+     mtexts.join('|') === 'Advanced Mode|Simple Mode|Quick Mode', mtexts.join('|'));
+  ok('the mode picker has no title over it, in any view',
+     modeGroupHtml().indexOf('modelabel') < 0 && !document.querySelector('.modelabel'));
 
   // Leave the page as it was found.
   renderTabs(LAST_DEVICES || []);
