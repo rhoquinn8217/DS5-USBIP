@@ -104,8 +104,15 @@ inline std::atomic_int g_size{0};
 // a large screen the compact view still needs to be sized to the room, so R3
 // cycles a second table while the page is compact, with a position of its own.
 //
-//   medium  0.45 x 0.45   what the page opens Simple at, so the two agree
-//   large   0.56 x 0.56
+//   medium  0.45 x 0.3879   what the page opens Simple at, so the two agree
+//   large   0.56 x 0.4819
+// ⭐ SHORTER SINCE 2026-10-22 (rhoquinn8217: "shrink the height of the window
+// so that the margin between the nickname and battery and the upper window
+// edge is halved and the margin between the config selector and the line
+// break is halved"): from 0.45 x 0.45 and 0.56 x 0.56, each page 0.855 of
+// its height at 150% on a work area 2088 tall, its title bar 44.7. The
+// page's sizes are in a unit of its own, --vh, which Simple makes the old
+// window's height in hundredths, so nothing on it gets smaller.
 // ⓘ Simple keeps its medium and large (rhoquinn8217, 2026-09-09); the 0.34
 // small is gone. ⛔ A quarter came off the width and a sixth off the height
 // the same evening and both went straight back: Simple holds the preset
@@ -116,7 +123,7 @@ inline std::atomic_int g_size{0};
 // for compact (rhoquinn8217, 2026-09-09: smallest first), large for full --
 // which is exactly the size the page resizes to on the switch, so R3 always
 // cycles from where the window actually is.
-inline const SizeShare kCompactSizes[2] = { { 0.45, 0.45 }, { 0.56, 0.56 } };
+inline const SizeShare kCompactSizes[2] = { { 0.45, 0.3879 }, { 0.56, 0.4819 } };
 inline std::atomic_int  g_sizeCompact{0};
 inline std::atomic_bool g_compact{false};
 

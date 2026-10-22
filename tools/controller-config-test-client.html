@@ -114,10 +114,13 @@
             after stand either side of the panel, each past a narrow arrow
             holding its shoulder button ("squash the next and previous
             triangles horizontally"), the nickname on the arrow's point with
-            the device's symbol over it, and the type under the arrow at the
-            panel's side, at half the nickname's size, on up to two lines
-            and cut with "..." past them, without the (USB) or (BT) that
-            Advanced and the panel's title keep. On the
+            the device's symbol over it and the type under it, both centred
+            on the name, the type at half its size, on up to two lines and
+            cut with "..." past them, without the (USB) or (BT) that
+            Advanced and the panel's title keep. Simple's window is shorter,
+            0.3879 of the screen's height from 0.45, the room over the
+            nickname's line and under the panel each halved and nothing on
+            it smaller ("shrink the height of the window"). On the
             wheel, in Simple and Quick, the mouse rings a config in sight
             above or below the chosen one, and a click sets it and links it
             at once ("Make them mouse clickable and set them
@@ -1233,6 +1236,17 @@
      "make the large size the small one"), so 0.9486 of its vh. The window
      is as tall as what it holds at that unit; the large size scales it. */
   body.quick { --vh:calc(1vh * 0.9486); }
+  /* ⓘ Simple's --vh is the unit its window had at 0.45 x 0.45 of the screen,
+     596.6 px of page at 150% on a work area 2088 tall, the title bar 44.7:
+     the window is shorter since 2026-10-22, 0.3879 of the screen's height
+     (rhoquinn8217: "shrink the height of the window so that the margin
+     between the nickname and battery and the upper window edge is halved
+     and the margin between the config selector and the line break is
+     halved"), its page 510.2 px, the 85.9 over the line and under the
+     panel 43 each, and nothing on it smaller: 1.1694 of its vh. ⓘ The
+     notices and the dialogs keep the window's own vh, so they still fit
+     it, their text 14.5% smaller. */
+  body.compact:not(.quick) { --vh:calc(1vh * 1.1694); }
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
   /* ⓘ Bottom padding leaves room for the fixed status bar, or it would cover
@@ -2252,16 +2266,17 @@
      it's size", then "Double the size of the next/previous nickname" and
      "Make the next/previous device type smaller that the nickname"): the
      name 4.5vh again, the type 2.25vh (3vh to start, 1.5 at half).
-     ⭐ THE NICKNAME ON THE ARROW'S POINT, ITS SYMBOL OVER IT, THE TYPE UNDER
-     THE ARROW AT THE PANEL'S SIDE (2026-10-22: "Make the next/previous
+     ⭐ THE NICKNAME ON THE ARROW'S POINT, ITS SYMBOL OVER IT AND ITS TYPE
+     UNDER IT, BOTH CENTRED ON THE NAME (2026-10-22: "Make the next/previous
      nickname center the next/prev triangle point", "Move the device icon
-     above the nickname centered above it", "Push the Device Type down and
-     toward the config selector container edge to get more clearance"):
-     the nickname alone stands in the card's row, so it is centred with
-     the arrow, on its point; the symbol stands over the name's middle and
-     the type hangs under the card, as wide as it and against the panel,
-     neither taking the name's room. A name too long for the card ends in
-     "..." (rhoquinn8217 asked of the 17 of 118 that did beside the symbol). */
+     above the nickname centered above it", then "move the next and previous
+     device type under the nickname centered again", after a while under
+     the arrow at the panel's side): the nickname alone stands in the
+     card's row, so it is centred with the arrow, on its point; the symbol
+     and the type stand over and under the name's middle, neither taking
+     its room. The type is no wider than 9.5vw, so on two lines it stays
+     clear of the arrow's slope beside it. A name too long for the card ends
+     in "...", none of the listener's 118 at 1152 wide. */
   body.compact:not(.quick) #compactBox .cselrow > .cside { position:relative; overflow:visible; }
   body.compact:not(.quick) #compactBox .cstext { min-width:0; display:flex; }
   body.compact:not(.quick) #compactBox .cselrow > .cside.l .cstext { justify-content:flex-end; }
@@ -2271,8 +2286,9 @@
     transform:translateX(-50%); font-size:0.8em; line-height:1; margin:0; letter-spacing:0; }
   body.compact:not(.quick) #compactBox .csnick { min-width:0; overflow:hidden; text-overflow:ellipsis;
     white-space:nowrap; }
-  body.compact:not(.quick) #compactBox .cselrow > .cside > .ckind { position:absolute; left:0; right:0;
-    top:100%; font-size:calc(2.25 * var(--vh)); margin-top:calc(0.6 * var(--vh)); }
+  body.compact:not(.quick) #compactBox .csnwrap > .ckind { position:absolute; left:50%; top:100%;
+    transform:translateX(-50%); width:max-content; max-width:9.5vw; text-align:center;
+    font-size:calc(2.25 * var(--vh)); margin-top:calc(0.2 * var(--vh)); }
   /* ⓘ And in the ring's row, where Simple shows no panel, the symbol before
      the name too. */
   body.compact:not(.quick) #compactBox .ccar .cside > .devemo { font-size:0.8em; margin-right:0.3em; }
@@ -9584,9 +9600,12 @@ function compactHome(w, h) {
                 Math.round(screen.availHeight - Math.round(screen.availHeight / 100) - h));
 }
 
+// ⓘ 0.3879 of the screen's height since 2026-10-22, from 0.45 ("shrink the
+// height of the window"), its sizes kept by Simple's --vh; kCompactSizes in
+// config_move.inl is the other placer, and moves with this.
 function compactSize() {
   compactHome(Math.round(screen.availWidth * 0.45),
-              Math.round(screen.availHeight * 0.45));
+              Math.round(screen.availHeight * 0.3879));
 }
 
 // ⓘ Quick's window: the smaller of its two sizes, which rhoquinn8217 named
@@ -10102,7 +10121,7 @@ function paintCompact() {
       // next and previous"): the symbol stood after the type until then.
       // Beside the panel it stands over the nickname since 2026-10-22 ("Move
       // the device icon above the nickname centered above it"), and the
-      // type hangs under the card (the style's .csnwrap and .ckind).
+      // type under it, both centred on the name (the style's .csnwrap).
       var icons = deviceIcons(partsOf(ord));
       var kind = od ? '<div class="ckind"><span class="cklabel">' +
                       esc(typeWithoutLink(deviceLabelShort(od))) + '</span></div>' : '';
@@ -10116,9 +10135,8 @@ function paintCompact() {
       // there; the name and type stand past the arrow's tip.
       if (byPanel) {
         var text = '<div class="cstext"><span class="csnwrap">' + icons + '<span class="csnick">' +
-                   esc(nameFor(ord)) + '</span></span></div>';
-        return open + (cls === 'l' ? text + ringArrow(cls, key) : ringArrow(cls, key) + text) +
-               kind + '</div>';
+                   esc(nameFor(ord)) + '</span>' + kind + '</span></div>';
+        return open + (cls === 'l' ? text + ringArrow(cls, key) : ringArrow(cls, key) + text) + '</div>';
       }
       return open + '<small>' + key + '</small>' + icons + esc(nameFor(ord)) + kind + '</div>';
     };
