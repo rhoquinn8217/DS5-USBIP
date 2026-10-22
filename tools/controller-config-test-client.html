@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.87 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.88 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,26 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.88 Overview in two cards (rhoquinn8217, asked for "re-design
+            recommendations for the overview page settings, version,
+            agent, bearer, open on bridge" and shown them): This window,
+            with Open on bridge as "Open this window when a controller is
+            bridged", the pad's first stop; Connection, with the
+            listener's address (agent until now) and the access token
+            (bearer), dotted as a password is until its eye shows it
+            ("add a eye button next to the access token which will be
+            hidden by default and shown when you press the eye button"),
+            and a light saying whether this page reaches the listener, or
+            is refused its token. The page's version is one line under
+            the devices, the program's beside it. Advanced's config row
+            in groups ("button layout for the advance mode config
+            selectors"): the config's New, Rename and Copy; this
+            controller's Set auto link and Unlink; then Archive Config, on
+            a controller's tab as well as the Editor's ("change the button
+            name "Archive Config""). Safe Edit Mode reads its state alone,
+            what it does in its tooltip, and "click to turn off" is gone.
+            A password box is typed into as a text box is, by the pad and
+            the keys alike.
     2.66.87 Quick's config selector is a wheel (rhoquinn8217: "build out a
             Wheel / Drum Picker for the config selector"): its choice in a
             frame fixed in the middle, which alone carries the halo, the
@@ -2370,22 +2390,45 @@
   .holdBtnCopy { font-weight:600; }
   #holdBtn.on, .holdBtnCopy.on { background:#3a3320; border-color:#e0c07a; color:#e8cf92; }
   #holdBtn.safe, .holdBtnCopy.safe { background:#1f3325; border-color:#7fd18c; color:#a9e3b5; }
-  /* ⭐ OPEN ON BRIDGE IS A CHECKBOX, on its own line under "agent"
-     (rhoquinn8217, 2026-10-12: "a label and checkbox rather that a button that
-     turns green", then "B but put it on a new line under agent"). It was a
-     button, green with a tick while on, from 2026-10-09. */
-  /* ⭐ And the bar is a small form since (rhoquinn8217, the same evening:
-     "put the check on the right side of the "Open on bridge" settings",
-     "align the boxes as well"): the labels in one column, the boxes lined up
-     in the next, Open on bridge's box among them on the right of its words. */
-  .barLines { display:grid; grid-template-columns:auto auto; column-gap:8px; row-gap:6px;
-              align-items:center; justify-content:start; }
-  .barCell { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-  #openOnBridgeLabel { cursor:pointer; }
-  /* The page's version in a box like the fields below it, its words dimmer
-     because nothing can be typed there (rhoquinn8217, 2026-10-12). */
-  .fixedField { background:#1d1f26; color:#9aa0ab; border:1px solid #2c2e36; border-radius:6px;
-                padding:7px 9px; font-size:13px; cursor:default; }
+  /* ⭐ OPEN ON BRIDGE IS A CHECKBOX (rhoquinn8217, 2026-10-12: "a label and
+     checkbox rather that a button that turns green"); a button, green with
+     a tick while on, from 2026-10-09. Under "agent", in a small form of
+     labels and boxes, from that evening until 2026-10-22. */
+  /* ⭐⭐ OVERVIEW IN TWO CARDS (rhoquinn8217, 2026-10-22): what this window
+     does, and how this page reaches the listener; side by side while the
+     window is wide enough, one over the other when it is not. */
+  .ovcards { display:flex; flex-wrap:wrap; gap:14px; align-items:stretch; margin:4px 0 6px; }
+  .ovcard { background:#1d1f26; border:1px solid #2c2e36; border-radius:8px; padding:10px 14px;
+            min-width:0; box-sizing:border-box; }
+  .ovcard.win { flex:1 1 360px; max-width:470px; }
+  .ovcard.conn { flex:999 1 420px; }
+  .ovcard-h { font-weight:600; color:#e8e8ea; display:flex; align-items:center; gap:10px;
+              margin-bottom:8px; }
+  .ovcheck { display:flex; align-items:center; gap:10px; color:#e8e8ea; cursor:pointer; }
+  .ovcheck input[type=checkbox] { width:18px; height:18px; }
+  .ovhelp { color:#71737c; font-size:12px; margin-top:6px; }
+  .ovfield { display:grid; grid-template-columns:auto minmax(0,1fr); align-items:center;
+             column-gap:12px; row-gap:8px; }
+  .ovfield input { width:100%; min-width:0; box-sizing:border-box; }
+  .ovtoken { display:flex; gap:6px; align-items:center; min-width:0; }
+  .ovtoken input { flex:1 1 auto; }
+  #connLight { font-weight:400; font-size:12px; }
+  /* The eye: open while the token is dotted, struck through while it shows. */
+  #tokenEye { padding:5px 8px; line-height:0; flex:0 0 auto; }
+  #tokenEye svg { width:18px; height:18px; }
+  #tokenEye .eyeslash { display:none; }
+  #tokenEye[aria-pressed="true"] .eyeslash { display:inline; }
+  /* The page's version and the program's, one quiet line under the devices
+     (2026-10-22); in a box of its own at the top from 2026-10-12. */
+  .ovver { color:#5c5f69; font-size:12px; margin-top:22px; }
+  /* ⭐ ADVANCED'S CONFIG ROW IN GROUPS (rhoquinn8217, 2026-10-22: "button
+     layout for the advance mode config selectors"): the config's own
+     buttons, then this controller's, then Archive Config, each group named
+     in small words and set apart by a line. */
+  .rowgrp { display:inline-flex; flex-wrap:wrap; gap:6px; align-items:center; }
+  .rowgrp-t { color:#5c5f69; font-size:11px; margin-right:2px; }
+  .rowdiv { display:inline-block; width:1px; height:30px; background:#3a3d47; margin:0 4px; }
+  .rowsafe { margin-left:auto; display:flex; align-items:center; }
   #padDest.on { color:#7fd18c; }
   /* Lit while ○ has backed out into it, so it is clear where focus went. */
   #gpbar.gp-zone { background:#22252e; border-top-color:#6c8cff; }
@@ -2625,36 +2668,48 @@
 
 <div class="pane on" id="pane-overview">
 
-<div class="bar">
-  <span class="barLines">
-  <!-- ⭐ THE PAGE'S VERSION, on its own line at the top, with its own label,
-       in a box that cannot be edited (rhoquinn8217, 2026-10-12: "can you give
-       the version it's own label but make it uneditable. Place it on it's own
-       line at the top"). Text, not an input: nothing can be typed in it, and
-       a controller never stops on it. The program's own version is in the
-       window's title.
-       ⓘ The same number as VERSION at the top of this file, by hand. It sat
-       at 2.66.4 for thirty-four versions while VERSION moved on. -->
-  <label class="muted">version</label>
-  <span class="barCell"><span class="fixedField" id="pageVersion" title="This page's version. The program's own is in the window's title.">2.66.87</span></span>
-  <label class="muted" for="base">agent</label>
-  <span class="barCell">
-  <input id="base" value="http://127.0.0.1:48053" size="26">
-  <label class="muted">bearer</label>
-  <input id="token" placeholder="leave empty unless you set one" size="16"
-    title="A password for the listener. Leave this empty -- almost everyone should. The listener normally only answers programs on this same PC, so it needs no password. If you start it with --rest-lan it answers other machines on your network too, and then anyone on your wifi could send it commands. --rest-token sets a password to stop that, and this box is where you type the same password back so this page is still allowed in.">
-  </span>
-  <!-- ⭐ OPEN ON BRIDGE (rhoquinn8217, 2026-10-09): whether a bridge brings
-       this window up by itself. The tray menu's item under Window Mode is the
-       same switch; the listener keeps it. Painted by paintOpenOnBridge().
-       ⭐ A checkbox since 2026-10-12, where it was a button that turned green:
-       its words in the labels' column, its box on their right among the
-       other boxes; and the one checkbox a controller lands on
-       (data-gp-focus), since it sits alone and no row's □ reaches it. -->
-  <label class="muted" id="openOnBridgeLabel" for="openOnBridge"
-    title="Ticked: a bridge brings this window up by itself. Untick it to leave the window alone.">Open on bridge</label>
-  <span class="barCell"><input type="checkbox" id="openOnBridge" data-gp-focus="1" checked onchange="toggleOpenOnBridge()"></span>
-  </span>
+<!-- ⭐⭐ OVERVIEW IN TWO CARDS (rhoquinn8217, 2026-10-22, asked for "re-design
+     recommendations for the overview page settings, version, agent, bearer,
+     open on bridge", and shown the layout). What this window does comes
+     first: the switch people touch, and the pad's first stop. How this page
+     reaches the listener comes second, in words rather than the API's:
+     "agent" was the listener's address, "bearer" the access token. The
+     version went under the devices (the note beside it says why). -->
+<div class="ovcards">
+  <div class="ovcard win">
+    <div class="ovcard-h">This window</div>
+    <!-- ⭐ OPEN ON BRIDGE (rhoquinn8217, 2026-10-09): whether a bridge brings
+         this window up by itself. The tray menu's item under Window Mode is
+         the same switch; the listener keeps it. Painted by
+         paintOpenOnBridge(). ⭐ A checkbox since 2026-10-12, and the one a
+         controller lands on (data-gp-focus), since it sits alone and no
+         row's □ reaches it. In words since 2026-10-22, its box first. -->
+    <label class="ovcheck" id="openOnBridgeLabel"
+      title="Ticked: a bridge brings this window up by itself. Untick it to leave the window alone."><input type="checkbox" id="openOnBridge" data-gp-focus="1" checked onchange="toggleOpenOnBridge()">Open this window when a controller is bridged</label>
+    <div class="ovhelp">The same switch as Open on bridge in the tray menu.</div>
+  </div>
+  <div class="ovcard conn">
+    <!-- ⓘ The light is this card's own (paintConnLight). The line beside
+         the Log stays where it is: it also says what was just done. -->
+    <div class="ovcard-h">Connection <span id="connLight" class="muted">checking…</span></div>
+    <div class="ovfield">
+      <label class="muted" for="base">Listener address</label>
+      <input id="base" value="http://127.0.0.1:48053"
+        title="Where this page finds DS5-USBIP: the address this window was opened on. Change it only to reach a listener started on another port.">
+      <label class="muted" for="token">Access token</label>
+      <span class="ovtoken">
+      <!-- ⭐ HIDDEN UNTIL ITS EYE SHOWS IT (rhoquinn8217, 2026-10-22: "add a
+           eye button next to the access token which will be hidden by
+           default and shown when you press the eye button"): it is a
+           password, so it is dotted as one. toggleTokenShown(). -->
+      <input id="token" type="password" autocomplete="off" placeholder="only if the listener was started with --rest-token"
+        title="A password for the listener. Leave this empty -- almost everyone should. The listener normally only answers programs on this same PC, so it needs no password. If you start it with --rest-lan it answers other machines on your network too, and then anyone on your wifi could send it commands. --rest-token sets a password to stop that, and this box is where you type the same password back so this page is still allowed in.">
+      <button id="tokenEye" type="button" aria-pressed="false" title="Show the token"
+        onclick="toggleTokenShown()"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M1.5 12C3.8 7.6 7.6 5 12 5s8.2 2.6 10.5 7c-2.3 4.4-6.1 7-10.5 7S3.8 16.4 1.5 12Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path class="eyeslash" d="M3.5 3.5l17 17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+      </span>
+    </div>
+  </div>
+</div>
   <!-- ⛔ RELOAD REMOVED 2026-09-01. rhoquinn8217: "Using it means the page is
        broken." Its last purpose was noticing a config edited outside this
        page, and that is covered twice over now -- the page reloads configs
@@ -2670,7 +2725,6 @@
        a third copy of the same switch at the top of Overview.
        ⓘ The label is computed in paintPadDestination rather than read off this
        button, so nothing depended on it being here. -->
-</div>
 
 <h2>Devices</h2>
 <div id="devices"><span class="muted">Looking for bridged devices…</span></div>
@@ -2690,6 +2744,19 @@
      sticky header, and from there it sat above the Devices and Configs tables
      it has nothing to do with. Overview is what its name says now: agent,
      devices, configs -- things you read. -->
+
+<!-- ⭐ THE PAGE'S VERSION, one line under the devices with the program's
+     beside it, since 2026-10-22 (rhoquinn8217, asked whether it could be:
+     "Yes"). It had a label and a box of its own at the top from 2026-10-12
+     ("can you give the version it's own label but make it uneditable.
+     Place it on it's own line at the top"), and the program's was in the
+     window's title alone. Text, not an input: nothing can be typed in it,
+     and a controller never stops on it. The program's is filled in from
+     the listener's status (startPage).
+     ⓘ The same number as VERSION at the top of this file, by hand, which
+     the self-test checks: it sat at 2.66.4 for thirty-four versions while
+     VERSION moved on. -->
+<div class="ovver">Controller Configs page <span id="pageVersion">2.66.88</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -2930,6 +2997,47 @@ function headers() {
   return h;
 }
 
+// ⭐ THE ACCESS TOKEN, SHOWN AND HIDDEN AGAIN BY ITS EYE (rhoquinn8217,
+// 2026-10-22): dotted until the eye is pressed, then plain until it is
+// pressed again. The eye is struck through while the token shows.
+function toggleTokenShown() {
+  var box = document.getElementById('token');
+  var eye = document.getElementById('tokenEye');
+  if (!box || !eye) return;
+  var show = box.type === 'password';
+  box.type = show ? 'text' : 'password';
+  eye.setAttribute('aria-pressed', show ? 'true' : 'false');
+  eye.title = show ? 'Hide the token' : 'Show the token';
+}
+
+// ⭐ THE CONNECTION CARD'S LIGHT (2026-10-22): whether this page reaches the
+// listener, read off the answers its calls get. A 401 is the listener
+// refusing the access token, which is the one thing in that card a person
+// can get wrong. ⓘ Painted only when it changes: call() runs every second.
+var CONN_STATE = '';
+function paintConnLight(state) {
+  if (state === CONN_STATE) return;
+  var el = document.getElementById('connLight');
+  if (!el) return;
+  CONN_STATE = state;
+  var host = '';
+  try { host = new URL(base()).hostname; } catch (e) {}
+  var here = host === '127.0.0.1' || host === 'localhost' || host === '[::1]';
+  if (state === 'ok') {
+    el.textContent = '● connected ' + (here ? 'to this PC' : 'to ' + host);
+    el.className = 'good';
+  } else if (state === 'refused') {
+    el.textContent = '● the listener refused the access token';
+    el.className = 'bad';
+  } else if (state === 'down') {
+    el.textContent = '● cannot reach the listener';
+    el.className = 'bad';
+  } else {
+    el.textContent = 'checking…';
+    el.className = 'muted';
+  }
+}
+
 function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
@@ -2989,10 +3097,12 @@ function call(method, path, body, quiet) {
     .then(function(r) { status = r.status; return r.text(); })
     .then(function(text) {
       if (!quiet) log(method, path, status, text);
+      paintConnLight(status === 401 ? 'refused' : 'ok');
       if (status < 200 || status >= 300) throw new Error(text || ('HTTP ' + status));
       try { return JSON.parse(text); } catch (e) { return {}; }
     })
     .catch(function(e) {
+      if (status === 0) paintConnLight('down');
       if (status === 0 && !quiet) {
         // Reaching nothing at all is a different problem from a rejected call,
         // and the usual cause is the agent not running with --rest.
@@ -5569,6 +5679,10 @@ function buildDevicePane(d) {
           // ⛔ Greyed, with the reason, on a device that takes no config: the
           // agent would refuse the link, and New would leave an unlinked
           // config behind for nothing.
+          // ⭐ IN GROUPS (rhoquinn8217, 2026-10-22: "button layout for the
+          // advance mode config selectors"): what acts on the config, what
+          // acts on this controller, then Archive Config, a line between.
+          '<span class="rowgrp"><span class="rowgrp-t">config</span>' +
           (d.supports_config
             ? '<button onclick="newConfigFor(\'' + esc(d.ordinal) + '\')" ' +
               'title="create a new config and link it">New</button>'
@@ -5580,17 +5694,19 @@ function buildDevicePane(d) {
               'title="make your own copy of this config and link it to this ' +
               'controller">Copy</button>'
             : '') +
-          claimBtn + unlinkBtn +
+          '</span><span class="rowdiv"></span>' +
+          '<span class="rowgrp"><span class="rowgrp-t">this controller</span>' +
+          claimBtn + unlinkBtn + '</span>' +
+          '<span class="rowdiv"></span>' + archiveConfigBtn(d.linked_config) +
           (!d.supports_config
             ? ' <span class="muted">Configs can only be set for controllers.</span>'
             : (usable.length ? '' : ' <span class="muted">no configs yet — press New</span>')) +
           // ⭐ Safe Edit Mode at the END of the config row, pushed right. It
           // governs what the pad may do to the settings below, so it belongs on
           // the row that names them rather than on a line of its own.
-          '<span style="margin-left:auto;display:flex;align-items:center;gap:8px">' +
-          '<span class="muted holdHintCopy" style="font-size:12px">click to turn off</span>' +
-          '<button class="holdBtnCopy" onclick="toggleGateHold()">' +
-          'Safe Edit Mode: ON — only basic controls</button></span>' +
+          // ⓘ Its state alone since 2026-10-22 (paintHoldControls).
+          '<span class="rowsafe"><button class="holdBtnCopy" onclick="toggleGateHold()">' +
+          'Safe Edit Mode: ON</button></span>' +
           '</div>';
 
   if (!d.linked_config) {
@@ -6150,17 +6266,18 @@ function paintEditorHead() {
       // than a controller, so it had to land somewhere before that table
       // could go. No read-only guard is needed: this picker already filters
       // read-only configs out, so one can never be open here.
-      '<button class="warn" onclick="archive(\'' + esc(OV_CONFIG) + '\')">Archive</button>'
+      // ⓘ "Archive Config" since 2026-10-22, as on a controller's tab, after
+      // the same line.
+      '<span class="rowdiv"></span>' +
+      '<button class="warn" onclick="archive(\'' + esc(OV_CONFIG) + '\')">Archive Config</button>'
     : '';
   setStickyHead('editor',
     '<div class="f"><span class="muted">config</span>' +
     '<select id="editorPick" onchange="openConfig(this.value)">' +
     '<option value="">(pick a config)</option>' + opts + '</select>' +
     '<button onclick="newConfigFor(\'\')">New</button>' + acts +
-    '<span style="margin-left:auto;display:flex;align-items:center;gap:8px">' +
-    '<span id="holdHint2" class="muted holdHintCopy" style="font-size:12px">click to turn off</span>' +
-    '<button id="holdBtn2" class="holdBtnCopy" onclick="toggleGateHold()">' +
-    'Safe Edit Mode: ON — only basic controls</button></span></div>');
+    '<span class="rowsafe"><button id="holdBtn2" class="holdBtnCopy" onclick="toggleGateHold()">' +
+    'Safe Edit Mode: ON</button></span></div>');
 }
 
 // Overview: open any config for editing, controller or not.
@@ -7155,6 +7272,18 @@ function archive(name) {
   askConfirm('Archive', 'Archive ' + name + '?', function() { archiveConfirmed(name); });
 }
 
+// ⭐ ARCHIVE CONFIG ON A CONTROLLER'S TAB (rhoquinn8217, 2026-10-22: "leave it
+// where you have it but change the button name "Archive Config""): the
+// config in the selector, asked first as the Editor's is (archive). Greyed
+// with the reason while the selector reads (no config).
+function archiveConfigBtn(name) {
+  return name
+    ? '<button class="warn" onclick="archive(\'' + esc(name) + '\')" ' +
+      'title="archive ' + esc(name) + '">Archive Config</button>'
+    : '<button class="warn" disabled title="pick a config first: this archives the ' +
+      'one in the selector">Archive Config</button>';
+}
+
 function archiveConfirmed(name) {
   call('POST', '/api/v1/configs/' + encodeURIComponent(name) + '/archive', {})
     .then(function() {
@@ -7948,7 +8077,8 @@ function gpActivate() {
     // more, one less". A name has no such thing, and a caret needs its arrows
     // to move through the text. So a text field is FOCUSED for typing and the
     // page keeps its hands off, which is what typingInAField already assumes.
-    if (el.type === 'text' || el.type === '' || el.type === 'search') {
+    // ⓘ isTextEntry decides, which knows a password box too (2026-10-22).
+    if (isTextEntry(el)) {
       el.focus();
       if (el.select) el.select();
       return;
@@ -9156,11 +9286,15 @@ function setFooterMode(on) {
 // is off limits, and `gpTab()`, which must not FOCUS one of these.
 // ⛔ `type === ''` matters: `<input id="base">` carries no type attribute at
 // all, and it is the agent URL -- the exact field this was found on.
+// ⛔ AND A PASSWORD (2026-10-22): the access token is one now, dotted until
+// its eye shows it, and it is typed into as any text is. Left out, the pad's
+// Cross stepped it as a number and the keys walked the page from inside it.
 function isTextEntry(el) {
   if (!el) return false;
   if (el.tagName === 'TEXTAREA') return true;
   return el.tagName === 'INPUT' &&
-         (el.type === 'text' || el.type === '' || el.type === 'search');
+         (el.type === 'text' || el.type === '' || el.type === 'search' ||
+          el.type === 'password');
 }
 
 function typingInAField() {
@@ -11084,16 +11218,18 @@ var GATE_ON = false;   // the agent's real gate state, from the poll
 // config, the config list refreshing -- made new buttons carrying the plain
 // text from the markup, and they sat like that until the next poll.
 function paintHoldControls() {
-  var holdLabel = GATE_HELD
-    ? 'Safe Edit Mode: OFF \u2014 \u26a0 inputs are mirrored in active game'
-    : 'Safe Edit Mode: ON \u2014 only basic controls';
+  // ⭐ ITS STATE ALONE, WHAT IT DOES IN ITS TOOLTIP (rhoquinn8217,
+  // 2026-10-22, shown "Safe Edit Mode: ON" by itself at the row's end:
+  // "yes"). The "click to turn off" beside it went too: the tooltip ends
+  // by saying what a click does. ⓘ Off keeps its ⚠ and its amber.
+  var holdLabel = GATE_HELD ? 'Safe Edit Mode: OFF ⚠' : 'Safe Edit Mode: ON';
   var holdTitle = GATE_HELD
-    ? 'Re-mappings and gyro/stick/touchpad mouse modes are active while '
-      + 'editing however controller inputs will mirror in active game'
-    : 'Re-mappings and gyro/touchpad/stick mouse modes are disabled while '
-      + 'editing. Inputs are also locked to this window to prevent inputs '
-      + 'mirrored in games.';
-  var holdHintText = GATE_HELD ? 'click to turn on' : 'click to turn off';
+    ? 'Inputs are mirrored in the active game. Re-mappings and gyro/stick/touchpad '
+      + 'mouse modes are active while editing, however controller inputs will mirror '
+      + 'in the active game. Click to turn Safe Edit Mode on.'
+    : 'Only basic controls. Re-mappings and gyro/touchpad/stick mouse modes are '
+      + 'disabled while editing. Inputs are also locked to this window to prevent '
+      + 'inputs mirrored in games. Click to turn Safe Edit Mode off.';
 
   // ⓘ Colour carries the state at a glance: green while the page holds the
   // controllers, amber while the game is still seeing them. The warning sign
@@ -11103,9 +11239,6 @@ function paintHoldControls() {
     b.title = holdTitle;
     b.classList.toggle('on', GATE_HELD);
     b.classList.toggle('safe', !GATE_HELD);
-  });
-  document.querySelectorAll('#holdHint, .holdHintCopy').forEach(function (h) {
-    h.textContent = holdHintText;
   });
 }
 
@@ -11133,9 +11266,9 @@ function paintPadDestination(d) {
                                : 'controllers → game';
   dest.classList.toggle('on', gated);
 
-  // ⭐ The button says the STATE it is in; the line beside it says what a click
-  // would do. A button labelled with its own action reads as a question about
-  // what is currently true.
+  // ⭐ The button says the STATE it is in; its tooltip says what a click would
+  // do (a line beside it said so until 2026-10-22). A button labelled with its
+  // own action reads as a question about what is currently true.
   // ⭐ THE LABEL IS COMPUTED, NOT COPIED (rhoquinn8217, 2026-09-01). Every
   // control used to be painted from the one on the agent row -- so removing
   // that row would have blanked the rest. One source of truth, applied to
@@ -11369,7 +11502,8 @@ function selfTest() {
    'askConfirm','confirmYes','confirmNo','whoIs','setAutoLink','claimAutoLink',
    'stopAutoLink','archive','unlinkConfirmed','renameConfig','copyConfigFor','createFromPreset','presetCancel','openPresetInfo','closePresetInfo','renameKey','loadConfigs','loadDevices',
    'openConfig','applyPick','newConfigFor','preserveScroll','setDown','gpCollect',
-   'rateTag','rateTags','refreshRates','setRateLimit','pollRates'
+   'rateTag','rateTags','refreshRates','setRateLimit','pollRates',
+   'toggleTokenShown','paintConnLight','archiveConfigBtn'
   ].forEach(function(n) {
     ok('function ' + n, typeof window[n] === 'function');
   });
@@ -11878,6 +12012,60 @@ function selfTest() {
      typeWithoutLink('Pro Controller (USB)') === 'Pro Controller' &&
      typeWithoutLink('Keyboard (USB) Receiver') === 'Keyboard (USB) Receiver');
 
+  // Overview (2.66.88): the access token dotted until its eye shows it.
+  var tok = document.getElementById('token');
+  var eye = document.getElementById('tokenEye');
+  var startsHidden = tok.type === 'password' && eye.getAttribute('aria-pressed') === 'false';
+  toggleTokenShown();
+  var shownNow = tok.type === 'text' && eye.getAttribute('aria-pressed') === 'true';
+  toggleTokenShown();
+  ok('the access token is dotted until its eye shows it, and dotted again after',
+     startsHidden && shownNow && tok.type === 'password' && eye.getAttribute('aria-pressed') === 'false');
+  ok('and its box is typed into as text is, by the pad and the keys',
+     isTextEntry(tok) && fieldIsEditable(tok));
+  // The version line under the devices carries VERSION from the top of
+  // this file, which is kept by hand.
+  var topNote = '';
+  var walk = document.createTreeWalker(document, NodeFilter.SHOW_COMMENT);
+  while (walk.nextNode()) {
+    if (walk.currentNode.data.indexOf('VERSION ') >= 0) { topNote = walk.currentNode.data; break; }
+  }
+  var topVer = /VERSION ([0-9.]+)/.exec(topNote);
+  ok('the version line under the devices names the VERSION at the top of this file',
+     !!topVer && document.getElementById('pageVersion').textContent === topVer[1] &&
+     !!document.querySelector('#pane-overview > #devices ~ .ovver #pageVersion'),
+     (topVer ? topVer[1] : 'no VERSION') + ' / ' + document.getElementById('pageVersion').textContent);
+  // The Connection light.
+  var keepConn = CONN_STATE;
+  paintConnLight('down');
+  var downText = document.getElementById('connLight').textContent;
+  paintConnLight('refused');
+  var refusedText = document.getElementById('connLight').textContent;
+  paintConnLight('ok');
+  ok('the Connection light: reached, refused its token, or not reached',
+     /connected/.test(document.getElementById('connLight').textContent) &&
+     /refused the access token/.test(refusedText) && /cannot reach/.test(downText));
+  paintConnLight(keepConn || 'checking');
+  // Advanced's config row: Archive Config, and Safe Edit Mode in short.
+  ok('Archive Config archives the config in the selector, greyed with none',
+     archiveConfigBtn('cfg_a').indexOf('>Archive Config<') >= 0 &&
+     archiveConfigBtn('cfg_a').indexOf('onclick="archive(') >= 0 &&
+     archiveConfigBtn('cfg_a').indexOf('cfg_a') >= 0 &&
+     archiveConfigBtn('').indexOf(' disabled ') >= 0);
+  var keepHeld = GATE_HELD;
+  var safeBtn = document.createElement('button');
+  safeBtn.className = 'holdBtnCopy';
+  document.body.appendChild(safeBtn);
+  GATE_HELD = false; paintHoldControls();
+  var onLabel = safeBtn.textContent, onTip = safeBtn.title;
+  GATE_HELD = true; paintHoldControls();
+  ok('Safe Edit Mode reads its state alone, what it does in its tooltip',
+     onLabel === 'Safe Edit Mode: ON' && /^Only basic controls/.test(onTip) &&
+     safeBtn.textContent === 'Safe Edit Mode: OFF ⚠' && /mirrored/.test(safeBtn.title),
+     onLabel + ' / ' + safeBtn.textContent);
+  safeBtn.remove();
+  GATE_HELD = keepHeld; paintHoldControls();
+
   // Leave the page as it was found.
   renderTabs(LAST_DEVICES || []);
 
@@ -11923,6 +12111,9 @@ function startPage() {
     if (d && d.product && d.product_version) {
       BASE_TITLE = d.product + ' Controller Configs - v' + (d.product_version_display || d.product_version);
       paintTitle();
+      // ⓘ And on Overview's version line, beside the page's (2026-10-22).
+      var pv = document.getElementById('progVersion');
+      if (pv) pv.textContent = ' · ' + d.product + ' v' + (d.product_version_display || d.product_version);
     }
   }).catch(function() {});
   // ⛔⛔ NOT HERE ANY MORE (2026-09-21). This rescued a stretched window on
