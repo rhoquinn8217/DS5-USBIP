@@ -100,17 +100,24 @@
             to the buttons, up and down walk them, and off their ends lie the
             polling limit above and the footer below. Its title names the
             device type, at twice its size, and the device's symbol stands
-            before the nickname, the device type line gone. That line holds
-            the battery, the polling rate and the limit, the rate and limit
-            at the battery's size, a g or a y in
+            before the nickname, the device type line gone. That line spans
+            the panel, the symbol, nickname and battery from its left edge
+            and the polling rate and limit to its right, with no " | "
+            ("Left align to the left edge of the config selector container,
+            the Icon, nickname and battery. Right align to the right of edge
+            of the config selector, the polling/rate limit"), the line and
+            the panel centred between the window's top edge and the footer's
+            line, a notice free to overlap the line; the rate and limit at
+            the battery's size, a g or a y in
             the nickname whole ("Lower case "g" in the nickname in simple
             mode is getting cut at the bottom"). The controllers before and
             after stand either side of the panel, each past a narrow arrow
             holding its shoulder button ("squash the next and previous
-            triangles horizontally"), the device's symbol before the
-            nickname and the type under it at half the nickname's size, on
-            up to two lines and cut with "..." past them, without the (USB)
-            or (BT) that Advanced and the panel's title keep. On the
+            triangles horizontally"), the nickname on the arrow's point with
+            the device's symbol over it, and the type under the arrow at the
+            panel's side, at half the nickname's size, on up to two lines
+            and cut with "..." past them, without the (USB) or (BT) that
+            Advanced and the panel's title keep. On the
             wheel, in Simple and Quick, the mouse rings a config in sight
             above or below the chosen one, and a click sets it and links it
             at once ("Make them mouse clickable and set them
@@ -1760,15 +1767,24 @@
   /* ⭐ SIMPLE'S POLLING RATE AND LIMIT ON THE NAME'S LINE (rhoquinn8217,
      2026-10-20: "put the controller icon, nickname, battery, polling and
      rate limit on one line which will give clearance for the message"):
-     after the battery and a " | ", as Quick's, in their own weight, on the
-     line's middle; at the battery's size since 2026-10-21 ("in simple mode
-     make font size o polling/rate limit the same as battery"), the
-     gauge's number being 0.8 of the gauge's 0.6 of the name, and the
-     limit's box at its words' size. */
-  body.compact:not(.quick) #compactBox .cname > .crate { margin-top:0; font-weight:400; font-size:0.48em; }
+     after the battery, in their own weight, on the line's middle; at the
+     battery's size since 2026-10-21 ("in simple mode make font size o
+     polling/rate limit the same as battery"), the gauge's number being 0.8
+     of the gauge's 0.6 of the name, and the limit's box at its words'
+     size. ⭐ BESIDE THE PANEL THE LINE SPANS IT (2026-10-22: "Left align to
+     the left edge of the config selector container, the Icon, nickname and
+     battery. Right align to the right of edge of the config selector, the
+     polling/rate limit. Remove the "|""): the symbol, nickname and battery
+     from the panel's left edge, the rate and limit to its right edge, the
+     line as wide as the panel (alignNameRow); no " | " between them. */
+  body.compact:not(.quick) #compactBox .cname > .crate { margin-top:0; font-weight:400; font-size:0.48em;
+    margin-left:0.6em; }
   body.compact:not(.quick) #compactBox .cname > .crate select { font-size:1em; }
-  body.compact:not(.quick) #compactBox .cname .cnsep { font-size:calc(5 * var(--vh)); font-weight:400;
-    color:#71737c; margin:0 0.5em; }
+  body.compact:not(.quick) #compactBox .cmain.cpanel .cname { justify-content:flex-start; }
+  /* ⓘ The symbol on the panel's edge itself: .devemo's own 0.3em before it
+     is for a symbol that follows a name. */
+  body.compact:not(.quick) #compactBox .cmain.cpanel .cname > .devemo { margin-left:0; }
+  body.compact:not(.quick) #compactBox .cmain.cpanel .cname > .crate { margin-left:auto; }
   /* ⭐ Simple's limit with R3's mark where its arrow was, as Quick's
      (rhoquinn8217, 2026-10-20: "in simple mode add the R3 symbol for the
      rate limit similar to quick mode"). */
@@ -2129,18 +2145,21 @@
      panel is only that top half now, 3.75vh less, and the panel's padding
      took it back, so the panel ends where it did. */
   body.compact:not(.quick) #compactBox .csel { padding-top:calc(2.25 * var(--vh)); }
-  /* ⭐ SIMPLE'S PANEL VIEW CENTRED BETWEEN THE WINDOW'S TOP AND THE FOOTER'S
-     LINE (rhoquinn8217, 2026-10-20: "add space between the controller config
-     container and the line break so that it is the same space between the
-     top edge of the window and the top of the nickname"): the content in the
-     middle of what is left, with 6vh more under it than over it, the box's
-     4vh top padding and the 2vh from the name's line to the top of its
-     letters, so the room over the nickname and the room under the panel
-     match. The notice bubbles keep the window's top right corner. ⓘ Held at
-     the top for a day (2026-10-21) while the wheel had 7 lines and the
-     panel grew downward, and centred again with the 5 ("go back to the
-     wheel being 5 lines long"). */
-  body.compact:not(.quick) #compactBox .cmain.cpanel { padding-top:0; padding-bottom:calc(6 * var(--vh));
+  /* ⭐ SIMPLE'S NAME LINE AND PANEL CENTRED BETWEEN THE WINDOW'S TOP EDGE AND
+     THE FOOTER'S LINE (rhoquinn8217, 2026-10-22: "Center the
+     nickname,battery,polling/rate limit line and the config selector
+     container between the top window edge and the line break. It's okay
+     if the notification bubble overlaps the title."): as much room from
+     the window's top edge to the line's top, its battery gauge's, 0.9vh
+     under the line's box, as from the panel's bottom to the footer's line.
+     The content is centred in what is left between the box's 4vh top
+     padding and this one, 4.9vh, which the gauge's 0.9 and the box's 4
+     make. The notice bubbles keep the window's top right corner, and may
+     overlap the line. ⓘ From 2026-10-20 ("the same space between the top
+     edge of the window and the top of the nickname") the room over the
+     nickname's letters matched instead, 6vh under; held at the top for a
+     day (2026-10-21) while the wheel had 7 lines. */
+  body.compact:not(.quick) #compactBox .cmain.cpanel { padding-top:0; padding-bottom:calc(4.9 * var(--vh));
     justify-content:center; justify-content:safe center; }
   body.compact:not(.quick) #compactBox .cpick-label { font-size:calc(3.6 * var(--vh)); top:0; bottom:auto;
     transform:translateY(-50%); background:linear-gradient(to bottom, #15161a 50%, #1d1f26 50%); }
@@ -2231,20 +2250,28 @@
      2026-10-21: "reduce the text of the next/previous controller to half
      it's size", then "Double the size of the next/previous nickname" and
      "Make the next/previous device type smaller that the nickname"): the
-     name 4.5vh again, the type 2.25vh (3vh to start, 1.5 at half). The
-     symbol before the name a little smaller than beside the ring's own
-     nickname, for the name's room. ⚠️ 17 of the listener's 118 names, the
-     long and the wide (Avalanche, Gladiator, Shogun), end in "..." at
-     this size (measured 2026-10-21 at 1152 x 596); without the panel's
-     3vw or at 4vh, 6 or 7; with neither, none. */
-  body.compact:not(.quick) #compactBox .cstext { min-width:0; }
-  body.compact:not(.quick) #compactBox .cselrow > .cside .csname { display:flex; align-items:center; min-width:0; }
-  body.compact:not(.quick) #compactBox .cselrow > .cside.l .csname { justify-content:flex-end; }
-  body.compact:not(.quick) #compactBox .csname > .devemo { flex:0 0 auto; font-size:0.65em; margin-right:0.2em; }
+     name 4.5vh again, the type 2.25vh (3vh to start, 1.5 at half).
+     ⭐ THE NICKNAME ON THE ARROW'S POINT, ITS SYMBOL OVER IT, THE TYPE UNDER
+     THE ARROW AT THE PANEL'S SIDE (2026-10-22: "Make the next/previous
+     nickname center the next/prev triangle point", "Move the device icon
+     above the nickname centered above it", "Push the Device Type down and
+     toward the config selector container edge to get more clearance"):
+     the nickname alone stands in the card's row, so it is centred with
+     the arrow, on its point; the symbol stands over the name's middle and
+     the type hangs under the card, as wide as it and against the panel,
+     neither taking the name's room. A name too long for the card ends in
+     "..." (rhoquinn8217 asked of the 17 of 118 that did beside the symbol). */
+  body.compact:not(.quick) #compactBox .cselrow > .cside { position:relative; overflow:visible; }
+  body.compact:not(.quick) #compactBox .cstext { min-width:0; display:flex; }
+  body.compact:not(.quick) #compactBox .cselrow > .cside.l .cstext { justify-content:flex-end; }
+  body.compact:not(.quick) #compactBox .csnwrap { position:relative; display:inline-flex; min-width:0;
+    max-width:100%; }
+  body.compact:not(.quick) #compactBox .csnwrap > .devemo { position:absolute; left:50%; bottom:100%;
+    transform:translateX(-50%); font-size:0.8em; line-height:1; margin:0; letter-spacing:0; }
   body.compact:not(.quick) #compactBox .csnick { min-width:0; overflow:hidden; text-overflow:ellipsis;
     white-space:nowrap; }
-  body.compact:not(.quick) #compactBox .cselrow > .cside .cstext .ckind { font-size:calc(2.25 * var(--vh));
-    margin-top:calc(0.3 * var(--vh)); }
+  body.compact:not(.quick) #compactBox .cselrow > .cside > .ckind { position:absolute; left:0; right:0;
+    top:100%; font-size:calc(2.25 * var(--vh)); margin-top:calc(0.6 * var(--vh)); }
   /* ⓘ And in the ring's row, where Simple shows no panel, the symbol before
      the name too. */
   body.compact:not(.quick) #compactBox .ccar .cside > .devemo { font-size:0.8em; margin-right:0.3em; }
@@ -9962,6 +9989,21 @@ function compactPick() {
     .catch(function () {});
 }
 
+// ⭐ SIMPLE'S NAME LINE AS WIDE AS ITS PANEL (rhoquinn8217, 2026-10-22: "Left
+// align to the left edge of the config selector container, the Icon,
+// nickname and battery. Right align to the right of edge of the config
+// selector, the polling/rate limit"): the panel is as wide as its wheel and
+// buttons make it, so it is measured after each paint and each resize; both
+// are centred, so equal widths put the edges together.
+function alignNameRow() {
+  var box = document.getElementById('compactBox');
+  var line = box && box.querySelector('.cmain.cpanel > .ccar > .ccur');
+  var panel = box && box.querySelector('.cmain.cpanel .cpick-wrap');
+  if (!line || !panel) return;
+  line.style.width = Math.round(panel.getBoundingClientRect().width) + 'px';
+}
+window.addEventListener('resize', alignNameRow);
+
 function paintCompact() {
   var box = document.getElementById('compactBox');
   if (!box || !COMPACT) return;
@@ -10057,6 +10099,9 @@ function paintCompact() {
       // next/previous device type icon to the left of the next/previous
       // nickname", and "remove the (USB) or (BT) from the Device type from
       // next and previous"): the symbol stood after the type until then.
+      // Beside the panel it stands over the nickname since 2026-10-22 ("Move
+      // the device icon above the nickname centered above it"), and the
+      // type hangs under the card (the style's .csnwrap and .ckind).
       var icons = deviceIcons(partsOf(ord));
       var kind = od ? '<div class="ckind"><span class="cklabel">' +
                       esc(typeWithoutLink(deviceLabelShort(od))) + '</span></div>' : '';
@@ -10069,9 +10114,10 @@ function paintCompact() {
       // toward the controller nickname and type."): `key` is the mark alone
       // there; the name and type stand past the arrow's tip.
       if (byPanel) {
-        var text = '<div class="cstext"><div class="csname">' + icons + '<span class="csnick">' +
-                   esc(nameFor(ord)) + '</span></div>' + kind + '</div>';
-        return open + (cls === 'l' ? text + ringArrow(cls, key) : ringArrow(cls, key) + text) + '</div>';
+        var text = '<div class="cstext"><span class="csnwrap">' + icons + '<span class="csnick">' +
+                   esc(nameFor(ord)) + '</span></span></div>';
+        return open + (cls === 'l' ? text + ringArrow(cls, key) : ringArrow(cls, key) + text) +
+               kind + '</div>';
       }
       return open + '<small>' + key + '</small>' + icons + esc(nameFor(ord)) + kind + '</div>';
     };
@@ -10101,7 +10147,11 @@ function paintCompact() {
             // limit on one line which will give clearance for the message"),
             // the limit opened by R3, whose mark stands where its arrow was
             // ("R3 will be the key that lets you reach the rate limit").
-            '<span class="cnsep">|</span><span class="' + (QUICK ? 'crate-q' : 'crate') + '">' +
+            // ⓘ No " | " in Simple since 2026-10-22 ("Remove the "|""): beside
+            // its panel the rate and limit stand at the line's right end, on
+            // the panel's right edge (alignNameRow).
+            (QUICK ? '<span class="cnsep">|</span>' : '') +
+            '<span class="' + (QUICK ? 'crate-q' : 'crate') + '">' +
             rateTags(partsOf(d.ordinal), keyCap(padLegend().rate)) + '</span>' +
             '</div>' +
             // ⓘ No device type line in either view (2.66.87): its name heads
@@ -10335,6 +10385,7 @@ function paintCompact() {
             '<button class="cclose" onclick="closeWindow()">Close</button></div>';
   }
   box.innerHTML = html;
+  alignNameRow();
   drumPaint(null);
   gpCollect();
   // ⭐ THE HALO STAYS WHERE IT WAS across a repaint (rhoquinn8217, 2026-09-09:
