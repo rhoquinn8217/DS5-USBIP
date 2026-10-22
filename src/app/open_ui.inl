@@ -21,6 +21,9 @@
 // ShellExecuteW lives here, not in windows.h. main.cpp does not include it
 // because nothing else in the project launches another program.
 #include <shellapi.h>
+// Whether Windows is locked (session_locked, below).
+#include <wtsapi32.h>
+#pragma comment(lib, "wtsapi32.lib")
 
 // The rule that tells our app window from a browser window showing the page in
 // a tab. The icon needed it first; every lookup here uses it too.
@@ -495,6 +498,77 @@ inline void keep_front_from(HWND taken_from)
     }).detach();
 }
 
+// ⭐⭐ BEHIND THE LOCK SCREEN THE WINDOW WAITS FOR THE UNLOCK (rhoquinn8217,
+// 2026-10-22: "when DS5-USBIP start in the background behind the lockscreen,
+// the config window can't be brought above it"). Windows draws the lock screen
+// on a desktop of its own, and no program's window can come over it: a stream
+// started at the lock screen starts this listener behind it, and a bridge then
+// opened the window where nobody could see it, its raise refused and never
+// tried again.
+// ➡️ So a window asked for while Windows is locked comes to the front once it
+// is unlocked, as the bridge would have brought it.
+
+// Is Windows locked? Asked of the session itself, so a listener started while
+// it already was knows as well as one that watched it lock.
+// ⚠️ Windows 7 and Server 2008 R2 report the two states the wrong way round;
+// this runs on 10 and 11. Not known counts as not locked: the raise is then
+// tried at once, which is what always happened before.
+inline bool session_locked()
+{
+    LPWSTR buffer = nullptr;
+    DWORD bytes = 0;
+    if (!WTSQuerySessionInformationW(WTS_CURRENT_SERVER_HANDLE, WTS_CURRENT_SESSION,
+                                     WTSSessionInfoEx, &buffer, &bytes) || buffer == nullptr) {
+        return false;
+    }
+    const auto *info = reinterpret_cast<const WTSINFOEXW *>(buffer);
+    const bool locked = info->Level == 1 &&
+                        info->Data.WTSInfoExLevel1.SessionFlags == WTS_SESSIONSTATE_LOCK;
+    WTSFreeMemory(buffer);
+    return locked;
+}
+
+// ⓘ One watcher at a time. It finds the window by its title when the unlock
+// comes, so a window opened again while locked is the one it raises.
+inline std::atomic_bool g_raiseOnUnlock{false};
+
+inline void raise_on_unlock()
+{
+    bool expected = false;
+    if (!g_raiseOnUnlock.compare_exchange_strong(expected, true)) return;
+    device_log::input_w() << L"ui: Windows is locked: the window comes to the front when it is unlocked";
+    std::thread([]() {
+        while (session_locked()) std::this_thread::sleep_for(std::chrono::milliseconds(250));
+        g_raiseOnUnlock.store(false);
+        // ⓘ The desktop is back a moment after the session says it is
+        // unlocked, and Windows then hands the front to whatever had it before
+        // the lock: so a few tries, each one checked.
+        for (int tries = 1; tries <= 6; ++tries) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(400));
+            FindState state;
+            EnumWindows(find_window_proc, reinterpret_cast<LPARAM>(&state));
+            if (state.found == nullptr) {
+                device_log::input_w() << L"ui: Windows was unlocked; the window asked for while it was locked has gone";
+                return;
+            }
+            const HWND before = GetForegroundWindow();
+            const bool beforeIsGame = before != state.found && is_full_screen_game(before);
+            raise_now(state.found);
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+            if (!window_has_foreground()) continue;
+            device_log::input_w() << L"ui: Windows was unlocked: brought the window to the front (try "
+                                  << tries << L", the front was "
+                                  << (before != nullptr ? exe_of(before) : std::wstring(L"nothing")) << L")";
+            // ⓘ What raise_when_ready does once its window is up.
+            remember_front(before != state.found ? before : nullptr, beforeIsGame);
+            follow_front();
+            if (beforeIsGame) keep_front_from(before);
+            return;
+        }
+        device_log::input_w() << L"ui: Windows was unlocked, and the window would not come to the front";
+    }).detach();
+}
+
 // ⚠️ Runs on a thread because the window does not exist yet when the browser is
 // launched -- it has to be waited for.
 // ⭐⭐ `release_claim`: THE ONE-AT-A-TIME CLAIM ENDS WHEN THE WINDOW EXISTS, not
@@ -531,6 +605,11 @@ inline void raise_when_ready(bool release_claim = false)
             EnumWindows(find_window_proc, reinterpret_cast<LPARAM>(&state));
             if (state.found == nullptr) continue;
 
+            // ⭐ Not over the lock screen, which nothing can be: at the unlock.
+            if (session_locked()) {
+                raise_on_unlock();
+                return;
+            }
             raise_now(state.found);
             device_log::input_w() << L"ui: raised the window above the game (the front was "
                                   << (before != nullptr ? exe_of(before) : std::wstring(L"nothing")) << L")";
@@ -546,6 +625,12 @@ inline void raise_when_ready(bool release_claim = false)
                 device_log::input_w() << L"ui: " << exe_of(before)
                                       << L" had the front and is not a full-screen game: not watching it";
             }
+            return;
+        }
+        // ⓘ A browser started behind the lock screen can be slow to show its
+        // window; the unlock raises it all the same.
+        if (session_locked()) {
+            raise_on_unlock();
             return;
         }
         device_log::input_w() << L"ui: no window appeared to raise";
