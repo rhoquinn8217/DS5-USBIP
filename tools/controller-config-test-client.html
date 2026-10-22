@@ -1864,12 +1864,12 @@
      the same outer height with nothing compressed.
      Solved, not guessed: bare select + 2 x padding = the button's height.
      Simple 27 + 2 x 0.79vh = 35.2; Quick 20 + 2 x 0.31vh = 21.1. Solved
-     again with no arrow (2026-10-21, appearance:none, below), at 1152 x
-     596 and 801 x 243: Simple 28.66 + 2 x 0.864vh = 38.96, Close's;
-     Quick 22.65 + 2 x 0.926 of its vh = 26.92, Close's, which it had
-     fallen 1.5 px short of since Quick grew.
+     again with the arrow back (2026-10-22), at 1152 x 596 and 801 x 243:
+     Simple 29.99 + 2 x 0.7525vh = 38.96, Close's; Quick 23.995 + 2 x
+     0.6345 of its vh = 26.92, Close's, which it had fallen 1.5 px short of
+     since Quick grew. (For the day without the arrow: 0.864 and 0.926.)
      Both move if the font or the button's padding above changes. */
-  #compactBox .cbar select.modepick { padding-top:calc(0.864 * var(--vh)); padding-bottom:calc(0.864 * var(--vh)); }
+  #compactBox .cbar select.modepick { padding-top:calc(0.7525 * var(--vh)); padding-bottom:calc(0.7525 * var(--vh)); }
   /* ⭐⭐ THE MODE IDENTIFIER NOW LIVES ON THE PICKER ITSELF (rhoquinn8217,
      2026-09-20): *"The Mode select clearly show what mode the window is in so
      we don't need the Yellow Bolded mode title in the legend for each mode
@@ -1888,17 +1888,18 @@
     letter-spacing:.08em; text-transform:uppercase; }
   #compactBox .cbar select.modepick option { color:#e8e8ea; font-weight:400;
     letter-spacing:normal; text-transform:none; }
-  /* ⭐ AS WIDE AS THE MODE IT SHOWS, AND NO ARROW, IN ALL THREE VIEWS
-     (2026-10-21): a select is as wide as its longest option, and ADVANCED
-     MODE (rhoquinn8217: "ADVANCE -> ADVANCE MODE") took 75 px from
-     Simple's legend, which went onto a second line and pushed the footer
-     into the config panel; so it is sized to the choice on show, and its
-     down arrow is gone ("remove the down carrot on the mode selector to
-     give room for the entire mode name"). ⛔ And the same width open:
+  /* ⭐ AS WIDE AS THE MODE IT SHOWS, IN ALL THREE VIEWS (2026-10-21): a
+     select is as wide as its longest option, and ADVANCED MODE
+     (rhoquinn8217: "ADVANCE -> ADVANCE MODE") took 75 px from Simple's
+     legend, which went onto a second line and pushed the footer into the
+     config panel; so it is sized to the choice on show. ⓘ Its down arrow
+     was off for a day ("remove the down carrot on the mode selector to
+     give room for the entire mode name") and is back (2026-10-22: "add
+     back the arrow to the mode selector"). ⛔ And the same width open:
      sized as its widest while its list was out, it grew under the footer
      as the list opened, and the legend and tip moved (pickerExpand's
      slot holds the closed size). */
-  select.modepick { field-sizing:content; appearance:none; -webkit-appearance:none; }
+  select.modepick { field-sizing:content; }
   /* ⭐ NO SCROLLBAR ON THE OPEN LISTS (rhoquinn8217, 2026-10-21: "When the
      mode selector opens up, the expanded selector window doesn't need the
      scroll bar. The polling rate limit selector box in simple and quick
@@ -1908,8 +1909,8 @@
   select.modepick, #compactBox .crate select, #compactBox .crate-q select { scrollbar-width:none; }
   select.modepick::-webkit-scrollbar, #compactBox .crate select::-webkit-scrollbar,
   #compactBox .crate-q select::-webkit-scrollbar { display:none; }
-  body.quick #compactBox .cbar select.modepick { padding-top:calc(0.926 * var(--vh));
-    padding-bottom:calc(0.926 * var(--vh)); }
+  body.quick #compactBox .cbar select.modepick { padding-top:calc(0.6345 * var(--vh));
+    padding-bottom:calc(0.6345 * var(--vh)); }
   /* ⭐ THE SIZE BUTTON, FLUSH AGAINST THE PICKER HERE TOO (rhoquinn8217,
      2026-10-09), as in Advanced's footer: the two share .cgroup, which
      stretches the button to the picker's height, so the two cannot differ
