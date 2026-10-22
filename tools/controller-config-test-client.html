@@ -89,25 +89,28 @@
             careful not to overlap the "L1" button"); Quick's configs are 11
             from 9.5, and the controller's symbol stands over its name.
             Simple's config selector is Quick's wheel too ("Mock up a SIMPLE
-            MODE with the config selector as a wheel like quick mode"), 7
-            lines at 5.4 (from 3.5: "made the wheel 5 lines long", then
-            "increase the config selector wheel to 7 lines"), in a panel
-            with New, Edit, Unlink and Auto link
+            MODE with the config selector as a wheel like quick mode"), 5
+            lines at 5.4 (from 3.5: "made the wheel 5 lines long"; 7 for a
+            day, then "go back to the wheel being 5 lines long"), in a panel
+            a little wider ("stretch the config select container
+            horizontally a litte more") with New, Edit, Unlink and Auto link
             stacked at its right, all one size ("move New, Edit and unlink
             above the auto link button. Expand the container to include these
             buttons"): up and down step it, Cross links at once, right moves
             to the buttons, up and down walk them, and off their ends lie the
             polling limit above and the footer below. Its title names the
             device type, at twice its size, and the device's symbol stands
-            before the nickname, the device type line gone. The panel grows
-            downward as the wheel does, the nickname's line staying where it
-            was ("expand the config selector container downward to fit
-            them"), and that line holds the battery, the polling rate and the
-            limit, the rate and limit at the battery's size, a g or a y in
+            before the nickname, the device type line gone. That line holds
+            the battery, the polling rate and the limit, the rate and limit
+            at the battery's size, a g or a y in
             the nickname whole ("Lower case "g" in the nickname in simple
             mode is getting cut at the bottom"). The controllers before and
-            after stand either side of the panel, each past an arrow holding
-            its shoulder button, their names and types half the size. On the
+            after stand either side of the panel, each past a narrow arrow
+            holding its shoulder button ("squash the next and previous
+            triangles horizontally"), the device's symbol before the
+            nickname and the type under it at half the nickname's size, on
+            up to two lines and cut with "..." past them, without the (USB)
+            or (BT) that Advanced and the panel's title keep. On the
             wheel, in Simple and Quick, the mouse rings a config in sight
             above or below the chosen one, and a click sets it and links it
             at once ("Make them mouse clickable and set them
@@ -2105,11 +2108,12 @@
      unlink above the auto link button. Expand the container to include
      these buttons", "make all the buttons ... consistent", "increase the
      the wheel height and the text size" and "increase the config selector
-     label to 2x", then "made the wheel 5 lines long", then 2026-10-21:
-     "increase the config selector wheel to 7 lines, keep the font size"):
-     the wheel 45.36vh, 7 lines of its 5.4vh text, the middle one solid
-     and three fading each side, at Simple's old selector's width; its four
-     buttons one size, stacked at
+     label to 2x", then "made the wheel 5 lines long", 7 for a day
+     (2026-10-21), then "go back to the wheel being 5 lines long"): the
+     wheel 32.4vh, 5 lines of its 5.4vh text, the middle one solid and two
+     fading each side, at Simple's old selector's width and 3vw more since
+     2026-10-21 ("stretch the config select container horizontally a litte
+     more"); its four buttons one size, stacked at
      its right; the title over the panel at twice its size (on its edge
      and smaller since 2026-10-19, below). ⓘ The panel's padding is 3vh
      top and bottom. With the title above the panel it was 1.2vh for the 5
@@ -2125,26 +2129,27 @@
      panel is only that top half now, 3.75vh less, and the panel's padding
      took it back, so the panel ends where it did. */
   body.compact:not(.quick) #compactBox .csel { padding-top:calc(2.25 * var(--vh)); }
-  /* ⭐ SIMPLE'S PANEL VIEW HELD AT THE TOP, THE PANEL GROWING DOWNWARD
-     (rhoquinn8217, 2026-10-21: "increase the config selector wheel to 7
-     lines, keep the font size and expand the config selector container
-     downward to fit them"): the nickname's line 9vh under the box's top
-     padding, where the view centred with 5 lines put it (2026-10-20: "add
-     space between the controller config container and the line break so
-     that it is the same space between the top edge of the window and the
-     top of the nickname"), so a notice of two lines in the window's top
-     right corner still clears it; the two lines more, 13vh, come out of
-     the room under the panel, which keeps 2vh above the footer's line. */
-  body.compact:not(.quick) #compactBox .cmain.cpanel { padding-top:calc(9 * var(--vh)); padding-bottom:0;
-    justify-content:flex-start; }
+  /* ⭐ SIMPLE'S PANEL VIEW CENTRED BETWEEN THE WINDOW'S TOP AND THE FOOTER'S
+     LINE (rhoquinn8217, 2026-10-20: "add space between the controller config
+     container and the line break so that it is the same space between the
+     top edge of the window and the top of the nickname"): the content in the
+     middle of what is left, with 6vh more under it than over it, the box's
+     4vh top padding and the 2vh from the name's line to the top of its
+     letters, so the room over the nickname and the room under the panel
+     match. The notice bubbles keep the window's top right corner. ⓘ Held at
+     the top for a day (2026-10-21) while the wheel had 7 lines and the
+     panel grew downward, and centred again with the 5 ("go back to the
+     wheel being 5 lines long"). */
+  body.compact:not(.quick) #compactBox .cmain.cpanel { padding-top:0; padding-bottom:calc(6 * var(--vh));
+    justify-content:center; justify-content:safe center; }
   body.compact:not(.quick) #compactBox .cpick-label { font-size:calc(3.6 * var(--vh)); top:0; bottom:auto;
     transform:translateY(-50%); background:linear-gradient(to bottom, #15161a 50%, #1d1f26 50%); }
   body.compact:not(.quick) #compactBox .cname .devemo { font-size:0.8em; margin-right:0.3em; }
   body.compact:not(.quick) #compactBox .cpick-wrap { display:inline-grid; grid-template-columns:auto auto; align-items:center;
     column-gap:2vw; padding:calc(3 * var(--vh)) 2vw; min-width:0; box-sizing:border-box;
     background:#1d1f26; border:1px solid #2c2e36; border-radius:8px; }
-  body.compact:not(.quick) #compactBox .cwheel { position:relative; display:inline-flex; min-width:47vw; }
-  body.compact:not(.quick) #compactBox .cwheel > select { opacity:0; height:calc(45.36 * var(--vh));
+  body.compact:not(.quick) #compactBox .cwheel { position:relative; display:inline-flex; min-width:50vw; }
+  body.compact:not(.quick) #compactBox .cwheel > select { opacity:0; height:calc(32.4 * var(--vh));
     font-size:calc(5.4 * var(--vh)); appearance:none; -webkit-appearance:none;
     width:100%; min-width:0; border:0; padding:0 0.9em; }
   body.compact:not(.quick) #compactBox .cdrum { position:absolute; inset:0; pointer-events:none; border-radius:6px;
@@ -2154,8 +2159,8 @@
     border:2px solid #3a3d47; border-radius:0.22em; background:#262833; }
   body.compact:not(.quick) #compactBox .cwheel:has(> select.gp-focus) .cdrum-frame { border-color:#6c8cff; background:#2a3566; }
   body.compact:not(.quick) #compactBox .cdrum-view { position:absolute; inset:0; overflow:hidden; border-radius:inherit;
-    -webkit-mask-image:linear-gradient(to bottom, transparent, #000 42.9%, #000 57.1%, transparent);
-            mask-image:linear-gradient(to bottom, transparent, #000 42.9%, #000 57.1%, transparent); }
+    -webkit-mask-image:linear-gradient(to bottom, transparent, #000 40%, #000 60%, transparent);
+            mask-image:linear-gradient(to bottom, transparent, #000 40%, #000 60%, transparent); }
   body.compact:not(.quick) #compactBox .cdrum-track { position:absolute; left:0; right:0; top:50%; height:0; }
   body.compact:not(.quick) #compactBox .cdrum-row { position:absolute; left:0; right:0; height:1.2em; margin-top:-0.6em;
     line-height:1.2em; padding:0 0.5em; text-align:center; white-space:nowrap;
@@ -2192,43 +2197,67 @@
   body.compact:not(.quick) #compactBox .cselrow { gap:0.8vw; }
   body.compact:not(.quick) #compactBox .cselrow > .cside.l { padding-right:0; }
   body.compact:not(.quick) #compactBox .cselrow > .cside.r { padding-left:0; }
-  /* ⓘ The device type wraps rather than shortening: beside the panel a card
-     has a sixth of the width and the panel's height, and "DualSense (USB)"
-     came out "DualSense ...". One run of text, the symbol after its last word. */
-  body.compact:not(.quick) #compactBox .cselrow > .cside .ckind { display:block; white-space:normal; }
+  /* ⭐ THE DEVICE TYPE ON UP TO TWO LINES, CUT WITH "..." PAST THEM
+     (rhoquinn8217, 2026-10-21: "In simple mode give 2 lines for the device
+     type. If the name doesn't fit on two lines use "..." cut the end"):
+     beside the panel a card has a sixth of the width, and on one line
+     "DualSense (USB)" came out "DualSense ..." (2026-10-19). A word longer
+     than the line breaks inside it. */
+  body.compact:not(.quick) #compactBox .cselrow > .cside .ckind { display:-webkit-box;
+    -webkit-box-orient:vertical; -webkit-line-clamp:2; line-clamp:2; overflow:hidden;
+    white-space:normal; overflow-wrap:break-word; }
   body.compact:not(.quick) #compactBox .cselrow > .cside .ckind .cklabel { overflow:visible; }
   /* ⭐ THE KEY IN A LARGE ARROW BY THE PANEL'S EDGE (2026-10-20: "The
      arrow need to be bigger and at the edge ...", then "move the arrows so
      their bases are adjacent to the config selector container edge. The
      arrow will point toward the controller nickname and type."): each card
      packs to the panel, the arrow's base just off its edge and the name and
-     type half an em past the tip, both on the panel's middle; the card still
-     reaches 3vw into the window's margin, for the name's room. The arrow
-     1.62 by 3.53 of the card's em ("flatten the triangles and fill them
-     in", "flatten horizontally", "Make the triangle base longer"), solid in
-     the card's colour, so it brightens with the name under the pointer; the
-     mark in it at the old key line's size, its box cut out in the window's
-     colour and its label in the card's ("don't fill in the shoulder button
-     symbol") (ringArrow). */
-  body.compact:not(.quick) #compactBox .cselrow > .cside { display:flex; align-items:center; gap:0.5em; }
-  body.compact:not(.quick) #compactBox .cselrow > .cside.l { margin-left:-3vw; justify-content:flex-end; }
-  body.compact:not(.quick) #compactBox .cselrow > .cside.r { margin-right:-3vw; justify-content:flex-start; }
-  /* ⭐ THE NEIGHBOURS' NAMES AND TYPES AT HALF THEIR SIZE (rhoquinn8217,
-     2026-10-21: "in simple mode, reduce the text of the next/previous
-     controller to half it's size"), the arrows as they were. */
-  body.compact:not(.quick) #compactBox .cstext { min-width:0; font-size:0.5em; }
-  body.compact:not(.quick) #compactBox .cselrow > .cside .cstext .ckind { font-size:calc(1.5 * var(--vh));
-    margin-top:calc(0.2 * var(--vh)); }
+     type 0.3 em past the tip, both on the panel's middle; the card reaches
+     3.6vw into the window's margin, for the name's room (half an em and 3vw
+     until 2026-10-21, when the nickname doubled, its symbol moved before
+     it and the panel widened). The arrow
+     1.21 by 3.53 of the card's em ("flatten the triangles and fill them
+     in", "flatten horizontally", "Make the triangle base longer", then
+     2026-10-21 "squash the next and previous triangles horizontally", from
+     1.62), solid in the card's colour, so it brightens with the name under
+     the pointer; the mark in it a little under the old key line's size and
+     nearer the base, so the narrower triangle still holds it, its box cut
+     out in the window's colour and its label in the card's ("don't fill in
+     the shoulder button symbol") (ringArrow). */
+  body.compact:not(.quick) #compactBox .cselrow > .cside { display:flex; align-items:center; gap:0.3em; }
+  body.compact:not(.quick) #compactBox .cselrow > .cside.l { margin-left:-3.6vw; justify-content:flex-end; }
+  body.compact:not(.quick) #compactBox .cselrow > .cside.r { margin-right:-3.6vw; justify-content:flex-start; }
+  /* ⭐ THE NICKNAME AT THE CARD'S SIZE, THE TYPE AT HALF OF IT (rhoquinn8217,
+     2026-10-21: "reduce the text of the next/previous controller to half
+     it's size", then "Double the size of the next/previous nickname" and
+     "Make the next/previous device type smaller that the nickname"): the
+     name 4.5vh again, the type 2.25vh (3vh to start, 1.5 at half). The
+     symbol before the name a little smaller than beside the ring's own
+     nickname, for the name's room. ⚠️ 17 of the listener's 118 names, the
+     long and the wide (Avalanche, Gladiator, Shogun), end in "..." at
+     this size (measured 2026-10-21 at 1152 x 596); without the panel's
+     3vw or at 4vh, 6 or 7; with neither, none. */
+  body.compact:not(.quick) #compactBox .cstext { min-width:0; }
+  body.compact:not(.quick) #compactBox .cselrow > .cside .csname { display:flex; align-items:center; min-width:0; }
+  body.compact:not(.quick) #compactBox .cselrow > .cside.l .csname { justify-content:flex-end; }
+  body.compact:not(.quick) #compactBox .csname > .devemo { flex:0 0 auto; font-size:0.65em; margin-right:0.2em; }
+  body.compact:not(.quick) #compactBox .csnick { min-width:0; overflow:hidden; text-overflow:ellipsis;
+    white-space:nowrap; }
+  body.compact:not(.quick) #compactBox .cselrow > .cside .cstext .ckind { font-size:calc(2.25 * var(--vh));
+    margin-top:calc(0.3 * var(--vh)); }
+  /* ⓘ And in the ring's row, where Simple shows no panel, the symbol before
+     the name too. */
+  body.compact:not(.quick) #compactBox .ccar .cside > .devemo { font-size:0.8em; margin-right:0.3em; }
   body.compact:not(.quick) #compactBox .carrow { position:relative; flex:0 0 auto; display:inline-flex;
-    align-items:center; justify-content:flex-end; width:1.616em; height:3.525em; box-sizing:border-box;
-    padding-right:0.147em; }
-  body.compact:not(.quick) #compactBox .carrow.r { justify-content:flex-start; padding-right:0; padding-left:0.147em; }
+    align-items:center; justify-content:flex-end; width:1.212em; height:3.525em; box-sizing:border-box;
+    padding-right:0.08em; }
+  body.compact:not(.quick) #compactBox .carrow.r { justify-content:flex-start; padding-right:0; padding-left:0.08em; }
   body.compact:not(.quick) #compactBox .carrow-tri { position:absolute; left:0; top:0; width:100%; height:100%;
     fill:currentColor; stroke:currentColor; stroke-width:1.5; stroke-linejoin:round; }
   body.compact:not(.quick) #compactBox .carrow.r .carrow-tri { transform:scaleX(-1); }
-  body.compact:not(.quick) #compactBox .carrow > .kshoulder { position:relative; font-size:0.68em; }
+  body.compact:not(.quick) #compactBox .carrow > .kshoulder { position:relative; font-size:0.6em; }
   body.compact:not(.quick) #compactBox .carrow > .kshoulder path { fill:#15161a; stroke:#15161a; }
-  body.compact:not(.quick) #compactBox .carrow > .kcap { position:relative; font-size:0.55em;
+  body.compact:not(.quick) #compactBox .carrow > .kcap { position:relative; font-size:0.5em;
     background:#15161a; border-color:#15161a; }
   .modeclose #modePick, .modeclose #closeBtn { margin-left:0; }
   .modegroup #modePick { border-top-left-radius:0; border-bottom-left-radius:0; }
@@ -3845,6 +3874,15 @@ function deviceLabelShort(d) {
   return d.label || d.product || d.kind || 'controller';
 }
 
+// ⭐ THE TYPE WITHOUT ITS LINK, FOR SIMPLE'S NEIGHBOURS (rhoquinn8217,
+// 2026-10-21: "In simple modes, remove the (USB) or (BT) from the Device
+// type from next and previous. We'll only show that in advance mode and in
+// the config selector label"): the listener ends a label " (USB)" or
+// " (BT)" when it knows the link (device_names.inl), and only that comes off.
+function typeWithoutLink(label) {
+  return String(label || '').replace(/ [(](USB|BT)[)]$/, '');
+}
+
 // ⭐ A CONTROLLER, KEYBOARD OR MOUSE MARK RIGHT AFTER A DEVICE'S NICKNAME
 // (rhoquinn8217, 2026-10-02, in three steps: *"Put a controller, keyboard or
 // mouse character symbol next the the device name"*; then, shown four kinds
@@ -4110,12 +4148,14 @@ function shoulderMark(k) {
 // edge"): a solid triangle, its base just off the panel and its tip at the
 // neighbour's name and type, narrower than tall, with the shoulder
 // button's mark, or a keyboard's key cap, cut out of its broad end as a
-// hollow mark, its label in the triangle's colour. 44 by 96, the tip at the
-// middle of one side: a 24 by 20 mark sits 3 in from the base, about the
-// triangle's centre. Drawn pointing left; R1's is mirrored.
+// hollow mark, its label in the triangle's colour. 33 by 96, the tip at the
+// middle of one side; 44 until 2026-10-21 ("squash the next and previous
+// triangles horizontally"), when the mark grew a little smaller and moved
+// to 2 in from the base, so its far corners stay inside, 2.7 clear of the
+// sides at 21 by 18. Drawn pointing left; R1's is mirrored.
 function ringArrow(cls, mark) {
-  return '<span class="carrow ' + cls + '"><svg class="carrow-tri" viewBox="0 0 44 96" aria-hidden="true">' +
-         '<path d="M1 48L43 1V95Z"/></svg>' + mark + '</span>';
+  return '<span class="carrow ' + cls + '"><svg class="carrow-tri" viewBox="0 0 33 96" aria-hidden="true">' +
+         '<path d="M1 48L32 1V95Z"/></svg>' + mark + '</span>';
 }
 function shoulderCaps(pair) {
   return '<span class="kpair">' + String(pair).split('/').map(shoulderMark).join('') + '</span>';
@@ -6305,10 +6345,11 @@ var DRUM_ROLL_MS = 220;
 var DRUM_LAST = null;         // { ord, at }: what the drum last showed
 var DRUM_ROLL = null;         // { from, t0, ms }: a roll under way
 
-// ⓘ Six each side: Simple's wheel shows three (2026-10-21), and a roll of
-// three steps, a click's longest, starts with the track three rows out.
-var DRUM_REACH = 6;           // rows drawn each side of the choice
-var DRUM_ROLL_ROWS = 3;       // the longest roll; a longer step starts this far out
+// ⓘ Four each side: Simple's wheel shows two (2026-10-19; three for a day,
+// 2026-10-21), and a roll of two steps, a click's longest, starts with the
+// track two rows out.
+var DRUM_REACH = 4;           // rows drawn each side of the choice
+var DRUM_ROLL_ROWS = 2;       // the longest roll; a longer step starts this far out
 function drumRows(sel) {
   var n = sel.options.length, at = Math.max(0, sel.selectedIndex), html = '';
   for (var k = -DRUM_REACH; k <= DRUM_REACH; k++) {
@@ -6360,7 +6401,7 @@ function quickStepConfig(sel, delta) {
   focusElement(sel);
   var n = sel.options.length;
   if (n < 2) return;
-  // ⓘ Wrapped either way however far: a click may step three, past a list of two.
+  // ⓘ Wrapped either way however far: a click may step past a short list's length.
   sel.selectedIndex = ((sel.selectedIndex + delta) % n + n) % n;
   drumHover(null);
   drumPaint(delta);
@@ -10011,11 +10052,14 @@ function paintCompact() {
         return '<div class="cside ' + cls + '" onclick="gpTab(' + (cls === 'l' ? -1 : 1) + ')">' +
                '<small>' + key + '</small></div>';
       }
-      // ⓘ A word joiner holds the symbol to the type's last word: beside
-      // Simple's panel the type wraps (2026-10-19), and the symbol, set off
-      // by a margin rather than a space, fell onto a line of its own.
-      var kind = od ? '<div class="ckind"><span class="cklabel">' + esc(deviceLabelShort(od)) +
-                      '\u2060</span>' + deviceIcons(partsOf(ord)) + '</div>' : '';
+      // ⭐ THE DEVICE'S SYMBOL BEFORE THE NICKNAME, AND THE TYPE WITHOUT ITS
+      // LINK (rhoquinn8217, 2026-10-21: "Move the icon next to the
+      // next/previous device type icon to the left of the next/previous
+      // nickname", and "remove the (USB) or (BT) from the Device type from
+      // next and previous"): the symbol stood after the type until then.
+      var icons = deviceIcons(partsOf(ord));
+      var kind = od ? '<div class="ckind"><span class="cklabel">' +
+                      esc(typeWithoutLink(deviceLabelShort(od))) + '</span></div>' : '';
       var open = '<div class="cside ' + cls + '" onclick="gpTab(' + (cls === 'l' ? -1 : 1) + ')">';
       // ⭐ BESIDE SIMPLE'S PANEL, THE KEY IN A LARGE ARROW WHOSE BASE STANDS
       // JUST OFF THE PANEL'S EDGE (rhoquinn8217, 2026-10-20: "The arrow need to be
@@ -10025,10 +10069,11 @@ function paintCompact() {
       // toward the controller nickname and type."): `key` is the mark alone
       // there; the name and type stand past the arrow's tip.
       if (byPanel) {
-        var text = '<div class="cstext">' + esc(nameFor(ord)) + kind + '</div>';
+        var text = '<div class="cstext"><div class="csname">' + icons + '<span class="csnick">' +
+                   esc(nameFor(ord)) + '</span></div>' + kind + '</div>';
         return open + (cls === 'l' ? text + ringArrow(cls, key) : ringArrow(cls, key) + text) + '</div>';
       }
-      return open + '<small>' + key + '</small>' + esc(nameFor(ord)) + kind + '</div>';
+      return open + '<small>' + key + '</small>' + icons + esc(nameFor(ord)) + kind + '</div>';
     };
     var slide = COMPACT_SLIDE > 0 ? ' slide-r' : COMPACT_SLIDE < 0 ? ' slide-l' : '';
     COMPACT_SLIDE = 0;
@@ -11609,6 +11654,13 @@ function selfTest() {
      mtexts.join('|') === 'Advanced Mode|Simple Mode|Quick Mode', mtexts.join('|'));
   ok('the mode picker has no title over it, in any view',
      modeGroupHtml().indexOf('modelabel') < 0 && !document.querySelector('.modelabel'));
+  // The neighbours beside Simple's panel name the type without its link.
+  ok('the neighbours: the type without (USB) or (BT), and nothing else taken off',
+     typeWithoutLink('DualSense (USB)') === 'DualSense' &&
+     typeWithoutLink('DualShock 4 (BT)') === 'DualShock 4' &&
+     typeWithoutLink('Xbox Controller') === 'Xbox Controller' &&
+     typeWithoutLink('Pro Controller (USB)') === 'Pro Controller' &&
+     typeWithoutLink('Keyboard (USB) Receiver') === 'Keyboard (USB) Receiver');
 
   // Leave the page as it was found.
   renderTabs(LAST_DEVICES || []);
