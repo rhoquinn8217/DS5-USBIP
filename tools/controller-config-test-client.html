@@ -54,7 +54,12 @@
             grayed buttons with bubbles instead"), the halo staying on it.
             Right from Simple's wheel lands on Unlink ("I want right to land
             on unlink, not New"), and left from it goes nowhere ("Left from
-            the wheel in simple mode should go no where").
+            the wheel in simple mode should go no where"). Simple and Quick
+            open with the halo on the wheel, whatever it was on when the
+            window last closed ("when ever you bring up the config window in
+            simple or quick mode with the chord, bridge or tray icon, always
+            start on the config selector wheel"); the controller is still
+            the one remembered.
     2.66.87 Quick's config selector is a wheel (rhoquinn8217: "build out a
             Wheel / Drum Picker for the config selector"): its choice in a
             frame fixed in the middle, which alone carries the halo, the
@@ -9123,6 +9128,16 @@ function restorePlace() {
 
     var settle = function () {
       gpCollect();
+      // ⭐ IN SIMPLE AND QUICK, THE WHEEL (2026-10-22, OPEN_ON_WHEEL): the
+      // remembered controller came back above, never the remembered
+      // control. ⓘ False until the box has a wheel, so the retry waits.
+      if (COMPACT) {
+        var wheel = document.getElementById('cpick');
+        if (!wheel || !focusElement(wheel)) return false;
+        placed = GP_WANT;
+        PLACE_READY = true;
+        return true;
+      }
       // ⭐ By KEY first: it covers buttons, which have no id and were therefore
       // unfindable -- the whole reason the index fallback was ever reached.
       if (want.key) {
@@ -9164,7 +9179,8 @@ function restorePlace() {
           // focusElement, so it left no trace and answered to nothing.
           // ⚠️ An index is a guess about a list that has been rebuilt since --
           // it is the last resort, and it must not beat a person.
-          if (tries >= 6 && !overtaken()) {
+          // ⓘ Never in Simple or Quick, which open on the wheel.
+          if (tries >= 6 && !overtaken() && !COMPACT) {
             gpCollect();
             GP_INDEX = Math.min(want.index || 0, Math.max(0, GP_FOCUS.length - 1));
             window.scrollTo(0, want.scroll || 0);
@@ -9763,6 +9779,15 @@ function pickMode(v) {
 // list has shut (pickerClickEnd) -- or by setCompact in Advanced. Not when
 // a window opens in the mode it remembers (restore).
 var MODE_FOCUS_CONFIG = false;
+
+// ⭐ AND A WINDOW OPENING IN SIMPLE OR QUICK STARTS THERE TOO (rhoquinn8217,
+// 2026-10-22: "when ever you bring up the config window in simple or quick
+// mode with the chord, bridge or tray icon, always start on the config
+// selector wheel"), whatever the halo was on when it last closed: the
+// first paint of the compact box with a wheel in it takes this, and the
+// remembered place (restorePlace) brings back the controller alone there.
+// ⓘ Each of the three opens a new window, so a page load is the event.
+var OPEN_ON_WHEEL = true;
 
 function setMode(m, restore) {
   var quick = (m === 'quick');
@@ -10690,6 +10715,11 @@ function paintCompact() {
   // ⓘ And there after a switch of mode, wherever the halo was (MODE_FOCUS_CONFIG).
   var fresh = MODE_FOCUS_CONFIG;
   MODE_FOCUS_CONFIG = false;
+  // ⓘ And the first paint with a wheel after the window opens (OPEN_ON_WHEEL).
+  if (OPEN_ON_WHEEL && document.getElementById('cpick')) {
+    fresh = true;
+    OPEN_ON_WHEEL = false;
+  }
   if (fresh || !(have && box.contains(have) && focusKeyOf(have) === GP_WANT)) {
     // ⓘ Close by its class: the 🗗 is the bar's first button now (2026-10-09).
     var want = document.getElementById('cpick') || box.querySelector('button.cbig') ||
