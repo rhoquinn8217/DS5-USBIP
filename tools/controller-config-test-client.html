@@ -49,7 +49,12 @@
             keeps it. Safe Edit Mode reads its state alone,
             what it does in its tooltip, and "click to turn off" is gone.
             A password box is typed into as a text box is, by the pad and
-            the keys alike.
+            the keys alike. A greyed button in Simple says why in a bubble
+            in the corner rather than a box with OK ("change the pop up for
+            grayed buttons with bubbles instead"), the halo staying on it.
+            Left from Simple's wheel lands on New, as right does ("pressing
+            left on the config selector wheel lands you on unlink instead
+            of New").
     2.66.87 Quick's config selector is a wheel (rhoquinn8217: "build out a
             Wheel / Drum Picker for the config selector"): its choice in a
             frame fixed in the middle, which alone carries the halo, the
@@ -8522,9 +8527,9 @@ function compactMove(dx, dy) {
   }
   if (!rows.length) return false;
   var cur = GP_FOCUS[GP_INDEX];
-  // ⭐ SIMPLE'S PANEL (2.66.87): right from the wheel enters its column of
-  // buttons at New (at the one level with the wheel's frame until
-  // 2026-10-22); up and down walk the column, stopping at its top (R3 alone
+  // ⭐ SIMPLE'S PANEL (2.66.87): right or left from the wheel enters its
+  // column of buttons at New (right, at the one level with the wheel's
+  // frame, until 2026-10-22); up and down walk the column, stopping at its top (R3 alone
   // reaches the polling limit) and off its bottom to the footer, and up
   // from the footer comes back to its bottom; left goes back to the wheel.
   // Up and down on the wheel step it (quickVertical), so the column is the
@@ -8537,7 +8542,11 @@ function compactMove(dx, dy) {
     // ⭐ RIGHT FROM THE WHEEL LANDS ON NEW, EVERY TIME (rhoquinn8217,
     // 2026-10-22: "moving right from the config selector wheel should land
     // you on "New" all the time"): the column's top, which is never greyed.
-    if (cur === wheelSel && dx > 0) return focusElement(col[0]);
+    // ⭐ AND LEFT DOES TOO (the same day: "pressing left on the config
+    // selector wheel lands you on unlink instead of New"): nothing is to the
+    // wheel's left, so left fell to the nearest-centre rule below, and the
+    // column's middle button is the one level with the wheel.
+    if (cur === wheelSel && dx !== 0) return focusElement(col[0]);
     // ⭐ UP FROM THE FOOTER LANDS ON ARCHIVE (2026-10-22: "up from the mode
     // selector or close should bring you to "archive""), the column's foot,
     // over them, greyed or not: a greyed button is reachable (explainGreyed).
@@ -10062,16 +10071,39 @@ function compactAutoUnlink() {
 // 2026-10-22: "don't skip over disable buttons in simple mode. When click,
 // show pop up why they are disabled"): greyed by aria-disabled, not by
 // disabled, so the pad and the keys still land on it and a press or a click
-// still reaches it; its data-why is told in the confirm box with OK alone,
-// Cancel put back as it closes. ⓘ A callback that does nothing, not none:
-// CONFIRM_CB is how the rest of the page knows the box is up, and keeps the
-// halo in it.
+// still reaches it.
+// ⭐ IN A BUBBLE (the same day: "change the pop up for grayed buttons with
+// bubbles instead"), where Simple shows its notices: the corner, blue as
+// information is, the halo staying on the button. It was the confirm box
+// with OK alone, which took the halo and wanted a press to go. ⓘ One at a
+// time, a second press replacing the first, gone after six seconds, as the
+// listener's notices are (showListenerNotice).
+var GREYED_NOTE = null;
+var GREYED_NOTE_TIMER = null;
+
+function clearGreyedNote() {
+  if (GREYED_NOTE_TIMER) { clearTimeout(GREYED_NOTE_TIMER); GREYED_NOTE_TIMER = null; }
+  if (GREYED_NOTE && GREYED_NOTE.parentNode) GREYED_NOTE.parentNode.removeChild(GREYED_NOTE);
+  GREYED_NOTE = null;
+}
+
 function explainGreyed(btn) {
-  var no = document.querySelector('#confirmBox button:last-of-type');
-  if (no) no.style.display = 'none';
-  CONFIRM_ON_NO = function () { if (no) no.style.display = ''; };
-  askConfirm((btn.textContent || '').trim() + ' is greyed', btn.getAttribute('data-why') || '',
-             function () {});
+  clearGreyedNote();
+  var box = document.createElement('div');
+  box.className = 'greyednote';
+  box.style.cssText = 'border:1px solid #6c8cff;background:#1e2333;color:#c9d4ff';
+  var head = document.createElement('strong');
+  head.textContent = (btn.textContent || '').trim() + ' is greyed';
+  box.appendChild(head);
+  box.appendChild(document.createElement('br'));
+  box.appendChild(document.createTextNode(btn.getAttribute('data-why') || ''));
+  document.getElementById('bubbles').appendChild(box);
+  GREYED_NOTE = box;
+  measureNotices();
+  GREYED_NOTE_TIMER = setTimeout(function () {
+    clearGreyedNote();
+    measureNotices();
+  }, 6000);
 }
 
 // Simple's Archive: the config on the wheel, asked first (archive).
@@ -11497,7 +11529,8 @@ function selfTest() {
    'stopAutoLink','archive','unlinkConfirmed','renameConfig','copyConfigFor','createFromPreset','presetCancel','openPresetInfo','closePresetInfo','renameKey','loadConfigs','loadDevices',
    'openConfig','applyPick','newConfigFor','preserveScroll','setDown','gpCollect',
    'rateTag','rateTags','refreshRates','setRateLimit','pollRates',
-   'toggleTokenShown','paintConnLight','archiveConfigBtn','autoLinkBtnHtml'
+   'toggleTokenShown','paintConnLight','archiveConfigBtn','autoLinkBtnHtml',
+   'explainGreyed','clearGreyedNote'
   ].forEach(function(n) {
     ok('function ' + n, typeof window[n] === 'function');
   });
@@ -11981,23 +12014,20 @@ function selfTest() {
      mtexts.join('|') === 'Advanced Mode|Simple Mode|Quick Mode', mtexts.join('|'));
   ok('the mode picker has no title over it, in any view',
      modeGroupHtml().indexOf('modelabel') < 0 && !document.querySelector('.modelabel'));
-  // A greyed button in Simple says why, in the confirm box with OK alone.
+  // A greyed button in Simple says why in a bubble, and asks nothing.
   var greyed = document.createElement('button');
   greyed.textContent = 'Archive';
   greyed.setAttribute('data-why', 'The wheel shows no config.');
-  var keepOpener = OVERLAY_OPENER;
   explainGreyed(greyed);
-  var cancelBtn = document.querySelector('#confirmBox button:last-of-type');
-  ok('a greyed button says why, with OK alone',
-     document.getElementById('confirmBox').style.display === 'flex' &&
-     document.getElementById('confirmTitle').textContent === 'Archive is greyed' &&
-     document.getElementById('confirmText').textContent === 'The wheel shows no config.' &&
-     !!CONFIRM_CB && cancelBtn.style.display === 'none');
-  confirmYes();
-  OVERLAY_OPENER = keepOpener;
-  ok('and closing it puts Cancel back for the next question',
-     document.getElementById('confirmBox').style.display === 'none' &&
-     cancelBtn.style.display === '' && CONFIRM_CB === null);
+  var notes = document.querySelectorAll('#bubbles .greyednote');
+  ok('a greyed button says why in a bubble, and opens no box',
+     notes.length === 1 && notes[0].textContent === 'Archive is greyedThe wheel shows no config.' &&
+     !CONFIRM_CB && document.getElementById('confirmBox').style.display !== 'flex',
+     notes.length ? notes[0].textContent : 'no bubble');
+  explainGreyed(greyed);
+  ok('and a second press replaces it rather than stacking',
+     document.querySelectorAll('#bubbles .greyednote').length === 1);
+  clearGreyedNote();
   // The neighbours beside Simple's panel name the type without its link.
   ok('the neighbours: the type without (USB) or (BT), and nothing else taken off',
      typeWithoutLink('DualSense (USB)') === 'DualSense' &&
