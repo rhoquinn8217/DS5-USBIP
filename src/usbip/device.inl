@@ -3,6 +3,7 @@ public:
     ~CtmUsbipDevice()
     {
         stop_audio_stream();
+        audio_haptics::detach(std::atomic_exchange(&hapticsPad_, std::shared_ptr<audio_haptics::Pad>()));
         usb_serial_fallback::g_slots.release(fallbackSerial_);
         want_fine_timer(false);
     }
@@ -144,6 +145,22 @@ public:
         }
         info_ = parse_usb_info(profile_);
         device_log::usb_w() << L"virtual USB serial: " << virtualSerial;
+        refresh_gains();
+        // ⭐ PC sound as haptics (audio_haptics.inl): a DualSense or Edge
+        // joins, whether or not it is turned on; its settings decide that, and
+        // can change while it is bridged.
+        {
+            const char *kind = device_section_for(profile_.device_descriptor);
+            if (kind != nullptr && (std::strcmp(kind, "ds5") == 0 || std::strcmp(kind, "ds5_edge") == 0) &&
+                profile_.device_descriptor.size() >= 12) {
+                const unsigned vendor = profile_.device_descriptor[8] | (profile_.device_descriptor[9] << 8);
+                const unsigned product = profile_.device_descriptor[10] | (profile_.device_descriptor[11] << 8);
+                wchar_t instance[160] = {};
+                std::swprintf(instance, 160, L"USB\\VID_%04X&PID_%04X\\%ls", vendor, product, virtualSerial.c_str());
+                std::atomic_store(&hapticsPad_, audio_haptics::attach(instance, L"the pad " + virtualSerial,
+                                                                      device_settings_section(kind, linked_config())));
+            }
+        }
         // ⭐ The map replays captured packets, and an announce carries an id
         // Windows keys an XInput device on. Give it this controller's, derived
         // from the serial above, so two bridged pads are two devices.
@@ -254,6 +271,21 @@ public:
 
     // The per-controller config this device reads, or empty for the shared
     // section. Set by the agent at bridge time and whenever a link changes.
+    // ⭐ Its two sound gains from its own section, linked config or its
+    // kind's: audio_gain.inl says why they are read per pad.
+    void refresh_gains()
+    {
+        const std::string section = device_settings_section(device_section_for(profile_.device_descriptor), linked_config());
+        const ctm_audio_gain::Gains g = ctm_audio_gain::read(section.empty() ? nullptr : section.c_str());
+        const int oldHaptics = hapticsGain_.exchange(g.haptics);
+        const int oldSound = soundGain_.exchange(g.sound);
+        if (oldHaptics != g.haptics || oldSound != g.sound) {
+            device_log::audio(device_log::msg() << "gains from [" << section << "]: haptics "
+                              << (g.haptics < 0 ? std::string("unchanged") : std::to_string(g.haptics) + "%") << ", sound "
+                              << (g.sound < 0 ? std::string("unchanged") : std::to_string(g.sound) + "%"));
+        }
+    }
+
     std::string linked_config() const
     {
         std::lock_guard<std::mutex> lock(physicalSerialMutex_);
@@ -262,8 +294,16 @@ public:
 
     void set_linked_config(const std::string &name)
     {
-        std::lock_guard<std::mutex> lock(physicalSerialMutex_);
-        linkedConfig_ = name;
+        {
+            std::lock_guard<std::mutex> lock(physicalSerialMutex_);
+            linkedConfig_ = name;
+        }
+        refresh_gains();
+        // ⓘ PC-sound haptics read the section a link names, as everything
+        // else here does.
+        if (const std::shared_ptr<audio_haptics::Pad> pad = std::atomic_load(&hapticsPad_)) {
+            audio_haptics::set_section(*pad, device_settings_section(device_section_for(profile_.device_descriptor), name));
+        }
     }
 
     // ⭐ WHETHER A RATE LIMIT CAN APPLY HERE (usbip/input_pace.inl).
@@ -349,6 +389,9 @@ public:
         // release a button this pad held at unbridge.
         mouse_forget_device(this);
         rebind_forget_pad(this);
+        // ⭐ Out of PC-sound haptics too: its keep-alive closed, and the
+        // capture stopped if it was the last.
+        audio_haptics::detach(std::atomic_exchange(&hapticsPad_, std::shared_ptr<audio_haptics::Pad>()));
         stop_audio_stream();
         // ⭐ Its serial's slot is free for the next device of its kind
         // (fallback_serial.inl).
@@ -1972,6 +2015,19 @@ private:
         event.event_type = endpoint_is_iso(info_, endpointAddress) ? CTM_USB_EVENT_ISO_OUT : CTM_USB_EVENT_HID_OUTPUT;
         event.endpoint_address = endpointAddress;
         if (event.event_type == CTM_USB_EVENT_ISO_OUT) {
+            // ⓘ About once a second: the gains follow a changed file or link.
+            if (++gainChunks_ % 100 == 0) refresh_gains();
+            // ⭐ PC sound as haptics, into channels 2 and 3 BEFORE the stream
+            // splits into its wired and Bluetooth paths, so both carry it
+            // (audio_haptics.inl). ⓘ A copy only while it is on.
+            const std::shared_ptr<audio_haptics::Pad> pad = std::atomic_load(&hapticsPad_);
+            if (pad && pad->on.load() && endpointAddress == audioIsoEndpoint_) {
+                std::vector<uint8_t> mixed(data);
+                audio_haptics::into_stream(*pad, &mixed);
+                return map_iso_passthrough_enabled()
+                    ? process_iso_output_wired(endpointAddress, mixed)
+                    : process_iso_output(endpointAddress, mixed);
+            }
             return map_iso_passthrough_enabled()
                 ? process_iso_output_wired(endpointAddress, data)
                 : process_iso_output(endpointAddress, data);
@@ -2001,11 +2057,20 @@ private:
         return process_hid_output_event(event);
     }
 
-    int process_iso_output(uint8_t endpointAddress, const std::vector<uint8_t> &data)
+    int process_iso_output(uint8_t endpointAddress, const std::vector<uint8_t> &input)
     {
         if (endpointAddress != audioIsoEndpoint_) {
             return kStatusOk;
         }
+        // ⭐ The same two gains as the wired path (audio_gain.inl): until
+        // 2026-10-13 nothing scaled a Bluetooth pad's haptics or its sound.
+        const ctm_audio_gain::Gains gains{ hapticsGain_.load(), soundGain_.load() };
+        std::vector<uint8_t> scaledCopy;
+        if (ctm_audio_gain::active(gains)) {
+            scaledCopy = input;
+            ctm_audio_gain::apply(scaledCopy, gains);
+        }
+        const std::vector<uint8_t> &data = scaledCopy.empty() ? input : scaledCopy;
         if (audioChannels_ == 0 || audioInputSampleRate_ == 0 || audioReservoirSampleRate_ == 0) {
             return kStatusOk;
         }
@@ -2080,9 +2145,10 @@ private:
         // data is const and owned by the caller, so scaling needs a copy --
         // made only when a gain is configured, so an unconfigured build pays
         // nothing on this ~100/sec path.
-        if (ctm_audio_gain::configured()) {
+        const ctm_audio_gain::Gains gains{ hapticsGain_.load(), soundGain_.load() };
+        if (ctm_audio_gain::active(gains)) {
             std::vector<uint8_t> scaled(data);
-            ctm_audio_gain::apply(scaled);
+            ctm_audio_gain::apply(scaled, gains);
             ctm_pcm_amp::maybe_log(scaled);
             backend_->send_iso_audio(scaled, &err);
             return kStatusOk;
@@ -2234,6 +2300,14 @@ private:
     std::wstring fallbackSerial_;
     std::string physicalSerial_;
     std::string linkedConfig_;
+    // Its two sound gains, from its own section (audio_gain.inl): -1 for
+    // none. Read on its sound stream's thread, re-read by refresh_gains.
+    std::atomic<int> hapticsGain_{-1};
+    std::atomic<int> soundGain_{-1};
+    unsigned gainChunks_ = 0;           // its sound stream's thread only
+    // Its place in PC-sound haptics, for a DualSense or Edge: set at attach,
+    // read by its sound stream's thread, so loaded and stored atomically.
+    std::shared_ptr<audio_haptics::Pad> hapticsPad_;
     // A controller with no usable serial: its polling limit, for this bridge.
     std::string bridgeRateLimit_;
     std::mutex unknownLogMutex_;

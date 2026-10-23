@@ -23,6 +23,7 @@ int run_window_icon_rule_tests();
 int run_quit_request_tests();
 int run_stream_commands_tests();
 int run_taskbar_rule_tests();
+int run_audio_haptics_dsp_tests();
 int run_old_devices_rule_tests();
 int run_nickname_tests();
 int run_rest_shared_section_tests();
@@ -143,6 +144,7 @@ int main(int argc, char **argv)
     run_window_icon_rule_tests();
     run_stream_commands_tests();
     run_taskbar_rule_tests();
+    run_audio_haptics_dsp_tests();
     run_old_devices_rule_tests();
     run_nickname_tests();
     run_rest_shared_section_tests();

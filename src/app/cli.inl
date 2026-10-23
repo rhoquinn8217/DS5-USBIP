@@ -102,6 +102,7 @@ static void print_usage()
         << L"  DS5-USBIP start                              (Vibepollo, as a stream starts: the listener started, with no window until a controller bridges)\n"
         << L"  DS5-USBIP stop                               (Vibepollo, as a stream ends: the listener asked to quit, as its tray menu's Quit)\n"
         << L"  DS5-USBIP stream-commands add|remove <sunshine.conf>\n"
+        << L"  DS5-USBIP audio-haptics-probe [seconds]      (what the PC plays, and what a pad would feel of it, a line a second)\n"
         << L"                                               (the installer: those two put in Vibepollo's list, or taken out)\n"
         << L"  DS5-USBIP old-devices                        (JSON: the old controllers Windows keeps from past bridges; changes nothing)\n"
         << L"  DS5-USBIP remove-old-devices [--report]      (removes them, as an administrator; --report says how it went in a box)\n"

@@ -92,6 +92,7 @@
   <ItemGroup>
     <ClCompile Include="..\src\main.cpp" />
     <ClCompile Include="..\src\hid\enumerate.cpp" />
+    <ClCompile Include="..\src\audio\pc_sound_capture.cpp" />
     <ClCompile Include="..\src\map\runtime.cpp" />
     <ClCompile Include="..\src\profile\loader.cpp" />
   </ItemGroup>

@@ -382,11 +382,10 @@ int run_device_config_tests()
     section("audio gain: speaker and haptic channels are scaled separately");
     {
         set_config("[ds5]\naudio_gain = 50\nmaster_rumble_gain = 0\n");
-        units::ctm_audio_gain::refresh();
 
         // One frame: four 16-bit samples, little-endian. 1000 in every channel.
         std::vector<uint8_t> pcm = {0xe8, 0x03, 0xe8, 0x03, 0xe8, 0x03, 0xe8, 0x03};
-        units::ctm_audio_gain::apply(pcm);
+        units::ctm_audio_gain::apply(pcm, units::ctm_audio_gain::read("ds5"));
 
         auto sample = [&pcm](size_t ch) {
             return static_cast<int16_t>(
@@ -402,12 +401,12 @@ int run_device_config_tests()
     section("audio gain: 100 touches nothing at all");
     {
         set_config("[ds5]\naudio_gain = 100\nmaster_rumble_gain = 100\n");
-        units::ctm_audio_gain::refresh();
-        CTM_CHECK_EQ(units::ctm_audio_gain::configured(), false);
+        const units::ctm_audio_gain::Gains gains = units::ctm_audio_gain::read("ds5");
+        CTM_CHECK_EQ(units::ctm_audio_gain::active(gains), false);
 
         std::vector<uint8_t> pcm = {0xe8, 0x03, 0xe8, 0x03, 0xe8, 0x03, 0xe8, 0x03};
         const std::vector<uint8_t> before = pcm;
-        units::ctm_audio_gain::apply(pcm);
+        units::ctm_audio_gain::apply(pcm, gains);
         CTM_CHECK_EQ(pcm == before, true);
     }
 
@@ -417,15 +416,30 @@ int run_device_config_tests()
         // a gain above 100 wraps a strong positive pulse into a strong negative
         // one -- which would feel like a jolt in the wrong direction.
         set_config("[ds5]\nmaster_rumble_gain = 500\n");
-        units::ctm_audio_gain::refresh();
         std::vector<uint8_t> pcm = {0, 0, 0, 0, 0xff, 0x7f, 0x00, 0x80};
-        units::ctm_audio_gain::apply(pcm);
+        units::ctm_audio_gain::apply(pcm, units::ctm_audio_gain::read("ds5"));
         const int16_t high = static_cast<int16_t>(
             static_cast<uint16_t>(pcm[4]) | (static_cast<uint16_t>(pcm[5]) << 8));
         const int16_t low = static_cast<int16_t>(
             static_cast<uint16_t>(pcm[6]) | (static_cast<uint16_t>(pcm[7]) << 8));
         CTM_CHECK_EQ(static_cast<int>(high), 32767);
         CTM_CHECK_EQ(static_cast<int>(low), -32768);
+    }
+
+    section("audio gain: each pad reads its own section, the Edge its own");
+    {
+        // ⭐ They were read from [ds5] for every pad (2026-10-13): an Edge, or a
+        // pad with a linked config, had its stream scaled by someone else's.
+        set_config("[ds5]\nmaster_rumble_gain = 0\naudio_gain = 50\n[ds5_edge]\nmaster_rumble_gain = 200\n");
+        const units::ctm_audio_gain::Gains edge = units::ctm_audio_gain::read("ds5_edge");
+        CTM_CHECK_EQ(edge.haptics, 200);
+        CTM_CHECK_EQ(edge.sound, -1);                    // the Edge set none: untouched
+        const units::ctm_audio_gain::Gains ds5 = units::ctm_audio_gain::read("ds5");
+        CTM_CHECK_EQ(ds5.haptics, 0);
+        CTM_CHECK_EQ(ds5.sound, 50);
+        CTM_CHECK_EQ(units::ctm_audio_gain::read(nullptr).haptics, -1);   // no section, no gain
+        set_config("[ds5]\naudio_gain = 400\n");
+        CTM_CHECK_EQ(units::ctm_audio_gain::read("ds5").sound, 100);     // lowered only, never boosted
     }
 
     // --- Device log ---------------------------------------------------------

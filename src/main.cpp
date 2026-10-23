@@ -58,6 +58,11 @@
 #include <random>      // nickname.inl picks one from a pool
 #include <vector>
 
+// ⛔ Named out here, before the namespace below: pc_sound_capture.cpp is a
+// unit of its own, and a declaration first seen inside that namespace
+// would name a different function, which nothing defines.
+#include "audio/pc_sound_capture.h"
+
 #pragma comment(lib, "hid.lib")
 #pragma comment(lib, "ws2_32.lib")
 
@@ -91,6 +96,7 @@ static void mic_ring_reset(const CtmBackend *owner);
 #include "backend/bridge.inl"
 #include "audio/mic_ring.inl"
 #include "audio/audio_gain.inl"
+#include "audio/audio_haptics.inl"     // PC sound as haptics: which pads, and when; before usbip/device.inl
 #include "audio/pcm_amplitude_log.inl"  // needs monotonic_us from backend/bridge.inl; must precede its caller
 #include "audio/iso_in_test_tone.inl"
 // ⓘ And the same for the rebind hook itself: device.inl calls it on the input
@@ -751,6 +757,9 @@ int wmain(int argc, wchar_t **argv)
     if (mode == L"start") return stream_start::start();
     if (mode == L"stop") return stream_start::stop();
     if (mode == L"stream-commands") return stream_start::edit_commands(argc, argv);
+    // ⓘ What the PC plays and what would be felt (audio_haptics.inl). Not the
+    // listener: it plays nothing and opens no pad.
+    if (mode == L"audio-haptics-probe") return audio_haptics::probe_mode(argc > 2 ? _wtoi(argv[2]) : 10);
     // ⭐ THE OLD CONTROLLERS WINDOWS KEEPS FROM PAST BRIDGES (2026-10-13):
     // old_devices.inl. Not the listener either.
     if (mode == L"old-devices") return old_devices::list_mode();
