@@ -52,9 +52,9 @@
             the keys alike. A greyed button in Simple says why in a bubble
             in the corner rather than a box with OK ("change the pop up for
             grayed buttons with bubbles instead"), the halo staying on it.
-            Left from Simple's wheel lands on New, as right does ("pressing
-            left on the config selector wheel lands you on unlink instead
-            of New").
+            Right from Simple's wheel lands on Unlink ("I want right to land
+            on unlink, not New"), and left from it goes nowhere ("Left from
+            the wheel in simple mode should go no where").
     2.66.87 Quick's config selector is a wheel (rhoquinn8217: "build out a
             Wheel / Drum Picker for the config selector"): its choice in a
             frame fixed in the middle, which alone carries the halo, the
@@ -8527,11 +8527,11 @@ function compactMove(dx, dy) {
   }
   if (!rows.length) return false;
   var cur = GP_FOCUS[GP_INDEX];
-  // ⭐ SIMPLE'S PANEL (2.66.87): right or left from the wheel enters its
-  // column of buttons at New (right, at the one level with the wheel's
-  // frame, until 2026-10-22); up and down walk the column, stopping at its top (R3 alone
-  // reaches the polling limit) and off its bottom to the footer, and up
-  // from the footer comes back to its bottom; left goes back to the wheel.
+  // ⭐ SIMPLE'S PANEL (2.66.87): right from the wheel enters its column of
+  // buttons at Unlink, and left from the wheel goes nowhere; up and down
+  // walk the column, stopping at its top (R3 alone reaches the polling
+  // limit) and off its bottom to the footer, and up from the footer comes
+  // back to its bottom; left goes back to the wheel.
   // Up and down on the wheel step it (quickVertical), so the column is the
   // way past it.
   var col = QUICK ? [] : Array.prototype.slice.call(box.querySelectorAll('.csbtns > button'))
@@ -8539,14 +8539,20 @@ function compactMove(dx, dy) {
   var wheelSel = document.getElementById('cpick');
   if (col.length && wheelSel) {
     var inCol = col.indexOf(cur);
-    // ⭐ RIGHT FROM THE WHEEL LANDS ON NEW, EVERY TIME (rhoquinn8217,
-    // 2026-10-22: "moving right from the config selector wheel should land
-    // you on "New" all the time"): the column's top, which is never greyed.
-    // ⭐ AND LEFT DOES TOO (the same day: "pressing left on the config
-    // selector wheel lands you on unlink instead of New"): nothing is to the
-    // wheel's left, so left fell to the nearest-centre rule below, and the
-    // column's middle button is the one level with the wheel.
-    if (cur === wheelSel && dx !== 0) return focusElement(col[0]);
+    // ⭐ RIGHT FROM THE WHEEL LANDS ON UNLINK, EVERY TIME (rhoquinn8217,
+    // 2026-10-22, evening: "Right from the wheel goes to unlink", then "No, I
+    // want right to land on unlink, not New"), greyed or not: a greyed
+    // button is reachable (explainGreyed). ⓘ It landed on New from that
+    // morning ("moving right from the config selector wheel should land you
+    // on "New" all the time"), and on the button level with the wheel's
+    // frame before that.
+    // ⭐ AND LEFT FROM THE WHEEL GOES NOWHERE (the same evening: "Left from
+    // the wheel in simple mode should go no where"): nothing is to its left.
+    if (cur === wheelSel && dx > 0) {
+      var unlinkBtn = col.filter(function (e) { return e.classList.contains('cunlink-btn'); })[0];
+      return focusElement(unlinkBtn || col[0]);
+    }
+    if (cur === wheelSel && dx < 0) return true;
     // ⭐ UP FROM THE FOOTER LANDS ON ARCHIVE (2026-10-22: "up from the mode
     // selector or close should bring you to "archive""), the column's foot,
     // over them, greyed or not: a greyed button is reachable (explainGreyed).
