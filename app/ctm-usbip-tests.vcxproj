@@ -122,6 +122,7 @@
     <ClCompile Include="..\tests\stop_wait_test.cpp" />
     <ClCompile Include="..\tests\front_rule_test.cpp" />
     <ClCompile Include="..\tests\input_pace_test.cpp" />
+    <ClCompile Include="..\tests\polling_limits_test.cpp" />
     <ClCompile Include="..\tests\keyboard_device_test.cpp" />
     <ClCompile Include="..\tests\rebind_test.cpp" />
     <ClCompile Include="..\tests\usbip_server_test.cpp" />

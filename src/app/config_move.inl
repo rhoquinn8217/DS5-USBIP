@@ -104,8 +104,15 @@ inline std::atomic_int g_size{0};
 // a large screen the compact view still needs to be sized to the room, so R3
 // cycles a second table while the page is compact, with a position of its own.
 //
-//   medium  0.45 x 0.45   what the page opens Simple at, so the two agree
-//   large   0.56 x 0.56
+//   medium  0.45 x 0.3879   what the page opens Simple at, so the two agree
+//   large   0.56 x 0.4819
+// ⭐ SHORTER SINCE 2026-10-22 (rhoquinn8217: "shrink the height of the window
+// so that the margin between the nickname and battery and the upper window
+// edge is halved and the margin between the config selector and the line
+// break is halved"): from 0.45 x 0.45 and 0.56 x 0.56, each page 0.855 of
+// its height at 150% on a work area 2088 tall, its title bar 44.7. The
+// page's sizes are in a unit of its own, --vh, which Simple makes the old
+// window's height in hundredths, so nothing on it gets smaller.
 // ⓘ Simple keeps its medium and large (rhoquinn8217, 2026-09-09); the 0.34
 // small is gone. ⛔ A quarter came off the width and a sixth off the height
 // the same evening and both went straight back: Simple holds the preset
@@ -116,7 +123,7 @@ inline std::atomic_int g_size{0};
 // for compact (rhoquinn8217, 2026-09-09: smallest first), large for full --
 // which is exactly the size the page resizes to on the switch, so R3 always
 // cycles from where the window actually is.
-inline const SizeShare kCompactSizes[2] = { { 0.45, 0.45 }, { 0.56, 0.56 } };
+inline const SizeShare kCompactSizes[2] = { { 0.45, 0.3879 }, { 0.56, 0.4819 } };
 inline std::atomic_int  g_sizeCompact{0};
 inline std::atomic_bool g_compact{false};
 
@@ -140,9 +147,36 @@ inline std::atomic_bool g_compact{false};
 // the ask was the width, and a long model name on the line under the name
 // was what it had no room for.
 //
-//   medium  0.278 x 0.150   what the page opens Quick at
+//   medium  0.278 x 0.150   (until 2026-10-16; below)
 //   large   0.346 x 0.187
-inline const SizeShare kQuickSizes[2] = { { 0.278, 0.150 }, { 0.346, 0.187 } };
+// ⭐ NARROWER, SO THE FOOTER'S LEGEND HAS HALF THE ROOM EITHER SIDE
+// (rhoquinn8217, 2026-10-16: "shrink the entire window so that the space on
+// the left and right of the legend is reduce to half"). At 150% on a work
+// area 3840 wide, 0.278 left 153 px before the legend and 187 after it,
+// and 0.225 leaves 71 and 99. Large keeps its 1.245 times medium.
+// The page's widths are in vw, and its config wheel is set wider in vw to
+// stay the size it was.
+//
+// ⭐ AND SHORTER, ITS CONFIG PANEL TALLER (rhoquinn8217, 2026-10-17:
+// "increase the height of config selector container but also shrink the
+// height of the window"): 0.130 tall from 0.150, which left about 12 px
+// above and below the panel at 150% on a work area 2088 tall; then 0.140,
+// as much taller as the wheel grew to show 3.5 lines ("increase the wheel
+// size to 3.5 lines"), and 0.143 for its config panel's title half as
+// large again ("increase by 1.5 instead"). Large 0.178,
+// from 0.187, keeping large's 1.29 times medium's page height. The
+// page's sizes are in a unit of its own, --vh, which Quick makes the old
+// window's height in hundredths, so nothing on it gets smaller.
+//
+// ⭐ LARGER FOR A TELEVISION (rhoquinn8217, 2026-10-17: "quick mode's small size
+// is too small. make the large size the small one and create a new large size
+// that is bigger than that"): medium is the old large, grown with what it
+// holds since (its configs larger, the choice set apart, the smaller text
+// larger), and large keeps 1.244 times its width and 1.288 its page's height.
+//
+//   medium  0.313 x 0.196   what the page opens Quick at
+//   large   0.390 x 0.246
+inline const SizeShare kQuickSizes[2] = { { 0.313, 0.196 }, { 0.390, 0.246 } };
 inline std::atomic_int  g_sizeQuick{0};
 inline std::atomic_bool g_quick{false};
 

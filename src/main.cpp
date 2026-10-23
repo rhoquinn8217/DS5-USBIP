@@ -239,6 +239,11 @@ void ctm_osk_toggle(const std::string &section, int button, int program);
 #include "usbip/submit_info.inl"    // what a submit reports back; pure
 #include "usbip/input_pace.inl"     // a controller's rate limit and its readout; pure
 #include "usbip/fine_timer.inl"     // a 1 ms timer while a rate limit holds reports back
+// ⓘ A controller's polling limit is its own, kept by its serial
+// (config/polling_limits.inl, after config_store, whose serial rule it follows).
+bool ctm_polling_limit_has_identity(const std::string &serial);
+std::string ctm_polling_limit_get(const std::string &serial);
+bool ctm_polling_limit_set(const std::string &serial, const std::string &value);
 #include "usbip/device.inl"
 #include "audio/iso_in_pacing.inl"
 #include "usbip/server.inl"
@@ -247,6 +252,7 @@ void ctm_osk_toggle(const std::string &section, int button, int program);
 #include "input/trigger_effect.inl"   // the settings report carries these; must precede it
 #include "audio/ds5_apply_settings.inl"
 #include "config/config_store.inl"   // per-controller config files; needs device_log + g_device_config
+#include "config/polling_limits.inl" // each controller's own polling limit, by its serial
 #include "config/config_presets.inl"  // what a new config can start from; needs nothing but strings
 #include "app/device_capabilities.inl" // what a pad can use, from its settings kind; pure
 #include "config/config_watcher.inl" // follows config_store: apply_change refreshes it too
