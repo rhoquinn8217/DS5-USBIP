@@ -21,6 +21,9 @@
 // ShellExecuteW lives here, not in windows.h. main.cpp does not include it
 // because nothing else in the project launches another program.
 #include <shellapi.h>
+// Whether Windows is locked (session_locked, below).
+#include <wtsapi32.h>
+#pragma comment(lib, "wtsapi32.lib")
 
 // The rule that tells our app window from a browser window showing the page in
 // a tab. The icon needed it first; every lookup here uses it too.
@@ -423,27 +426,111 @@ inline void give_front_back(bool hadFront)
 // gap, and two seconds with none ends it. Our own window is never the game.
 inline std::atomic_bool g_followingFront{false};
 
+// ⭐⭐ WHO TOOK THE FRONT FROM THE WINDOW, AND A NOTIFICATION GIVES IT BACK
+// (rhoquinn8217, 2026-10-22: "sometimes when there is a bottom right
+// notification like samsung magic driver manager notification, it steal focus
+// from the config window even if it's on top", then "yes take it back, with
+// log"). The follower below sees the front change while a window stands: when
+// the window loses it, the log names the program that took it, and one that
+// looks like a notification (front_rule.inl) is made to give it back, three
+// times in ten seconds at most.
+// ⓘ Never for the window's own browser -- a list it opens is a window of its
+// own -- nor for this listener's windows.
+struct FrontTaker {
+    std::wstring exe;
+    wchar_t cls[128] = {};
+    RECT rect = {};
+    bool topmost = false;
+    bool tool = false;
+    bool underPointer = false;
+    bool notification = false;
+};
+
+inline FrontTaker read_front_taker(HWND hwnd)
+{
+    FrontTaker t;
+    t.exe = exe_of(hwnd);
+    GetClassNameW(hwnd, t.cls, 127);
+    GetWindowRect(hwnd, &t.rect);
+    const LONG_PTR ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+    t.topmost = (ex & WS_EX_TOPMOST) != 0;
+    t.tool = (ex & WS_EX_TOOLWINDOW) != 0;
+    POINT pt = {};
+    t.underPointer = GetCursorPos(&pt) && PtInRect(&t.rect, pt);
+    DWORD pid = 0;
+    GetWindowThreadProcessId(hwnd, &pid);
+    MONITORINFO mi = {};
+    mi.cbSize = sizeof(mi);
+    if (GetMonitorInfoW(MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST), &mi)) {
+        t.notification = front_rule::looks_like_notification(
+            t.rect.left, t.rect.top, t.rect.right, t.rect.bottom,
+            mi.rcWork.left, mi.rcWork.top, mi.rcWork.right, mi.rcWork.bottom,
+            t.topmost, t.tool, t.underPointer, pid == GetCurrentProcessId(), t.cls);
+    }
+    return t;
+}
+
 inline void follow_front()
 {
     bool expected = false;
     if (!g_followingFront.compare_exchange_strong(expected, true)) return;
     std::thread([]() {
         HWND last = nullptr;
+        bool lastWasOurs = false;
+        std::vector<ULONGLONG> tookBack;    // when a notification gave the front back
         int goneMs = 0;
         while (goneMs < 2000) {
             std::this_thread::sleep_for(std::chrono::milliseconds(250));
-            if (!window_exists()) {
+            FindState ours;
+            EnumWindows(find_window_proc, reinterpret_cast<LPARAM>(&ours));
+            if (ours.found == nullptr) {
                 goneMs += 250;
                 continue;
             }
             goneMs = 0;
             const HWND fg = GetForegroundWindow();
             if (fg == nullptr || fg == last) continue;
+            const bool fromOurs = lastWasOurs;
             last = fg;
             wchar_t title[512] = {};
-            if (GetWindowTextW(fg, title, 511) > 0 &&
-                window_icon_rule::is_app_window_title(title, kTitleMarker)) {
-                continue;
+            lastWasOurs = GetWindowTextW(fg, title, 511) > 0 &&
+                          window_icon_rule::is_app_window_title(title, kTitleMarker);
+            if (lastWasOurs) continue;
+            DWORD fgPid = 0, ourPid = 0;
+            GetWindowThreadProcessId(fg, &fgPid);
+            GetWindowThreadProcessId(ours.found, &ourPid);
+            if (fromOurs && fgPid != ourPid && fgPid != GetCurrentProcessId()) {
+                const FrontTaker t = read_front_taker(fg);
+                device_log::input_w() << L"ui: " << t.exe << L" took the front from the window ("
+                                      << t.cls << L", " << (t.rect.right - t.rect.left) << L"x"
+                                      << (t.rect.bottom - t.rect.top) << L" at " << t.rect.left
+                                      << L"," << t.rect.top << (t.topmost ? L", on top" : L"")
+                                      << (t.tool ? L", not in the taskbar" : L"")
+                                      << (t.underPointer ? L", under the pointer" : L"") << L")";
+                if (t.notification) {
+                    const ULONGLONG now = GetTickCount64();
+                    tookBack.erase(std::remove_if(tookBack.begin(), tookBack.end(),
+                                                  [now](ULONGLONG at) { return now - at > 10000; }),
+                                   tookBack.end());
+                    if (!front_rule::may_take_front_back(static_cast<int>(tookBack.size()))) {
+                        device_log::input_w() << L"ui: it looks like a notification, and it took the front "
+                                              << tookBack.size() << L" times in ten seconds: leaving it";
+                    } else {
+                        tookBack.push_back(now);
+                        raise_now(ours.found);
+                        std::this_thread::sleep_for(std::chrono::milliseconds(150));
+                        const bool back = window_has_foreground();
+                        device_log::input_w() << L"ui: it looks like a notification (small, in a corner, "
+                                              << L"not clicked): "
+                                              << (back ? L"took the front back"
+                                                       : L"tried to take the front back, and could not");
+                        if (back) {
+                            last = GetForegroundWindow();
+                            lastWasOurs = true;
+                        }
+                        continue;
+                    }
+                }
             }
             if (front_rule::on_front_change(is_full_screen_game(fg)) != front_rule::Remember::Set) continue;
             std::lock_guard<std::mutex> lock(g_gameMutex);
@@ -495,6 +582,77 @@ inline void keep_front_from(HWND taken_from)
     }).detach();
 }
 
+// ⭐⭐ BEHIND THE LOCK SCREEN THE WINDOW WAITS FOR THE UNLOCK (rhoquinn8217,
+// 2026-10-22: "when DS5-USBIP start in the background behind the lockscreen,
+// the config window can't be brought above it"). Windows draws the lock screen
+// on a desktop of its own, and no program's window can come over it: a stream
+// started at the lock screen starts this listener behind it, and a bridge then
+// opened the window where nobody could see it, its raise refused and never
+// tried again.
+// ➡️ So a window asked for while Windows is locked comes to the front once it
+// is unlocked, as the bridge would have brought it.
+
+// Is Windows locked? Asked of the session itself, so a listener started while
+// it already was knows as well as one that watched it lock.
+// ⚠️ Windows 7 and Server 2008 R2 report the two states the wrong way round;
+// this runs on 10 and 11. Not known counts as not locked: the raise is then
+// tried at once, which is what always happened before.
+inline bool session_locked()
+{
+    LPWSTR buffer = nullptr;
+    DWORD bytes = 0;
+    if (!WTSQuerySessionInformationW(WTS_CURRENT_SERVER_HANDLE, WTS_CURRENT_SESSION,
+                                     WTSSessionInfoEx, &buffer, &bytes) || buffer == nullptr) {
+        return false;
+    }
+    const auto *info = reinterpret_cast<const WTSINFOEXW *>(buffer);
+    const bool locked = info->Level == 1 &&
+                        info->Data.WTSInfoExLevel1.SessionFlags == WTS_SESSIONSTATE_LOCK;
+    WTSFreeMemory(buffer);
+    return locked;
+}
+
+// ⓘ One watcher at a time. It finds the window by its title when the unlock
+// comes, so a window opened again while locked is the one it raises.
+inline std::atomic_bool g_raiseOnUnlock{false};
+
+inline void raise_on_unlock()
+{
+    bool expected = false;
+    if (!g_raiseOnUnlock.compare_exchange_strong(expected, true)) return;
+    device_log::input_w() << L"ui: Windows is locked: the window comes to the front when it is unlocked";
+    std::thread([]() {
+        while (session_locked()) std::this_thread::sleep_for(std::chrono::milliseconds(250));
+        g_raiseOnUnlock.store(false);
+        // ⓘ The desktop is back a moment after the session says it is
+        // unlocked, and Windows then hands the front to whatever had it before
+        // the lock: so a few tries, each one checked.
+        for (int tries = 1; tries <= 6; ++tries) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(400));
+            FindState state;
+            EnumWindows(find_window_proc, reinterpret_cast<LPARAM>(&state));
+            if (state.found == nullptr) {
+                device_log::input_w() << L"ui: Windows was unlocked; the window asked for while it was locked has gone";
+                return;
+            }
+            const HWND before = GetForegroundWindow();
+            const bool beforeIsGame = before != state.found && is_full_screen_game(before);
+            raise_now(state.found);
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+            if (!window_has_foreground()) continue;
+            device_log::input_w() << L"ui: Windows was unlocked: brought the window to the front (try "
+                                  << tries << L", the front was "
+                                  << (before != nullptr ? exe_of(before) : std::wstring(L"nothing")) << L")";
+            // ⓘ What raise_when_ready does once its window is up.
+            remember_front(before != state.found ? before : nullptr, beforeIsGame);
+            follow_front();
+            if (beforeIsGame) keep_front_from(before);
+            return;
+        }
+        device_log::input_w() << L"ui: Windows was unlocked, and the window would not come to the front";
+    }).detach();
+}
+
 // ⚠️ Runs on a thread because the window does not exist yet when the browser is
 // launched -- it has to be waited for.
 // ⭐⭐ `release_claim`: THE ONE-AT-A-TIME CLAIM ENDS WHEN THE WINDOW EXISTS, not
@@ -531,6 +689,11 @@ inline void raise_when_ready(bool release_claim = false)
             EnumWindows(find_window_proc, reinterpret_cast<LPARAM>(&state));
             if (state.found == nullptr) continue;
 
+            // ⭐ Not over the lock screen, which nothing can be: at the unlock.
+            if (session_locked()) {
+                raise_on_unlock();
+                return;
+            }
             raise_now(state.found);
             device_log::input_w() << L"ui: raised the window above the game (the front was "
                                   << (before != nullptr ? exe_of(before) : std::wstring(L"nothing")) << L")";
@@ -546,6 +709,12 @@ inline void raise_when_ready(bool release_claim = false)
                 device_log::input_w() << L"ui: " << exe_of(before)
                                       << L" had the front and is not a full-screen game: not watching it";
             }
+            return;
+        }
+        // ⓘ A browser started behind the lock screen can be slow to show its
+        // window; the unlock raises it all the same.
+        if (session_locked()) {
+            raise_on_unlock();
             return;
         }
         device_log::input_w() << L"ui: no window appeared to raise";
@@ -634,9 +803,19 @@ inline void open_new(uint16_t restPort, bool withToken = true)
     // the reason is): 0.4334 x 0.622, with the old small, 0.68 x 0.73, its large.
     const int winW = (int)(waW * 0.4334);   // Advanced's small, its opening size
     const int winH = (int)(waH * 0.622);
+    // ⭐⭐ DRAWN BY THE PROCESSOR, NOT THE GRAPHICS CARD (rhoquinn8217,
+    // 2026-10-22: "while playing final fantasy VII rebirth, when the config
+    // window showed above the game, it was very slow and laggy, however the
+    // mouse cursor was not", then, asked always or only over a game:
+    // "always"). The log of it showed the pad's reports every 4 ms and every
+    // pick linked at once: only the window's drawing lagged, its frames
+    // queued on a card the game and the stream's encoder kept busy, while
+    // the pointer, which the card draws apart, stayed smooth. The page is
+    // light, and the processor has room for it. ⓘ This copy of the browser
+    // only: its own profile, never the person's.
     const std::wstring args = L"--app=" + url +
                               L" --user-data-dir=\"" + dataDir + L"\"" +
-                              L" --no-first-run --no-default-browser-check" +
+                              L" --no-first-run --no-default-browser-check --disable-gpu" +
                               L" --window-size=" + std::to_wstring(winW) + L"," + std::to_wstring(winH);
     // ⛔ CHECK THE RESULT. This logged "settings page opened" unconditionally,
     // so a launch that never happened looked identical to one that did --

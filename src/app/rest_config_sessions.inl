@@ -169,6 +169,10 @@ static bool rest_link_device(const std::string &ordinal, const std::string &conf
         }
         std::lock_guard<std::mutex> sessionLock(session->mutex);
         session->linkedConfig = configName;
+        // ⓘ A config chosen while Windows is locked is the one kept at the
+        // unlock (lock_screen_rule.inl).
+        session->heldForLock = false;
+        session->beforeLock.clear();
         // ⭐ Push it to the device as well. The session field is what the API
         // reports; the DEVICE field is what actually resolves settings on the
         // output path. Setting only the first would make every link a no-op
