@@ -165,6 +165,7 @@ carry it; upstream's own history is unchanged.
 | 2026-10-22 | The Controller Configs window's Simple and Quick layouts made for a pad and a television, and Advanced's Overview and config row redone (page 2.66.84 to 2.66.91). On the config selector, in every layout, Square unlinks and Triangle sets or removes the auto link. Quick's selector is a wheel that up and down step, Cross links at once, R3 opens the polling limit and a footer sits behind Circle. Simple's selector is a five-line wheel like Quick's, with the configs L1 and R1 go to in arrows either side of it, the polling rate and limit on the controller's name line, R3 opening the limit, a shorter window, and right from the wheel landing on Unlink. The polling limit is the controller's own, not its config's. Both open on the selector wheel however the window is opened, and a greyed button is reachable and says why in a bubble. The mode picker reads Advanced Mode, Simple Mode and Quick Mode. Advanced's Overview is two cards, This window and Connection, with a light for the connection and the access token behind an eye, and the page's and the program's versions on one line at the bottom; a controller's tab groups its config row, with Archive Config, an Auto link that is one button as in Simple, and Safe Edit Mode showing its new state as soon as the listener answers. The on-screen keyboard draws the pad's buttons as the window does. | `6a0a441`, `86698bb`, `7924363`, `3cf6c60`, `742ef3a`, `8e585bc`, `97f2b7e`, `8be0894`, `ec22f59`, `549c392`, `3f21ad0`, `b942ce3`, `f568a42`, `6dae612`, `64fd9af`, `8601897`, `0d60392`, `d90f37b`, `ae2a216`, `2888b1f`, `130bc15`, `0a9c451`, `164d1f4`, `e488247`, `61857e6`, `b91f576`, `c8775f0`, `c2cd29c`, `baf6a70`, `7ad4442`, `bf126d3`, `144e81a`, `eae2875`, `612deb7`, merge `db4fd18` |
 | 2026-10-22 | The Controller Configs window over a game and around the lock screen. Asked for while Windows is locked, it comes to the front once Windows is unlocked. A notification that takes the keyboard from it, small, in a corner, on top and not clicked, gives it back, at most three times in ten seconds, and the log names whatever took the front from it. Its browser draws with the processor (`--disable-gpu`): over a game holding the graphics card the window was slow while the cursor was not. | `6987e3e`, `43d2a75`, `df0f08b`, merge `c4fb311` |
 | 2026-10-22 | Every bridged controller reads no config while Windows is locked, so its buttons are Windows' own on the lock screen and can type a PIN, and no config can map them away from it. At the unlock each reads its auto link, or what it read before the lock; a config picked while locked is kept, and a controller bridged while locked waits for the unlock for its auto link. | `b4247db`, merge `c4fb311` |
+| 2026-10-23 | PC sound into DualSense haptics: the low part of what the PC plays, explosions, engines and bass, felt in a bridged DualSense's or Edge's two actuators, mixed into its own sound stream before it goes out on a cable or on Bluetooth; the sound itself is not touched. Four settings in a config's Audio section: `audio_haptics` (off until turned on), `audio_haptics_strength`, `audio_haptics_bass_hz` and `audio_haptics_mode`, where yield, the default, steps aside while a game sends its own haptics and comes back after, mix plays both and replace plays only the PC's sound. While it is on, the pad's sound stream keeps running whenever there is sound to feel. `DS5-USBIP audio-haptics-probe` prints what the PC plays and what a pad would feel of it, a line a second. And each pad's sound gains are read from its own section, on a cable and on Bluetooth, where every pad's were read from the DualSense's; `audio_gain` goes to 100, as it can only lower. | `3c48544`, `af30c82`, `5478046`, merge `0e868c4` |
 
 ## Files changed
 
@@ -176,14 +177,14 @@ ENet library, removed with the ENet transport).
 ```
  .gitattributes                                |    48 +
  .gitignore                                    |    41 +-
- CHANGES.md                                    |   392 +
+ CHANGES.md                                    |   398 +
  LINK                                          |     0
  README.md                                     |   310 +-
  app/compatibility.manifest                    |    27 +
- app/ctm-usbip-tests.vcxproj                   |   147 +
+ app/ctm-usbip-tests.vcxproj                   |   148 +
  app/ctm-usbip.ico                             |   Bin 156019 -> 30139 bytes
  app/ctm-usbip.rc                              |    26 +-
- app/ctm-usbip.vcxproj                         |    62 +-
+ app/ctm-usbip.vcxproj                         |    63 +-
  attic/README.md                               |    24 +
  attic/device-config-panel-edge.bat            |     9 +
  attic/device-config-panel-edge.ps1            |   327 +
@@ -226,9 +227,9 @@ ENet library, removed with the ENet transport).
  profiles/descriptors/virtual_keyboard.profile |    74 +
  profiles/descriptors/virtual_mouse.profile    |    59 +
  release.ps1                                   |   266 +
- src/app/agent.inl                             |  1244 ++-
+ src/app/agent.inl                             |  1243 ++-
  src/app/agent_session_sweep.inl               |   333 +
- src/app/cli.inl                               |    63 +-
+ src/app/cli.inl                               |    64 +-
  src/app/common.inl                            |   166 +-
  src/app/config_move.inl                       |  1232 +++
  src/app/console_attach.inl                    |    82 +
@@ -250,7 +251,7 @@ ENet library, removed with the ENet transport).
  src/app/protocol_level.inl                    |    77 +
  src/app/quit_request.inl                      |    28 +
  src/app/rest.inl                              |   885 ++
- src/app/rest_config.inl                       |  1365 +++
+ src/app/rest_config.inl                       |  1369 +++
  src/app/rest_config_sessions.inl              |   243 +
  src/app/rest_sessions.inl                     |    33 +
  src/app/rest_shared_section.inl               |    55 +
@@ -271,12 +272,16 @@ ENet library, removed with the ENet transport).
  src/app/window_icon_rule.inl                  |    68 +
  src/app/window_move.inl                       |   250 +
  src/app/window_size_rule.inl                  |   101 +
- src/audio/audio_gain.inl                      |   178 +
+ src/audio/audio_gain.inl                      |   151 +
+ src/audio/audio_haptics.inl                   |   299 +
+ src/audio/audio_haptics_dsp.inl               |   346 +
  src/audio/ds5_apply_settings.inl              |   316 +
  src/audio/ds5_output_overrides.inl            |   699 ++
  src/audio/iso_in_pacing.inl                   |   221 +
  src/audio/iso_in_test_tone.inl                |    95 +
  src/audio/mic_ring.inl                        |   202 +
+ src/audio/pc_sound_capture.cpp                |   349 +
+ src/audio/pc_sound_capture.h                  |    52 +
  src/audio/pcm_amplitude_log.inl               |   162 +
  src/audio/rumble_floor.inl                    |    58 +
  src/backend/backend.inl                       |    56 +
@@ -286,7 +291,7 @@ ENet library, removed with the ENet transport).
  src/capture/README.md                         |    14 +
  src/config/config_presets.inl                 |   493 +
  src/config/config_store.inl                   |   856 ++
- src/config/config_watcher.inl                 |   170 +
+ src/config/config_watcher.inl                 |   171 +
  src/config/device_config.inl                  |   342 +
  src/config/polling_limits.inl                 |   150 +
  src/input/battery.inl                         |   105 +
@@ -313,10 +318,10 @@ ENet library, removed with the ENet transport).
  src/input/trigger_effect.inl                  |   637 ++
  src/log/capped_log.inl                        |   117 +
  src/log/device_log.inl                        |   233 +
- src/main.cpp                                  |   938 +-
+ src/main.cpp                                  |   947 +-
  src/map/runtime.cpp                           |    90 +-
  src/usbdisplay/README.md                      |    13 +
- src/usbip/device.inl                          |   992 +-
+ src/usbip/device.inl                          |  1068 +-
  src/usbip/fallback_serial.inl                 |    81 +
  src/usbip/fine_timer.inl                      |    54 +
  src/usbip/input_pace.inl                      |   131 +
@@ -324,6 +329,7 @@ ENet library, removed with the ENet transport).
  src/usbip/submit_info.inl                     |    34 +
  src/usbip/submit_limits.inl                   |    54 +
  src/usbip/wire.inl                            |   103 +
+ tests/audio_haptics_dsp_test.cpp              |   250 +
  tests/binding_names_test.cpp                  |   211 +
  tests/bridge_handshake_test.cpp               |   631 ++
  tests/button_layout_test.cpp                  |  1189 +++
@@ -332,7 +338,7 @@ ENet library, removed with the ENet transport).
  tests/control_caller_test.cpp                 |    73 +
  tests/device_capabilities_test.cpp            |    75 +
  tests/device_config_cache_test.cpp            |   148 +
- tests/device_config_test.cpp                  |   521 +
+ tests/device_config_test.cpp                  |   535 +
  tests/device_names_test.cpp                   |   110 +
  tests/device_type_test.cpp                    |    89 +
  tests/fallback_serial_test.cpp                |    79 +
@@ -371,7 +377,7 @@ ENet library, removed with the ENet transport).
  tests/stop_wait_test.cpp                      |    93 +
  tests/stream_commands_test.cpp                |   118 +
  tests/taskbar_rule_test.cpp                   |    46 +
- tests/tests_main.cpp                          |   185 +
+ tests/tests_main.cpp                          |   187 +
  tests/touch_mouse_test.cpp                    |  2427 +++++
  tests/tray_menu_test.cpp                      |   220 +
  tests/trigger_click_test.cpp                  |   901 ++
@@ -388,5 +394,5 @@ ENet library, removed with the ENet transport).
  tools/create-desktop-shortcut.bat             |    46 +
  tools/create-desktop-shortcut.ps1             |   148 +
  tools/osk-mockups.py                          |   103 +
- 214 files changed, 64099 insertions(+), 1567 deletions(-)
+ 219 files changed, 65481 insertions(+), 1568 deletions(-)
 ```
