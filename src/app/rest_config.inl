@@ -779,6 +779,11 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
             // window came forward, so the failsafe can stand down.
             if (on) ctm_rebind_clear_provisional();
             ctm_rebind_set_config_mode(on);
+            // ⭐ AND THE FRONT IS FOLLOWED WHILE THE WINDOW HAS IT (2026-10-22),
+            // however the window was opened: a notification that takes it is
+            // made to give it back, and the log names what took it
+            // (open_ui.inl, follow_front). ⓘ One follower at a time.
+            if (on) ctm_open_ui::follow_front();
 
             const std::string notice = ctm_ui_take_notice();
             std::string body = std::string("{\"ok\":true,\"config_mode\":")

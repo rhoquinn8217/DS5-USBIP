@@ -426,27 +426,111 @@ inline void give_front_back(bool hadFront)
 // gap, and two seconds with none ends it. Our own window is never the game.
 inline std::atomic_bool g_followingFront{false};
 
+// ⭐⭐ WHO TOOK THE FRONT FROM THE WINDOW, AND A NOTIFICATION GIVES IT BACK
+// (rhoquinn8217, 2026-10-22: "sometimes when there is a bottom right
+// notification like samsung magic driver manager notification, it steal focus
+// from the config window even if it's on top", then "yes take it back, with
+// log"). The follower below sees the front change while a window stands: when
+// the window loses it, the log names the program that took it, and one that
+// looks like a notification (front_rule.inl) is made to give it back, three
+// times in ten seconds at most.
+// ⓘ Never for the window's own browser -- a list it opens is a window of its
+// own -- nor for this listener's windows.
+struct FrontTaker {
+    std::wstring exe;
+    wchar_t cls[128] = {};
+    RECT rect = {};
+    bool topmost = false;
+    bool tool = false;
+    bool underPointer = false;
+    bool notification = false;
+};
+
+inline FrontTaker read_front_taker(HWND hwnd)
+{
+    FrontTaker t;
+    t.exe = exe_of(hwnd);
+    GetClassNameW(hwnd, t.cls, 127);
+    GetWindowRect(hwnd, &t.rect);
+    const LONG_PTR ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+    t.topmost = (ex & WS_EX_TOPMOST) != 0;
+    t.tool = (ex & WS_EX_TOOLWINDOW) != 0;
+    POINT pt = {};
+    t.underPointer = GetCursorPos(&pt) && PtInRect(&t.rect, pt);
+    DWORD pid = 0;
+    GetWindowThreadProcessId(hwnd, &pid);
+    MONITORINFO mi = {};
+    mi.cbSize = sizeof(mi);
+    if (GetMonitorInfoW(MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST), &mi)) {
+        t.notification = front_rule::looks_like_notification(
+            t.rect.left, t.rect.top, t.rect.right, t.rect.bottom,
+            mi.rcWork.left, mi.rcWork.top, mi.rcWork.right, mi.rcWork.bottom,
+            t.topmost, t.tool, t.underPointer, pid == GetCurrentProcessId(), t.cls);
+    }
+    return t;
+}
+
 inline void follow_front()
 {
     bool expected = false;
     if (!g_followingFront.compare_exchange_strong(expected, true)) return;
     std::thread([]() {
         HWND last = nullptr;
+        bool lastWasOurs = false;
+        std::vector<ULONGLONG> tookBack;    // when a notification gave the front back
         int goneMs = 0;
         while (goneMs < 2000) {
             std::this_thread::sleep_for(std::chrono::milliseconds(250));
-            if (!window_exists()) {
+            FindState ours;
+            EnumWindows(find_window_proc, reinterpret_cast<LPARAM>(&ours));
+            if (ours.found == nullptr) {
                 goneMs += 250;
                 continue;
             }
             goneMs = 0;
             const HWND fg = GetForegroundWindow();
             if (fg == nullptr || fg == last) continue;
+            const bool fromOurs = lastWasOurs;
             last = fg;
             wchar_t title[512] = {};
-            if (GetWindowTextW(fg, title, 511) > 0 &&
-                window_icon_rule::is_app_window_title(title, kTitleMarker)) {
-                continue;
+            lastWasOurs = GetWindowTextW(fg, title, 511) > 0 &&
+                          window_icon_rule::is_app_window_title(title, kTitleMarker);
+            if (lastWasOurs) continue;
+            DWORD fgPid = 0, ourPid = 0;
+            GetWindowThreadProcessId(fg, &fgPid);
+            GetWindowThreadProcessId(ours.found, &ourPid);
+            if (fromOurs && fgPid != ourPid && fgPid != GetCurrentProcessId()) {
+                const FrontTaker t = read_front_taker(fg);
+                device_log::input_w() << L"ui: " << t.exe << L" took the front from the window ("
+                                      << t.cls << L", " << (t.rect.right - t.rect.left) << L"x"
+                                      << (t.rect.bottom - t.rect.top) << L" at " << t.rect.left
+                                      << L"," << t.rect.top << (t.topmost ? L", on top" : L"")
+                                      << (t.tool ? L", not in the taskbar" : L"")
+                                      << (t.underPointer ? L", under the pointer" : L"") << L")";
+                if (t.notification) {
+                    const ULONGLONG now = GetTickCount64();
+                    tookBack.erase(std::remove_if(tookBack.begin(), tookBack.end(),
+                                                  [now](ULONGLONG at) { return now - at > 10000; }),
+                                   tookBack.end());
+                    if (!front_rule::may_take_front_back(static_cast<int>(tookBack.size()))) {
+                        device_log::input_w() << L"ui: it looks like a notification, and it took the front "
+                                              << tookBack.size() << L" times in ten seconds: leaving it";
+                    } else {
+                        tookBack.push_back(now);
+                        raise_now(ours.found);
+                        std::this_thread::sleep_for(std::chrono::milliseconds(150));
+                        const bool back = window_has_foreground();
+                        device_log::input_w() << L"ui: it looks like a notification (small, in a corner, "
+                                              << L"not clicked): "
+                                              << (back ? L"took the front back"
+                                                       : L"tried to take the front back, and could not");
+                        if (back) {
+                            last = GetForegroundWindow();
+                            lastWasOurs = true;
+                        }
+                        continue;
+                    }
+                }
             }
             if (front_rule::on_front_change(is_full_screen_game(fg)) != front_rule::Remember::Set) continue;
             std::lock_guard<std::mutex> lock(g_gameMutex);

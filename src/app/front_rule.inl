@@ -86,4 +86,38 @@ inline Remember on_front_change(bool frontIsGame)
     return frontIsGame ? Remember::Set : Remember::Keep;
 }
 
+// ⭐⭐ A NOTIFICATION THAT TAKES THE FRONT FROM THE WINDOW GIVES IT BACK
+// (rhoquinn8217, 2026-10-22: *"sometimes when there is a bottom right
+// notification like samsung magic driver manager notification, it steal focus
+// from the config window even if it's on top"*, then *"yes take it back, with
+// log"*). The window stays drawn on top while the notification has the
+// keyboard, so the pad went to the game until the window was clicked.
+// ➡️ A notification by its shape: small beside the work area of its monitor
+// (two fifths of it at most, either way), in one of its corners, kept above
+// other windows or out of the taskbar -- and not under the pointer, since a
+// click on it is someone choosing it. Never the shell's, whose tray overflow
+// sits in that same corner, and never the listener's own.
+inline bool looks_like_notification(long wl, long wt, long wr, long wb,
+                                    long al, long at, long ar, long ab,
+                                    bool topmost, bool toolWindow, bool underPointer,
+                                    bool listenersOwn, const wchar_t *cls)
+{
+    if (underPointer || listenersOwn || is_shell_class(cls)) return false;
+    if (!topmost && !toolWindow) return false;
+    const long aw = ar - al, ah = ab - at, w = wr - wl, h = wb - wt;
+    if (aw <= 0 || ah <= 0 || w <= 0 || h <= 0) return false;
+    if (w * 5 > aw * 2 || h * 5 > ah * 2) return false;       // small
+    const long nearX = aw / 8, nearY = ah / 5;                 // how near a corner counts
+    const bool side = ar - wr <= nearX || wl - al <= nearX;
+    const bool end = ab - wb <= nearY || wt - at <= nearY;
+    return side && end;
+}
+
+// ⓘ And only so often: a notification that takes the front again at once is
+// fighting for it, and three times in ten seconds ends the taking back.
+inline bool may_take_front_back(int takenBackInTenSeconds)
+{
+    return takenBackInTenSeconds < 3;
+}
+
 }  // namespace front_rule
