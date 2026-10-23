@@ -59,7 +59,10 @@
             window last closed ("when ever you bring up the config window in
             simple or quick mode with the chord, bridge or tray icon, always
             start on the config selector wheel"); the controller is still
-            the one remembered.
+            the one remembered. Safe Edit Mode reads its new state as soon
+            as the listener answers the click, not at the next device poll,
+            up to four seconds on, when a second click asked for the same
+            state again.
     2.66.87 Quick's config selector is a wheel (rhoquinn8217: "build out a
             Wheel / Drum Picker for the config selector"): its choice in a
             frame fixed in the middle, which alone carries the halo, the
@@ -11353,7 +11356,13 @@ function toggleGateHold() {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ hold: want })
-  }).then(function () {
+  }).then(function (r) { return r.json(); }).then(function (r) {
+    // ⭐ ITS NEW STATE AT ONCE (2026-10-22, found testing the short label):
+    // the button waited for the device poll, up to four seconds, to read
+    // OFF, and a second click in that time asked for the hold again
+    // rather than for its end. The listener's answer says what it did.
+    GATE_HELD = (r && typeof r.hold === 'boolean') ? r.hold : want;
+    paintHoldControls();
     // ⛔ RE-ASSERT FOCUS when releasing. Focus has not CHANGED -- the page has
     // had it all along -- so nothing would fire an event and the gate would
     // stay off until you clicked away and back. The agent only learns focus
