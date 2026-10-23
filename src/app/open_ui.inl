@@ -803,9 +803,19 @@ inline void open_new(uint16_t restPort, bool withToken = true)
     // the reason is): 0.4334 x 0.622, with the old small, 0.68 x 0.73, its large.
     const int winW = (int)(waW * 0.4334);   // Advanced's small, its opening size
     const int winH = (int)(waH * 0.622);
+    // ⭐⭐ DRAWN BY THE PROCESSOR, NOT THE GRAPHICS CARD (rhoquinn8217,
+    // 2026-10-22: "while playing final fantasy VII rebirth, when the config
+    // window showed above the game, it was very slow and laggy, however the
+    // mouse cursor was not", then, asked always or only over a game:
+    // "always"). The log of it showed the pad's reports every 4 ms and every
+    // pick linked at once: only the window's drawing lagged, its frames
+    // queued on a card the game and the stream's encoder kept busy, while
+    // the pointer, which the card draws apart, stayed smooth. The page is
+    // light, and the processor has room for it. ⓘ This copy of the browser
+    // only: its own profile, never the person's.
     const std::wstring args = L"--app=" + url +
                               L" --user-data-dir=\"" + dataDir + L"\"" +
-                              L" --no-first-run --no-default-browser-check" +
+                              L" --no-first-run --no-default-browser-check --disable-gpu" +
                               L" --window-size=" + std::to_wstring(winW) + L"," + std::to_wstring(winH);
     // ⛔ CHECK THE RESULT. This logged "settings page opened" unconditionally,
     // so a launch that never happened looked identical to one that did --
