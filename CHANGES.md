@@ -161,6 +161,10 @@ carry it; upstream's own history is unchanged.
 | 2026-10-15 | Open on bridge is off until it is turned on, so a DualSense the TV bridges by itself opens no Controller Configs window; an existing install is turned off once, and a choice made after that is kept. | `9517637` |
 | 2026-10-15 | The touchpad: double tap and hold drags (`touchpad_double_tap_drag`). With it on, a single tap clicks 0.3 s late, held back so the next touch can still become the drag; a touch that lands in that time near the tap, rests 150 ms and then slides holds the tap's button until the last finger lifts; sliding sooner points, the tap's click sent first, so a window's X still closes; a second tap that lifts first is a double-click. Windows makes a double-click on the second press, which is why the click has to wait | `aed7dcf`, `37799cd`, `c79a85f`, `7d5e182`, merge `746cca9` |
 | 2026-10-15 | The tray menu's title shows the running build: DS5-USBIP, then v0.2.0 (N), smaller than the menu's text and lighter, on the title's baseline. It is the version the tooltip and the Controller Configs window's title show, from `product.h` | `1ba7db9`, merge `df5d61e` |
+| 2026-10-22 | The touchpad's two-finger swipes, up, down, left and right, each taking any remap a tap can take, and Win+Tab (Task View) in every remap list, for any button and every touchpad gesture. Up and down say they do nothing while `touchpad_scroll` is 2, two-finger scroll moving the same way; left and right work whatever it says. A swipe up saved as "win" shows as MetaLeft, the Win key it always pressed. | `a34b372`, `2c1c524`, `e94d288`, merge `8a65379` |
+| 2026-10-22 | The Controller Configs window's Simple and Quick layouts made for a pad and a television, and Advanced's Overview and config row redone (page 2.66.84 to 2.66.91). On the config selector, in every layout, Square unlinks and Triangle sets or removes the auto link. Quick's selector is a wheel that up and down step, Cross links at once, R3 opens the polling limit and a footer sits behind Circle. Simple's selector is a five-line wheel like Quick's, with the configs L1 and R1 go to in arrows either side of it, the polling rate and limit on the controller's name line, R3 opening the limit, a shorter window, and right from the wheel landing on Unlink. The polling limit is the controller's own, not its config's. Both open on the selector wheel however the window is opened, and a greyed button is reachable and says why in a bubble. The mode picker reads Advanced Mode, Simple Mode and Quick Mode. Advanced's Overview is two cards, This window and Connection, with a light for the connection and the access token behind an eye, and the page's and the program's versions on one line at the bottom; a controller's tab groups its config row, with Archive Config, an Auto link that is one button as in Simple, and Safe Edit Mode showing its new state as soon as the listener answers. The on-screen keyboard draws the pad's buttons as the window does. | `6a0a441`, `86698bb`, `7924363`, `3cf6c60`, `742ef3a`, `8e585bc`, `97f2b7e`, `8be0894`, `ec22f59`, `549c392`, `3f21ad0`, `b942ce3`, `f568a42`, `6dae612`, `64fd9af`, `8601897`, `0d60392`, `d90f37b`, `ae2a216`, `2888b1f`, `130bc15`, `0a9c451`, `164d1f4`, `e488247`, `61857e6`, `b91f576`, `c8775f0`, `c2cd29c`, `baf6a70`, `7ad4442`, `bf126d3`, `144e81a`, `eae2875`, `612deb7`, merge `db4fd18` |
+| 2026-10-22 | The Controller Configs window over a game and around the lock screen. Asked for while Windows is locked, it comes to the front once Windows is unlocked. A notification that takes the keyboard from it, small, in a corner, on top and not clicked, gives it back, at most three times in ten seconds, and the log names whatever took the front from it. Its browser draws with the processor (`--disable-gpu`): over a game holding the graphics card the window was slow while the cursor was not. | `6987e3e`, `43d2a75`, `df0f08b`, merge `c4fb311` |
+| 2026-10-22 | Every bridged controller reads no config while Windows is locked, so its buttons are Windows' own on the lock screen and can type a PIN, and no config can map them away from it. At the unlock each reads its auto link, or what it read before the lock; a config picked while locked is kept, and a controller bridged while locked waits for the unlock for its auto link. | `b4247db`, merge `c4fb311` |
 
 ## Files changed
 
@@ -172,11 +176,11 @@ ENet library, removed with the ENet transport).
 ```
  .gitattributes                                |    48 +
  .gitignore                                    |    41 +-
- CHANGES.md                                    |   384 +
+ CHANGES.md                                    |   392 +
  LINK                                          |     0
- README.md                                     |   297 +-
+ README.md                                     |   310 +-
  app/compatibility.manifest                    |    27 +
- app/ctm-usbip-tests.vcxproj                   |   145 +
+ app/ctm-usbip-tests.vcxproj                   |   147 +
  app/ctm-usbip.ico                             |   Bin 156019 -> 30139 bytes
  app/ctm-usbip.rc                              |    26 +-
  app/ctm-usbip.vcxproj                         |    62 +-
@@ -222,31 +226,32 @@ ENet library, removed with the ENet transport).
  profiles/descriptors/virtual_keyboard.profile |    74 +
  profiles/descriptors/virtual_mouse.profile    |    59 +
  release.ps1                                   |   266 +
- src/app/agent.inl                             |  1137 ++-
+ src/app/agent.inl                             |  1244 ++-
  src/app/agent_session_sweep.inl               |   333 +
  src/app/cli.inl                               |    63 +-
  src/app/common.inl                            |   166 +-
- src/app/config_move.inl                       |  1198 +++
+ src/app/config_move.inl                       |  1232 +++
  src/app/console_attach.inl                    |    82 +
  src/app/control_caller.inl                    |    48 +
  src/app/device_capabilities.inl               |    75 +
  src/app/device_names.inl                      |    93 +
  src/app/device_type.inl                       |    70 +
  src/app/favicon_version.inl                   |    58 +
- src/app/front_rule.inl                        |    89 +
+ src/app/front_rule.inl                        |   123 +
  src/app/home_folder.inl                       |   130 +
+ src/app/lock_screen_rule.inl                  |    28 +
  src/app/nickname.inl                          |    90 +
  src/app/old_devices.inl                       |   267 +
  src/app/old_devices_rule.inl                  |    91 +
  src/app/open_on_bridge.inl                    |    92 +
- src/app/open_ui.inl                           |   709 ++
- src/app/overlay_window.inl                    |  2303 ++++++
- src/app/paired_tv.inl                         |   495 ++
+ src/app/open_ui.inl                           |   888 ++
+ src/app/overlay_window.inl                    |  2472 +++++
+ src/app/paired_tv.inl                         |   495 +
  src/app/protocol_level.inl                    |    77 +
  src/app/quit_request.inl                      |    28 +
- src/app/rest.inl                              |   885 +++
- src/app/rest_config.inl                       |  1338 ++++
- src/app/rest_config_sessions.inl              |   211 +
+ src/app/rest.inl                              |   885 ++
+ src/app/rest_config.inl                       |  1365 +++
+ src/app/rest_config_sessions.inl              |   243 +
  src/app/rest_sessions.inl                     |    33 +
  src/app/rest_shared_section.inl               |    55 +
  src/app/same_controller.inl                   |    38 +
@@ -279,12 +284,13 @@ ENet library, removed with the ENet transport).
  src/backend/bridge_enet.inl                   |   800 --
  src/backend/bt.inl                            |    24 +-
  src/capture/README.md                         |    14 +
- src/config/config_presets.inl                 |   493 ++
+ src/config/config_presets.inl                 |   493 +
  src/config/config_store.inl                   |   856 ++
  src/config/config_watcher.inl                 |   170 +
  src/config/device_config.inl                  |   342 +
+ src/config/polling_limits.inl                 |   150 +
  src/input/battery.inl                         |   105 +
- src/input/binding_names.inl                   |   244 +
+ src/input/binding_names.inl                   |   250 +
  src/input/button_layout.inl                   |  1130 +++
  src/input/chord_gate.inl                      |    66 +
  src/input/gyro_calibration.inl                |   168 +
@@ -300,17 +306,17 @@ ENet library, removed with the ENet transport).
  src/input/mouse_held.inl                      |    99 +
  src/input/osk.inl                             |   228 +
  src/input/pad_press.inl                       |   116 +
- src/input/rebind.inl                          |  1309 +++
- src/input/stick_mouse.inl                     |   474 ++
- src/input/touch_mouse.inl                     |  1570 ++++
+ src/input/rebind.inl                          |  1332 +++
+ src/input/stick_mouse.inl                     |   474 +
+ src/input/touch_mouse.inl                     |  1680 ++++
  src/input/trigger_click.inl                   |   857 ++
  src/input/trigger_effect.inl                  |   637 ++
  src/log/capped_log.inl                        |   117 +
  src/log/device_log.inl                        |   233 +
- src/main.cpp                                  |   932 ++-
+ src/main.cpp                                  |   938 +-
  src/map/runtime.cpp                           |    90 +-
  src/usbdisplay/README.md                      |    13 +
- src/usbip/device.inl                          |   969 ++-
+ src/usbip/device.inl                          |   992 +-
  src/usbip/fallback_serial.inl                 |    81 +
  src/usbip/fine_timer.inl                      |    54 +
  src/usbip/input_pace.inl                      |   131 +
@@ -318,19 +324,19 @@ ENet library, removed with the ENet transport).
  src/usbip/submit_info.inl                     |    34 +
  src/usbip/submit_limits.inl                   |    54 +
  src/usbip/wire.inl                            |   103 +
- tests/binding_names_test.cpp                  |   200 +
+ tests/binding_names_test.cpp                  |   211 +
  tests/bridge_handshake_test.cpp               |   631 ++
  tests/button_layout_test.cpp                  |  1189 +++
  tests/capped_log_test.cpp                     |   140 +
- tests/config_store_test.cpp                   |   991 +++
+ tests/config_store_test.cpp                   |   991 ++
  tests/control_caller_test.cpp                 |    73 +
  tests/device_capabilities_test.cpp            |    75 +
  tests/device_config_cache_test.cpp            |   148 +
- tests/device_config_test.cpp                  |   521 ++
+ tests/device_config_test.cpp                  |   521 +
  tests/device_names_test.cpp                   |   110 +
  tests/device_type_test.cpp                    |    89 +
  tests/fallback_serial_test.cpp                |    79 +
- tests/front_rule_test.cpp                     |    69 +
+ tests/front_rule_test.cpp                     |   108 +
  tests/gyro_mouse_test.cpp                     |   828 ++
  tests/harness.h                               |    55 +
  tests/held_edges_test.cpp                     |    84 +
@@ -340,6 +346,7 @@ ENet library, removed with the ENet transport).
  tests/iso_in_pacing_test.cpp                  |   118 +
  tests/key_pulse_test.cpp                      |   148 +
  tests/keyboard_device_test.cpp                |   170 +
+ tests/lock_screen_rule_test.cpp               |    36 +
  tests/map_defaults_test.cpp                   |   100 +
  tests/mic_report_test.cpp                     |    64 +
  tests/mic_ring_test.cpp                       |   181 +
@@ -349,10 +356,11 @@ ENet library, removed with the ENet transport).
  tests/osk_test.cpp                            |    81 +
  tests/pad_press_test.cpp                      |   117 +
  tests/paired_tv_test.cpp                      |   319 +
+ tests/polling_limits_test.cpp                 |   122 +
  tests/product_version_test.cpp                |    45 +
  tests/protocol_level_test.cpp                 |   101 +
  tests/quit_request_test.cpp                   |    69 +
- tests/rebind_test.cpp                         |   664 ++
+ tests/rebind_test.cpp                         |   747 ++
  tests/rest_parser_test.cpp                    |   252 +
  tests/rest_shared_section_test.cpp            |    79 +
  tests/rumble_floor_test.cpp                   |    87 +
@@ -363,11 +371,11 @@ ENet library, removed with the ENet transport).
  tests/stop_wait_test.cpp                      |    93 +
  tests/stream_commands_test.cpp                |   118 +
  tests/taskbar_rule_test.cpp                   |    46 +
- tests/tests_main.cpp                          |   181 +
- tests/touch_mouse_test.cpp                    |  2095 +++++
+ tests/tests_main.cpp                          |   185 +
+ tests/touch_mouse_test.cpp                    |  2427 +++++
  tests/tray_menu_test.cpp                      |   220 +
- tests/trigger_click_test.cpp                  |   901 +++
- tests/trigger_effect_test.cpp                 |   529 ++
+ tests/trigger_click_test.cpp                  |   901 ++
+ tests/trigger_effect_test.cpp                 |   529 +
  tests/tv_sessions_test.cpp                    |   191 +
  tests/units.h                                 |    54 +
  tests/usb_descriptors_test.cpp                |   213 +
@@ -376,9 +384,9 @@ ENet library, removed with the ENet transport).
  tests/window_icon_rule_test.cpp               |   108 +
  tests/window_move_test.cpp                    |   136 +
  tests/window_size_rule_test.cpp               |   129 +
- tools/controller-config-test-client.html      | 10105 ++++++++++++++++++++++++
+ tools/controller-config-test-client.html      | 12316 ++++++++++++++++++++++++
  tools/create-desktop-shortcut.bat             |    46 +
  tools/create-desktop-shortcut.ps1             |   148 +
  tools/osk-mockups.py                          |   103 +
- 210 files changed, 60309 insertions(+), 1568 deletions(-)
+ 214 files changed, 64099 insertions(+), 1567 deletions(-)
 ```
