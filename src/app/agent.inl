@@ -41,11 +41,103 @@ struct AgentBridgeSession {
     // shares the serial -- see same_controller.inl.
     std::string tvPath;
     std::string linkedConfig;
+    // ⭐ HELD ON NO CONFIG WHILE WINDOWS IS LOCKED (lock_screen_rule.inl), and
+    // what it read when the lock came, for an unlock with no auto link.
+    bool heldForLock = false;
+    std::string beforeLock;
 };
 
 static std::mutex g_agent_sessions_mutex;
 static std::vector<std::unique_ptr<AgentBridgeSession>> g_agent_sessions;
 static std::unique_ptr<CtmUsbipServer> g_agent_usbip_server;
+
+#include "lock_screen_rule.inl"
+
+// ⭐⭐ WHILE WINDOWS IS LOCKED, EVERY CONTROLLER READS NO CONFIG, and its own
+// again at the unlock (lock_screen_rule.inl says why and which). Watched
+// twice a second from the agent's start, as the session's own lock state
+// (ctm_open_ui::session_locked), so a listener started behind the lock
+// screen -- a stream started there -- knows it before its first bridge.
+static std::atomic_bool g_windows_locked{false};
+
+// Each controller that takes a config onto the shared section, keeping what
+// it read for the unlock.
+static void hold_controllers_for_lock()
+{
+    bool changed = false;
+    std::lock_guard<std::mutex> lock(g_agent_sessions_mutex);
+    for (const auto &session : g_agent_sessions) {
+        if (!config_store::kind_supports_config(session->kind)) continue;
+        std::lock_guard<std::mutex> sessionLock(session->mutex);
+        if (session->heldForLock) continue;
+        session->heldForLock = true;
+        session->beforeLock = session->linkedConfig;
+        if (session->linkedConfig.empty()) continue;
+        device_log::config(device_log::msg()
+            << session->ordinal << " reads no config while Windows is locked (it read "
+            << session->linkedConfig << ")");
+        session->linkedConfig.clear();
+        if (session->device) session->device->set_linked_config(std::string());
+        changed = true;
+    }
+    if (changed) ctm_config_watcher::change_pending().store(true, std::memory_order_relaxed);
+}
+
+// Each controller held by the lock to its auto link, or to what it read
+// before the lock when it has none.
+static void give_controllers_back_after_lock()
+{
+    bool changed = false;
+    std::lock_guard<std::mutex> lock(g_agent_sessions_mutex);
+    for (const auto &session : g_agent_sessions) {
+        std::lock_guard<std::mutex> sessionLock(session->mutex);
+        if (!session->heldForLock) continue;
+        session->heldForLock = false;
+        const std::string autoLink = config_store::auto_link_for(session->physicalSerial,
+                                                                 session->kind);
+        const std::string next = lock_screen_rule::config_at_unlock(autoLink, session->beforeLock);
+        session->beforeLock.clear();
+        if (next == session->linkedConfig) continue;
+        session->linkedConfig = next;
+        if (session->device) session->device->set_linked_config(next);
+        device_log::config(device_log::msg()
+            << session->ordinal << " reads " << next << " now Windows is unlocked ("
+            << (autoLink.empty() ? "what it read before the lock" : "its auto link") << ")");
+        changed = true;
+    }
+    if (changed) ctm_config_watcher::change_pending().store(true, std::memory_order_relaxed);
+}
+
+// ⓘ The first look is made here, before the thread, so a bridge arriving at
+// once is already judged by it.
+static void watch_windows_lock()
+{
+    const bool locked = ctm_open_ui::session_locked();
+    g_windows_locked.store(locked);
+    if (locked) {
+        device_log::session(device_log::msg()
+            << "Windows is locked: controllers read no config until it is unlocked");
+    }
+    std::thread([]() {
+        bool was = g_windows_locked.load();
+        while (!g_stop.load()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            const bool now = ctm_open_ui::session_locked();
+            if (now == was) continue;
+            was = now;
+            g_windows_locked.store(now);
+            if (now) {
+                device_log::session(device_log::msg()
+                    << "Windows is locked: controllers read no config until it is unlocked");
+                hold_controllers_for_lock();
+            } else {
+                device_log::session(device_log::msg()
+                    << "Windows was unlocked: controllers read their own configs again");
+                give_controllers_back_after_lock();
+            }
+        }
+    }).detach();
+}
 
 // ⭐⭐ THE PAIRING PROOF (code review, 2026-10-05; rhoquinn8217's choice,
 // 2026-10-07). paired_tv.inl has the whole rule; these are what the control
@@ -580,10 +672,24 @@ static void bridge_session_worker(AgentBridgeSession *session)
         session->physicalSerial = serial;
         session->tvPath = myTvPath;
         if (session->linkedConfig.empty()) {
-            session->linkedConfig = config_store::auto_link_for(serial, session->kind);
-            if (!session->linkedConfig.empty()) {
-                device_log::config(device_log::msg()
-                    << session->ordinal << " auto-linked to " << session->linkedConfig);
+            const std::string autoLink = config_store::auto_link_for(serial, session->kind);
+            // ⭐ NOT WHILE WINDOWS IS LOCKED (lock_screen_rule.inl): the auto link
+            // waits for the unlock, and the controller's own buttons reach the
+            // PIN prompt meanwhile.
+            if (g_windows_locked.load() && config_store::kind_supports_config(session->kind)) {
+                session->heldForLock = true;
+                session->beforeLock.clear();
+                if (!autoLink.empty()) {
+                    device_log::config(device_log::msg()
+                        << session->ordinal << " waits for Windows to be unlocked for its auto link to "
+                        << autoLink);
+                }
+            } else {
+                session->linkedConfig = autoLink;
+                if (!session->linkedConfig.empty()) {
+                    device_log::config(device_log::msg()
+                        << session->ordinal << " auto-linked to " << session->linkedConfig);
+                }
             }
         }
         // The device resolves its own settings section on the output path, so
@@ -1335,6 +1441,9 @@ static int run_agent(uint16_t port)
                << widen_ascii(PRODUCT_VERSION_DISPLAY, strlen(PRODUCT_VERSION_DISPLAY))
                << L" agent starting (relay: ctm-usbip "
                << widen_ascii(CTM_VERSION_DISPLAY, strlen(CTM_VERSION_DISPLAY)) << L")";
+    // ⭐ Before any bridge: a stream started at the lock screen starts this
+    // listener behind it, and its first bridge must already know.
+    watch_windows_lock();
     WSADATA data = {};
     if (WSAStartup(MAKEWORD(2, 2), &data) != 0) {
         start_report::failed(L"DS5-USBIP could not start: Windows networking did not come up.\n\n" +

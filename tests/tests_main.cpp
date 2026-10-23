@@ -52,6 +52,7 @@ int run_pad_press_tests();
 int run_home_folder_tests();
 int run_stop_wait_tests();
 int run_front_rule_tests();
+int run_lock_screen_rule_tests();
 int run_input_pace_tests();
 int run_keyboard_device_tests();
 int run_rebind_tests();
@@ -164,6 +165,7 @@ int main(int argc, char **argv)
     run_home_folder_tests();
     run_stop_wait_tests();
     run_front_rule_tests();
+    run_lock_screen_rule_tests();
     run_input_pace_tests();
     run_keyboard_device_tests();
     run_rebind_tests();
