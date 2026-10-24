@@ -27,10 +27,11 @@ namespace {
 
 std::map<std::string, std::string> g_cfg;
 bool g_configModeEffective = false;
-// The quick config switch, as the listener would answer it (ui_quick_switch),
-// and whether two fingers up and down are its own right now: the window in
-// front in Simple or Quick (quick_switch_has_vertical_swipes).
+// The quick config switch: on, its window open, and whether two fingers up
+// and down are its own right now, the window in front in Simple or Quick
+// (quick_switch_holds_touchpad, quick_switch_has_vertical_swipes).
 bool g_quickSwitch = false;
+bool g_switchSession = false;
 bool g_switchHasSwipes = false;
 
 int32_t g_pushedX = 0;      // summed cursor deltas pushed to the mailbox
@@ -78,6 +79,7 @@ void reset_stubs()
     g_cfg.clear();
     g_configModeEffective = false;
     g_quickSwitch = false;
+    g_switchSession = false;
     g_switchHasSwipes = false;
     g_pushedX = 0;
     g_pushedY = 0;
@@ -138,7 +140,11 @@ static InputPad device_input_pad_for(const std::vector<unsigned char> &)
     return pad;
 }
 static bool ctm_rebind_config_mode_effective() { return g_configModeEffective; }
-static bool ui_quick_switch() { return g_quickSwitch; }
+// ⓘ The listener's own rule: the press itself, and the window it opened.
+static bool quick_switch_holds_touchpad(const void *, int fingers, bool pressed)
+{
+    return g_quickSwitch && (g_switchSession || (fingers == 2 && pressed));
+}
 static bool quick_switch_has_vertical_swipes() { return g_switchHasSwipes; }
 
 namespace device_log {
@@ -2197,43 +2203,58 @@ int run_touch_mouse_tests()
         CTM_CHECK(g_wheelSum != 0);
     }
 
-    section("touch: Create held with the quick config switch on, the touchpad stands down");
+    section("touch: the quick config switch's press and its window, the touchpad stands down");
     {
+        // ⓘ rhoquinn8217, 2026-10-23: "Disable all touch pad rebinds during
+        // this time including touch-pad to mouse".
         reset_stubs();
         fresh_device();
         g_quickSwitch = true;
         g_cfg["touchpad_to_mouse"] = "true";
-        const ctm_rebind::BitSpot &create = ctm_rebind::kDs5Layout.spots[ctm_rebind::kBtnSelect];
+        g_cfg["touchpad_press_touch_drag"] = "MouseLeft";
+        const int clickByte = ctm_rebind::kDs5Layout.touch.clickByte;
+        const uint8_t clickMask = ctm_rebind::kDs5Layout.touch.clickMask;
         auto r = rest_report();
-        r[create.byteIndex] = static_cast<uint8_t>(r[create.byteIndex] | create.mask);
+        // two fingers pressing: nothing held
         set_point(r, 0, true, 1, 800, 500);
+        set_point(r, 1, true, 2, 1100, 500);
+        r[clickByte] = static_cast<uint8_t>(r[clickByte] | clickMask);
         run_step(r, 0);
-        set_point(r, 0, true, 1, 1100, 500);
         run_step(r, 20);
-        set_point(r, 0, true, 1, 1400, 500);
+        CTM_CHECK_EQ(static_cast<int>(g_dragMask), 0);
+        // its window open, one finger moving: no cursor
+        g_switchSession = true;
+        r[clickByte] = static_cast<uint8_t>(r[clickByte] & ~clickMask);
+        set_point(r, 1, false, 2, 1100, 500);
         run_step(r, 40);
-        CTM_CHECK_EQ(g_pushCount, 0);
-        // Create up: the same finger points again, from where it is now
-        r[create.byteIndex] = static_cast<uint8_t>(r[create.byteIndex] & ~create.mask);
-        set_point(r, 0, true, 1, 1500, 500);
+        set_point(r, 0, true, 1, 1100, 300);
         run_step(r, 60);
-        set_point(r, 0, true, 1, 1700, 500);
+        set_point(r, 0, true, 1, 1400, 100);
         run_step(r, 80);
+        CTM_CHECK_EQ(g_pushCount, 0);
+        CTM_CHECK_EQ(static_cast<int>(g_dragMask), 0);
+        // the last finger lifted, the window gone: a new touch points again
+        g_switchSession = false;
+        set_point(r, 0, false, 1, 1400, 100);
+        run_step(r, 100);
+        set_point(r, 0, true, 3, 800, 500);
+        run_step(r, 120);
+        set_point(r, 0, true, 3, 1100, 500);
+        run_step(r, 140);
+        set_point(r, 0, true, 3, 1400, 500);
+        run_step(r, 160);
         CTM_CHECK(g_pushCount > 0);
-        CTM_CHECK(g_pushedX > 0);
-        // and with the switch off, Create held changes nothing
+        // and with the switch off, a two-finger press is the config's own
         reset_stubs();
         fresh_device();
-        g_cfg["touchpad_to_mouse"] = "true";
+        g_cfg["touchpad_press_touch_drag"] = "MouseLeft";
         auto q = rest_report();
-        q[create.byteIndex] = static_cast<uint8_t>(q[create.byteIndex] | create.mask);
         set_point(q, 0, true, 1, 800, 500);
+        set_point(q, 1, true, 2, 1100, 500);
+        q[clickByte] = static_cast<uint8_t>(q[clickByte] | clickMask);
         run_step(q, 0);
-        set_point(q, 0, true, 1, 1100, 500);
         run_step(q, 20);
-        set_point(q, 0, true, 1, 1400, 500);
-        run_step(q, 40);
-        CTM_CHECK(g_pushCount > 0);
+        CTM_CHECK(g_dragMask != 0);
     }
 
     section("touch: a two-finger swipe up presses Win+Tab once, and is not a tap");

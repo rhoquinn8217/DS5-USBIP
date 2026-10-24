@@ -1010,6 +1010,15 @@ inline bool touch_finger_down(const Layout &lay, const uint8_t *data, size_t len
     return data != nullptr && fits(len, at, 1) && (data[at] & 0x80) == 0;
 }
 
+// The id the pad gave finger 0 or 1 of the newest touch packet, or -1: a
+// finger keeps its id while it stays down, and a new touch takes a new one.
+inline int touch_finger_id(const Layout &lay, const uint8_t *data, size_t len, int finger)
+{
+    const int at = touch_finger_byte(lay, finger);
+    if (data == nullptr || !fits(len, at, 1)) return -1;
+    return data[at] & 0x7f;
+}
+
 // Where finger 0 or 1 of the newest touch packet is, in the pad's own units:
 // x across, y down from the top. False when the report is too short to say.
 inline bool touch_finger_pos(const Layout &lay, const uint8_t *data, size_t len,

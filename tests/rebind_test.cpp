@@ -188,7 +188,7 @@ void ctm_chord_show_ui(const std::string &)
 
 // The quick config switch (quick_switch_session.inl) is not here: it hears
 // nothing, and sends the page no step.
-void quick_switch_report(const void *, bool, int, float, float) {}
+void quick_switch_report(const void *, int, bool, int, float, float, float) {}
 const char *quick_switch_key(const void *) { return nullptr; }
 
 uint32_t g_triggerPresses = 0;

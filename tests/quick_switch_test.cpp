@@ -1,11 +1,12 @@
-// The quick config switch: its setting, its swipe, and the keys a step is sent
-// to the page as.
+// The quick config switch: its setting, its gestures, and the keys a step is
+// sent to the page as.
 //
-// ⭐ WHAT THESE PROTECT (rhoquinn8217, 2026-10-23): two fingers swiped up step
-// a controller to the next config, down to the one before, once per swipe,
-// while armed (Create held, or the window in front in Simple or Quick);
-// nothing unarmed, nothing sideways; and each step reaches the page as one
-// press of its own key.
+// ⭐ WHAT THESE PROTECT (rhoquinn8217, 2026-10-23): two fingers pressing the
+// touchpad open the window, once per press; one finger up steps a controller
+// to the next config and down to the one before, a step for every quarter of
+// the pad it travels; with the window in front in Simple or Quick (armed),
+// two fingers swiped up or down step it, once per swipe, nothing sideways;
+// and each step reaches the page as one press of its own key.
 //
 // WHAT THESE CANNOT DO. No window opens here and no pad is read: the window,
 // the gate and the link are looked at with the listener running.
@@ -19,18 +20,18 @@ using namespace ctmtest;
 namespace {
 
 // A swipe from the pad's middle: armed, two fingers down, then moved.
-int swipe(quick_switch::Pad &p, float dx, float dy, bool create = true)
+int swipe(quick_switch::Pad &p, float dx, float dy, bool armed = true)
 {
     int got = 0;
-    got += quick_switch::step(p, create, 2, 960.0f, 540.0f);
-    got += quick_switch::step(p, create, 2, 960.0f + dx / 2.0f, 540.0f + dy / 2.0f);
-    got += quick_switch::step(p, create, 2, 960.0f + dx, 540.0f + dy);
+    got += quick_switch::step(p, armed, 2, 960.0f, 540.0f);
+    got += quick_switch::step(p, armed, 2, 960.0f + dx / 2.0f, 540.0f + dy / 2.0f);
+    got += quick_switch::step(p, armed, 2, 960.0f + dx, 540.0f + dy);
     return got;
 }
 
-void lift(quick_switch::Pad &p, bool create = true)
+void lift(quick_switch::Pad &p, bool armed = true)
 {
-    quick_switch::step(p, create, 0, 0.0f, 0.0f);
+    quick_switch::step(p, armed, 0, 0.0f, 0.0f);
 }
 
 }  // namespace
@@ -96,6 +97,46 @@ int run_quick_switch_tests()
         CTM_CHECK_EQ(quick_switch::step(p, true, 2, 960.0f, 700.0f), 0);
         CTM_CHECK_EQ(quick_switch::step(p, true, 2, 960.0f, 500.0f), 0);
         CTM_CHECK_EQ(quick_switch::step(p, true, 2, 960.0f, 390.0f), 1);
+    }
+
+    section("quick switch: two fingers pressing open it, once per press");
+    {
+        Press p;
+        CTM_CHECK(!opens(p, 2, false));
+        CTM_CHECK(opens(p, 2, true));
+        CTM_CHECK(!opens(p, 2, true));     // held: not again
+        CTM_CHECK(!opens(p, 1, false));
+        CTM_CHECK(!opens(p, 1, true));     // one finger pressing: no
+        CTM_CHECK(!opens(p, 0, false));
+        CTM_CHECK(opens(p, 2, true));      // let go and pressed again: yes
+        Press q;
+        CTM_CHECK(!opens(q, 0, true));     // pressed with no finger: no
+    }
+
+    section("quick switch: one finger up is the next config, down the one before, a step a quarter of the pad");
+    {
+        Drag d;
+        CTM_CHECK_EQ(drag_step(d, 1, 5, 900.0f), 0);   // lands
+        CTM_CHECK_EQ(drag_step(d, 1, 5, 700.0f), 0);   // 200 up: not yet
+        CTM_CHECK_EQ(drag_step(d, 1, 5, 590.0f), 1);   // 310 up
+        CTM_CHECK_EQ(drag_step(d, 1, 5, 400.0f), 0);   // 190 more
+        CTM_CHECK_EQ(drag_step(d, 1, 5, 280.0f), 1);   // 320 above where the first step left it, 600
+        CTM_CHECK_EQ(drag_step(d, 1, 5, 590.0f), 0);   // back down: 290 below where that left it, 300
+        CTM_CHECK_EQ(drag_step(d, 1, 5, 610.0f), -1);  // 310 below it
+    }
+
+    section("quick switch: one finger only, measured afresh when the fingers change");
+    {
+        Drag d;
+        CTM_CHECK_EQ(drag_step(d, 2, -1, 0.0f), 0);    // two fingers: nothing
+        CTM_CHECK_EQ(drag_step(d, 1, 7, 900.0f), 0);
+        CTM_CHECK_EQ(drag_step(d, 2, -1, 0.0f), 0);    // a second finger lands
+        CTM_CHECK_EQ(drag_step(d, 1, 7, 650.0f), 0);   // and lifts: 650 is the new start
+        CTM_CHECK_EQ(drag_step(d, 1, 7, 400.0f), 0);   // 250 up: not yet
+        CTM_CHECK_EQ(drag_step(d, 1, 7, 340.0f), 1);   // 310 up
+        CTM_CHECK_EQ(drag_step(d, 1, 8, 100.0f), 0);   // another finger: starts again
+        CTM_CHECK_EQ(drag_step(d, 1, 8, 300.0f), 0);
+        CTM_CHECK_EQ(drag_step(d, 1, 8, 410.0f), -1);  // 310 down
     }
 
     section("quick switch: a step is one press of its key, then a gap");

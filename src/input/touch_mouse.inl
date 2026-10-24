@@ -1004,14 +1004,13 @@ inline void step(const void *deviceKey, const std::string &section,
     //
     // ⓘ An older config saying "true" meant two fingers, and still does.
     const std::string scrollRaw = device_config_str(section.c_str(), "touchpad_scroll");
-    // ⭐ THE QUICK CONFIG SWITCH (quick_switch.inl). With Create held the
-    // touchpad is its own (below). And while the configs window is in front
+    // ⭐ THE QUICK CONFIG SWITCH (quick_switch.inl). While its window is open
+    // the touchpad is its own (below). And while the configs window is in front
     // in Simple or Quick, two fingers up and down only move the wheel
     // (rhoquinn8217, 2026-10-23: "When simple and quick mode are in focus,
     // two finger swipe up or down is disabled and only control the wheel"):
     // the config's own swipe up and down stand aside, and so does
     // two-finger scroll, whose wheel ticks would step the wheel again.
-    const bool quickSwitchOn = ui_quick_switch();
     const bool switchHasSwipes = quick_switch_has_vertical_swipes();
     const int scrollFingers =
         (scrollRaw == "1")                                               ? 1 :
@@ -1109,22 +1108,23 @@ inline void step(const void *deviceKey, const std::string &section,
         return;
     }
 
-    // ⭐ CREATE HELD WHILE THE QUICK CONFIG SWITCH IS ON: the touchpad is the
-    // switch's (rhoquinn8217, 2026-10-23: "the touchpad should still move the
-    // cursor but not while Create is held"), so the cursor, the scroll, the
-    // taps and the swipes stand down until Create comes up, as for a shut
-    // gate, and the touch starts afresh after.
-    if (quickSwitchOn && ctm_rebind::is_pressed(lay, data, len, ctm_rebind::kBtnSelect)) {
+    const TouchPoint p1 = read_point(data, static_cast<size_t>(lay.touch.finger1));
+    const TouchPoint p2 = read_point(data, static_cast<size_t>(lay.touch.finger2));
+    const int fingers = (p1.down ? 1 : 0) + (p2.down ? 1 : 0);
+    const TouchPoint &only = p1.down ? p1 : p2;   // meaningful when fingers == 1
+
+    // ⭐ THE QUICK CONFIG SWITCH HAS THE TOUCHPAD (quick_switch_session.inl):
+    // from two fingers pressing it in to the last finger lifting, nothing of
+    // it acts (rhoquinn8217, 2026-10-23: "Disable all touch pad rebinds
+    // during this time including touch-pad to mouse"). The cursor, the
+    // scroll, the taps, the swipes and the press stand down as for a shut
+    // gate, and the next touch starts afresh.
+    if (quick_switch_holds_touchpad(deviceKey, fingers, ctm_rebind::touch_pressed(lay, data, len))) {
         drop_hold(st, deviceKey);
         if (st.clickMask != 0) fire_click(st);   // a tap already made
         st = TouchState();
         return;
     }
-
-    const TouchPoint p1 = read_point(data, static_cast<size_t>(lay.touch.finger1));
-    const TouchPoint p2 = read_point(data, static_cast<size_t>(lay.touch.finger2));
-    const int fingers = (p1.down ? 1 : 0) + (p2.down ? 1 : 0);
-    const TouchPoint &only = p1.down ? p1 : p2;   // meaningful when fingers == 1
 
     // ⭐ A PUT-BACK IS CHECKED AGAIN FOR A MOMENT, for movement that was already
     // on its way to Windows when it happened. ⓘ Nothing of this touch moves the

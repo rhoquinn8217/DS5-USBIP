@@ -377,21 +377,24 @@ inline void apply(const void *deviceKey,
         const bool f2 = ctm_rebind::touch_finger_down(chordLayout, data, len, 1);
         const bool options = ctm_rebind::is_pressed(chordLayout, data, len, ctm_rebind::kBtnStart);
 
-        // ⭐ THE QUICK CONFIG SWITCH reads the same fingers, with Create, on
-        // every report, in the window or out of it: Create held and two
-        // fingers up for the next config, down for the one before
+        // ⭐ THE QUICK CONFIG SWITCH reads the same fingers, and the pad
+        // pressed in, on every report, in the window or out of it: two
+        // fingers pressing open the window in Quick, one finger up or down
+        // steps the config, and the last finger lifting closes it
         // (quick_switch_session.inl). ⓘ Before anything here changes the
-        // report, and it changes nothing itself: Create still reaches the
-        // game (rhoquinn8217, 2026-10-23).
+        // report, and it changes nothing itself.
         {
             int x1 = 0, y1 = 0, x2 = 0, y2 = 0;
-            const bool both = f1 && f2 &&
-                ctm_rebind::touch_finger_pos(chordLayout, data, len, 0, &x1, &y1) &&
-                ctm_rebind::touch_finger_pos(chordLayout, data, len, 1, &x2, &y2);
-            quick_switch_report(deviceKey,
-                ctm_rebind::is_pressed(chordLayout, data, len, ctm_rebind::kBtnSelect),
-                (f1 ? 1 : 0) + (f2 ? 1 : 0),
-                both ? (x1 + x2) / 2.0f : 0.0f, both ? (y1 + y2) / 2.0f : 0.0f);
+            const bool at1 = f1 && ctm_rebind::touch_finger_pos(chordLayout, data, len, 0, &x1, &y1);
+            const bool at2 = f2 && ctm_rebind::touch_finger_pos(chordLayout, data, len, 1, &x2, &y2);
+            const int fingers = (f1 ? 1 : 0) + (f2 ? 1 : 0);
+            // ⓘ The one finger, when one is down: which, and how high.
+            const int oneId = fingers == 1
+                ? ctm_rebind::touch_finger_id(chordLayout, data, len, f1 ? 0 : 1) : -1;
+            const float oneY = fingers == 1 ? static_cast<float>(f1 ? y1 : y2) : 0.0f;
+            quick_switch_report(deviceKey, fingers,
+                ctm_rebind::touch_pressed(chordLayout, data, len), oneId, oneY,
+                at1 && at2 ? (x1 + x2) / 2.0f : 0.0f, at1 && at2 ? (y1 + y2) / 2.0f : 0.0f);
         }
 
         // ⛔ EDGE, not level. Options is held for about 300ms and this runs at
