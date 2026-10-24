@@ -721,11 +721,15 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
 
         // ⭐ THE TUTORIAL'S WORDS, OUTSIDE THE WINDOW (rhoquinn8217,
         // 2026-10-14: *"We need to move the descriptions so that they don't
-        // cover any of the browser box."*). The page POSTs what a step says
-        // and where its lit part sits, and the listener draws the words beside
-        // the window (tutorial_bubble.inl); {"show": false} takes them away. A
-        // GET of tutorial-press hands over a click on their Next or Previous,
-        // once, for the page to act on.
+        // cover any of the browser box."*). The page POSTs what a step says,
+        // the buttons under it as one string ("id:Label:kind|...",
+        // tutorial_bubble_rule::parse_buttons) and where its lit part sits,
+        // and the listener draws the words beside the window
+        // (tutorial_bubble.inl); {"show": false} takes them away. "arrow"
+        // says whether one points at a lit part, and "title" heads the
+        // start's card and the end's question. A GET of tutorial-press hands
+        // over a click on one of the buttons, by its id, once, for the page to
+        // act on.
         if (what == "tutorial-bubble") {
             if (req.method != "POST") {
                 *out = rest_error_response(405, "method not allowed", "Allow: POST, OPTIONS\r\n");
@@ -750,8 +754,8 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
                 return it == json.numbers.end() ? fallback : static_cast<int>(it->second);
             };
             if (flag("show")) {
-                ui_tutorial_words_show(text("count"), text("words"), flag("next_on"), flag("prev_shown"),
-                                       text("focus"), number("ax", 500), number("ay", 500));
+                ui_tutorial_words_show(text("title"), text("count"), text("words"), text("buttons"),
+                                       text("focus"), flag("arrow"), number("ax", 500), number("ay", 500));
             } else {
                 ui_tutorial_words_hide();
             }

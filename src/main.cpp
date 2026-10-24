@@ -142,11 +142,12 @@ void ui_tutorial_ask();
 bool ui_tutorial_asked();
 void ui_tutorial_take();
 /* The tutorial's words, drawn beside the configs window rather than in it
- * (tutorial_bubble.inl): shown with what a step says, hidden, and a click on
- * their Next or Previous handed over once. Defined below, after
- * tutorial_bubble.inl. */
-void ui_tutorial_words_show(const std::string &count, const std::string &words, bool nextOn,
-                            bool prevShown, const std::string &focus, int ax, int ay);
+ * (tutorial_bubble.inl): shown with what a step says and the buttons under
+ * it, hidden, and a click on one of those buttons handed over once. Defined
+ * below, after tutorial_bubble.inl. */
+void ui_tutorial_words_show(const std::string &title, const std::string &count, const std::string &words,
+                            const std::string &buttons, const std::string &focus, bool arrow,
+                            int ax, int ay);
 void ui_tutorial_words_hide();
 std::string ui_tutorial_words_take_press();
 /* Where the window stands right now, kept for the next one. Called on the way
@@ -431,16 +432,20 @@ void ui_tutorial_take()
 {
     config_move::take_tutorial();
 }
-void ui_tutorial_words_show(const std::string &count, const std::string &words, bool nextOn,
-                            bool prevShown, const std::string &focus, int ax, int ay)
+void ui_tutorial_words_show(const std::string &title, const std::string &count, const std::string &words,
+                            const std::string &buttons, const std::string &focus, bool arrow,
+                            int ax, int ay)
 {
     tutorial_bubble::Content c;
     c.show = true;
+    c.title = tutorial_bubble::wide(title);
     c.count = tutorial_bubble::wide(count);
     c.words = tutorial_bubble::wide(words);
-    c.nextOn = nextOn;
-    c.prevShown = prevShown;
+    for (const tutorial_bubble_rule::ButtonSpec &b : tutorial_bubble_rule::parse_buttons(buttons)) {
+        c.buttons.push_back({ b.id, tutorial_bubble::wide(b.label), b.kind });
+    }
     c.focus = focus;
+    c.arrow = arrow;
     c.ax = ax;
     c.ay = ay;
     tutorial_bubble::update(c);

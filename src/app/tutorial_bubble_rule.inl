@@ -40,6 +40,40 @@ inline std::vector<Piece> parse(const std::wstring &words)
     return out;
 }
 
+// ⭐ THE BUTTONS UNDER THE WORDS, named by the page (rhoquinn8217, 2026-10-23:
+// Next became "Continue" and Previous "Go back", and End tutorial moved out
+// beside them, "outside", as did the start's and the end's questions). One
+// string, since the listener's flat JSON carries no lists:
+// "id:Label:kind|id:Label:kind", in the order they stand, left to right.
+// `kind` is how a button looks and whether a click counts: "go" lit blue,
+// "off" greyed out and deaf, anything else plain. ⓘ An item without an id or
+// a label is left out.
+struct ButtonSpec {
+    std::string id;
+    std::string label;   // UTF-8, as the page sent it
+    std::string kind;    // "go", "off" or "plain"
+};
+
+inline std::vector<ButtonSpec> parse_buttons(const std::string &spec)
+{
+    std::vector<ButtonSpec> out;
+    size_t at = 0;
+    while (at < spec.size()) {
+        size_t end = spec.find('|', at);
+        if (end == std::string::npos) end = spec.size();
+        const std::string item = spec.substr(at, end - at);
+        const size_t a = item.find(':');
+        const size_t b = a == std::string::npos ? std::string::npos : item.find(':', a + 1);
+        if (a != std::string::npos && b != std::string::npos && a > 0 && b > a + 1) {
+            std::string kind = item.substr(b + 1);
+            if (kind != "go" && kind != "off") kind = "plain";
+            out.push_back({ item.substr(0, a), item.substr(a + 1, b - a - 1), kind });
+        }
+        at = end + 1;
+    }
+    return out;
+}
+
 // What a line may break between: plain words, the spaces between them, and
 // each lit name WHOLE, dashes and spaces and all (*"Don't wrap it on it's
 // dashes"*).
@@ -117,7 +151,7 @@ struct Box {
 
 enum class Side { Above, Below, Right, Left };
 
-// The whole words window, in screen pixels: the words, Next and Previous under
+// The whole words window, in screen pixels: the words, the buttons under
 // them, and the arrow on the side facing the Controller Configs window.
 // `arrowAt` is where along that side the arrow sits, from the window's own
 // left (Above, Below) or top (Left, Right).

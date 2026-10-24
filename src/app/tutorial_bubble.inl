@@ -7,12 +7,13 @@
 // takes focus, as the on-screen keyboard does (overlay_window.inl): the
 // controller goes on driving the configs window while it is up.
 //
-// The page sends what a step says, the step count, whether Next can be
-// pressed and Previous is there, which of the two the pad's halo is on, and
-// where the lit part sits in its view (the /api/v1/ui/tutorial-bubble route).
-// A click on Next or Previous here waits in take_press() until the page
-// collects it. Where the window goes and how its lines break:
-// tutorial_bubble_rule.inl.
+// The page sends what a step says, the step count, the buttons under the
+// words and how each looks, which one the pad's halo is on, and where the lit
+// part sits in its view (the /api/v1/ui/tutorial-bubble route). The start's
+// card and the "End the tutorial?" question come the same way, with a title
+// and no arrow, since they point at nothing. A click on a button here waits
+// in take_press() until the page collects it. Where the window goes, how its
+// lines break and how the buttons are named: tutorial_bubble_rule.inl.
 //
 // ⓘ It follows the configs window ten times a second, and hides whenever that
 // window is not the one in front: minimised, or behind a game, there is
@@ -27,14 +28,22 @@ namespace tutorial_bubble {
 
 namespace tbr = tutorial_bubble_rule;
 
+// A button under the words, as the page named it.
+struct Button {
+    std::string id;           // what a click hands back: "next", "prev", "end", ...
+    std::wstring label;
+    std::string kind;         // "go", "off" or "plain" (tutorial_bubble_rule::parse_buttons)
+};
+
 // What a step shows, as the page last sent it.
 struct Content {
     bool show = false;
-    std::wstring count;       // "3 of 10"
+    std::wstring title;       // the start's card and the question; empty on a step
+    std::wstring count;       // "3 of 11"; empty with a title
     std::wstring words;       // lit names between [[ and ]]
-    bool nextOn = false;      // Next can be pressed; greyed out on a step that asks for something
-    bool prevShown = false;   // Previous is there at all; not on the first step
-    std::string focus;        // the pad's halo: "next", "prev" or ""
+    std::vector<Button> buttons;   // left to right, at the words' right
+    std::string focus;        // the pad's halo: a button's id, or ""
+    bool arrow = true;        // pointing at the lit part; none when nothing is lit
     int ax = 500, ay = 500;   // the lit part's middle, thousandths of the page's view
 };
 
@@ -79,7 +88,7 @@ inline int px(int v, UINT dpi) { return MulDiv(v, static_cast<int>(dpi), 96); }
 // bubble used the window's own large type.
 struct Fonts {
     UINT dpi = 0;
-    HFONT text = nullptr, lit = nullptr, count = nullptr, button = nullptr;
+    HFONT text = nullptr, lit = nullptr, count = nullptr, button = nullptr, title = nullptr;
 };
 
 inline HFONT make_font(int sizePx, int weight, UINT dpi)
@@ -92,7 +101,7 @@ inline HFONT make_font(int sizePx, int weight, UINT dpi)
 inline void fonts_for(Fonts *f, UINT dpi)
 {
     if (f->dpi == dpi && f->text != nullptr) return;
-    for (HFONT h : { f->text, f->lit, f->count, f->button }) {
+    for (HFONT h : { f->text, f->lit, f->count, f->button, f->title }) {
         if (h != nullptr) DeleteObject(h);
     }
     f->dpi = dpi;
@@ -100,6 +109,7 @@ inline void fonts_for(Fonts *f, UINT dpi)
     f->lit = make_font(16, FW_SEMIBOLD, dpi);
     f->count = make_font(12, FW_NORMAL, dpi);
     f->button = make_font(15, FW_SEMIBOLD, dpi);
+    f->title = make_font(18, FW_SEMIBOLD, dpi);
 }
 
 // Everything a paint and a click need, in the words window's own pixels.
@@ -107,9 +117,11 @@ struct Layout {
     Content content;
     UINT dpi = 96;
     tbr::Placement place;
-    RECT box{}, next{}, prev{};
+    RECT box{};
+    std::vector<RECT> btns;   // one for each of content.buttons
     POINT arrow[3]{};
-    int pad = 0, round = 0, countH = 0, lineH = 0, litPad = 0;
+    bool hasArrow = false;
+    int pad = 0, round = 0, titleH = 0, countH = 0, lineH = 0, litPad = 0;
     std::vector<tbr::Token> toks;
     std::vector<int> widths;
     std::vector<std::vector<size_t>> lines;
@@ -124,8 +136,8 @@ inline SIZE measure(HDC dc, HFONT font, const std::wstring &text)
 }
 
 // ⭐ THE LAYOUT, from the words and from where the configs window and the
-// screen's working area are. The words box, Next and Previous under it at its
-// right, and the arrow on the side facing the window.
+// screen's working area are. The words box, its buttons under it at its
+// right, and the arrow on the side facing the window, when there is one.
 inline Layout compute_layout(HDC dc, Fonts *fonts, const Content &c, UINT dpi,
                              const RECT &frame, const RECT &work)
 {
@@ -136,10 +148,11 @@ inline Layout compute_layout(HDC dc, Fonts *fonts, const Content &c, UINT dpi,
     L.pad = px(12, dpi);
     L.round = px(10, dpi);
     L.litPad = px(5, dpi);
+    L.hasArrow = c.arrow;
     const int maxWidth = px(380, dpi);
     const int between = px(8, dpi);
     const int btnPadX = px(14, dpi), btnPadY = px(6, dpi);
-    const int arrow = px(12, dpi), gap = px(10, dpi);
+    const int arrow = c.arrow ? px(12, dpi) : 0, gap = px(10, dpi);
 
     L.toks = tbr::tokens(tbr::parse(c.words));
     for (const tbr::Token &t : L.toks) {
@@ -151,25 +164,37 @@ inline Layout compute_layout(HDC dc, Fonts *fonts, const Content &c, UINT dpi,
     SelectObject(dc, fonts->text);
     GetTextMetricsW(dc, &tm);
     L.lineH = tm.tmHeight + px(6, dpi);
-    const SIZE countSize = measure(dc, fonts->count, c.count);
-    L.countH = countSize.cy;
-    int textW = countSize.cx;
+    int textW = 0;
+    if (!c.title.empty()) {
+        const SIZE s = measure(dc, fonts->title, c.title);
+        L.titleH = s.cy + px(4, dpi);
+        textW = s.cx;
+    }
+    if (!c.count.empty()) {
+        const SIZE s = measure(dc, fonts->count, c.count);
+        L.countH = s.cy + px(2, dpi);
+        if (s.cx > textW) textW = s.cx;
+    }
     for (const auto &line : L.lines) {
         int w = 0;
         for (const size_t i : line) w += L.widths[i];
         if (w > textW) textW = w;
     }
     const int boxW = textW + 2 * L.pad;
-    const int boxH = L.pad + L.countH + px(2, dpi) + static_cast<int>(L.lines.size()) * L.lineH + L.pad;
+    const int boxH = L.pad + L.titleH + L.countH + static_cast<int>(L.lines.size()) * L.lineH + L.pad;
 
-    const SIZE nextSize = measure(dc, fonts->button, L"Next");
-    const SIZE prevSize = measure(dc, fonts->button, L"Previous");
-    const int btnH = nextSize.cy + 2 * btnPadY;
-    const int nextW = nextSize.cx + 2 * btnPadX;
-    const int prevW = prevSize.cx + 2 * btnPadX;
-    const int rowW = nextW + (c.prevShown ? between + prevW : 0);
+    // ⓘ The buttons in the page's order, as wide as their names, one height.
+    std::vector<int> btnW;
+    int rowW = 0, btnH = 0;
+    for (const Button &b : c.buttons) {
+        const SIZE s = measure(dc, fonts->button, b.label);
+        btnW.push_back(s.cx + 2 * btnPadX);
+        if (rowW > 0) rowW += between;
+        rowW += btnW.back();
+        if (s.cy + 2 * btnPadY > btnH) btnH = s.cy + 2 * btnPadY;
+    }
     const int stackW = boxW > rowW ? boxW : rowW;
-    const int stackH = boxH + between + btnH;
+    const int stackH = boxH + (c.buttons.empty() ? 0 : between + btnH);
 
     const tbr::Box win{ frame.left, frame.top, frame.right, frame.bottom };
     const tbr::Box area{ work.left, work.top, work.right, work.bottom };
@@ -181,13 +206,12 @@ inline Layout compute_layout(HDC dc, Fonts *fonts, const Content &c, UINT dpi,
     const int offY = L.place.side == tbr::Side::Below ? arrow : 0;
     L.box = { offX + stackW - boxW, offY, offX + stackW, offY + boxH };
     const int rowTop = offY + boxH + between;
-    // [Next] [Previous], in rhoquinn8217's order, at the box's right.
-    if (c.prevShown) {
-        L.prev = { offX + stackW - prevW, rowTop, offX + stackW, rowTop + btnH };
-        L.next = { L.prev.left - between - nextW, rowTop, L.prev.left - between, rowTop + btnH };
-    } else {
-        L.next = { offX + stackW - nextW, rowTop, offX + stackW, rowTop + btnH };
-        L.prev = { 0, 0, 0, 0 };
+    // [Continue] [Go back] [End tutorial], in rhoquinn8217's order, at the
+    // box's right.
+    int x = offX + stackW - rowW;
+    for (size_t i = 0; i < c.buttons.size(); ++i) {
+        L.btns.push_back({ x, rowTop, x + btnW[i], rowTop + btnH });
+        x += btnW[i] + between;
     }
     const int a = L.place.arrowAt;
     switch (L.place.side) {
@@ -226,11 +250,10 @@ inline HRGN make_region(const Layout &L)
         DeleteObject(part);
     };
     const int br = px(12, L.dpi);
-    add(CreateRoundRectRgn(L.next.left, L.next.top, L.next.right + 1, L.next.bottom + 1, br, br));
-    if (L.content.prevShown) {
-        add(CreateRoundRectRgn(L.prev.left, L.prev.top, L.prev.right + 1, L.prev.bottom + 1, br, br));
+    for (const RECT &b : L.btns) {
+        add(CreateRoundRectRgn(b.left, b.top, b.right + 1, b.bottom + 1, br, br));
     }
-    add(CreatePolygonRgn(L.arrow, 3, WINDING));
+    if (L.hasArrow) add(CreatePolygonRgn(L.arrow, 3, WINDING));
     return rgn;
 }
 
@@ -274,12 +297,23 @@ inline void paint(HDC dc, Fonts *fonts, const Layout &L, int width, int height, 
     HGDIOBJ oldBrush = SelectObject(dc, fill);
     RoundRect(dc, L.box.left, L.box.top, L.box.right, L.box.bottom, 2 * L.round, 2 * L.round);
 
-    // The count, then the lines, a lit name amber in an amber outline.
-    SelectObject(dc, fonts->count);
-    SetTextColor(dc, kMuted);
-    TextOutW(dc, L.box.left + L.pad, L.box.top + L.pad, L.content.count.c_str(),
-             static_cast<int>(L.content.count.size()));
-    int y = L.box.top + L.pad + L.countH + px(2, dpi);
+    // The title or the count, then the lines, a lit name amber in an amber
+    // outline.
+    int y = L.box.top + L.pad;
+    if (!L.content.title.empty()) {
+        SelectObject(dc, fonts->title);
+        SetTextColor(dc, kText);
+        TextOutW(dc, L.box.left + L.pad, y, L.content.title.c_str(),
+                 static_cast<int>(L.content.title.size()));
+        y += L.titleH;
+    }
+    if (!L.content.count.empty()) {
+        SelectObject(dc, fonts->count);
+        SetTextColor(dc, kMuted);
+        TextOutW(dc, L.box.left + L.pad, y, L.content.count.c_str(),
+                 static_cast<int>(L.content.count.size()));
+        y += L.countH;
+    }
     HGDIOBJ hollow = GetStockObject(HOLLOW_BRUSH);
     for (const auto &line : L.lines) {
         int x = L.box.left + L.pad;
@@ -307,23 +341,26 @@ inline void paint(HDC dc, Fonts *fonts, const Layout &L, int width, int height, 
     // The arrow, solid amber, pointing at the lit part.
     HBRUSH amber = CreateSolidBrush(kAmber);
     SelectObject(dc, amber);
-    Polygon(dc, L.arrow, 3);
+    if (L.hasArrow) Polygon(dc, L.arrow, 3);
     SelectObject(dc, oldPen);
     SelectObject(dc, oldBrush);
     DeleteObject(amberPen);
     DeleteObject(fill);
     DeleteObject(amber);
 
-    // Next: lit while it can be pressed, greyed out on a step that asks for
-    // something. Previous: plain. The pad's halo on whichever it is on.
-    if (L.content.nextOn) {
-        paint_button(dc, fonts->button, L.next, L"Next", kGo, kGo, kGoText, L.content.focus == "next", dpi);
-    } else {
-        paint_button(dc, fonts->button, L.next, L"Next", kOff, kOffEdge, kOffText, false, dpi);
-    }
-    if (L.content.prevShown) {
-        paint_button(dc, fonts->button, L.prev, L"Previous", kBtn, kBtnEdge, kText,
-                     L.content.focus == "prev", dpi);
+    // ⭐ The buttons as the page named them: "go" lit, the way on; "off"
+    // greyed out, as Continue is on a step that asks for something; the rest
+    // plain. The pad's halo on whichever it is on, never on a greyed one.
+    for (size_t i = 0; i < L.btns.size() && i < L.content.buttons.size(); ++i) {
+        const Button &b = L.content.buttons[i];
+        const bool halo = L.content.focus == b.id;
+        if (b.kind == "go") {
+            paint_button(dc, fonts->button, L.btns[i], b.label.c_str(), kGo, kGo, kGoText, halo, dpi);
+        } else if (b.kind == "off") {
+            paint_button(dc, fonts->button, L.btns[i], b.label.c_str(), kOff, kOffEdge, kOffText, false, dpi);
+        } else {
+            paint_button(dc, fonts->button, L.btns[i], b.label.c_str(), kBtn, kBtnEdge, kText, halo, dpi);
+        }
     }
 }
 
@@ -372,8 +409,10 @@ inline void refresh(HWND hwnd)
     MONITORINFO mi{};
     mi.cbSize = sizeof mi;
     GetMonitorInfoW(MonitorFromWindow(win, MONITOR_DEFAULTTONEAREST), &mi);
-    std::wstring key = c.count + L"|" + c.words + L"|" + (c.nextOn ? L"1" : L"0") +
-                       (c.prevShown ? L"1" : L"0") + wide(c.focus) + L"|" +
+    std::wstring key = c.title + L"|" + c.count + L"|" + c.words + L"|" + (c.arrow ? L"1" : L"0") +
+                       wide(c.focus) + L"|";
+    for (const Button &b : c.buttons) key += wide(b.id) + L":" + b.label + L":" + wide(b.kind) + L";";
+    key += L"|" +
                        std::to_wstring(c.ax) + L"," + std::to_wstring(c.ay) + L"|" +
                        std::to_wstring(frame.left) + L"," + std::to_wstring(frame.top) + L"," +
                        std::to_wstring(frame.right) + L"," + std::to_wstring(frame.bottom) + L"|" +
@@ -390,6 +429,15 @@ inline void refresh(HWND hwnd)
                  SWP_NOACTIVATE | SWP_SHOWWINDOW);
     InvalidateRect(hwnd, nullptr, FALSE);
     g_shown = key;
+}
+
+// The id of the button under a point, or "": a greyed one answers nothing.
+inline std::string button_at(const Layout &L, POINT pt)
+{
+    for (size_t i = 0; i < L.btns.size() && i < L.content.buttons.size(); ++i) {
+        if (L.content.buttons[i].kind != "off" && PtInRect(&L.btns[i], pt)) return L.content.buttons[i].id;
+    }
+    return std::string();
 }
 
 inline LRESULT CALLBACK wnd_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
@@ -422,9 +470,7 @@ inline LRESULT CALLBACK wnd_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         POINT pt{};
         GetCursorPos(&pt);
         ScreenToClient(hwnd, &pt);
-        const bool onNext = g_layout.content.nextOn && PtInRect(&g_layout.next, pt);
-        const bool onPrev = g_layout.content.prevShown && PtInRect(&g_layout.prev, pt);
-        if (onNext || onPrev) {
+        if (!button_at(g_layout, pt).empty()) {
             SetCursor(LoadCursor(nullptr, IDC_HAND));
             return TRUE;
         }
@@ -432,9 +478,7 @@ inline LRESULT CALLBACK wnd_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
     }
     case WM_LBUTTONUP: {
         const POINT pt{ static_cast<short>(LOWORD(lp)), static_cast<short>(HIWORD(lp)) };
-        std::string pressed;
-        if (g_layout.content.nextOn && PtInRect(&g_layout.next, pt)) pressed = "next";
-        else if (g_layout.content.prevShown && PtInRect(&g_layout.prev, pt)) pressed = "prev";
+        const std::string pressed = button_at(g_layout, pt);
         if (!pressed.empty()) {
             std::lock_guard<std::mutex> lock(g_mutex);
             g_press = pressed;
@@ -510,7 +554,7 @@ inline void hide()
     update(Content());
 }
 
-// A click on Next or Previous, handed over once: "next", "prev" or "".
+// A click on a button, handed over once: its id, or "".
 inline std::string take_press()
 {
     std::lock_guard<std::mutex> lock(g_mutex);
@@ -519,28 +563,38 @@ inline std::string take_press()
     return p;
 }
 
-// ⓘ `DS5-USBIP tutorial-words-picture <file.bmp> [dpi]`: the words as one
-// step shows them, above a stand-in for Simple's window, drawn into a picture
-// rather than onto the screen, so the drawing can be looked at with no window
-// and no page.
+// ⓘ `DS5-USBIP tutorial-words-picture <file.bmp> [dpi] [start]`: the words as
+// Quick's step that asks for a press shows them (or, with "start", the card
+// the tour opens with), above a stand-in for Quick's window, drawn into a
+// picture rather than onto the screen, so the drawing can be looked at with
+// no window and no page.
 inline int picture_mode(int argc, wchar_t **argv)
 {
     if (argc < 3) {
-        std::wcout << L"usage: DS5-USBIP tutorial-words-picture <file.bmp> [dpi]" << std::endl;
+        std::wcout << L"usage: DS5-USBIP tutorial-words-picture <file.bmp> [dpi] [start]" << std::endl;
         return 2;
     }
     const UINT dpi = argc > 3 ? static_cast<UINT>(_wtoi(argv[3])) : 96;
+    const bool start = argc > 4 && std::wstring(argv[4]) == L"start";
     Content c;
     c.show = true;
-    c.count = L"4 of 10";
-    c.words = L"Select [[stick-to-mouse]] to see what it does. It works with every controller.";
-    c.nextOn = false;
-    c.prevShown = true;
-    c.focus = "prev";
-    c.ax = 300;
-    c.ay = 250;
+    if (start) {
+        c.title = L"Quick mode tutorial";
+        c.words = L"A short tour with practice controllers: nothing in it changes your real ones.";
+        c.buttons = { { "skip", L"Skip", "plain" }, { "begin", L"Begin tutorial", "go" } };
+        c.focus = "begin";
+        c.arrow = false;
+    } else {
+        c.count = L"4 of 11";
+        c.words = L"Press [[\u25b2]] or [[\u25bc]] on the d-pad to switch Practice to another config.";
+        c.buttons = { { "next", L"Continue", "off" }, { "prev", L"Go back", "plain" },
+                      { "end", L"End tutorial", "plain" } };
+        c.focus = "prev";
+        c.ax = 500;
+        c.ay = 420;
+    }
     const RECT work{ 0, 0, px(1920, dpi), px(1040, dpi) };
-    const RECT frame{ px(528, dpi), px(560, dpi), px(1392, dpi), px(1030, dpi) };
+    const RECT frame{ px(540, dpi), px(820, dpi), px(1380, dpi), px(1030, dpi) };
     HDC screen = GetDC(nullptr);
     HDC mem = CreateCompatibleDC(screen);
     Fonts fonts;
@@ -581,7 +635,7 @@ inline int picture_mode(int argc, wchar_t **argv)
     DeleteObject(bmp);
     DeleteDC(mem);
     ReleaseDC(nullptr, screen);
-    for (HFONT f : { fonts.text, fonts.lit, fonts.count, fonts.button }) {
+    for (HFONT f : { fonts.text, fonts.lit, fonts.count, fonts.button, fonts.title }) {
         if (f != nullptr) DeleteObject(f);
     }
     std::wcout << (ok ? L"wrote " : L"could not write ") << argv[2] << L" (" << w << L"x" << h

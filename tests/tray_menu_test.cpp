@@ -45,7 +45,8 @@ int run_tray_menu_tests()
         CTM_CHECK_EQ(tutorial_state::seen_line(true), std::string("tutorial_simple_seen = 1\n"));
         CTM_CHECK_EQ(tutorial_state::seen_line(false), std::string("tutorial_simple_seen = 0\n"));
         CTM_CHECK_EQ(tutorial_state::json(false, false), std::string(R"({"simple_seen":false,"request":""})"));
-        CTM_CHECK_EQ(tutorial_state::json(true, true), std::string(R"({"simple_seen":true,"request":"simple"})"));
+        // ⓘ The tray asks for Quick's tour, the one there is (2026-10-23).
+        CTM_CHECK_EQ(tutorial_state::json(true, true), std::string(R"({"simple_seen":true,"request":"quick"})"));
         CTM_CHECK_EQ(narrow(tray_menu::kShowTutorial), std::string("Show tutorial"));
     }
 

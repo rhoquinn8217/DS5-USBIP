@@ -141,5 +141,38 @@ int run_tutorial_bubble_rule_tests()
         const auto p = tbr::place(work, work, 380, 130, 12, 10, 10, 500, 500);
         CTM_CHECK(inside(p.window, work));
     }
+
+    section("tutorial words: with no arrow, nothing stands out past the words");
+    {
+        // The start's card and the question point at nothing: no arrow, and
+        // the window is the words and their buttons alone.
+        const tbr::Box quick{ 540, 820, 1380, 1030 };
+        const auto p = tbr::place(quick, work, 380, 130, 0, 10, 10, 500, 500);
+        CTM_CHECK(p.side == tbr::Side::Above);
+        CTM_CHECK_EQ(p.window.height(), 130);
+        CTM_CHECK(!overlaps(p.window, quick));
+    }
+
+    // ⭐ The buttons are named by the page (rhoquinn8217, 2026-10-23: Next
+    // became "Continue", Previous "Go back", and End tutorial moved out beside
+    // them), so a renamed button is a change to the page alone.
+    section("tutorial buttons: named by the page, in its order");
+    {
+        const auto b = tbr::parse_buttons("next:Continue:off|prev:Go back:plain|end:End tutorial:go");
+        CTM_CHECK_EQ(b.size(), size_t(3));
+        CTM_CHECK(b[0].id == "next" && b[0].label == "Continue" && b[0].kind == "off");
+        CTM_CHECK(b[1].id == "prev" && b[1].label == "Go back" && b[1].kind == "plain");
+        CTM_CHECK(b[2].id == "end" && b[2].label == "End tutorial" && b[2].kind == "go");
+    }
+
+    section("tutorial buttons: an unknown look is plain, and a broken item is left out");
+    {
+        const auto b = tbr::parse_buttons("skip:Skip:shiny|:No id:go|noname::go|half:Half|begin:Begin tutorial:go");
+        CTM_CHECK_EQ(b.size(), size_t(2));
+        CTM_CHECK(b[0].id == "skip" && b[0].kind == "plain");
+        CTM_CHECK(b[1].id == "begin" && b[1].label == "Begin tutorial");
+        CTM_CHECK(tbr::parse_buttons("").empty());
+        CTM_CHECK(tbr::parse_buttons("|").empty());
+    }
     return 0;
 }

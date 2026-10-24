@@ -403,12 +403,13 @@ inline void remove_old_controllers()
     }
 }
 
-// ⭐ The menu's "Show tutorial" (rhoquinn8217, 2026-10-14). Simple is the one
-// layout with a tutorial yet, so the window goes to Simple, by the same
-// change_layout its Window Mode line uses, and opens if it was not open. The
-// page collects the request within a second and starts the tutorial as soon
-// as a controller is bridged.
-// ⓘ kModes[1] is Simple.
+// ⭐ The menu's "Show tutorial" (rhoquinn8217, 2026-10-14). Quick is the one
+// layout with a tour yet (2026-10-23: *"I want to demo quick mode tutorial
+// first"*), so the window goes to Quick, by the same change_layout its Window
+// Mode line uses, and opens if it was not open. The page collects the request
+// within a second and starts the tour on its practice controllers, so nothing
+// needs to be bridged for it.
+// ⓘ kModes[2] is Quick.
 inline void show_tutorial()
 {
     ui_tutorial_ask();
@@ -418,9 +419,9 @@ inline void show_tutorial()
     ctm_open_ui::FindState open;
     EnumWindows(ctm_open_ui::find_window_proc, reinterpret_cast<LPARAM>(&open));
     const bool wasOpen = open.found != nullptr;
-    change_layout(1);
+    change_layout(2);
     if (!wasOpen) ctm_chord_show_ui(ordinal);
-    device_log::session_w() << L"tray: Show tutorial, in Simple"
+    device_log::session_w() << L"tray: Show tutorial, in Quick"
                             << (wasOpen ? L"" : L"; the config window is opening for it");
 }
 

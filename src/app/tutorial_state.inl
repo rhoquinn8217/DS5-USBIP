@@ -32,11 +32,13 @@ inline std::string seen_line(bool seen)
 }
 
 // What GET /api/v1/ui/tutorial answers: whether Simple's has been seen, and
-// the layout the tray asked to show it in, or nothing.
+// the layout the tray asked to show one in, or nothing. ⓘ Quick, whose tour
+// is the one there is (rhoquinn8217, 2026-10-23: *"I want to demo quick mode
+// tutorial first because its a smaller list"*).
 inline std::string json(bool simpleSeen, bool asked)
 {
     return std::string(R"({"simple_seen":)") + (simpleSeen ? "true" : "false") +
-           R"(,"request":")" + (asked ? "simple" : "") + R"("})";
+           R"(,"request":")" + (asked ? "quick" : "") + R"("})";
 }
 
 }  // namespace tutorial_state
