@@ -1163,6 +1163,43 @@ inline void remember_size_now(const RECT &rc)
 
 // The size this layout is at, applied about the window's CENTRE so it grows
 // and shrinks in place, then clamped fully on screen.
+// ⭐ WHERE THE WINDOW WILL BE PUT, BEFORE THERE IS ONE (rhoquinn8217,
+// 2026-10-23: "when the window opens in simple or quick mode, a larger window
+// blips open and close then the simple or quick mode window opens after.
+// Can we prevent that first larger window open blip?"). The restore
+// (restore_geometry_soon) puts a window that has come back at its layout's
+// size and place once the page says so; the browser asked for that same
+// rectangle at the start opens the window there, and the restore then moves
+// nothing. The same reckoning as the restore's: the size someone dragged, or
+// the layout's own; the place it was left, or its home (the bottom centre
+// for Simple and Quick, the middle for Advanced); clamped into the work
+// area. ⓘ False while no layout is known: the page decides then.
+inline bool opening_rect(int *x, int *y, int *w, int *h)
+{
+    if (!g_known.load()) return false;
+    const SizeShare *table = size_table();
+    const int idx = size_slot().load();
+    const RECT wa = work_area();
+    int customW = 0, customH = 0;
+    const bool custom = last_custom_size(&customW, &customH);
+    const int ww = custom ? ctm_window_size::from_thousandths(customW, wa.right - wa.left)
+                          : (int)((wa.right - wa.left) * table[idx].w);
+    const int hh = custom ? ctm_window_size::from_thousandths(customH, wa.bottom - wa.top)
+                          : (int)((wa.bottom - wa.top) * table[idx].h);
+    int xx = 0, yy = 0;
+    if (!last_pos(&xx, &yy)) {
+        xx = wa.left + ((wa.right - wa.left) - ww) / 2;
+        yy = g_compact.load() ? wa.bottom - bottom_gap(wa) - hh
+                              : wa.top + ((wa.bottom - wa.top) - hh) / 2;
+    }
+    clamp_into(wa, ww, hh, xx, yy);
+    *x = xx;
+    *y = yy;
+    *w = ww;
+    *h = hh;
+    return true;
+}
+
 inline void apply_size(HWND hwnd, int *outW, int *outH)
 {
     RECT rc;

@@ -23,12 +23,15 @@
 #include <shellapi.h>
 // Whether Windows is locked (session_locked, below).
 #include <wtsapi32.h>
+#include <shellscalingapi.h>   // the scale of the display the window opens on
+#pragma comment(lib, "shcore.lib")
 #pragma comment(lib, "wtsapi32.lib")
 
 // The rule that tells our app window from a browser window showing the page in
 // a tab. The icon needed it first; every lookup here uses it too.
 #include "window_icon_rule.inl"
 #include "front_rule.inl"
+#include "window_open_rule.inl"   // the browser's units for a size and a place; pure
 
 namespace ctm_open_ui {
 
@@ -756,6 +759,15 @@ inline bool focus_only()
 // start would leave a browser window reporting an unreachable agent -- a
 // confusing thing to hand someone whose real problem is that the exe did not
 // start.
+// The scale of the display a point is on, in dots per inch (96 is 100%).
+inline UINT dpi_at(POINT pt)
+{
+    const HMONITOR monitor = MonitorFromPoint(pt, MONITOR_DEFAULTTONEAREST);
+    UINT dx = 96, dy = 96;
+    if (FAILED(GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &dx, &dy)) || dx == 0) return 96;
+    return dx;
+}
+
 inline void open_new(uint16_t restPort, bool withToken = true)
 {
     const std::wstring url = withToken ? page_url(restPort)
@@ -803,6 +815,25 @@ inline void open_new(uint16_t restPort, bool withToken = true)
     // the reason is): 0.4334 x 0.622, with the old small, 0.68 x 0.73, its large.
     const int winW = (int)(waW * 0.4334);   // Advanced's small, its opening size
     const int winH = (int)(waH * 0.622);
+    // ⭐⭐ AT ITS LAYOUT'S SIZE AND PLACE, IN THE BROWSER'S UNITS (rhoquinn8217,
+    // 2026-10-23: "when the window opens in simple or quick mode, a larger
+    // window blips open and close then the simple or quick mode window opens
+    // after"). The browser was asked for Advanced's size alone, in physical
+    // pixels, which it reads as scaled units: at 150% it came up 2496 x 1947
+    // at 15,15, most of the screen, and the restore then shrank it to Quick
+    // at its place. Now it is asked for the size and the place the restore
+    // would give (config_move.inl, opening_rect), divided by the display's
+    // scale (window_open_rule.inl), and the restore moves nothing. ⓘ With no
+    // layout known yet, Advanced's opening size in the middle.
+    int openX = wa.left + (waW - winW) / 2, openY = wa.top + (waH - winH) / 2;
+    int openW = winW, openH = winH;
+    const bool known = ui_opening_rect(&openX, &openY, &openW, &openH);
+    const UINT dpi = dpi_at(POINT{ openX + openW / 2, openY + openH / 2 });
+    const std::wstring geometry =
+        L" --window-position=" + std::to_wstring(window_open_rule::browser_units(openX, dpi)) +
+        L"," + std::to_wstring(window_open_rule::browser_units(openY, dpi)) +
+        L" --window-size=" + std::to_wstring(window_open_rule::browser_units(openW, dpi)) +
+        L"," + std::to_wstring(window_open_rule::browser_units(openH, dpi));
     // ⭐⭐ DRAWN BY THE PROCESSOR, NOT THE GRAPHICS CARD (rhoquinn8217,
     // 2026-10-22: "while playing final fantasy VII rebirth, when the config
     // window showed above the game, it was very slow and laggy, however the
@@ -816,7 +847,7 @@ inline void open_new(uint16_t restPort, bool withToken = true)
     const std::wstring args = L"--app=" + url +
                               L" --user-data-dir=\"" + dataDir + L"\"" +
                               L" --no-first-run --no-default-browser-check --disable-gpu" +
-                              L" --window-size=" + std::to_wstring(winW) + L"," + std::to_wstring(winH);
+                              geometry;
     // ⛔ CHECK THE RESULT. This logged "settings page opened" unconditionally,
     // so a launch that never happened looked identical to one that did --
     // measured 2026-08-29, when no Chrome process and no profile folder
@@ -832,7 +863,10 @@ inline void open_new(uint16_t restPort, bool withToken = true)
                                 << L" args=" << args;
         return;
     }
-    device_log::session_w() << L"settings page opened";
+    device_log::session_w() << L"settings page opened at " << openX << L"," << openY
+                            << L" " << openW << L"x" << openH
+                            << (known ? L", its layout's place" : L", no layout known yet")
+                            << L" (" << dpi << L" dpi)";
 }
 
 // Is a listener already running on the control port?

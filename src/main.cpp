@@ -129,6 +129,10 @@ void ui_view_set(bool compact, bool quick, bool restore);
  * asks for when it comes back. */
 void ui_view_note_ordinal(const std::string &ordinal);
 bool ui_view_get(bool *compact, bool *quick, std::string *ordinal);
+/* Where the window will go and how big it will be, in physical pixels, for
+ * the layout it will show, so the browser can be started there (open_ui.inl).
+ * False while no layout is known. */
+bool ui_opening_rect(int *x, int *y, int *w, int *h);
 /* The "Open on bridge" switch (open_on_bridge.inl), kept in window-state.txt.
  * Defined below, after config_move.inl. */
 bool ui_open_on_bridge();
@@ -398,6 +402,10 @@ void ui_view_note_ordinal(const std::string &ordinal)
 bool ui_view_get(bool *compact, bool *quick, std::string *ordinal)
 {
     return config_move::view_get(compact, quick, ordinal);
+}
+bool ui_opening_rect(int *x, int *y, int *w, int *h)
+{
+    return config_move::opening_rect(x, y, w, h);
 }
 bool ui_open_on_bridge()
 {
