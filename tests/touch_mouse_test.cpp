@@ -27,8 +27,11 @@ namespace {
 
 std::map<std::string, std::string> g_cfg;
 bool g_configModeEffective = false;
-// The quick config switch, as the listener would answer it (ui_quick_switch).
+// The quick config switch, as the listener would answer it (ui_quick_switch),
+// and whether two fingers up and down are its own right now: the window in
+// front in Simple or Quick (quick_switch_has_vertical_swipes).
 bool g_quickSwitch = false;
+bool g_switchHasSwipes = false;
 
 int32_t g_pushedX = 0;      // summed cursor deltas pushed to the mailbox
 int32_t g_pushedY = 0;
@@ -75,6 +78,7 @@ void reset_stubs()
     g_cfg.clear();
     g_configModeEffective = false;
     g_quickSwitch = false;
+    g_switchHasSwipes = false;
     g_pushedX = 0;
     g_pushedY = 0;
     g_pushCount = 0;
@@ -135,6 +139,7 @@ static InputPad device_input_pad_for(const std::vector<unsigned char> &)
 }
 static bool ctm_rebind_config_mode_effective() { return g_configModeEffective; }
 static bool ui_quick_switch() { return g_quickSwitch; }
+static bool quick_switch_has_vertical_swipes() { return g_switchHasSwipes; }
 
 namespace device_log {
 struct msg {
@@ -2097,13 +2102,33 @@ int run_touch_mouse_tests()
 
     // ---- The two-finger swipe up -------------------------------------------
 
-    section("touch: with the quick config switch on, two fingers up and down press nothing, sideways still does");
+    section("touch: with the quick config switch on, the config's own swipe up still acts");
     {
-        // ⓘ rhoquinn8217, 2026-10-23: "when turned on, the pre controller
-        // setting will be disabled". Up and down are the switch's then.
+        // ⓘ rhoquinn8217, 2026-10-23: "Config's own two-finger swipe up and
+        // down should still work".
         reset_stubs();
         fresh_device();
         g_quickSwitch = true;
+        g_cfg["touchpad_two_finger_swipe_up"] = "win+tab";
+        auto r = rest_report();
+        set_point(r, 0, true, 1, 800, 800);
+        set_point(r, 1, true, 2, 1100, 800);
+        run_step(r, 0);
+        set_point(r, 0, true, 1, 800, 450);
+        set_point(r, 1, true, 2, 1100, 450);
+        run_step(r, 30);
+        CTM_CHECK_EQ(g_pulseCount, 1);
+    }
+
+    section("touch: Simple or Quick in front with the switch on, up and down are the wheel's, sideways still acts");
+    {
+        // ⓘ rhoquinn8217, 2026-10-23: "When simple and quick mode are in
+        // focus, two finger swipe up or down is disabled and only control
+        // the wheel".
+        reset_stubs();
+        fresh_device();
+        g_quickSwitch = true;
+        g_switchHasSwipes = true;
         g_cfg["touchpad_two_finger_swipe_up"] = "win+tab";
         g_cfg["touchpad_two_finger_swipe_down"] = "arrowdown";
         g_cfg["touchpad_two_finger_swipe_left"] = "arrowleft";
@@ -2136,6 +2161,40 @@ int run_touch_mouse_tests()
         run_step(r, 430);
         CTM_CHECK_EQ(g_pulseCount, 1);
         CTM_CHECK_EQ(static_cast<int>(g_pulseUsage), 0x50);   // ArrowLeft
+    }
+
+    section("touch: Simple or Quick in front with the switch on, two fingers do not scroll");
+    {
+        reset_stubs();
+        fresh_device();
+        g_quickSwitch = true;
+        g_switchHasSwipes = true;
+        g_cfg["touchpad_scroll"] = "2";
+        auto r = rest_report();
+        set_point(r, 0, true, 1, 800, 300);
+        set_point(r, 1, true, 2, 1100, 300);
+        run_step(r, 0);
+        for (int i = 1; i <= 10; ++i) {
+            set_point(r, 0, true, 1, 800, 300 + i * 50);
+            set_point(r, 1, true, 2, 1100, 300 + i * 50);
+            run_step(r, i * 16);
+        }
+        CTM_CHECK_EQ(g_wheelSum, 0);
+        // and out of the window it scrolls as ever
+        reset_stubs();
+        fresh_device();
+        g_quickSwitch = true;
+        g_cfg["touchpad_scroll"] = "2";
+        auto q = rest_report();
+        set_point(q, 0, true, 1, 800, 300);
+        set_point(q, 1, true, 2, 1100, 300);
+        run_step(q, 0);
+        for (int i = 1; i <= 10; ++i) {
+            set_point(q, 0, true, 1, 800, 300 + i * 50);
+            set_point(q, 1, true, 2, 1100, 300 + i * 50);
+            run_step(q, i * 16);
+        }
+        CTM_CHECK(g_wheelSum != 0);
     }
 
     section("touch: Create held with the quick config switch on, the touchpad stands down");

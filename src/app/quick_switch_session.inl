@@ -1,17 +1,27 @@
-// The quick config switch at work: the swipes a controller makes while Create
-// is held, the configs window opened in Quick view to show them, each step
-// sent to the page, and the window closed again a moment after Create is let
-// go. 🔗 quick_switch.inl for what was asked, the swipe and the keys;
-// rebind.inl feeds this every report of a pad with a touchpad, in the window
-// or out of it, and sends the keys from its config-mode branch.
+// The quick config switch at work: the swipes a controller makes, the configs
+// window opened in Quick view to show them, each step sent to the page, and
+// the window closed again a moment after Create is let go.
+// 🔗 quick_switch.inl for what was asked, the swipe and the keys; rebind.inl
+// feeds this every report of a pad with a touchpad, in the window or out of
+// it, and sends the keys from its config-mode branch.
+//
+// ⭐ TWO WAYS A SWIPE STEPS (rhoquinn8217, 2026-10-23):
+// - **Out of the window**, Create held and two fingers up or down. The window
+//   opens in Quick on that controller, the swipes go on while Create is held,
+//   and the window closes kLingerMs after it is let go, the layout and the
+//   controller the shortcut and the tray open on put back
+//   (config_move.inl, begin_quick_view).
+// - **With the window in front in Simple or Quick**, two fingers up or down
+//   alone: *"When simple and quick mode are in focus, two finger swipe up or
+//   down is disabled and only control the wheel."* The config's own swipe up
+//   and down stand aside there (touch_mouse.inl), and the window stays.
+// ⓘ Create in the window is the window's own: a press there resizes it, as
+// ever (*"Create should still resize the window when it is in focus"*); one
+// held since before the window came forward is no press (config_move.inl).
+// ⓘ Advanced has no wheel: there a swipe steps nothing.
 //
 // ⭐ ONE CONTROLLER AT A TIME. Another pad's swipes are left alone while one
 // is switching, as two people stepping one window would fight over it.
-//
-// ⭐ A WINDOW ALREADY IN FRONT IS SOMEONE'S OWN. Its wheel steps (Simple's or
-// Quick's; Advanced has none), and it stays when Create comes up. Only a
-// window the switch opened is closed by it, and only then is the layout the
-// shortcut and the tray open in put back (config_move.inl, begin_quick_view).
 // ⓘ A window open behind a game is not in front: the switch opens its own in
 // its place, as the shortcut does, and that one closes at the end.
 //
@@ -55,10 +65,20 @@ inline long long now_ms()
     return ctm_rebind::chord_now_ms();
 }
 
-// ⭐ Create on the switching controller, under g_mutex. Let go: the window it
-// opened stays kLingerMs for the config landed on to be read, and then
+// The window in front in Simple or Quick, where two fingers up and down move
+// the wheel. ⓘ Windows is asked only while the gate is on, which it is not in
+// a game, so this costs a game nothing.
+inline bool window_wheel_in_front()
+{
+    bool compact = false;
+    config_move::view_get(&compact, nullptr, nullptr);
+    return compact && ctm_rebind_config_mode_effective();
+}
+
+// ⭐ Create on the switching controller, under g_mutex. Let go: the window the
+// switch opened stays kLingerMs for the config landed on to be read, and then
 // closes; a window that was in front already stays, and the switch ends once
-// its steps are sent. Held again first: the window stays and the swipes go on.
+// its steps are sent. Held again first: the window stays while it is held.
 // Returns the switch whose closer must start, or 0.
 inline unsigned follow_create(const void *deviceKey, bool createHeld)
 {
@@ -66,7 +86,7 @@ inline unsigned follow_create(const void *deviceKey, bool createHeld)
     if (!s.active || s.device != deviceKey || createHeld == s.createHeld) return 0;
     s.createHeld = createHeld;
     if (createHeld) {
-        s.ending = false;
+        if (!s.openedWindow) s.ending = false;
         return 0;
     }
     if (!s.openedWindow) {
@@ -129,42 +149,53 @@ inline void report(const void *deviceKey, bool createHeld, int fingers, float mx
         return;
     }
 
+    // ⓘ Asked only while two fingers are down: Windows is not asked on every
+    // report for nothing.
+    const bool wheelInFront = fingers == 2 && window_wheel_in_front();
     int step = 0;
     unsigned closer = 0;
     {
         std::lock_guard<std::mutex> lock(g_mutex);
-        step = quick_switch::step(g_pads[deviceKey], createHeld, fingers, mx, my);
+        step = quick_switch::step(g_pads[deviceKey], createHeld || wheelInFront, fingers, mx, my);
         closer = follow_create(deviceKey, createHeld);
     }
     if (closer != 0) close_after_linger(closer);
     if (step == 0) return;
 
-    // ⓘ Asked of Windows only when a swipe has been made, which is rare.
-    const bool inFront = ctm_rebind_config_mode_effective();
+    const bool inFront = wheelInFront || ctm_rebind_config_mode_effective();
     bool open = false;
     bool someoneElse = false;
+    bool noWheel = false;
     {
         std::lock_guard<std::mutex> lock(g_mutex);
         Session &s = g_session;
         if (s.active && s.device != deviceKey && !s.ending) {
             someoneElse = true;
+        } else if (s.active && s.device == deviceKey) {
+            quick_switch::queue(s.keys, step);
+            // ⓘ A step while the window waits to close gives the config landed
+            // on its full time again.
+            if (s.openedWindow && !s.createHeld) s.closeAt = now_ms() + quick_switch::kLingerMs;
+        } else if (inFront && !wheelInFront) {
+            noWheel = true;   // Advanced, with no wheel to step
         } else {
-            if (!s.active || s.device != deviceKey) {
-                s = Session();
-                s.active = true;
-                s.device = deviceKey;
-                s.openedWindow = !inFront;
-                s.focusAtOpen = g_pageFocus.load();
-                s.id = g_nextId++;
-                open = s.openedWindow;
-            }
+            s = Session();
+            s.active = true;
+            s.device = deviceKey;
+            s.createHeld = createHeld;
+            s.openedWindow = !inFront;
+            s.ending = inFront;   // a window already there just takes the steps
+            s.focusAtOpen = g_pageFocus.load();
+            s.id = g_nextId++;
+            open = s.openedWindow;
             quick_switch::queue(s.keys, step);
         }
     }
     const std::string ordinal = ctm_ordinal_for_device(deviceKey);
-    if (someoneElse) {
+    if (someoneElse || noWheel) {
         device_log::input(device_log::msg()
-            << "quick switch: " << ordinal << " swiped, but another controller is switching");
+            << "quick switch: " << ordinal << " swiped, but "
+            << (someoneElse ? "another controller is switching" : "Advanced has no wheel to step"));
         return;
     }
     if (open) {
@@ -175,9 +206,10 @@ inline void report(const void *deviceKey, bool createHeld, int fingers, float mx
         std::thread([ordinal]() { ctm_chord_show_ui(ordinal); }).detach();
     }
     device_log::input(device_log::msg()
-        << "quick switch: " << ordinal << " -- Create and two fingers "
+        << "quick switch: " << ordinal << " -- two fingers "
         << (step > 0 ? "up: the next config" : "down: the config before")
-        << (open ? "; the window opening in Quick" : ""));
+        << (open ? "; the window opening in Quick" :
+            wheelInFront ? ", on the wheel in front" : ""));
 }
 
 // The key this pad's report carries to the page, or nullptr. Asked from the
@@ -194,18 +226,11 @@ inline const char *key(const void *deviceKey)
     return k;
 }
 
-// ⭐ While this pad is switching, Create is the switch's: it does not resize
-// the window (config_move.inl), however it reaches the window held.
-inline bool owns_create(const void *deviceKey)
-{
-    std::lock_guard<std::mutex> lock(g_mutex);
-    return g_session.active && g_session.device == deviceKey;
-}
-
 }  // namespace quick_switch_session
 
-// ⓘ For the declarations in main.cpp: rebind.inl, config_move.inl and
-// rest_config.inl are all included before this file.
+// ⓘ For the declarations in main.cpp: rebind.inl, touch_mouse.inl and
+// rest_config.inl reach these, and the first and last are included before
+// this file.
 void quick_switch_report(const void *deviceKey, bool createHeld, int fingers, float mx, float my)
 {
     quick_switch_session::report(deviceKey, createHeld, fingers, mx, my);
@@ -216,9 +241,12 @@ const char *quick_switch_key(const void *deviceKey)
     return quick_switch_session::key(deviceKey);
 }
 
-bool quick_switch_owns_create(const void *deviceKey)
+// Whether two fingers up and down are the switch's right now, and so not the
+// config's own swipes or its two-finger scroll: the switch is on and the
+// window is in front in Simple or Quick.
+bool quick_switch_has_vertical_swipes()
 {
-    return quick_switch_session::owns_create(deviceKey);
+    return config_move::quick_switch_on() && quick_switch_session::window_wheel_in_front();
 }
 
 void quick_switch_page_focused()

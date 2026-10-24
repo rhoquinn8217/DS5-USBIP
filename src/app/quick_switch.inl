@@ -11,9 +11,14 @@
 // config window."* Then *"always use quick view for quick config select
 // button/gesture"*, and their answers: Create still reaches the game; two
 // fingers, *"this is essentially a global setting.  when turned on, the pre
-// controller setting will be disabled"*, so each config's own two-finger swipe
-// up and down are off while it is on; and the game losing the pad while the
-// window shows is fine.
+// controller setting will be disabled"*; and the game losing the pad while
+// the window shows is fine.
+// ⭐ CORRECTED THE SAME DAY: *"Config’s own two-finger swipe up and down should
+// still work, they just should no nothing when create button is held
+// Create should still resize the window when it is in focus and the touchpad
+// should still move the cursor but not while Create is held.  When simple and
+// quick mode are in focus, two finger swipe up or down is disabled and only
+// control the wheel."*
 //
 // ⓘ This file is the setting, the swipe and the keys a step is sent as, with
 // no windows.h, so the test binary can reach them. quick_switch_session.inl
@@ -54,19 +59,20 @@ constexpr long long kLingerMs = 2000;
 
 // One controller's swipe, followed report by report.
 struct Pad {
-    bool tracking = false;   // two fingers down with Create, measured from x0, y0
+    bool tracking = false;   // two fingers down and armed, measured from x0, y0
     float x0 = 0.0f;
     float y0 = 0.0f;
     bool done = false;       // this touch has decided; again once every finger lifts
 };
 
 // The step a report makes: +1 the next config (two fingers up), -1 the one
-// before (down), 0 none. Only while Create is held, and once per touch, as the
-// two-finger swipe acts: the first direction met decides it, so a stroke that
-// goes sideways steps nothing however it ends. ⓘ The pad's y grows downward.
-inline int step(Pad &p, bool createHeld, int fingers, float mx, float my)
+// before (down), 0 none. Only while armed -- Create held, or the window in
+// front in Simple or Quick -- and once per touch, as the two-finger swipe
+// acts: the first direction met decides it, so a stroke that goes sideways
+// steps nothing however it ends. ⓘ The pad's y grows downward.
+inline int step(Pad &p, bool armed, int fingers, float mx, float my)
 {
-    if (fingers != 2 || !createHeld) {
+    if (fingers != 2 || !armed) {
         p.tracking = false;
         if (fingers == 0) p.done = false;
         return 0;

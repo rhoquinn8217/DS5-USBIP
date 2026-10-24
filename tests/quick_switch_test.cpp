@@ -1,10 +1,11 @@
 // The quick config switch: its setting, its swipe, and the keys a step is sent
 // to the page as.
 //
-// ⭐ WHAT THESE PROTECT (rhoquinn8217, 2026-10-23): Create held and two fingers
-// swiped up steps a controller to the next config, down to the one before,
-// once per swipe; nothing without Create, nothing sideways; and each step
-// reaches the page as one press of its own key.
+// ⭐ WHAT THESE PROTECT (rhoquinn8217, 2026-10-23): two fingers swiped up step
+// a controller to the next config, down to the one before, once per swipe,
+// while armed (Create held, or the window in front in Simple or Quick);
+// nothing unarmed, nothing sideways; and each step reaches the page as one
+// press of its own key.
 //
 // WHAT THESE CANNOT DO. No window opens here and no pad is read: the window,
 // the gate and the link are looked at with the listener running.
@@ -17,7 +18,7 @@ using namespace ctmtest;
 
 namespace {
 
-// A swipe from the pad's middle: Create held, two fingers down, then moved.
+// A swipe from the pad's middle: armed, two fingers down, then moved.
 int swipe(quick_switch::Pad &p, float dx, float dy, bool create = true)
 {
     int got = 0;
@@ -59,7 +60,7 @@ int run_quick_switch_tests()
         CTM_CHECK_EQ(swipe(p, 150.0f, -400.0f), 1);
     }
 
-    section("quick switch: nothing without Create, too short, or sideways");
+    section("quick switch: nothing unarmed, too short, or sideways");
     {
         Pad p;
         CTM_CHECK_EQ(swipe(p, 0.0f, -400.0f, false), 0);
@@ -86,7 +87,7 @@ int run_quick_switch_tests()
         CTM_CHECK_EQ(swipe(p, 0.0f, -400.0f), 1);
     }
 
-    section("quick switch: Create let go mid-touch, then held again, measures afresh");
+    section("quick switch: unarmed mid-touch, then armed again, measures afresh");
     {
         Pad p;
         CTM_CHECK_EQ(quick_switch::step(p, true, 2, 960.0f, 900.0f), 0);

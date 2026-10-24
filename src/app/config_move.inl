@@ -1274,7 +1274,12 @@ inline bool handle_report(const void *deviceKey, const ctm_rebind::Layout &lay,
         // so a release seen later -- with the page back in front -- is not
         // read as a tap.
         g_movers.abandon_all();
-        r3_edge(deviceKey, false);
+        // ⭐ Create as it stands, not "up": one already held when the window
+        // comes forward is no press, so it does not resize it (rhoquinn8217,
+        // 2026-10-23: "Create should still resize the window when it is in
+        // focus" -- a press made there). The quick config switch brings the
+        // window up with Create held.
+        r3_edge(deviceKey, ctm_overlay::button_down(lay, data, len, 8));
         // ⓘ A hold dropped this way never sees Options come up, so the place
         // it steered to is written here instead.
         flush_pos();
@@ -1293,10 +1298,7 @@ inline bool handle_report(const void *deviceKey, const ctm_rebind::Layout &lay,
     // AND jump the focus on the same press.
     // ⓘ R3 is given back. It is a gyro gate as of T-235, and a button that
     // resizes a window while also aiming is a collision waiting to happen.
-    // ⓘ Not while the quick config switch has Create: it reaches the window
-    // held, which reads as a press here (quick_switch_session.inl).
-    if (r3_edge(deviceKey, ctm_overlay::button_down(lay, data, len, 8)) &&
-        !quick_switch_owns_create(deviceKey)) {
+    if (r3_edge(deviceKey, ctm_overlay::button_down(lay, data, len, 8))) {
         if (HWND h = page_window()) resize_next(h);
         // The press goes through; the page no longer acts on Create.
     }

@@ -1004,9 +1004,18 @@ inline void step(const void *deviceKey, const std::string &section,
     //
     // ⓘ An older config saying "true" meant two fingers, and still does.
     const std::string scrollRaw = device_config_str(section.c_str(), "touchpad_scroll");
+    // ⭐ THE QUICK CONFIG SWITCH (quick_switch.inl). With Create held the
+    // touchpad is its own (below). And while the configs window is in front
+    // in Simple or Quick, two fingers up and down only move the wheel
+    // (rhoquinn8217, 2026-10-23: "When simple and quick mode are in focus,
+    // two finger swipe up or down is disabled and only control the wheel"):
+    // the config's own swipe up and down stand aside, and so does
+    // two-finger scroll, whose wheel ticks would step the wheel again.
+    const bool quickSwitchOn = ui_quick_switch();
+    const bool switchHasSwipes = quick_switch_has_vertical_swipes();
     const int scrollFingers =
-        (scrollRaw == "1")                          ? 1 :
-        (scrollRaw == "2" || scrollRaw == "true")   ? 2 : 0;
+        (scrollRaw == "1")                                               ? 1 :
+        ((scrollRaw == "2" || scrollRaw == "true") && !switchHasSwipes)  ? 2 : 0;
     const bool scrollOn = scrollFingers > 0;
     // ⭐⭐ THE TOUCHPAD'S GESTURES ARE REMAPPABLE (T-242, 2026-09-20).
     // rhoquinn8217: *"touchpad_one_finger_tap - can be remapped to anything /
@@ -1046,11 +1055,10 @@ inline void step(const void *deviceKey, const std::string &section,
     // place): the same two fingers moving up or down would scroll as well.
     // ⓘ Left and right whatever the scroll does, which reads up and down
     // alone; and one-finger scroll uses one finger.
-    // ⭐ AND UP AND DOWN NOT AT ALL WHILE THE QUICK CONFIG SWITCH IS ON
-    // (rhoquinn8217, 2026-10-23: "when turned on, the pre controller setting
-    // will be disabled"): Create and two fingers up or down switch configs
-    // then, for every controller (quick_switch.inl).
-    const bool quickSwitchOn = ui_quick_switch();
+    // ⓘ Nor while the quick config switch has them, in Simple or Quick in
+    // front (above). They act otherwise, the switch on or off
+    // (rhoquinn8217, 2026-10-23: "Config's own two-finger swipe up and down
+    // should still work").
     std::string swipeRaw[kSwipeDirs];
     binding::Target swipeTarget[kSwipeDirs];
     bool swipeWants[kSwipeDirs] = {};
@@ -1060,7 +1068,7 @@ inline void step(const void *deviceKey, const std::string &section,
         swipeTarget[d] = swipe_target(swipeRaw[d]);
         const bool vertical = d == kSwipeUp || d == kSwipeDown;
         swipeWants[d] = swipeTarget[d].kind != binding::kNone &&
-                        !(vertical && (scrollFingers == 2 || quickSwitchOn));
+                        !(vertical && (scrollFingers == 2 || switchHasSwipes));
         if (swipeWants[d]) swipeOn = true;
     }
 
@@ -1102,9 +1110,10 @@ inline void step(const void *deviceKey, const std::string &section,
     }
 
     // ⭐ CREATE HELD WHILE THE QUICK CONFIG SWITCH IS ON: the touchpad is the
-    // switch's, so the cursor, the scroll, the taps and the swipes stand
-    // down until Create comes up, as for a shut gate, and the touch starts
-    // afresh after.
+    // switch's (rhoquinn8217, 2026-10-23: "the touchpad should still move the
+    // cursor but not while Create is held"), so the cursor, the scroll, the
+    // taps and the swipes stand down until Create comes up, as for a shut
+    // gate, and the touch starts afresh after.
     if (quickSwitchOn && ctm_rebind::is_pressed(lay, data, len, ctm_rebind::kBtnSelect)) {
         drop_hold(st, deviceKey);
         if (st.clickMask != 0) fire_click(st);   // a tap already made
