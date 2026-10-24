@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.96 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.97 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,14 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.97 The mode picker's list leaves out the mode the window is in, so
+            it offers only where the window can go (rhoquinn8217: "Update
+            the Mode Select to remove the mode it's currently in"); the
+            closed picker still names it. Quick's tutorial: the words hold
+            still while L1 or R1 slides the panel to another controller,
+            taking a new place only once it has held for 300 ms; and a
+            step after unlink shows the wheel at (no config). Thirteen
+            steps.
     2.66.96 Quick's tutorial, gone through again: the practice controller
             is Dual, and step one says every controller gets a random
             nickname when it is bridged ("Don't use "Practice" as the
@@ -2868,7 +2876,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.66.96</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.66.97</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -7973,6 +7981,7 @@ function pickerExpand(el) {
   // picker, which the page declares EMPTY and paintModePickers fills later: it
   // gave size 0 and left the box fixed-positioned 7 px past the window bottom.
   // The size <= 1 backstop in pickerActivate stops the native popup here.
+  modeListOpen(el);
   if (el.options.length < 2) { el.size = 1; return; }
 
   var rect = el.getBoundingClientRect();
@@ -8142,6 +8151,10 @@ function pickerExpand(el) {
 // Undo all of it. ⛔ Clearing `size` alone would leave a fixed-positioned box
 // floating over the page at one row high.
 function pickerCollapse(el) {
+  // ⓘ The mode it is in goes back first, while the list is still a
+  // list: a dropdown with nothing chosen chooses its first option by
+  // itself, which read as a pick and switched the mode on a cancel.
+  modeListClose(el);
   // T-243: the box is back in the flow, so the spacer holding its place goes.
   // ⚠️ Before the style is cleared, so there is never a frame with both the
   // spacer and an in-flow select taking up room.
@@ -9895,6 +9908,33 @@ function modePickerHtml(id) {
          'onmousedown="pickerActivate(event,this)" ' +
          'onclick="pickerClickEnd(this)" ' +
          'onchange="pickMode(this.value)">' + opts + '</select>';
+}
+
+// ⭐ THE MODE PICKER'S LIST LEAVES OUT THE MODE THE WINDOW IS IN (rhoquinn8217,
+// 2026-10-23: "Update the Mode Select to remove the mode it's currently in"):
+// open, it offers only where the window can go. The option is lifted out as
+// the list opens and put back as it closes, so the closed picker still names
+// the mode, and every way through a list (the pad's steps, the keys, a
+// click) works on it unchanged. ⓘ Nothing is highlighted as it opens,
+// and a cancel's "put it back as it was" is that empty highlight: closing
+// with nothing picked brings the mode it is in back, never another.
+function modeListOpen(el) {
+  if (!el.classList || !el.classList.contains('modepick') || el._modeHeld) return;
+  var cur = el.options[el.selectedIndex];
+  if (!cur || el.options.length < 3) return;
+  el._modeHeld = { option: cur, next: cur.nextSibling };
+  el.removeChild(cur);
+  el.selectedIndex = -1;
+  if (GP_SELECTING === el) GP_SELECT_WAS = -1;
+}
+function modeListClose(el) {
+  var held = el._modeHeld;
+  if (!held) return;
+  el._modeHeld = null;
+  var picked = el.selectedIndex >= 0;
+  held.option.selected = false;
+  el.insertBefore(held.option, held.next && held.next.parentNode === el ? held.next : null);
+  if (!picked) held.option.selected = true;
 }
 
 // Repaint every Mode picker on the page. ⓘ Called from paintTitle, which
@@ -12335,7 +12375,7 @@ function selfTest() {
 
   // The tutorial (2.66.92): its practice controllers are answered here and
   // keep what a step changes, a real controller still goes to the listener,
-  // a list coming back is the practice one, and Quick's tour has its twelve
+  // a list coming back is the practice one, and Quick's tour has its thirteen
   // steps, the last ending it.
   {
     var keepMock = TUT_MOCK;
@@ -12361,11 +12401,35 @@ function selfTest() {
        lateCfg.configs.length === 5 && lateCfg.configs[0].name === 'shared',
        JSON.stringify(mockDevs[0]));
     var tourWords = TUT_QUICK.map(function (s) { return s.words(); });
-    ok('the tutorial: Quick has twelve steps, each with words, the last ending it',
-       TUT_QUICK.length === 12 && TUT_QUICK[11].act === 'end' &&
+    ok('the tutorial: Quick has thirteen steps, each with words, the last ending it',
+       TUT_QUICK.length === 13 && TUT_QUICK[12].act === 'end' &&
        tourWords.every(function (w) { return !!w && w.indexOf('undefined') < 0; }),
        tourWords.join(' / '));
     TUT_MOCK = keepMock;
+  }
+
+  // The mode picker's list leaves out the mode it is in (2.66.97): lifted out
+  // as the list opens, put back as it closes, the closed picker naming it.
+  {
+    var mp = document.createElement('select');
+    mp.className = 'modepick';
+    mp.innerHTML = '<option value="advanced">A</option><option value="simple">S</option>' +
+                   '<option value="quick" selected>Q</option>';
+    document.body.appendChild(mp);
+    var vals = function () { return [].map.call(mp.options, function (o) { return o.value; }).join(','); };
+    modeListOpen(mp);
+    var openVals = vals(), openIdx = mp.selectedIndex;
+    modeListClose(mp);                                  // nothing picked
+    var cancelled = vals() + '/' + mp.value;
+    modeListOpen(mp);
+    mp.selectedIndex = 1;                               // Simple
+    modeListClose(mp);
+    var picked = vals() + '/' + mp.value;
+    mp.remove();
+    ok('the mode list leaves out the mode it is in, and puts it back as it closes',
+       openVals === 'advanced,simple' && openIdx === -1 &&
+       cancelled === 'advanced,simple,quick/quick' && picked === 'advanced,simple,quick/simple',
+       [openVals, openIdx, cancelled, picked].join(' | '));
   }
 
   // Leave the page as it was found.
@@ -12398,7 +12462,7 @@ function selfTest() {
 // mode for each mode. Lets start with simple mode."*). One per Window Mode.
 // ⭐ QUICK'S IS THE ONE THERE IS (2026-10-23: *"lets not worry about simple
 // yet. I want to demo quick mode tutorial first because its a smaller
-// list"*): twelve steps, started by the tray's "Show tutorial", which puts
+// list"*): thirteen steps, started by the tray's "Show tutorial", which puts
 // the window in Quick. It never starts by itself: Quick is the view that
 // comes up mid-game. ⓘ Simple's tour was built for Simple's earlier layout
 // and is left out until it is redone for this one.
@@ -12463,6 +12527,9 @@ var TUT_ASKED = false;       // the tray asked, and it has not started yet
 var TUT_LAST_HOLES = '';
 var TUT_WORDS_SENT = '';     // the words last sent, to send only a change
 var TUT_ANCHOR = { ax: 500, ay: 500 };   // what the words stand by, thousandths of the view
+var TUT_ANCHOR_WANT = null;  // a new place for them, waiting to hold still
+var TUT_ANCHOR_SINCE = 0;
+var TUT_ANCHOR_STEP = '';    // the step they were last placed for
 var TUT_HAS_LIT = false;     // whether the step points at anything
 var TUT_LAST_ARROWS = '';    // where the arrows were last put
 var TUT_PRESS_TIMER = null;
@@ -12701,7 +12768,7 @@ function tutUpDownKeys(code, gated, plain) {
          (plain && (code === 'ArrowUp' || code === 'ArrowDown'));
 }
 
-// ⭐ QUICK'S TWELVE, as rhoquinn8217 went through the tour twice and asked for
+// ⭐ QUICK'S THIRTEEN, as rhoquinn8217 went through the tour three times and asked for
 // it changed (2026-10-23). `act` marks a step that waits for one thing:
 // Continue is greyed out, `keys` lets its presses through to the page, `done`
 // says when it has been done, and Go back onto it puts the practice
@@ -12786,7 +12853,14 @@ var TUT_QUICK = [
       return 'Press ' + tutKey('unlink') + ' to unlink: ' + tutNick() + ' stops using a config.';
     },
     done: function () { var p = tutPad(); return !!p && !TUT_MOCK.links[p.ordinal]; } },
-  // 6 (*"Move bubble to left side of window, disable continue and direct user
+  // 6 (*"After unlink is preformed, need a step showing that no config is set
+  // after that."*): what the wheel shows now.
+  { side: 'right', lit: function () { return tutQ('.cdrum-frame'); },
+    words: function () {
+      return tutNick() + ' has no config now: ' + tutHl('(no config)') + ' is in the middle of ' +
+             'the wheel, so ' + tutNick() + ' works as a plain controller.';
+    } },
+  // 7 (*"Move bubble to left side of window, disable continue and direct user
   // to press right stick button and select 250"*). The list is the page's
   // own, and takes the keys while it is open.
   { side: 'left', act: true, focus: '.crate-q select',
@@ -12805,7 +12879,7 @@ var TUT_QUICK = [
              ' reports, and pick ' + tutHl('250 Hz') + '.';
     },
     done: function () { var p = tutPad(); return !!p && TUT_MOCK.limits[p.ordinal] === '250'; } },
-  // 7 (*"Move bubble to bottom side of window, Enable the "Continue" button
+  // 8 (*"Move bubble to bottom side of window, Enable the "Continue" button
   // and allow the user to press both buttons until they are done"*). Options
   // and Create reach the listener from the pad's own report, and P and R pass.
   { side: 'below', free: true,
@@ -12814,7 +12888,7 @@ var TUT_QUICK = [
       return tutKey('position') + ' moves this window out of the way, and ' + tutKey('resize') +
              ' changes its size. Try both, then choose ' + tutHl('Continue') + '.';
     } },
-  // 8
+  // 9
   { lit: function () { return tutQ('.clegend .lgi:nth-child(3)'); }, act: true,
     keys: function (code, gated, plain) {
       return (gated && code === 'KeyZ') || (plain && code === 'Escape');
@@ -12822,13 +12896,13 @@ var TUT_QUICK = [
     words: function () { return 'Press ' + tutKey('close') + ' to reach the footer.'; },
     done: function () { return !!FOOTER_MODE; },
     undo: function () { if (FOOTER_MODE) setFooterMode(false); } },
-  // 9 (*"add a step after this that describes the close button but don't let
+  // 10 (*"add a step after this that describes the close button but don't let
   // the use press it"*)
   { lit: function () { return tutQ('.cbar > button.cclose'); },
     words: function () {
       return tutHl('Close') + ' puts this window away, and your controller goes back to your game.';
     } },
-  // 10 (*"Add a step that directs the user to use the resize button twice."*):
+  // 11 (*"Add a step that directs the user to use the resize button twice."*):
   // the footer's size button, which Create and R do as well. Two changes of
   // the window's size, each counted once it settles (tutResized).
   { side: 'below', act: true, focus: '.cgroup button.csize',
@@ -12839,7 +12913,7 @@ var TUT_QUICK = [
              'then goes back.';
     },
     done: function () { return (TUT.resizes || 0) >= 2; } },
-  // 11 (*"Direct the user to expand the mode selector but don't allow the user
+  // 12 (*"Direct the user to expand the mode selector but don't allow the user
   // to select a different mode."*): Continue lights once the list is open,
   // and nothing in it can be picked, by key or by mouse.
   { side: 'below', act: true, stay: true, noPick: true, focus: '#cselMode',
@@ -12850,7 +12924,7 @@ var TUT_QUICK = [
              'are where configs are made and edited. For this tour, the mode stays as it is.';
     },
     done: function () { return GP_SELECTING === tutById('cselMode'); } },
-  // 12
+  // 13
   { lit: function () { return []; }, act: 'end',
     words: function () {
       var back = padLegend() === PAD_LEGEND_PS
@@ -12908,6 +12982,7 @@ function tutBegin() {
   TUT = { phase: 'intro', at: 0, done: [], mem: [], busy: false, focus: null, saved: ACTIVE };
   TUT_LAST_HOLES = '';
   TUT_LAST_ARROWS = '';
+  TUT_ANCHOR_STEP = '';
   tutMockOn();
   var root = document.createElement('div');
   root.id = 'tutRoot';
@@ -13340,6 +13415,40 @@ function tutPlaceArrows(rects, s, pad, vw, vh) {
   });
 }
 
+// ⭐ THE WORDS HOLD STILL WHILE WHAT THEY STAND BY MOVES (rhoquinn8217,
+// 2026-10-23: *"when pressing shoulder buttons to switch the controllers in the
+// tutorial, the tutorial bubble shouldn't animate like the controller"*): the
+// panel slides when L1 or R1 changes controller (0.26 s, cslide-l and -r), and
+// the words followed it. While it slides they hold, and a new place is taken
+// once it has held for 300 ms after; on a new step, at once.
+function tutSettleAnchor(want) {
+  var step = TUT.phase + ':' + TUT.at;
+  var now = Date.now();
+  if (step !== TUT_ANCHOR_STEP) {
+    TUT_ANCHOR_STEP = step;
+    TUT_ANCHOR = want;
+    TUT_ANCHOR_WANT = null;
+    return;
+  }
+  var sliding = [].some.call(document.querySelectorAll('#compactBox .csel, #compactBox .ccar'),
+    function (el) {
+      return !!el.getAnimations && el.getAnimations().some(function (a) {
+        return a.playState === 'running';
+      });
+    });
+  if (sliding) { TUT_ANCHOR_WANT = null; return; }
+  if (want.ax === TUT_ANCHOR.ax && want.ay === TUT_ANCHOR.ay) { TUT_ANCHOR_WANT = null; return; }
+  if (!TUT_ANCHOR_WANT || TUT_ANCHOR_WANT.ax !== want.ax || TUT_ANCHOR_WANT.ay !== want.ay) {
+    TUT_ANCHOR_WANT = want;
+    TUT_ANCHOR_SINCE = now;
+    return;
+  }
+  if (now - TUT_ANCHOR_SINCE >= 300) {
+    TUT_ANCHOR = want;
+    TUT_ANCHOR_WANT = null;
+  }
+}
+
 function tutRectOf(els) {
   var r = null;
   els.forEach(function (el) {
@@ -13377,14 +13486,15 @@ function tutLayout(s) {
   }
   if (holes.length && !pointAt.length) pointAt.push(holes[0]);
   TUT_HAS_LIT = pointAt.length > 0;
-  TUT_ANCHOR = { ax: 500, ay: 500 };
+  var want = { ax: 500, ay: 500 };
   if (pointAt.length) {
     var mids = pointAt.map(middle);
-    TUT_ANCHOR = {
+    want = {
       ax: Math.round(mids.reduce(function (t, m) { return t + m.ax; }, 0) / mids.length),
       ay: Math.round(mids.reduce(function (t, m) { return t + m.ay; }, 0) / mids.length)
     };
   }
+  tutSettleAnchor(want);
   tutSendWords();
   tutPlaceArrows(pointAt, s, pad, vw, vh);
   var html = holes.map(function (h) {
