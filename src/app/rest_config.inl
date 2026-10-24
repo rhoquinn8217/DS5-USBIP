@@ -686,6 +686,94 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
             return true;
         }
 
+        // ⭐ THE TUTORIALS (rhoquinn8217, 2026-10-14): a GET says whether
+        // Simple's has been seen and whether the tray asked for it, once a
+        // second while the page is in view, as Open on bridge is read. A POST
+        // of {"seen": true} keeps it seen; {"taken": true} clears the tray's
+        // request once the page has it (tutorial_state.inl).
+        if (what == "tutorial") {
+            if (req.method == "POST") {
+                RestJson json;
+                std::string parseError;
+                if (!rest_parse_flat_json(req.body, &json, &parseError)) {
+                    *out = rest_error_response(400, parseError);
+                    return true;
+                }
+                auto seen = json.bools.find("seen");
+                auto taken = json.bools.find("taken");
+                if (seen == json.bools.end() && taken == json.bools.end()) {
+                    *out = rest_error_response(400, "say seen or taken, true or false");
+                    return true;
+                }
+                if (seen != json.bools.end()) {
+                    ui_set_tutorial_seen(seen->second);
+                    device_log::session_w() << L"settings page: the Simple tutorial is "
+                                            << (seen->second ? L"seen" : L"unseen") << L" now";
+                }
+                if (taken != json.bools.end() && taken->second) ui_tutorial_take();
+            } else if (req.method != "GET") {
+                *out = rest_error_response(405, "method not allowed", "Allow: GET, POST, OPTIONS\r\n");
+                return true;
+            }
+            *out = rest_http_response(200, tutorial_state::json(ui_tutorial_seen(), ui_tutorial_asked()));
+            return true;
+        }
+
+        // ⭐ THE TUTORIAL'S WORDS, OUTSIDE THE WINDOW (rhoquinn8217,
+        // 2026-10-14: *"We need to move the descriptions so that they don't
+        // cover any of the browser box."*). The page POSTs what a step says,
+        // the buttons under it as one string ("id:Label:kind|...",
+        // tutorial_bubble_rule::parse_buttons) and where its lit part sits,
+        // and the listener draws the words beside the window
+        // (tutorial_bubble.inl); {"show": false} takes them away. "arrow"
+        // says whether one points at a lit part, "anchors" where each arrow
+        // points when there are several ("ax,ay|ax,ay"), "side" the side of
+        // the window the step asks for, and "title" heads the start's card
+        // and the end's question. A GET of tutorial-press hands
+        // over a click on one of the buttons, by its id, once, for the page to
+        // act on.
+        if (what == "tutorial-bubble") {
+            if (req.method != "POST") {
+                *out = rest_error_response(405, "method not allowed", "Allow: POST, OPTIONS\r\n");
+                return true;
+            }
+            RestJson json;
+            std::string parseError;
+            if (!rest_parse_flat_json(req.body, &json, &parseError)) {
+                *out = rest_error_response(400, parseError);
+                return true;
+            }
+            auto flag = [&](const char *key) {
+                auto it = json.bools.find(key);
+                return it != json.bools.end() && it->second;
+            };
+            auto text = [&](const char *key) {
+                auto it = json.strings.find(key);
+                return it == json.strings.end() ? std::string() : it->second;
+            };
+            auto number = [&](const char *key, int fallback) {
+                auto it = json.numbers.find(key);
+                return it == json.numbers.end() ? fallback : static_cast<int>(it->second);
+            };
+            if (flag("show")) {
+                ui_tutorial_words_show(text("title"), text("count"), text("words"), text("buttons"),
+                                       text("focus"), flag("arrow"), number("ax", 500), number("ay", 500),
+                                       text("side"), text("anchors"));
+            } else {
+                ui_tutorial_words_hide();
+            }
+            *out = rest_http_response(200, R"({"ok":true})");
+            return true;
+        }
+        if (what == "tutorial-press") {
+            if (req.method != "GET") {
+                *out = rest_error_response(405, "method not allowed", "Allow: GET, OPTIONS\r\n");
+                return true;
+            }
+            *out = rest_http_response(200, std::string(R"({"press":")") + ui_tutorial_words_take_press() + R"("})");
+            return true;
+        }
+
         if (req.method != "POST") {
             *out = rest_error_response(405, "method not allowed", "Allow: GET, POST, OPTIONS\r\n");
             return true;
@@ -946,6 +1034,8 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
             // this is the path meant to be reliable.
             device_log::input(device_log::msg()
                 << "ui/closed: the page reported its own teardown");
+            // ⓘ The tutorial's words have nothing left to stand beside.
+            ui_tutorial_words_hide();
             // The other way out -- the X, or the browser going away. The
             // window may still be up for a moment; if it is, its place is
             // worth having.
