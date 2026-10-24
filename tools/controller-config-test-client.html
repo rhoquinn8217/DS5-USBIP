@@ -33,8 +33,9 @@
             fingers swipe up or down, in Quick view, and, with this window
             in front in Simple or Quick, when two fingers swipe up or down
             alone. This page takes each step as Ctrl+Alt+Shift+J or K: the
-            wheel's next or previous config, whatever has focus. (2.66.92
-            is taken on another branch.)
+            wheel's next or previous config, whatever has focus; one that
+            comes before the wheel is drawn waits for it. (2.66.92 is taken
+            on another branch.)
     2.66.91 Overview in two cards (rhoquinn8217, asked for "re-design
             recommendations for the overview page settings, version,
             agent, bearer, open on bridge" and shown them): This window,
@@ -6747,10 +6748,20 @@ function quickLinkWanted() {
 // ⭐ A step of the quick config switch (KeyJ, KeyK): the wheel's next or
 // previous config, linked once the steps stop as a step of the d-pad is.
 // ⓘ The listener shows this window in Quick for it, so the wheel is there;
-// in Advanced there is none, and nothing happens.
+// in Advanced there is none.
+// ⭐ A STEP THAT COMES BEFORE THE WHEEL WAITS FOR IT (rhoquinn8217,
+// 2026-10-23: "it take a while before the wheel animates to show you you've
+// switch a config.  Can you make it faster."): the listener sends the first
+// as soon as this page has asked which layout to show, which can be before
+// the controllers have come in and the wheel is drawn. paintCompact takes
+// what waited, once, from the controller's own config.
+var QUICK_SWITCH_WAITING = 0;
+var QUICK_SWITCH_WAITING_AT = 0;
 function quickSwitchStep(delta) {
   var sel = document.getElementById('cpick');
-  if (sel && COMPACT) quickStepConfig(sel, delta);
+  if (sel && COMPACT) { quickStepConfig(sel, delta); return; }
+  QUICK_SWITCH_WAITING += delta;
+  QUICK_SWITCH_WAITING_AT = Date.now();
 }
 
 // A step taken but not yet linked goes now: Triangle and a change of
@@ -10874,6 +10885,15 @@ function paintCompact() {
                box.querySelector('button.cclose') || box.querySelector('button');
     if (!focusElement(want)) { GP_INDEX = 0; gpPaint(); }
   }
+  // ⓘ A step of the quick config switch that came before the wheel did, kept
+  // for a moment only: one older than that was for a moment gone by.
+  if (QUICK_SWITCH_WAITING && Date.now() - QUICK_SWITCH_WAITING_AT > 3000) QUICK_SWITCH_WAITING = 0;
+  var waitingWheel = QUICK_SWITCH_WAITING && document.getElementById('cpick');
+  if (waitingWheel) {
+    var waiting = QUICK_SWITCH_WAITING;
+    QUICK_SWITCH_WAITING = 0;
+    quickStepConfig(waitingWheel, waiting);
+  }
 }
 
 function gpTab(delta) {
@@ -12316,9 +12336,20 @@ function selfTest() {
      greyNone.indexOf(' disabled ') >= 0 && greySerial.indexOf(' disabled ') >= 0,
      [litOwn, plainOther, litNone].join(' | '));
 
-  // 12. ⭐ THE QUICK CONFIG SWITCH (2.66.93): the two keys its steps arrive as.
+  // 12. ⭐ THE QUICK CONFIG SWITCH (2.66.93): the two keys its steps arrive as,
+  //     and a step that comes before the wheel waiting for it.
   ok('quick switch: its next and previous steps reach the page',
      typeof CONFIG_MODE_KEYS.KeyJ === 'function' && typeof CONFIG_MODE_KEYS.KeyK === 'function');
+  {
+    var keepWaiting = QUICK_SWITCH_WAITING, keepCompact = COMPACT;
+    COMPACT = false;
+    QUICK_SWITCH_WAITING = 0;
+    quickSwitchStep(1);
+    quickSwitchStep(1);
+    ok('quick switch: steps before the wheel wait for it', QUICK_SWITCH_WAITING === 2);
+    QUICK_SWITCH_WAITING = keepWaiting;
+    COMPACT = keepCompact;
+  }
 
   // Leave the page as it was found.
   renderTabs(LAST_DEVICES || []);

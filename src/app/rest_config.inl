@@ -646,6 +646,10 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
         // back. ⓘ "known" is false on a listener that has just started and has
         // never seen a page; the page then falls back to its own record.
         if (req.method == "GET" && what == "view") {
+            // ⭐ A page's first question as it opens: its scripts are
+            // running and its keys are heard, so the quick config switch's
+            // steps may go (quick_switch_session.inl).
+            quick_switch_page_asked_view();
             bool compact = false, quick = false;
             std::string ordinal;
             const bool known = ui_view_get(&compact, &quick, &ordinal);
@@ -838,9 +842,6 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
             // made to give it back, and the log names what took it
             // (open_ui.inl, follow_front). ⓘ One follower at a time.
             if (on) ctm_open_ui::follow_front();
-            // ⭐ And the quick config switch's steps may go: the page that
-            // takes them is up and in front (quick_switch_session.inl).
-            if (on) quick_switch_page_focused();
 
             const std::string notice = ctm_ui_take_notice();
             std::string body = std::string("{\"ok\":true,\"config_mode\":")

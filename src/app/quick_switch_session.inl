@@ -25,10 +25,15 @@
 // ⓘ A window open behind a game is not in front: the switch opens its own in
 // its place, as the shortcut does, and that one closes at the end.
 //
-// ⛔ The page hears a step only once it has said it has the front, after the
-// window was asked for. Before that a key reaches nothing that can take it,
-// and the steps wait; a window that never comes forward is closed after
-// Create comes up all the same.
+// ⛔ The page hears a step only once it has asked which layout to show, after
+// the window was asked for: its scripts are running then, and its keys are
+// heard. Before that a key reaches nothing that can take it, and the steps
+// wait. ⓘ Not its report that it has the front, which it makes once a second
+// and which kept the first step waiting a second more (rhoquinn8217,
+// 2026-10-23: "it take a while before the wheel animates to show you you've
+// switch a config.  Can you make it faster."). A step that comes before the
+// page has drawn its wheel waits in the page; a window that never comes
+// forward is closed after Create comes up all the same.
 #pragma once
 
 #include <atomic>
@@ -44,7 +49,8 @@ struct Session {
     bool active = false;
     const void *device = nullptr;   // whose swipes
     bool openedWindow = false;      // so the switch closes it, and puts the layout back
-    unsigned focusAtOpen = 0;       // the page's focus count when the window was asked for
+    unsigned askedAtOpen = 0;       // the pages' layout questions when the window was asked for
+    long long readyAt = 0;          // when its page could first take a step
     bool createHeld = true;
     bool ending = false;            // its window stays: done once the steps are sent
     bool closing = false;           // a closer is waiting out the linger
@@ -57,8 +63,13 @@ inline std::mutex g_mutex;
 inline std::unordered_map<const void *, quick_switch::Pad> g_pads;
 inline Session g_session;
 inline unsigned g_nextId = 1;
-// How many times the page has said it has the front (ui/focus).
-inline std::atomic<unsigned> g_pageFocus{0};
+// How many times a page has asked which layout to show (GET ui/view): once as
+// each window opens.
+inline std::atomic<unsigned> g_pageAsked{0};
+
+// ⓘ A window whose page never takes a step is closed this long after Create
+// is let go all the same.
+constexpr long long kGiveUpMs = 3000;
 
 inline long long now_ms()
 {
@@ -101,7 +112,10 @@ inline unsigned follow_create(const void *deviceKey, bool createHeld)
 }
 
 // The window the switch opened, closed once the linger is over, and the
-// layout put back. ⓘ Its own thread: the report path must not sleep.
+// layout put back. ⭐ The linger runs from Create let go or from when the page
+// could first show a step, whichever is later: a Create let go before the
+// window had come up would otherwise leave the config landed on in sight for
+// less than the linger. ⓘ Its own thread: the report path must not sleep.
 inline void close_after_linger(unsigned id)
 {
     std::thread([id]() {
@@ -114,7 +128,14 @@ inline void close_after_linger(unsigned id)
                     if (s.id == id) s.closing = false;
                     return;
                 }
-                wait = s.closeAt - now_ms();
+                const long long now = now_ms();
+                long long until = s.closeAt;
+                if (s.readyAt != 0) {
+                    if (s.readyAt + quick_switch::kLingerMs > until) until = s.readyAt + quick_switch::kLingerMs;
+                } else if (now < s.closeAt - quick_switch::kLingerMs + kGiveUpMs) {
+                    until = now + 100;   // its page has not taken a step yet: look again
+                }
+                wait = until - now;
                 if (wait <= 0) {
                     s.active = false;
                     s.closing = false;
@@ -185,7 +206,7 @@ inline void report(const void *deviceKey, bool createHeld, int fingers, float mx
             s.createHeld = createHeld;
             s.openedWindow = !inFront;
             s.ending = inFront;   // a window already there just takes the steps
-            s.focusAtOpen = g_pageFocus.load();
+            s.askedAtOpen = g_pageAsked.load();
             s.id = g_nextId++;
             open = s.openedWindow;
             quick_switch::queue(s.keys, step);
@@ -220,7 +241,8 @@ inline const char *key(const void *deviceKey)
     std::lock_guard<std::mutex> lock(g_mutex);
     Session &s = g_session;
     if (!s.active || s.device != deviceKey) return nullptr;
-    if (s.openedWindow && g_pageFocus.load() == s.focusAtOpen) return nullptr;
+    if (s.openedWindow && g_pageAsked.load() == s.askedAtOpen) return nullptr;
+    if (s.readyAt == 0) s.readyAt = now_ms();
     const char *k = quick_switch::key_now(s.keys, now_ms());
     if (k == nullptr && s.ending && quick_switch::idle(s.keys)) s.active = false;
     return k;
@@ -249,7 +271,7 @@ bool quick_switch_has_vertical_swipes()
     return config_move::quick_switch_on() && quick_switch_session::window_wheel_in_front();
 }
 
-void quick_switch_page_focused()
+void quick_switch_page_asked_view()
 {
-    quick_switch_session::g_pageFocus.fetch_add(1);
+    quick_switch_session::g_pageAsked.fetch_add(1);
 }

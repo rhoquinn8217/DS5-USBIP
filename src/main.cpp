@@ -144,12 +144,12 @@ void ui_set_quick_switch(bool on);
 /* ...and at work (quick_switch_session.inl, after rebind.inl, which feeds it
  * every report of a pad with a touchpad and sends its keys): whether two
  * fingers up and down are the switch's right now, so the config's own swipes
- * and two-finger scroll stand aside (touch_mouse.inl), and the page saying it
- * has the front (rest_config.inl). */
+ * and two-finger scroll stand aside (touch_mouse.inl), and a page asking which
+ * layout to show as it opens (rest_config.inl). */
 void quick_switch_report(const void *deviceKey, bool createHeld, int fingers, float mx, float my);
 const char *quick_switch_key(const void *deviceKey);
 bool quick_switch_has_vertical_swipes();
-void quick_switch_page_focused();
+void quick_switch_page_asked_view();
 /* Where the window stands right now, kept for the next one. Called on the way
  * out, while it still exists. */
 void ui_view_remember_pos();
