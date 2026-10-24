@@ -1,7 +1,8 @@
 // The quick config switch: two fingers pressing the touchpad open the configs
-// window in Quick view for as long as a finger stays on it, one finger up or
-// down steps the controller to the next config or the one before, and the
-// window closes the moment the last finger lifts. For every controller.
+// window in Quick view for as long as a finger stays on it, each swipe of a
+// finger up or down steps the controller to the next config or the one before
+// (one thumb resting, the other swiping), and the window closes the moment the
+// last finger lifts. For every controller.
 //
 // ⭐ rhoquinn8217, 2026-10-23, the gesture as it stands: *"change create swipe
 // up/down gesture to, two finger touch and press to temporarily open the quick
@@ -67,42 +68,70 @@ inline bool opens(Press &p, int fingers, bool pressed)
     return edge && fingers == 2;
 }
 
-// ⭐ ONE FINGER UP OR DOWN, WHILE THE WINDOW IS OPEN. A step for every
-// kVerticalUnits the finger travels, measured again from where each step left
-// it, so a short swipe is one step and a long drag several, without lifting --
-// which would close the window if it were the last finger. ⓘ Only while
-// exactly one finger is on the pad; another finger landing, or this one
-// lifting, starts the measuring afresh from where the next one is.
-struct Drag {
-    bool tracking = false;
+// ⭐ A FINGER SWIPED UP OR DOWN, WHILE THE WINDOW IS OPEN, ANOTHER RESTING OR
+// NOT (rhoquinn8217, 2026-10-23: "after pressing the touchpad with two finders,
+// 1 finger will not move and the other will swipe up and down.  For example
+// both thumbs touch and press and release the touchpad but both thumbs don't
+// left from the touchpad.  Then the only the right finger is lifted.  Swipe up
+// and swipe down with only the right thumb should switch the configs next or
+// previous config."). Each finger on the pad is followed by itself, from where
+// it landed: one that has gone kVerticalUnits up or down, more than it went
+// sideways, steps once for that touch; one that goes kSidewaysUnits sideways
+// first steps nothing. So the resting thumb, which does not move, never
+// steps, and the swiping one steps once a swipe, lifting between swipes.
+// ⓘ A finger is known by the id the pad gives each touch, kept while it stays
+// down.
+struct Touch {
+    bool down = false;
     int id = -1;
-    float y0 = 0.0f;
+    float x = 0.0f;
+    float y = 0.0f;
 };
 
-// +1 the next config (up), -1 the one before (down), 0 none. ⓘ The pad's y
-// grows downward.
-inline int drag_step(Drag &d, int fingers, int id, float y)
+struct Track {
+    int id = -1;        // -1: no finger
+    float x0 = 0.0f;
+    float y0 = 0.0f;
+    bool done = false;  // this touch has decided
+};
+
+struct Swipes {
+    Track t[2];
+};
+
+// The steps the two fingers of this report make together: +1 for each that has
+// just gone far enough up (the next config), -1 for each down, 0 none. ⓘ The
+// pad's y grows downward.
+inline int swipe_steps(Swipes &s, const Touch (&now)[2])
 {
-    if (fingers != 1) {
-        d.tracking = false;
-        return 0;
+    int steps = 0;
+    Track next[2];
+    for (int i = 0; i < 2; ++i) {
+        if (!now[i].down) continue;
+        Track tr;
+        tr.id = now[i].id;
+        tr.x0 = now[i].x;
+        tr.y0 = now[i].y;
+        for (int j = 0; j < 2; ++j) {
+            if (s.t[j].id == now[i].id && s.t[j].id >= 0) tr = s.t[j];
+        }
+        if (!tr.done) {
+            const float dx = now[i].x - tr.x0;
+            const float dy = now[i].y - tr.y0;
+            const float ax = dx < 0 ? -dx : dx;
+            const float ay = dy < 0 ? -dy : dy;
+            if (ay >= ax && ay >= static_cast<float>(kVerticalUnits)) {
+                tr.done = true;
+                steps += dy < 0 ? 1 : -1;
+            } else if (ax > ay && ax >= static_cast<float>(kSidewaysUnits)) {
+                tr.done = true;
+            }
+        }
+        next[i] = tr;
     }
-    if (!d.tracking || d.id != id) {
-        d.tracking = true;
-        d.id = id;
-        d.y0 = y;
-        return 0;
-    }
-    const float dy = y - d.y0;
-    if (dy <= -static_cast<float>(kVerticalUnits)) {
-        d.y0 -= static_cast<float>(kVerticalUnits);
-        return 1;
-    }
-    if (dy >= static_cast<float>(kVerticalUnits)) {
-        d.y0 += static_cast<float>(kVerticalUnits);
-        return -1;
-    }
-    return 0;
+    s.t[0] = next[0];
+    s.t[1] = next[1];
+    return steps;
 }
 
 // One controller's two-finger swipe in the window, followed report by report.

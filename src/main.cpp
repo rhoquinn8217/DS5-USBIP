@@ -146,8 +146,9 @@ void ui_set_quick_switch(bool on);
  * fingers up and down are the switch's right now, so the config's own swipes
  * and two-finger scroll stand aside (touch_mouse.inl), and a page asking which
  * layout to show as it opens (rest_config.inl). */
-void quick_switch_report(const void *deviceKey, int fingers, bool pressed, int oneId, float oneY,
-                         float mx, float my);
+void quick_switch_report(const void *deviceKey, bool pressed,
+                         bool down0, int id0, float x0, float y0,
+                         bool down1, int id1, float x1, float y1);
 bool quick_switch_holds_touchpad(const void *deviceKey, int fingers, bool pressed);
 const char *quick_switch_key(const void *deviceKey);
 bool quick_switch_has_vertical_swipes();

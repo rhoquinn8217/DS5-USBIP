@@ -1,6 +1,7 @@
 // The quick config switch at work: two fingers pressing the touchpad open the
-// configs window in Quick view, one finger up or down steps the controller's
-// config there, and the window closes the moment the last finger lifts.
+// configs window in Quick view, each swipe of a finger up or down steps the
+// controller's config there (one thumb resting, the other swiping), and the
+// window closes the moment the last finger lifts.
 // 🔗 quick_switch.inl for what was asked, the gestures and the keys; rebind.inl
 // feeds this every report of a pad with a touchpad, in the window or out of
 // it, and sends the keys from its config-mode branch; touch_mouse.inl asks it
@@ -55,7 +56,7 @@ struct Session {
 
 struct PadState {
     quick_switch::Press press;
-    quick_switch::Drag drag;
+    quick_switch::Swipes swipes;    // each finger's swipe while the window is open
     quick_switch::Pad swipe;        // two fingers with the wheel in front
 };
 
@@ -122,12 +123,13 @@ inline void close_when_sent(unsigned id)
 }
 
 // Every report of a pad with a touchpad, read before anything changes the
-// report: how many fingers are down, whether the pad is pressed in, the one
-// finger's id and height when one is down, and the two fingers' midpoint when
-// two are.
-inline void report(const void *deviceKey, int fingers, bool pressed, int oneId, float oneY,
-                   float mx, float my)
+// report: whether the pad is pressed in, and each of its two fingers -- down
+// or not, the id the pad gave its touch, and where it is.
+inline void report(const void *deviceKey, bool pressed, const quick_switch::Touch (&touch)[2])
 {
+    const int fingers = (touch[0].down ? 1 : 0) + (touch[1].down ? 1 : 0);
+    const float mx = fingers == 2 ? (touch[0].x + touch[1].x) / 2.0f : 0.0f;
+    const float my = fingers == 2 ? (touch[0].y + touch[1].y) / 2.0f : 0.0f;
     if (!config_move::quick_switch_on()) {
         unsigned closer = 0;
         {
@@ -167,7 +169,10 @@ inline void report(const void *deviceKey, int fingers, bool pressed, int oneId, 
                 closer = s.id;
                 did = Did::Lifted;
             } else {
-                step = quick_switch::drag_step(ps.drag, fingers, oneId, oneY) + swipe;
+                // ⓘ Each finger by itself, not the two together: a thumb
+                // swiping beside a resting one moves their midpoint as well,
+                // and would step twice.
+                step = quick_switch::swipe_steps(ps.swipes, touch);
                 if (step != 0) {
                     quick_switch::queue(s.keys, step);
                     did = Did::Stepped;
@@ -186,7 +191,7 @@ inline void report(const void *deviceKey, int fingers, bool pressed, int oneId, 
                 s.openedWindow = true;
                 s.askedAtOpen = g_pageAsked.load();
                 s.id = g_nextId++;
-                ps.drag = quick_switch::Drag();
+                ps.swipes = quick_switch::Swipes();
                 did = Did::Opened;
             }
         } else if (swipe != 0) {
@@ -258,10 +263,12 @@ inline bool holds_touchpad(const void *deviceKey, int fingers, bool pressed)
 // ⓘ For the declarations in main.cpp: rebind.inl, touch_mouse.inl and
 // rest_config.inl reach these, and the first and last are included before
 // this file.
-void quick_switch_report(const void *deviceKey, int fingers, bool pressed, int oneId, float oneY,
-                         float mx, float my)
+void quick_switch_report(const void *deviceKey, bool pressed,
+                         bool down0, int id0, float x0, float y0,
+                         bool down1, int id1, float x1, float y1)
 {
-    quick_switch_session::report(deviceKey, fingers, pressed, oneId, oneY, mx, my);
+    const quick_switch::Touch touch[2] = { { down0, id0, x0, y0 }, { down1, id1, x1, y1 } };
+    quick_switch_session::report(deviceKey, pressed, touch);
 }
 
 const char *quick_switch_key(const void *deviceKey)

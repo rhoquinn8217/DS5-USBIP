@@ -2,9 +2,9 @@
 // sent to the page as.
 //
 // ⭐ WHAT THESE PROTECT (rhoquinn8217, 2026-10-23): two fingers pressing the
-// touchpad open the window, once per press; one finger up steps a controller
-// to the next config and down to the one before, a step for every quarter of
-// the pad it travels; with the window in front in Simple or Quick (armed),
+// touchpad open the window, once per press; each swipe of a finger up steps a
+// controller to the next config and down to the one before, one thumb resting
+// and the other swiping; with the window in front in Simple or Quick (armed),
 // two fingers swiped up or down step it, once per swipe, nothing sideways;
 // and each step reaches the page as one press of its own key.
 //
@@ -113,30 +113,57 @@ int run_quick_switch_tests()
         CTM_CHECK(!opens(q, 0, true));     // pressed with no finger: no
     }
 
-    section("quick switch: one finger up is the next config, down the one before, a step a quarter of the pad");
+    section("quick switch: one thumb resting, the other swiping up then down, a step a swipe");
     {
-        Drag d;
-        CTM_CHECK_EQ(drag_step(d, 1, 5, 900.0f), 0);   // lands
-        CTM_CHECK_EQ(drag_step(d, 1, 5, 700.0f), 0);   // 200 up: not yet
-        CTM_CHECK_EQ(drag_step(d, 1, 5, 590.0f), 1);   // 310 up
-        CTM_CHECK_EQ(drag_step(d, 1, 5, 400.0f), 0);   // 190 more
-        CTM_CHECK_EQ(drag_step(d, 1, 5, 280.0f), 1);   // 320 above where the first step left it, 600
-        CTM_CHECK_EQ(drag_step(d, 1, 5, 590.0f), 0);   // back down: 290 below where that left it, 300
-        CTM_CHECK_EQ(drag_step(d, 1, 5, 610.0f), -1);  // 310 below it
+        // ⓘ rhoquinn8217, 2026-10-23: "both thumbs touch and press and
+        // release the touchpad ... Then the only the right finger is
+        // lifted.  Swipe up and swipe down with only the right thumb".
+        Swipes s;
+        Touch t[2];
+        t[0] = { true, 1, 400.0f, 500.0f };       // the left thumb, resting
+        t[1] = { true, 2, 1500.0f, 500.0f };      // the right, that pressed with it
+        CTM_CHECK_EQ(swipe_steps(s, t), 0);
+        t[1].down = false;                       // the right lifts
+        CTM_CHECK_EQ(swipe_steps(s, t), 0);
+        t[1] = { true, 3, 1500.0f, 800.0f };      // and lands low
+        CTM_CHECK_EQ(swipe_steps(s, t), 0);
+        t[1].y = 600.0f;                         // 200 up: not yet
+        CTM_CHECK_EQ(swipe_steps(s, t), 0);
+        t[1].y = 450.0f;                         // 350 up: the next config
+        CTM_CHECK_EQ(swipe_steps(s, t), 1);
+        t[1].y = 100.0f;                         // further: still the one step
+        CTM_CHECK_EQ(swipe_steps(s, t), 0);
+        t[1].down = false;
+        CTM_CHECK_EQ(swipe_steps(s, t), 0);
+        t[1] = { true, 4, 1500.0f, 300.0f };      // lands high
+        CTM_CHECK_EQ(swipe_steps(s, t), 0);
+        t[1].y = 650.0f;                         // 350 down: the config before
+        CTM_CHECK_EQ(swipe_steps(s, t), -1);
+        t[1].down = false;
+        CTM_CHECK_EQ(swipe_steps(s, t), 0);
+        // the resting thumb never moved, and never stepped
     }
 
-    section("quick switch: one finger only, measured afresh when the fingers change");
+    section("quick switch: a finger's swipe once per touch; sideways first is none; slots may swap");
     {
-        Drag d;
-        CTM_CHECK_EQ(drag_step(d, 2, -1, 0.0f), 0);    // two fingers: nothing
-        CTM_CHECK_EQ(drag_step(d, 1, 7, 900.0f), 0);
-        CTM_CHECK_EQ(drag_step(d, 2, -1, 0.0f), 0);    // a second finger lands
-        CTM_CHECK_EQ(drag_step(d, 1, 7, 650.0f), 0);   // and lifts: 650 is the new start
-        CTM_CHECK_EQ(drag_step(d, 1, 7, 400.0f), 0);   // 250 up: not yet
-        CTM_CHECK_EQ(drag_step(d, 1, 7, 340.0f), 1);   // 310 up
-        CTM_CHECK_EQ(drag_step(d, 1, 8, 100.0f), 0);   // another finger: starts again
-        CTM_CHECK_EQ(drag_step(d, 1, 8, 300.0f), 0);
-        CTM_CHECK_EQ(drag_step(d, 1, 8, 410.0f), -1);  // 310 down
+        Swipes s;
+        Touch t[2];
+        t[0] = { true, 9, 900.0f, 800.0f };
+        CTM_CHECK_EQ(swipe_steps(s, t), 0);
+        t[0].x = 1500.0f;                        // 600 sideways: decided, nothing
+        CTM_CHECK_EQ(swipe_steps(s, t), 0);
+        t[0].y = 100.0f;                         // then up: still nothing this touch
+        CTM_CHECK_EQ(swipe_steps(s, t), 0);
+        // the same finger reported in the other slot is still the same finger
+        Swipes q;
+        Touch u[2];
+        u[0] = { true, 5, 400.0f, 500.0f };
+        u[1] = { true, 6, 1500.0f, 900.0f };
+        CTM_CHECK_EQ(swipe_steps(q, u), 0);
+        Touch w[2];
+        w[0] = { true, 6, 1500.0f, 550.0f };      // finger 6, now first: 350 up
+        w[1] = { true, 5, 400.0f, 500.0f };
+        CTM_CHECK_EQ(swipe_steps(q, w), 1);
     }
 
     section("quick switch: a step is one press of its key, then a gap");
