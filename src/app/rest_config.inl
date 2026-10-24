@@ -726,8 +726,10 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
         // tutorial_bubble_rule::parse_buttons) and where its lit part sits,
         // and the listener draws the words beside the window
         // (tutorial_bubble.inl); {"show": false} takes them away. "arrow"
-        // says whether one points at a lit part, and "title" heads the
-        // start's card and the end's question. A GET of tutorial-press hands
+        // says whether one points at a lit part, "anchors" where each arrow
+        // points when there are several ("ax,ay|ax,ay"), "side" the side of
+        // the window the step asks for, and "title" heads the start's card
+        // and the end's question. A GET of tutorial-press hands
         // over a click on one of the buttons, by its id, once, for the page to
         // act on.
         if (what == "tutorial-bubble") {
@@ -755,7 +757,8 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
             };
             if (flag("show")) {
                 ui_tutorial_words_show(text("title"), text("count"), text("words"), text("buttons"),
-                                       text("focus"), flag("arrow"), number("ax", 500), number("ay", 500));
+                                       text("focus"), flag("arrow"), number("ax", 500), number("ay", 500),
+                                       text("side"), text("anchors"));
             } else {
                 ui_tutorial_words_hide();
             }

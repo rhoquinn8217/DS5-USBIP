@@ -45,6 +45,8 @@ struct Content {
     std::string focus;        // the pad's halo: a button's id, or ""
     bool arrow = true;        // pointing at the lit part; none when nothing is lit
     int ax = 500, ay = 500;   // the lit part's middle, thousandths of the page's view
+    std::vector<std::pair<int, int>> anchors;   // every arrow's, when there are several
+    tbr::Prefer prefer = tbr::Prefer::None;     // the side the step asks for
 };
 
 inline std::mutex g_mutex;
@@ -119,7 +121,8 @@ struct Layout {
     tbr::Placement place;
     RECT box{};
     std::vector<RECT> btns;   // one for each of content.buttons
-    POINT arrow[3]{};
+    struct Tri { POINT p[3]; };
+    std::vector<Tri> arrows;  // none when nothing is lit
     bool hasArrow = false;
     int pad = 0, round = 0, titleH = 0, countH = 0, lineH = 0, litPad = 0;
     std::vector<tbr::Token> toks;
@@ -193,18 +196,27 @@ inline Layout compute_layout(HDC dc, Fonts *fonts, const Content &c, UINT dpi,
         rowW += btnW.back();
         if (s.cy + 2 * btnPadY > btnH) btnH = s.cy + 2 * btnPadY;
     }
-    const int stackW = boxW > rowW ? boxW : rowW;
+    int stackW = boxW > rowW ? boxW : rowW;
     const int stackH = boxH + (c.buttons.empty() ? 0 : between + btnH);
 
     const tbr::Box win{ frame.left, frame.top, frame.right, frame.bottom };
     const tbr::Box area{ work.left, work.top, work.right, work.bottom };
-    L.place = tbr::place(win, area, stackW, stackH, arrow, gap, L.round, c.ax, c.ay);
+    std::vector<std::pair<int, int>> anchors = c.anchors;
+    if (anchors.empty()) anchors.push_back({ c.ax, c.ay });
+    L.place = tbr::place_at(win, area, stackW, stackH, arrow, gap, L.round, anchors, c.prefer);
+    // ⓘ Widened to stand over two arrows far apart: the words box spans it.
+    int wordsW = boxW;
+    const bool across = L.place.side == tbr::Side::Above || L.place.side == tbr::Side::Below;
+    if (across && L.place.window.width() > stackW) {
+        stackW = L.place.window.width();
+        wordsW = stackW;
+    }
 
     // ⓘ The words and buttons start after the arrow when it is on their top
     // or left side.
     const int offX = L.place.side == tbr::Side::Right ? arrow : 0;
     const int offY = L.place.side == tbr::Side::Below ? arrow : 0;
-    L.box = { offX + stackW - boxW, offY, offX + stackW, offY + boxH };
+    L.box = { offX + stackW - wordsW, offY, offX + stackW, offY + boxH };
     const int rowTop = offY + boxH + between;
     // [Continue] [Go back] [End tutorial], in rhoquinn8217's order, at the
     // box's right.
@@ -213,28 +225,32 @@ inline Layout compute_layout(HDC dc, Fonts *fonts, const Content &c, UINT dpi,
         L.btns.push_back({ x, rowTop, x + btnW[i], rowTop + btnH });
         x += btnW[i] + between;
     }
-    const int a = L.place.arrowAt;
-    switch (L.place.side) {
-    case tbr::Side::Above:
-        L.arrow[0] = { a - arrow, stackH };
-        L.arrow[1] = { a + arrow, stackH };
-        L.arrow[2] = { a, stackH + arrow };
-        break;
-    case tbr::Side::Below:
-        L.arrow[0] = { a - arrow, arrow };
-        L.arrow[1] = { a + arrow, arrow };
-        L.arrow[2] = { a, 0 };
-        break;
-    case tbr::Side::Right:
-        L.arrow[0] = { arrow, a - arrow };
-        L.arrow[1] = { arrow, a + arrow };
-        L.arrow[2] = { 0, a };
-        break;
-    case tbr::Side::Left:
-        L.arrow[0] = { stackW, a - arrow };
-        L.arrow[1] = { stackW, a + arrow };
-        L.arrow[2] = { stackW + arrow, a };
-        break;
+    if (!c.arrow) return L;
+    for (const int a : L.place.arrowsAt) {
+        Layout::Tri t{};
+        switch (L.place.side) {
+        case tbr::Side::Above:
+            t.p[0] = { a - arrow, stackH };
+            t.p[1] = { a + arrow, stackH };
+            t.p[2] = { a, stackH + arrow };
+            break;
+        case tbr::Side::Below:
+            t.p[0] = { a - arrow, arrow };
+            t.p[1] = { a + arrow, arrow };
+            t.p[2] = { a, 0 };
+            break;
+        case tbr::Side::Right:
+            t.p[0] = { arrow, a - arrow };
+            t.p[1] = { arrow, a + arrow };
+            t.p[2] = { 0, a };
+            break;
+        case tbr::Side::Left:
+            t.p[0] = { stackW, a - arrow };
+            t.p[1] = { stackW, a + arrow };
+            t.p[2] = { stackW + arrow, a };
+            break;
+        }
+        L.arrows.push_back(t);
     }
     return L;
 }
@@ -253,7 +269,7 @@ inline HRGN make_region(const Layout &L)
     for (const RECT &b : L.btns) {
         add(CreateRoundRectRgn(b.left, b.top, b.right + 1, b.bottom + 1, br, br));
     }
-    if (L.hasArrow) add(CreatePolygonRgn(L.arrow, 3, WINDING));
+    for (const Layout::Tri &t : L.arrows) add(CreatePolygonRgn(t.p, 3, WINDING));
     return rgn;
 }
 
@@ -341,7 +357,7 @@ inline void paint(HDC dc, Fonts *fonts, const Layout &L, int width, int height, 
     // The arrow, solid amber, pointing at the lit part.
     HBRUSH amber = CreateSolidBrush(kAmber);
     SelectObject(dc, amber);
-    if (L.hasArrow) Polygon(dc, L.arrow, 3);
+    for (const Layout::Tri &t : L.arrows) Polygon(dc, t.p, 3);
     SelectObject(dc, oldPen);
     SelectObject(dc, oldBrush);
     DeleteObject(amberPen);
@@ -412,6 +428,8 @@ inline void refresh(HWND hwnd)
     std::wstring key = c.title + L"|" + c.count + L"|" + c.words + L"|" + (c.arrow ? L"1" : L"0") +
                        wide(c.focus) + L"|";
     for (const Button &b : c.buttons) key += wide(b.id) + L":" + b.label + L":" + wide(b.kind) + L";";
+    key += L"|" + std::to_wstring(static_cast<int>(c.prefer)) + L"|";
+    for (const auto &a : c.anchors) key += std::to_wstring(a.first) + L"," + std::to_wstring(a.second) + L";";
     key += L"|" +
                        std::to_wstring(c.ax) + L"," + std::to_wstring(c.ay) + L"|" +
                        std::to_wstring(frame.left) + L"," + std::to_wstring(frame.top) + L"," +
@@ -563,22 +581,41 @@ inline std::string take_press()
     return p;
 }
 
-// ⓘ `DS5-USBIP tutorial-words-picture <file.bmp> [dpi] [start]`: the words as
-// Quick's step that asks for a press shows them (or, with "start", the card
-// the tour opens with), above a stand-in for Quick's window, drawn into a
-// picture rather than onto the screen, so the drawing can be looked at with
-// no window and no page.
+// ⓘ `DS5-USBIP tutorial-words-picture <file.bmp> [dpi] [start|corners|left]`:
+// the words as Quick's step that asks for a press shows them (or the card the
+// tour opens with; or the step with two arrows, at L1 and R1 in the panel's
+// corners; or a step that asks for the window's left side), beside a stand-in
+// for Quick's window, drawn into a picture rather than onto the screen, so
+// the drawing can be looked at with no window and no page.
 inline int picture_mode(int argc, wchar_t **argv)
 {
     if (argc < 3) {
-        std::wcout << L"usage: DS5-USBIP tutorial-words-picture <file.bmp> [dpi] [start]" << std::endl;
+        std::wcout << L"usage: DS5-USBIP tutorial-words-picture <file.bmp> [dpi] [start|corners|left]"
+                   << std::endl;
         return 2;
     }
     const UINT dpi = argc > 3 ? static_cast<UINT>(_wtoi(argv[3])) : 96;
-    const bool start = argc > 4 && std::wstring(argv[4]) == L"start";
+    const std::wstring sample = argc > 4 ? std::wstring(argv[4]) : std::wstring();
+    const bool start = sample == L"start";
     Content c;
     c.show = true;
-    if (start) {
+    if (sample == L"corners") {
+        c.count = L"2 of 13";
+        c.words = L"[[L1]] and [[R1]] switch this window to your other controllers.";
+        c.buttons = { { "next", L"Continue", "go" }, { "prev", L"Go back", "plain" },
+                      { "end", L"End tutorial", "plain" } };
+        c.focus = "next";
+        c.anchors = { { 40, 60 }, { 960, 60 } };
+    } else if (sample == L"left") {
+        c.count = L"1 of 13";
+        c.words = L"This is Practice, a practice controller for this tour: nothing you do here changes "
+                  L"your real ones.";
+        c.buttons = { { "next", L"Continue", "go" }, { "end", L"End tutorial", "plain" } };
+        c.focus = "next";
+        c.ax = 150;
+        c.ay = 400;
+        c.prefer = tbr::Prefer::Left;
+    } else if (start) {
         c.title = L"Quick mode tutorial";
         c.words = L"A short tour with practice controllers: nothing in it changes your real ones.";
         c.buttons = { { "skip", L"Skip", "plain" }, { "begin", L"Begin tutorial", "go" } };

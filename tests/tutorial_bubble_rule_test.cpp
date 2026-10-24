@@ -174,5 +174,70 @@ int run_tutorial_bubble_rule_tests()
         CTM_CHECK(tbr::parse_buttons("").empty());
         CTM_CHECK(tbr::parse_buttons("|").empty());
     }
+
+    // ⭐ A step names its side (rhoquinn8217, 2026-10-23: "Put the bubble on the
+    // left side of the config", "Move bubble to right side of window", "Move
+    // bubble to bottom side of window").
+    section("tutorial words: on the side a step asks for, when it has room");
+    {
+        const tbr::Box quick{ 540, 820, 1380, 1030 };
+        const std::vector<std::pair<int, int>> mid{ { 500, 500 } };
+        const auto left = tbr::place_at(quick, work, 380, 130, 12, 10, 10, mid, tbr::Prefer::Left);
+        CTM_CHECK(left.side == tbr::Side::Left);
+        CTM_CHECK(left.window.right <= quick.left);
+        const auto right = tbr::place_at(quick, work, 380, 130, 12, 10, 10, mid, tbr::Prefer::Right);
+        CTM_CHECK(right.side == tbr::Side::Right);
+        CTM_CHECK(right.window.left >= quick.right);
+        CTM_CHECK(inside(left.window, work) && inside(right.window, work));
+        CTM_CHECK(tbr::parse_prefer("left") == tbr::Prefer::Left);
+        CTM_CHECK(tbr::parse_prefer("below") == tbr::Prefer::Below);
+        CTM_CHECK(tbr::parse_prefer("") == tbr::Prefer::None);
+        CTM_CHECK(tbr::parse_prefer("sideways") == tbr::Prefer::None);
+    }
+
+    section("tutorial words: below asked with no room below goes above, still clear of the window");
+    {
+        // Quick opens at the bottom of the screen: nothing fits under it.
+        const tbr::Box quick{ 540, 820, 1380, 1030 };
+        const auto p = tbr::place_at(quick, work, 380, 130, 12, 10, 10, { { 500, 500 } }, tbr::Prefer::Below);
+        CTM_CHECK(p.side == tbr::Side::Above);
+        CTM_CHECK(!overlaps(p.window, quick));
+        // Moved up the screen, there is room below, and it goes there.
+        const tbr::Box raised{ 540, 300, 1380, 510 };
+        const auto q = tbr::place_at(raised, work, 380, 130, 12, 10, 10, { { 500, 500 } }, tbr::Prefer::Below);
+        CTM_CHECK(q.side == tbr::Side::Below);
+        CTM_CHECK(q.window.top >= raised.bottom);
+    }
+
+    // ⭐ L1 and R1 in the panel's two corners, an arrow at each (rhoquinn8217,
+    // 2026-10-23: "Put and arrow pointing at the R2/RB/E as well").
+    section("tutorial words: two arrows far apart, the words widened to stand over both");
+    {
+        const tbr::Box quick{ 540, 820, 1380, 1030 };
+        const auto p = tbr::place_at(quick, work, 380, 130, 12, 10, 10,
+                                     { { 40, 60 }, { 960, 60 } }, tbr::Prefer::None);
+        CTM_CHECK(p.side == tbr::Side::Above);
+        CTM_CHECK_EQ(p.arrowsAt.size(), size_t(2));
+        CTM_CHECK(p.window.width() > 380);
+        // Each arrow stands over its corner, to the pixel the rule allows.
+        const int l1 = quick.left + quick.width() * 40 / 1000;
+        const int r1 = quick.left + quick.width() * 960 / 1000;
+        CTM_CHECK_EQ(p.window.left + p.arrowsAt[0], l1);
+        CTM_CHECK_EQ(p.window.left + p.arrowsAt[1], r1);
+        CTM_CHECK(!overlaps(p.window, quick));
+        CTM_CHECK(inside(p.window, work));
+    }
+
+    section("tutorial words: anchors as the page sends them, a broken one left out");
+    {
+        const auto a = tbr::parse_anchors("40,60|960,60");
+        CTM_CHECK_EQ(a.size(), size_t(2));
+        CTM_CHECK(a[0].first == 40 && a[0].second == 60 && a[1].first == 960);
+        const auto b = tbr::parse_anchors("1,2,3|x,5|7,|,8|99999999999999,5|500,500");
+        CTM_CHECK_EQ(b.size(), size_t(2));
+        CTM_CHECK(b[0].first == 1000 && b[0].second == 5);   // past 1000 reads as 1000
+        CTM_CHECK(b[1].first == 500 && b[1].second == 500);
+        CTM_CHECK(tbr::parse_anchors("").empty());
+    }
     return 0;
 }

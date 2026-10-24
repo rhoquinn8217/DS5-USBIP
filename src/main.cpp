@@ -147,7 +147,7 @@ void ui_tutorial_take();
  * below, after tutorial_bubble.inl. */
 void ui_tutorial_words_show(const std::string &title, const std::string &count, const std::string &words,
                             const std::string &buttons, const std::string &focus, bool arrow,
-                            int ax, int ay);
+                            int ax, int ay, const std::string &side, const std::string &anchors);
 void ui_tutorial_words_hide();
 std::string ui_tutorial_words_take_press();
 /* Where the window stands right now, kept for the next one. Called on the way
@@ -434,7 +434,7 @@ void ui_tutorial_take()
 }
 void ui_tutorial_words_show(const std::string &title, const std::string &count, const std::string &words,
                             const std::string &buttons, const std::string &focus, bool arrow,
-                            int ax, int ay)
+                            int ax, int ay, const std::string &side, const std::string &anchors)
 {
     tutorial_bubble::Content c;
     c.show = true;
@@ -448,6 +448,8 @@ void ui_tutorial_words_show(const std::string &title, const std::string &count, 
     c.arrow = arrow;
     c.ax = ax;
     c.ay = ay;
+    c.prefer = tutorial_bubble_rule::parse_prefer(side);
+    c.anchors = tutorial_bubble_rule::parse_anchors(anchors);
     tutorial_bubble::update(c);
 }
 void ui_tutorial_words_hide()
