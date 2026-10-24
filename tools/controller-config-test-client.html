@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.97 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.98 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,13 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.98 The mode picker keeps every mode in its list and greys out the
+            one the window is in, which a click leaves alone (rhoquinn8217:
+            "Revert the mode selector change and just gray out the mode
+            that it is currently in"); 2.66.97 had left it out. In Quick's
+            tutorial, the rate limit takes the halo only when R3 opens it,
+            and Cross never opens it ("Rate Limit should not be able to
+            focused and expanded with x button").
     2.66.97 The mode picker's list leaves out the mode the window is in, so
             it offers only where the window can go (rhoquinn8217: "Update
             the Mode Select to remove the mode it's currently in"); the
@@ -2024,6 +2031,9 @@
     letter-spacing:.08em; text-transform:uppercase; }
   #compactBox .cbar select.modepick option { color:#e8e8ea; font-weight:400;
     letter-spacing:normal; text-transform:none; }
+  /* ⭐ The mode the window is in, greyed out in the open list (2.66.98). */
+  select.modepick option:disabled,
+  #compactBox .cbar select.modepick option:disabled { color:#6b7080; }
   /* ⭐ AS WIDE AS THE MODE IT SHOWS, IN ALL THREE VIEWS (2026-10-21): a
      select is as wide as its longest option, and ADVANCED MODE
      (rhoquinn8217: "ADVANCE -> ADVANCE MODE") took 75 px from Simple's
@@ -2876,7 +2886,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.66.97</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.66.98</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -7981,7 +7991,6 @@ function pickerExpand(el) {
   // picker, which the page declares EMPTY and paintModePickers fills later: it
   // gave size 0 and left the box fixed-positioned 7 px past the window bottom.
   // The size <= 1 backstop in pickerActivate stops the native popup here.
-  modeListOpen(el);
   if (el.options.length < 2) { el.size = 1; return; }
 
   var rect = el.getBoundingClientRect();
@@ -8151,10 +8160,6 @@ function pickerExpand(el) {
 // Undo all of it. ⛔ Clearing `size` alone would leave a fixed-positioned box
 // floating over the page at one row high.
 function pickerCollapse(el) {
-  // ⓘ The mode it is in goes back first, while the list is still a
-  // list: a dropdown with nothing chosen chooses its first option by
-  // itself, which read as a pick and switched the mode on a cancel.
-  modeListClose(el);
   // T-243: the box is back in the flow, so the spacer holding its place goes.
   // ⚠️ Before the style is cleared, so there is never a frame with both the
   // spacer and an in-flow select taking up room.
@@ -9898,9 +9903,13 @@ function modePickerHtml(id) {
   // symbol from advance, simple and quick modes", then "ADVANCE -> ADVANCE
   // MODE"): the picker has no title over it now. ⓘ The style writes them in
   // capitals, as it did the bare names.
+  // ⭐ THE MODE IT IS IN IS GREYED OUT (rhoquinn8217, 2026-10-23: "Revert the
+  // mode selector change and just gray out the mode that it is currently
+  // in"), where 2.66.97 left it out of the open list: it stays in the list,
+  // and a click on it does nothing.
   var opts = [['advanced', 'Advanced Mode'], ['simple', 'Simple Mode'], ['quick', 'Quick Mode']]
     .map(function (m) {
-      return '<option value="' + m[0] + '"' + (m[0] === cur ? ' selected' : '') +
+      return '<option value="' + m[0] + '"' + (m[0] === cur ? ' selected disabled' : '') +
              '>' + m[1] + '</option>';
     }).join('');
   return '<select class="modepick" id="' + id + '" size="1" ' +
@@ -9908,33 +9917,6 @@ function modePickerHtml(id) {
          'onmousedown="pickerActivate(event,this)" ' +
          'onclick="pickerClickEnd(this)" ' +
          'onchange="pickMode(this.value)">' + opts + '</select>';
-}
-
-// ⭐ THE MODE PICKER'S LIST LEAVES OUT THE MODE THE WINDOW IS IN (rhoquinn8217,
-// 2026-10-23: "Update the Mode Select to remove the mode it's currently in"):
-// open, it offers only where the window can go. The option is lifted out as
-// the list opens and put back as it closes, so the closed picker still names
-// the mode, and every way through a list (the pad's steps, the keys, a
-// click) works on it unchanged. ⓘ Nothing is highlighted as it opens,
-// and a cancel's "put it back as it was" is that empty highlight: closing
-// with nothing picked brings the mode it is in back, never another.
-function modeListOpen(el) {
-  if (!el.classList || !el.classList.contains('modepick') || el._modeHeld) return;
-  var cur = el.options[el.selectedIndex];
-  if (!cur || el.options.length < 3) return;
-  el._modeHeld = { option: cur, next: cur.nextSibling };
-  el.removeChild(cur);
-  el.selectedIndex = -1;
-  if (GP_SELECTING === el) GP_SELECT_WAS = -1;
-}
-function modeListClose(el) {
-  var held = el._modeHeld;
-  if (!held) return;
-  el._modeHeld = null;
-  var picked = el.selectedIndex >= 0;
-  held.option.selected = false;
-  el.insertBefore(held.option, held.next && held.next.parentNode === el ? held.next : null);
-  if (!picked) held.option.selected = true;
 }
 
 // Repaint every Mode picker on the page. ⓘ Called from paintTitle, which
@@ -12408,28 +12390,17 @@ function selfTest() {
     TUT_MOCK = keepMock;
   }
 
-  // The mode picker's list leaves out the mode it is in (2.66.97): lifted out
-  // as the list opens, put back as it closes, the closed picker naming it.
+  // The mode picker greys out the mode the window is in, and only it (2.66.98).
   {
-    var mp = document.createElement('select');
-    mp.className = 'modepick';
-    mp.innerHTML = '<option value="advanced">A</option><option value="simple">S</option>' +
-                   '<option value="quick" selected>Q</option>';
-    document.body.appendChild(mp);
-    var vals = function () { return [].map.call(mp.options, function (o) { return o.value; }).join(','); };
-    modeListOpen(mp);
-    var openVals = vals(), openIdx = mp.selectedIndex;
-    modeListClose(mp);                                  // nothing picked
-    var cancelled = vals() + '/' + mp.value;
-    modeListOpen(mp);
-    mp.selectedIndex = 1;                               // Simple
-    modeListClose(mp);
-    var picked = vals() + '/' + mp.value;
-    mp.remove();
-    ok('the mode list leaves out the mode it is in, and puts it back as it closes',
-       openVals === 'advanced,simple' && openIdx === -1 &&
-       cancelled === 'advanced,simple,quick/quick' && picked === 'advanced,simple,quick/simple',
-       [openVals, openIdx, cancelled, picked].join(' | '));
+    var holder = document.createElement('div');
+    holder.innerHTML = modePickerHtml('selfTestMode');
+    var modeOpts = [].slice.call(holder.querySelectorAll('option'));
+    var here = modeName();
+    ok('the mode picker greys out the mode the window is in, and only it',
+       modeOpts.length === 3 && modeOpts.every(function (o) {
+         return o.disabled === (o.value === here) && o.selected === (o.value === here);
+       }),
+       modeOpts.map(function (o) { return o.value + (o.disabled ? ' (greyed)' : ''); }).join(', '));
   }
 
   // Leave the page as it was found.
@@ -12862,8 +12833,10 @@ var TUT_QUICK = [
     } },
   // 7 (*"Move bubble to left side of window, disable continue and direct user
   // to press right stick button and select 250"*). The list is the page's
-  // own, and takes the keys while it is open.
-  { side: 'left', act: true, focus: '.crate-q select',
+  // own, and takes the keys while it is open. ⭐ R3 alone opens it, as on the
+  // page (*"Rate Limit should not be able to focused and expanded with x
+  // button"*): the halo reaches the limit only with R3's press (`keyTarget`).
+  { side: 'left', act: true, keyTarget: '.crate-q select',
     lit: function () { return tutQ('.cqname .crate-q'); },
     keys: function (code, gated, plain) {
       return !!GP_SELECTING || ((gated || plain) && code === 'KeyL');
@@ -12950,6 +12923,14 @@ function tutLit(s) {
 function tutFocusTarget(s) {
   if (!s || s.act !== true || !s.focus) return null;
   var el = document.querySelector('#compactBox ' + s.focus);
+  return el && el.isConnected ? el : null;
+}
+
+// What a step's key acts on without the halo ever resting there: it is
+// reached by that press alone.
+function tutKeyTarget(s) {
+  if (!s || s.act !== true || !s.keyTarget) return null;
+  var el = document.querySelector('#compactBox ' + s.keyTarget);
   return el && el.isConnected ? el : null;
 }
 
@@ -13191,6 +13172,9 @@ function tutFocusables() {
   var s = tutStep();
   var target = !TUT.busy ? tutFocusTarget(s) : null;
   if (target) list.push(target);
+  // ⓘ The limit, only while R3 has its list open: the halo is on it then.
+  var kt = !TUT.busy ? tutKeyTarget(s) : null;
+  if (kt && GP_SELECTING === kt) list.push(kt);
   ['tutNext', 'tutPrev', 'tutEnd'].forEach(function (id) {
     var b = tutById(id);
     if (b && !b.disabled) list.push(b);
@@ -13255,10 +13239,13 @@ window.addEventListener('keydown', function (ev) {
   var s = tutStep();
   var target = !TUT.busy ? tutFocusTarget(s) : null;
   if (s && s.keys && !TUT.busy && (s.act === true || s.free) && s.keys(ev.code, gated, plain)) {
-    // ⓘ Square, Triangle and R3 act on what the halo is on: it goes there.
-    if (target && GP_FOCUS[GP_INDEX] !== target && GP_FOCUS.indexOf(target) >= 0) {
-      GP_INDEX = GP_FOCUS.indexOf(target);
-      TUT.focus = target;
+    // ⓘ Square, Triangle and R3 act on what the halo is on: it goes there,
+    // and the one only a press reaches joins the halo's stops for it.
+    var aim = target || tutKeyTarget(s);
+    if (aim && GP_FOCUS[GP_INDEX] !== aim) {
+      if (GP_FOCUS.indexOf(aim) < 0) GP_FOCUS.push(aim);
+      GP_INDEX = GP_FOCUS.indexOf(aim);
+      TUT.focus = aim;
       gpPaint();
     }
     return;
@@ -13337,6 +13324,12 @@ function tutTick() {
   }
   tutCountResize();
   var s = tutStep();
+  // ⓘ A list R3 opened and left shut: the halo leaves the limit again.
+  var kt = tutKeyTarget(s);
+  if (kt && !GP_SELECTING && GP_FOCUS.indexOf(kt) >= 0) {
+    TUT.focus = tutById('tutEnd');
+    tutCollect();
+  }
   if (s && s.act === true && !TUT.busy && !TUT.done[TUT.at] && s.done && s.done()) {
     TUT.done[TUT.at] = true;
     if (s.stay) {
