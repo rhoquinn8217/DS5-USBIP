@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.91 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.93 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,16 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.93 Quick config switch (rhoquinn8217, 2026-10-23: "while
+            holding create button, swipe up to go to next config and down
+            to go to previous config"): a box on Overview's This window
+            card, for every controller. While it is on, the listener steps
+            a controller through the configs when Create is held and two
+            fingers swipe up or down, in Quick view, and, with this window
+            in front in Simple or Quick, when two fingers swipe up or down
+            alone. This page takes each step as Ctrl+Alt+Shift+J or K: the
+            wheel's next or previous config, whatever has focus. (2.66.92
+            is taken on another branch.)
     2.66.91 Overview in two cards (rhoquinn8217, asked for "re-design
             recommendations for the overview page settings, version,
             agent, bearer, open on bridge" and shown them): This window,
@@ -2440,6 +2450,7 @@
   .ovcheck { display:flex; align-items:center; gap:10px; color:#e8e8ea; cursor:pointer; }
   .ovcheck input[type=checkbox] { width:18px; height:18px; }
   .ovhelp { color:#71737c; font-size:12px; margin-top:6px; }
+  .ovcheck.ovnext { margin-top:14px; }
   .ovfield { display:grid; grid-template-columns:auto minmax(0,1fr); align-items:center;
              column-gap:12px; row-gap:8px; }
   .ovfield input { width:100%; min-width:0; box-sizing:border-box; }
@@ -2725,6 +2736,18 @@
     <label class="ovcheck" id="openOnBridgeLabel"
       title="Ticked: a bridge brings this window up by itself. Untick it to leave the window alone."><input type="checkbox" id="openOnBridge" data-gp-focus="1" checked onchange="toggleOpenOnBridge()">Open this window when a controller is bridged</label>
     <div class="ovhelp">The same switch as Open on bridge in the tray menu.</div>
+    <!-- ⭐ QUICK CONFIG SWITCH (rhoquinn8217, 2026-10-23): Create held and
+         two fingers swiped up for the next config, down for the one
+         before, shown in Quick view while it switches; and in Simple and
+         Quick in front, two fingers up and down alone move the wheel.
+         Every controller's, "essentially a global setting", so it is here.
+         The configs' own swipes keep working, except while Create is
+         held. The listener keeps it and does the switching.
+         Painted by paintQuickSwitch(); a pad stop of its own
+         (data-gp-focus), as Open on bridge has. -->
+    <label class="ovcheck ovnext" id="quickSwitchLabel"
+      title="Unticked: Create and the touchpad do what the config says. Tick it to switch configs by holding Create and swiping two fingers up or down."><input type="checkbox" id="quickSwitch" data-gp-focus="1" onchange="toggleQuickSwitch()">Hold Create and swipe two fingers up or down to switch configs</label>
+    <div class="ovhelp">Every controller, shown in Quick view. In Simple and Quick, two fingers up and down move the wheel.</div>
   </div>
   <div class="ovcard conn">
     <!-- ⓘ The light is this card's own (paintConnLight). The line beside
@@ -2794,7 +2817,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.66.91</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.66.93</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -6721,6 +6744,15 @@ function quickLinkWanted() {
     });
 }
 
+// ⭐ A step of the quick config switch (KeyJ, KeyK): the wheel's next or
+// previous config, linked once the steps stop as a step of the d-pad is.
+// ⓘ The listener shows this window in Quick for it, so the wheel is there;
+// in Advanced there is none, and nothing happens.
+function quickSwitchStep(delta) {
+  var sel = document.getElementById('cpick');
+  if (sel && COMPACT) quickStepConfig(sel, delta);
+}
+
 // A step taken but not yet linked goes now: Triangle and a change of
 // controller act on the config on screen, not on the one before it.
 function quickLinkNow() {
@@ -8472,7 +8504,12 @@ var CONFIG_MODE_KEYS = {
   KeyY: function () { gpTriangle(); },
   // ⭐ R3, which reaches the page in Quick alone (2.66.87, rebind.inl):
   // Quick's polling limit.
-  KeyL: function () { gpRate(); }
+  KeyL: function () { gpRate(); },
+  // ⭐ THE QUICK CONFIG SWITCH'S STEPS (2.66.93, rebind.inl): Create held
+  // and two fingers swiped up for the next config, down for the one before.
+  // They step the wheel whatever has focus, and bring the focus to it.
+  KeyJ: function () { quickSwitchStep(1); },
+  KeyK: function () { quickSwitchStep(-1); }
   // ⛔ NO KeyC. Create resizes the window now (rhoquinn8217, 2026-09-20) and
   // the listener reads it from the raw report, so it no longer sends a key --
   // see rebind.inl. It used to cycle compact and full, then after T-233 only
@@ -9520,8 +9557,48 @@ window.addEventListener('focus', loadOpenOnBridge);
 // ⓘ One small GET a second, and none while the window is minimised or
 // covered: the browser calls it hidden then, and focus catches it up.
 setInterval(function () {
-  if (!STOPPED && document.visibilityState === 'visible') loadOpenOnBridge();
+  if (!STOPPED && document.visibilityState === 'visible') { loadOpenOnBridge(); loadQuickSwitch(); }
 }, 1000);
+
+// ⭐ QUICK CONFIG SWITCH (rhoquinn8217, 2026-10-23: "while holding create
+// button, swipe up to go to next config and down to go to previous
+// config"), with two fingers: "this is essentially a global setting.  when
+// turned on, the pre controller setting will be disabled". The listener
+// keeps it and does the switching, in this window's Quick view, and in Simple
+// and Quick in front moves the wheel on two fingers up and down alone (the
+// same day: "When simple and quick mode are in focus, two finger swipe up or
+// down is disabled and only control the wheel"). Here is its box. Read
+// with Open on bridge: as the page opens, when it regains focus, and each
+// second while it can be seen.
+// ⓘ Off until the listener says: one too old to know it has no such gesture.
+var QUICK_SWITCH = false;
+function paintQuickSwitch() {
+  var b = document.getElementById('quickSwitch');
+  if (b) b.checked = QUICK_SWITCH;
+  var label = document.getElementById('quickSwitchLabel');
+  if (label) {
+    label.title = QUICK_SWITCH
+      ? 'Ticked: hold Create and swipe two fingers up or down to step a controller through the configs; in Simple and Quick, two fingers up and down move the wheel. Untick it to turn both off.'
+      : 'Unticked: Create and the touchpad do what the config says. Tick it to switch configs by holding Create and swiping two fingers up or down.';
+  }
+}
+function takeQuickSwitch(r) {
+  if (!r || typeof r.on !== 'boolean') return;
+  QUICK_SWITCH = r.on;
+  paintQuickSwitch();
+}
+function loadQuickSwitch() {
+  call('GET', '/api/v1/ui/quick-switch', undefined, true).then(takeQuickSwitch).catch(function () {});
+}
+// ⓘ The box has already changed when this runs, as Open on bridge's has.
+function toggleQuickSwitch() {
+  var b = document.getElementById('quickSwitch');
+  var want = b ? b.checked : !QUICK_SWITCH;
+  call('POST', '/api/v1/ui/quick-switch', { on: want }, true)
+    .then(takeQuickSwitch).catch(function () { paintQuickSwitch(); });
+}
+window.addEventListener('load', loadQuickSwitch);
+window.addEventListener('focus', loadQuickSwitch);
 
 document.addEventListener('keydown', function (ev) {
   if (STOPPED) return;
@@ -9622,7 +9699,9 @@ document.addEventListener('keydown', function (ev) {
   // ⭐ A gate keystroke means a REBOUND pad is driving this page, so say why its
   // remaps are not doing their usual thing. The help text said so, but that is
   // read while configuring and never while it matters.
-  noteRemapsSuspended();
+  // ⓘ Not for the quick config switch's steps (KeyJ, KeyK): its window is up
+  // for a glance at the config landed on, and says nothing else meanwhile.
+  if (ev.code !== 'KeyJ' && ev.code !== 'KeyK') noteRemapsSuspended();
   var fn = CONFIG_MODE_KEYS[ev.code];
   if (!fn) return;
   ev.preventDefault();
@@ -12236,6 +12315,10 @@ function selfTest() {
      litNone.indexOf('class="cauto-btn on"') >= 0 && litNone.indexOf('no config is set') >= 0 &&
      greyNone.indexOf(' disabled ') >= 0 && greySerial.indexOf(' disabled ') >= 0,
      [litOwn, plainOther, litNone].join(' | '));
+
+  // 12. ⭐ THE QUICK CONFIG SWITCH (2.66.93): the two keys its steps arrive as.
+  ok('quick switch: its next and previous steps reach the page',
+     typeof CONFIG_MODE_KEYS.KeyJ === 'function' && typeof CONFIG_MODE_KEYS.KeyK === 'function');
 
   // Leave the page as it was found.
   renderTabs(LAST_DEVICES || []);
