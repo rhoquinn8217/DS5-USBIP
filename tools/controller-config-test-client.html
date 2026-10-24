@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.95 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.96 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,18 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.96 Quick's tutorial, gone through again: the practice controller
+            is Dual, and step one says every controller gets a random
+            nickname when it is bridged ("Don't use "Practice" as the
+            name of the controller. Use "Dual""); the other two take
+            names from the listener's own pool. What L1 and R1 do and
+            trying them are one step, and so are the wheel and turning
+            it. Go back, a change of step and the end shut the page's own
+            question and collapse an open list, with nothing picked. The
+            size button has a step of its own, pressed twice. The mode
+            picker is opened, not used: Continue lights once it is open,
+            and nothing in it can be picked, by key or by mouse. Twelve
+            steps.
     2.66.95 The tutorial's arrows float beside what they point at, over
             the dim, moving toward it and away, again and again, on the
             side of it the words are on when the window has room there
@@ -2856,7 +2868,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.66.95</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.66.96</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -12323,7 +12335,7 @@ function selfTest() {
 
   // The tutorial (2.66.92): its practice controllers are answered here and
   // keep what a step changes, a real controller still goes to the listener,
-  // a list coming back is the practice one, and Quick's tour has its thirteen
+  // a list coming back is the practice one, and Quick's tour has its twelve
   // steps, the last ending it.
   {
     var keepMock = TUT_MOCK;
@@ -12349,8 +12361,8 @@ function selfTest() {
        lateCfg.configs.length === 5 && lateCfg.configs[0].name === 'shared',
        JSON.stringify(mockDevs[0]));
     var tourWords = TUT_QUICK.map(function (s) { return s.words(); });
-    ok('the tutorial: Quick has thirteen steps, each with words, the last ending it',
-       TUT_QUICK.length === 13 && TUT_QUICK[12].act === 'end' &&
+    ok('the tutorial: Quick has twelve steps, each with words, the last ending it',
+       TUT_QUICK.length === 12 && TUT_QUICK[11].act === 'end' &&
        tourWords.every(function (w) { return !!w && w.indexOf('undefined') < 0; }),
        tourWords.join(' / '));
     TUT_MOCK = keepMock;
@@ -12386,7 +12398,7 @@ function selfTest() {
 // mode for each mode. Lets start with simple mode."*). One per Window Mode.
 // ⭐ QUICK'S IS THE ONE THERE IS (2026-10-23: *"lets not worry about simple
 // yet. I want to demo quick mode tutorial first because its a smaller
-// list"*): thirteen steps, started by the tray's "Show tutorial", which puts
+// list"*): twelve steps, started by the tray's "Show tutorial", which puts
 // the window in Quick. It never starts by itself: Quick is the view that
 // comes up mid-game. ⓘ Simple's tour was built for Simple's earlier layout
 // and is left out until it is redone for this one.
@@ -12478,9 +12490,11 @@ function tutMockMake() {
              takes_rate_limit: true, supports_config: true };
   };
   return {
-    pads: [pad('tutorial_1', 'Practice', '0a:00:00:00:00:01', 80),
-           pad('tutorial_2', 'Practice 2', '0a:00:00:00:00:02', 60),
-           pad('tutorial_3', 'Practice 3', '0a:00:00:00:00:03', 40)],
+    // ⓘ Dual by their word (2026-10-23); the other two are names from the
+    // listener's own pool, as a bridged controller gets one at random.
+    pads: [pad('tutorial_1', 'Dual', '0a:00:00:00:00:01', 80),
+           pad('tutorial_2', 'Nova', '0a:00:00:00:00:02', 60),
+           pad('tutorial_3', 'Pixel', '0a:00:00:00:00:03', 40)],
     links: { tutorial_1: 'gyro-to-mouse-L2-aiming', tutorial_2: 'stick-to-mouse',
              tutorial_3: 'touchpad-to-mouse' },
     // ⓘ Real time to begin with, so the limit's step has a 250 to pick.
@@ -12687,54 +12701,46 @@ function tutUpDownKeys(code, gated, plain) {
          (plain && (code === 'ArrowUp' || code === 'ArrowDown'));
 }
 
-// ⭐ QUICK'S THIRTEEN, as rhoquinn8217 went through the first eleven and asked
-// for them changed (2026-10-23). `act` marks a step that waits for one thing:
+// ⭐ QUICK'S TWELVE, as rhoquinn8217 went through the tour twice and asked for
+// it changed (2026-10-23). `act` marks a step that waits for one thing:
 // Continue is greyed out, `keys` lets its presses through to the page, `done`
 // says when it has been done, and Go back onto it puts the practice
-// controllers back as it found them (or `undo`). `free` marks a step to try
-// things in: its presses go through and Continue stays there. 'end' is the
-// last, whose action is End tutorial itself. `split` lights each part on its
-// own, for parts far apart; `anchors` names what gets an arrow, the first lit
-// part when it is not given; `side` is the side of the window for the words;
+// controllers back as it found them (or `undo`); with `stay`, the step stays
+// once done and Continue lights instead. `free` marks a step to try things
+// in: its presses go through and Continue stays there. 'end' is the last,
+// whose action is End tutorial itself. `split` lights each part on its own,
+// for parts far apart; `anchors` names what gets an arrow, the first lit part
+// when it is not given; `side` is the side of the window for the words;
 // `focus` is where the halo starts, when a press acts on it; `enter` readies
-// the practice controllers when the step is reached.
+// the practice controllers when the step is reached; `pointer` says whether
+// the mouse may reach what is lit, when that changes within the step.
 var TUT_QUICK = [
-  // 1 (*"Put the bubble on the left side of the config"*)
+  // 1 (*"Put the bubble on the left side of the config"*; *"Don't use
+  // "Practice" as the name of the controller. Use "Dual" and explain that
+  // devices get a random nickname when they are bridged."*)
   { side: 'left', lit: function () { return tutQ('.cqname .cqemo', '.cqname .cname'); },
     words: function () {
       return 'This is ' + tutNick() + ', a practice controller for this tour: nothing you do ' +
-             'here changes your real ones.';
+             "here changes your real ones. Every controller gets a random nickname like this " +
+             "when it's bridged.";
     } },
-  // 2 (*"Put and arrow pointing at the R2/RB/E as well"*: R1's mark)
-  { lit: function () { return tutQ('.cqcorner.l', '.cqcorner.r'); }, split: true,
-    anchors: function () { return tutQ('.cqcorner.l', '.cqcorner.r'); },
-    words: function () {
-      return tutKey('shoulders') + ' switch this window to your other controllers.';
-    } },
-  // 3 (*"Add a step after this letting the user switch to a different
-  // controller, have a total of 3 controllers to switch from"*)
+  // 2 (*"Put and arrow pointing at the R2/RB/E as well"*, at R1's mark; then
+  // *"combine step 2 and 3"*: what L1 and R1 do, and trying them)
   { free: true, lit: function () { return tutQ('.cqcorner.l', '.cqcorner.r', '.cqname .cname'); },
     split: true, anchors: function () { return tutQ('.cqcorner.l', '.cqcorner.r'); },
     keys: tutShoulderKeys,
     words: function () {
-      return 'Try it: press ' + tutKey('shoulders').replace(' and ', ' or ') + ' to switch ' +
-             'between the three practice controllers. Choose ' + tutHl('Continue') +
-             " when you're done.";
+      return tutKey('shoulders') + ' switch this window to your other controllers. Try it: ' +
+             'switch between the three practice controllers, then choose ' + tutHl('Continue') + '.';
     } },
-  // 4 (*"leave as is"*)
-  { lit: function () { return tutQ('.cwheel'); },
-    words: function () {
-      return 'This wheel holds your configs. The one in the middle is what ' + tutNick() +
-             ' uses now.';
-    } },
-  // 5 (*"Let the user move the the wheel around without advancing the step"*)
+  // 3 (*"combine step 3 and 4"*: the wheel, and turning it)
   { free: true, lit: function () { return tutQ('.cwheel'); }, keys: tutUpDownKeys,
     words: function () {
-      return 'Try it: press ' + tutKey('updown') + ' to turn the wheel. ' + tutNick() +
-             ' uses the config in the middle a moment after it stops. Choose ' +
-             tutHl('Continue') + " when you're done.";
+      return 'This wheel holds your configs. ' + tutNick() + ' uses the one in the middle, a ' +
+             'moment after the wheel stops. Try it: press ' + tutKey('updown') + ', then choose ' +
+             tutHl('Continue') + '.';
     } },
-  // 6 (*"Move bubble to right side of window, disable continue and direct
+  // 4 (*"Move bubble to right side of window, disable continue and direct
   // user to press auto link button click yes"*). The OK is the page's own
   // question, which comes when the controller auto links to another config:
   // `enter` turns the wheel off the one it auto links to, so it always comes.
@@ -12763,7 +12769,7 @@ var TUT_QUICK = [
       var p = tutPad();
       return !!p && !!TUT_MOCK.links[p.ordinal] && tutAutoOf(p.ordinal) === TUT_MOCK.links[p.ordinal];
     } },
-  // 7 (*"Move bubble to right side of window, disable continue and direct
+  // 5 (*"Move bubble to right side of window, disable continue and direct
   // user to press unlink button"*)
   { side: 'right', act: true, focus: '#cpick',
     lit: function () { return tutQ('.chints .chint:nth-child(1)', '.cdrum-frame'); }, split: true,
@@ -12780,7 +12786,7 @@ var TUT_QUICK = [
       return 'Press ' + tutKey('unlink') + ' to unlink: ' + tutNick() + ' stops using a config.';
     },
     done: function () { var p = tutPad(); return !!p && !TUT_MOCK.links[p.ordinal]; } },
-  // 8 (*"Move bubble to left side of window, disable continue and direct user
+  // 6 (*"Move bubble to left side of window, disable continue and direct user
   // to press right stick button and select 250"*). The list is the page's
   // own, and takes the keys while it is open.
   { side: 'left', act: true, focus: '.crate-q select',
@@ -12799,7 +12805,7 @@ var TUT_QUICK = [
              ' reports, and pick ' + tutHl('250 Hz') + '.';
     },
     done: function () { var p = tutPad(); return !!p && TUT_MOCK.limits[p.ordinal] === '250'; } },
-  // 9 (*"Move bubble to bottom side of window, Enable the "Continue" button
+  // 7 (*"Move bubble to bottom side of window, Enable the "Continue" button
   // and allow the user to press both buttons until they are done"*). Options
   // and Create reach the listener from the pad's own report, and P and R pass.
   { side: 'below', free: true,
@@ -12808,7 +12814,7 @@ var TUT_QUICK = [
       return tutKey('position') + ' moves this window out of the way, and ' + tutKey('resize') +
              ' changes its size. Try both, then choose ' + tutHl('Continue') + '.';
     } },
-  // 10
+  // 8
   { lit: function () { return tutQ('.clegend .lgi:nth-child(3)'); }, act: true,
     keys: function (code, gated, plain) {
       return (gated && code === 'KeyZ') || (plain && code === 'Escape');
@@ -12816,19 +12822,35 @@ var TUT_QUICK = [
     words: function () { return 'Press ' + tutKey('close') + ' to reach the footer.'; },
     done: function () { return !!FOOTER_MODE; },
     undo: function () { if (FOOTER_MODE) setFooterMode(false); } },
-  // 11 (*"add a step after this that describes the close button but don't let
+  // 9 (*"add a step after this that describes the close button but don't let
   // the use press it"*)
   { lit: function () { return tutQ('.cbar > button.cclose'); },
     words: function () {
       return tutHl('Close') + ' puts this window away, and your controller goes back to your game.';
     } },
-  // 12 (*"Move bubble to bottom side of window"*)
-  { side: 'below', lit: function () { return tutQ('#cselMode'); },
+  // 10 (*"Add a step that directs the user to use the resize button twice."*):
+  // the footer's size button, which Create and R do as well. Two changes of
+  // the window's size, each counted once it settles (tutResized).
+  { side: 'below', act: true, focus: '.cgroup button.csize',
+    lit: function () { return tutQ('.cgroup button.csize'); },
+    enter: function () { TUT.resizes = 0; TUT.size = window.innerWidth + 'x' + window.innerHeight; },
     words: function () {
-      return "This picks the window's mode. Simple and Advanced are where configs are made " +
-             'and edited.';
-    } },
-  // 13
+      return 'Press ' + tutHl('\ud83d\uddd7') + ' twice: this window takes its other size, ' +
+             'then goes back.';
+    },
+    done: function () { return (TUT.resizes || 0) >= 2; } },
+  // 11 (*"Direct the user to expand the mode selector but don't allow the user
+  // to select a different mode."*): Continue lights once the list is open,
+  // and nothing in it can be picked, by key or by mouse.
+  { side: 'below', act: true, stay: true, noPick: true, focus: '#cselMode',
+    lit: function () { return tutQ('#cselMode'); },
+    pointer: function () { return GP_SELECTING !== tutById('cselMode'); },
+    words: function () {
+      return 'Open ' + tutHl('QUICK MODE') + ": it picks the window's mode. Simple and Advanced " +
+             'are where configs are made and edited. For this tour, the mode stays as it is.';
+    },
+    done: function () { return GP_SELECTING === tutById('cselMode'); } },
+  // 12
   { lit: function () { return []; }, act: 'end',
     words: function () {
       var back = padLegend() === PAD_LEGEND_PS
@@ -12944,7 +12966,7 @@ function tutSendWords() {
                buttons: 'endyes:End tutorial:plain|keep:Keep going:go', arrow: false };
     } else {
       var s = steps[TUT.at];
-      var btns = ['next:Continue:' + (s.act ? 'off' : 'go')];
+      var btns = ['next:Continue:' + (tutCanContinue(s) ? 'go' : 'off')];
       if (TUT.at > 0) btns.push('prev:Go back:plain');
       btns.push('end:End tutorial:' + (s.act === 'end' ? 'go' : 'plain'));
       // ⓘ No arrow of their own: the page's float beside what is lit.
@@ -12992,21 +13014,38 @@ function tutRender() {
     // ⓘ The stand-ins: the pad reaches Continue only while it can be
     // pressed, and Go back only after the first step.
     var s = tutSteps()[TUT.at];
-    tutById('tutNext').disabled = !!s.act;
+    tutById('tutNext').disabled = !tutCanContinue(s);
     tutById('tutPrev').disabled = TUT.at === 0;
   }
   TUT_LAST_HOLES = '';
   tutCollect();
 }
 
+// Whether a step's Continue can be pressed: always, but on a step that waits
+// for something, only once it stays done.
+function tutCanContinue(s) {
+  return !!s && (!s.act || (s.stay === true && !!TUT.done[TUT.at]));
+}
+
+// ⭐ ANYTHING OPEN SHUTS when the tour changes step, goes back or ends
+// (rhoquinn8217, 2026-10-23: *"If Go back is clicked, you need to close out
+// the pop up box or collapse an expanded box"*): the page's own question
+// takes its Cancel, and an open list collapses with nothing picked.
+function tutCloseOpen() {
+  if (CONFIRM_CB) confirmNo();
+  if (GP_SELECTING) gpSelectEnd(false);
+}
+
 function tutShow(i) {
   if (!TUT) return;
   var steps = tutSteps();
   if (i < 0 || i >= steps.length) return;
+  tutCloseOpen();
   TUT.phase = 'step';
   TUT.at = i;
   var s = steps[i];
   if (s.enter) s.enter();
+  if (s.stay) TUT.done[i] = false;      // ⓘ asked for again each time it is reached
   if (s.act === true && !TUT.done[i]) TUT.mem[i] = tutSnapshot();
   // ⓘ Where the halo starts: on what a press acts on, End tutorial on the
   // last step and on a press that acts on nothing on screen, Continue on the
@@ -13017,12 +13056,13 @@ function tutShow(i) {
 
 function tutNext() {
   var s = tutStep();
-  if (!s || s.act || TUT.busy) return;
+  if (!s || !tutCanContinue(s) || TUT.busy) return;
   tutShow(TUT.at + 1);
 }
 
 function tutPrev() {
   if (!TUT || TUT.phase !== 'step' || TUT.at === 0 || TUT.busy) return;
+  tutCloseOpen();
   var back = TUT.at - 1;
   var s = tutSteps()[back];
   if (s.act === true && TUT.done[back]) {
@@ -13037,6 +13077,7 @@ function tutEndPressed() {
   if (!TUT || TUT.busy || TUT.phase !== 'step') return;
   var s = tutStep();
   if (s && s.act === 'end') { tutFinish(); return; }
+  tutCloseOpen();
   TUT.phase = 'ask';
   tutRender();
 }
@@ -13053,6 +13094,7 @@ function tutKeepGoing() {
 // the words go, the practice controllers go, and the real ones come back.
 function tutFinish() {
   if (!TUT) return;
+  tutCloseOpen();
   var saved = TUT.saved;
   TUT = null;
   if (TUT_PRESS_TIMER) { clearInterval(TUT_PRESS_TIMER); TUT_PRESS_TIMER = null; }
@@ -13147,7 +13189,9 @@ window.addEventListener('keydown', function (ev) {
     return;
   }
   // ⓘ Cross on what a step acts on is the page's: R3's limit opens on it.
-  if (target && GP_FOCUS[GP_INDEX] === target && ev.code === 'Enter') return;
+  // Not on a list the step only opens: there it would pick.
+  if (target && GP_FOCUS[GP_INDEX] === target && ev.code === 'Enter' &&
+      !(s.noPick && GP_SELECTING)) return;
   ev.preventDefault();
   ev.stopImmediatePropagation();
   if (TUT.busy) return;
@@ -13181,7 +13225,7 @@ function tutAllows(t) {
   var box = CONFIRM_CB ? document.getElementById('confirmBox') : null;
   if (box && t && box.contains(t)) return true;
   var s = tutStep();
-  if (s && (s.act === true || s.free) && !TUT.busy) {
+  if (s && (s.act === true || s.free) && !TUT.busy && (!s.pointer || s.pointer())) {
     var lit = tutLit(s);
     for (var i = 0; i < lit.length; i++) if (lit[i].contains(t)) return true;
   }
@@ -13216,14 +13260,38 @@ function tutTick() {
     tutFinish();
     return;
   }
+  tutCountResize();
   var s = tutStep();
-  if (s && s.act === true && !TUT.busy && s.done && s.done()) {
+  if (s && s.act === true && !TUT.busy && !TUT.done[TUT.at] && s.done && s.done()) {
     TUT.done[TUT.at] = true;
-    tutShow(TUT.at + 1);
-    s = tutStep();
+    if (s.stay) {
+      // ⓘ Done and staying: Continue lights, and the halo goes to it.
+      TUT.focus = tutById('tutNext');
+      tutRender();
+    } else {
+      tutShow(TUT.at + 1);
+      s = tutStep();
+    }
   }
   tutLayout(s);
 }
+
+// ⓘ The size step counts the window's changes of size: the size button,
+// Create on the pad and R all ask the listener, which resizes the window.
+// One change can come as two events, its width then its height, so changes
+// close together count once. Looked at on every tick as well: a window that
+// draws no frames gets no resize events.
+function tutCountResize() {
+  if (!TUT || typeof TUT.resizes !== 'number') return;
+  var size = window.innerWidth + 'x' + window.innerHeight;
+  if (size === TUT.size) return;
+  TUT.size = size;
+  var now = Date.now();
+  if (now - (TUT.resizedAt || 0) < 150) return;
+  TUT.resizedAt = now;
+  TUT.resizes++;
+}
+window.addEventListener('resize', tutCountResize);
 
 // ⭐ THE ARROWS FLOAT BESIDE WHAT THEY POINT AT (rhoquinn8217, 2026-10-23:
 // *"The yellow arrows don't need to attached to the bubble. Instead have them
