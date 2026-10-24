@@ -89,6 +89,23 @@ int run_tutorial_bubble_rule_tests()
         CTM_CHECK_EQ(tbr::lines(wide, widths_of(wide), 50).size(), size_t(1));
     }
 
+    section("tutorial words: [[*glyph]] is a button's mark, [[name]] stays a lit name");
+    {
+        const auto toks = tbr::tokens(tbr::parse(L"Press [[*\u25b3]] or [[OK]], then [[*L1]]."));
+        // Press, ' ', the mark, ' ', or, ' ', OK, ',', ' ', then, ' ', the mark, '.'
+        CTM_CHECK_EQ(toks.size(), size_t(13));
+        CTM_CHECK(toks[2].mark && toks[2].lit && toks[2].text == L"\u25b3");
+        CTM_CHECK(toks[6].lit && !toks[6].mark && toks[6].text == L"OK");
+        CTM_CHECK(toks[11].mark && toks[11].text == L"L1");
+        CTM_CHECK(!toks[0].mark && !toks[1].mark);
+        // Create's three strokes come through whole, backslash and all.
+        const auto create = tbr::tokens(tbr::parse(L"[[*\\|/]]"));
+        CTM_CHECK(create.size() == 1 && create[0].mark && create[0].text == L"\\|/");
+        // A star alone is no button: a lit name of one character.
+        const auto star = tbr::tokens(tbr::parse(L"[[*]]"));
+        CTM_CHECK(star.size() == 1 && star[0].lit && !star[0].mark && star[0].text == L"*");
+    }
+
     // A 1920 by 1080 screen with its taskbar, and Simple's window at the
     // bottom centre, where it opens.
     const tbr::Box work{ 0, 0, 1920, 1040 };

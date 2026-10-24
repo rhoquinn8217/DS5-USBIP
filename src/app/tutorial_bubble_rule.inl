@@ -77,11 +77,16 @@ inline std::vector<ButtonSpec> parse_buttons(const std::string &spec)
 
 // What a line may break between: plain words, the spaces between them, and
 // each lit name WHOLE, dashes and spaces and all (*"Don't wrap it on it's
-// dashes"*).
+// dashes"*). ⭐ A lit piece that starts with * is a controller's button, drawn
+// as the legends draw it rather than written (rhoquinn8217, 2026-10-23: "Can
+// you make the legend button symbols in the tutorial?"): `mark`, with the
+// legend's glyph for it in `text` (the page's PAD_LEGEND_PS and _XBOX: a
+// shape, a letter, L1 or R1, ✜ for the d-pad).
 struct Token {
     std::wstring text;
     bool lit = false;
     bool space = false;
+    bool mark = false;
 };
 
 inline std::vector<Token> tokens(const std::vector<Piece> &pieces)
@@ -89,7 +94,11 @@ inline std::vector<Token> tokens(const std::vector<Piece> &pieces)
     std::vector<Token> out;
     for (const Piece &p : pieces) {
         if (p.lit) {
-            out.push_back({ p.text, true, false });
+            if (p.text.size() > 1 && p.text[0] == L'*') {
+                out.push_back({ p.text.substr(1), true, false, true });
+            } else {
+                out.push_back({ p.text, true, false });
+            }
             continue;
         }
         std::wstring word;

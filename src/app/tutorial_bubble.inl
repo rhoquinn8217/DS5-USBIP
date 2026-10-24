@@ -124,7 +124,7 @@ struct Layout {
     struct Tri { POINT p[3]; };
     std::vector<Tri> arrows;  // none when nothing is lit
     bool hasArrow = false;
-    int pad = 0, round = 0, titleH = 0, countH = 0, lineH = 0, litPad = 0;
+    int pad = 0, round = 0, titleH = 0, countH = 0, lineH = 0, litPad = 0, markH = 0;
     std::vector<tbr::Token> toks;
     std::vector<int> widths;
     std::vector<std::vector<size_t>> lines;
@@ -136,6 +136,51 @@ inline SIZE measure(HDC dc, HFONT font, const std::wstring &text)
     SelectObject(dc, font);
     GetTextExtentPoint32W(dc, text.c_str(), static_cast<int>(text.size()), &s);
     return s;
+}
+
+// ⭐ A BUTTON DRAWN AS THE LEGENDS DRAW IT (rhoquinn8217, 2026-10-23: "Can you
+// make the legend button symbols in the tutorial?"): the page marks one as
+// [[*glyph]] (tutorial_bubble_rule::tokens), and the on-screen keyboard's own
+// drawing does it (ctm_overlay::draw_mark: a PlayStation shape or a letter in a
+// circle, a shoulder button in its box). The d-pad, which the keyboard never
+// shows, is drawn here as the page draws it: a cross, 20 units square.
+inline const wchar_t *const kDpad = L"\u271c";
+
+inline bool gdiplus_up()
+{
+    static ULONG_PTR token = 0;
+    static const bool up = [] {
+        Gdiplus::GdiplusStartupInput in;
+        return Gdiplus::GdiplusStartup(&token, &in, nullptr) == Gdiplus::Ok;
+    }();
+    return up;
+}
+
+inline int mark_w(const std::wstring &glyph, int h)
+{
+    return glyph == kDpad ? h : ctm_overlay::mark_width(glyph.c_str(), h);
+}
+
+inline void draw_glyph_mark(HDC dc, int x, int y, int h, const std::wstring &glyph, COLORREF colour)
+{
+    if (glyph != kDpad) {
+        ctm_overlay::draw_mark(dc, x, y, h, glyph.c_str(), colour);
+        return;
+    }
+    if (!gdiplus_up()) return;
+    const float s = h / 20.0f;
+    Gdiplus::Graphics g(dc);
+    g.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
+    g.SetPixelOffsetMode(Gdiplus::PixelOffsetModeHalf);
+    Gdiplus::Pen pen(Gdiplus::Color(255, GetRValue(colour), GetGValue(colour), GetBValue(colour)),
+                     s * 1.25f < 1.0f ? 1.0f : s * 1.25f);
+    pen.SetLineJoin(Gdiplus::LineJoinRound);
+    const float u[12][2] = { { 7.6f, 3.2f }, { 12.4f, 3.2f }, { 12.4f, 7.6f }, { 16.8f, 7.6f },
+                             { 16.8f, 12.4f }, { 12.4f, 12.4f }, { 12.4f, 16.8f }, { 7.6f, 16.8f },
+                             { 7.6f, 12.4f }, { 3.2f, 12.4f }, { 3.2f, 7.6f }, { 7.6f, 7.6f } };
+    Gdiplus::PointF p[12];
+    for (int i = 0; i < 12; ++i) p[i] = Gdiplus::PointF(x + u[i][0] * s, y + u[i][1] * s);
+    g.DrawPolygon(&pen, p, 12);
 }
 
 // ⭐ THE LAYOUT, from the words and from where the configs window and the
@@ -158,7 +203,14 @@ inline Layout compute_layout(HDC dc, Fonts *fonts, const Content &c, UINT dpi,
     const int arrow = c.arrow ? px(12, dpi) : 0, gap = px(10, dpi);
 
     L.toks = tbr::tokens(tbr::parse(c.words));
+    // ⓘ A button's mark at the page's 1.1 of the words' size, with a little
+    // room either side.
+    L.markH = px(18, dpi);
     for (const tbr::Token &t : L.toks) {
+        if (t.mark) {
+            L.widths.push_back(mark_w(t.text, L.markH) + 2 * px(2, dpi));
+            continue;
+        }
         const SIZE s = measure(dc, t.lit ? fonts->lit : fonts->text, t.text);
         L.widths.push_back(s.cx + (t.lit ? 2 * L.litPad : 0));
     }
@@ -339,7 +391,9 @@ inline void paint(HDC dc, Fonts *fonts, const Layout &L, int width, int height, 
             TEXTMETRICW tm{};
             GetTextMetricsW(dc, &tm);
             const int ty = y + (L.lineH - tm.tmHeight) / 2;
-            if (t.lit) {
+            if (t.mark) {
+                draw_glyph_mark(dc, x + px(2, dpi), y + (L.lineH - L.markH) / 2, L.markH, t.text, kAmber);
+            } else if (t.lit) {
                 SelectObject(dc, hollow);
                 RoundRect(dc, x, y + px(1, dpi), x + L.widths[i], y + L.lineH - px(1, dpi),
                           px(8, dpi), px(8, dpi));
@@ -581,16 +635,17 @@ inline std::string take_press()
     return p;
 }
 
-// ⓘ `DS5-USBIP tutorial-words-picture <file.bmp> [dpi] [start|corners|left]`:
+// ⓘ `DS5-USBIP tutorial-words-picture <file.bmp> [dpi] [start|corners|left|marks]`:
 // the words as Quick's step that asks for a press shows them (or the card the
 // tour opens with; or the step with two arrows, at L1 and R1 in the panel's
-// corners; or a step that asks for the window's left side), beside a stand-in
+// corners; or a step that asks for the window's left side; or every button's
+// mark, as the legends draw them), beside a stand-in
 // for Quick's window, drawn into a picture rather than onto the screen, so
 // the drawing can be looked at with no window and no page.
 inline int picture_mode(int argc, wchar_t **argv)
 {
     if (argc < 3) {
-        std::wcout << L"usage: DS5-USBIP tutorial-words-picture <file.bmp> [dpi] [start|corners|left]"
+        std::wcout << L"usage: DS5-USBIP tutorial-words-picture <file.bmp> [dpi] [start|corners|left|marks]"
                    << std::endl;
         return 2;
     }
@@ -601,20 +656,30 @@ inline int picture_mode(int argc, wchar_t **argv)
     c.show = true;
     if (sample == L"corners") {
         c.count = L"2 of 13";
-        c.words = L"[[L1]] and [[R1]] switch this window to your other controllers.";
+        c.words = L"[[*L1]] and [[*R1]] switch this window to your other controllers. Try it: switch "
+                  L"between the three practice controllers, then choose [[Continue]].";
         c.buttons = { { "next", L"Continue", "go" }, { "prev", L"Go back", "plain" },
                       { "end", L"End tutorial", "plain" } };
         c.focus = "next";
         c.anchors = { { 40, 60 }, { 960, 60 } };
     } else if (sample == L"left") {
         c.count = L"1 of 13";
-        c.words = L"This is Practice, a practice controller for this tour: nothing you do here changes "
+        c.words = L"This is Dual, a practice controller for this tour: nothing you do here changes "
                   L"your real ones.";
         c.buttons = { { "next", L"Continue", "go" }, { "end", L"End tutorial", "plain" } };
         c.focus = "next";
         c.ax = 150;
         c.ay = 400;
         c.prefer = tbr::Prefer::Left;
+    } else if (sample == L"marks") {
+        c.count = L"every mark";
+        c.words = L"PlayStation [[*\u2715]] [[*\u25cb]] [[*\u25a1]] [[*\u25b3]] [[*\u2630]] [[*\\|/]] "
+                  L"[[*R3]] [[*L1]] [[*R1]] Xbox [[*A]] [[*B]] [[*X]] [[*Y]] [[*\u2630]] [[*\u29c9]] "
+                  L"[[*RS]] [[*LB]] [[*RB]] d-pad [[*\u271c]] keys [[Q]] [[Esc]]";
+        c.buttons = { { "next", L"Continue", "go" }, { "end", L"End tutorial", "plain" } };
+        c.focus = "next";
+        c.ax = 500;
+        c.ay = 420;
     } else if (start) {
         c.title = L"Quick mode tutorial";
         c.words = L"A short tour with practice controllers: nothing in it changes your real ones.";
@@ -622,8 +687,9 @@ inline int picture_mode(int argc, wchar_t **argv)
         c.focus = "begin";
         c.arrow = false;
     } else {
-        c.count = L"4 of 11";
-        c.words = L"Press [[\u25b2]] or [[\u25bc]] on the d-pad to switch Practice to another config.";
+        c.count = L"4 of 13";
+        c.words = L"Press [[*\u25b3]] to auto link the config in the middle, then choose [[OK]]: Dual "
+                  L"will pick it by itself every time it is bridged.";
         c.buttons = { { "next", L"Continue", "off" }, { "prev", L"Go back", "plain" },
                       { "end", L"End tutorial", "plain" } };
         c.focus = "prev";
