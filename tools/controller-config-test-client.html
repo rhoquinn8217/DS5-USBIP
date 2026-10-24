@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.94 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.95 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,12 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.95 The tutorial's arrows float beside what they point at, over
+            the dim, moving toward it and away, again and again, on the
+            side of it the words are on when the window has room there
+            (rhoquinn8217: "The yellow arrows don't need to attached to the
+            bubble. Instead have them floating near the element."). The
+            words have none of their own now.
     2.66.94 Quick's tutorial, as rhoquinn8217 went through it: the words
             on the side each step asks for ("Put the bubble on the left
             side of the config", and right or below for others), an arrow
@@ -2697,6 +2703,25 @@
      click may reach. */
   #tutRoot { position:fixed; inset:0; z-index:1000; pointer-events:none; }
   #tutDim { position:absolute; inset:0; width:100%; height:100%; }
+  /* ⭐ THE ARROWS (2026-10-23): over the dim, beside what they point at,
+     moving toward it and away again and again (tutPlaceArrows). --a is
+     half the width, --len how far an arrow stands out, --bob how far it
+     moves. */
+  #tutArrows { position:absolute; inset:0; pointer-events:none; }
+  .tutArrow { position:absolute; width:0; height:0; pointer-events:none;
+              animation:0.9s ease-in-out infinite; }
+  .tutArrow.down { border-left:var(--a) solid transparent; border-right:var(--a) solid transparent;
+                   border-top:var(--len) solid #f0b429; animation-name:tutBobDown; }
+  .tutArrow.up { border-left:var(--a) solid transparent; border-right:var(--a) solid transparent;
+                 border-bottom:var(--len) solid #f0b429; animation-name:tutBobUp; }
+  .tutArrow.right { border-top:var(--a) solid transparent; border-bottom:var(--a) solid transparent;
+                    border-left:var(--len) solid #f0b429; animation-name:tutBobRight; }
+  .tutArrow.left { border-top:var(--a) solid transparent; border-bottom:var(--a) solid transparent;
+                   border-right:var(--len) solid #f0b429; animation-name:tutBobLeft; }
+  @keyframes tutBobDown { 0%, 100% { transform:translateY(0); } 50% { transform:translateY(calc(-1 * var(--bob))); } }
+  @keyframes tutBobUp { 0%, 100% { transform:translateY(0); } 50% { transform:translateY(var(--bob)); } }
+  @keyframes tutBobRight { 0%, 100% { transform:translateX(0); } 50% { transform:translateX(calc(-1 * var(--bob))); } }
+  @keyframes tutBobLeft { 0%, 100% { transform:translateX(0); } 50% { transform:translateX(var(--bob)); } }
   #tutProxies { display:none; }
 </style>
 </head>
@@ -2831,7 +2856,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.66.94</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.66.95</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -12425,9 +12450,9 @@ var TUT = null;              // the tour on screen, or null
 var TUT_ASKED = false;       // the tray asked, and it has not started yet
 var TUT_LAST_HOLES = '';
 var TUT_WORDS_SENT = '';     // the words last sent, to send only a change
-var TUT_ANCHOR = { ax: 500, ay: 500 };   // the lit part's middle, thousandths of the view
-var TUT_ANCHORS = [];        // every arrow's, when a step has more than one
-var TUT_HAS_LIT = false;     // whether the step lights anything, for the arrow
+var TUT_ANCHOR = { ax: 500, ay: 500 };   // what the words stand by, thousandths of the view
+var TUT_HAS_LIT = false;     // whether the step points at anything
+var TUT_LAST_ARROWS = '';    // where the arrows were last put
 var TUT_PRESS_TIMER = null;
 var TUT_TICK_TIMER = null;   // tutTick between frames
 var TUT_MOCK = null;         // the practice controllers and configs, while a tour runs
@@ -12860,6 +12885,7 @@ setInterval(tutPoll, 1000);
 function tutBegin() {
   TUT = { phase: 'intro', at: 0, done: [], mem: [], busy: false, focus: null, saved: ACTIVE };
   TUT_LAST_HOLES = '';
+  TUT_LAST_ARROWS = '';
   tutMockOn();
   var root = document.createElement('div');
   root.id = 'tutRoot';
@@ -12874,6 +12900,7 @@ function tutBegin() {
         '<g id="tutHoles" filter="url(#tutBlur)"></g></mask></defs>' +
       '<rect x="0" y="0" width="100%" height="100%" fill="#000" fill-opacity="0.72" ' +
         'mask="url(#tutMask)"/></svg>' +
+    '<div id="tutArrows"></div>' +
     // ⓘ Stand-ins for the buttons the listener draws, for the halo to rest on.
     '<div id="tutProxies">' +
       '<button id="tutSkip" data-tut="skip" onclick="tutFinish()">Skip</button>' +
@@ -12920,11 +12947,9 @@ function tutSendWords() {
       var btns = ['next:Continue:' + (s.act ? 'off' : 'go')];
       if (TUT.at > 0) btns.push('prev:Go back:plain');
       btns.push('end:End tutorial:' + (s.act === 'end' ? 'go' : 'plain'));
+      // ⓘ No arrow of their own: the page's float beside what is lit.
       body = { title: '', count: (TUT.at + 1) + ' of ' + steps.length, words: s.words(),
-               buttons: btns.join('|'), arrow: TUT_HAS_LIT, side: s.side || '',
-               anchors: TUT_ANCHORS.length > 1 ? TUT_ANCHORS.map(function (a) {
-                 return a.ax + ',' + a.ay;
-               }).join('|') : '' };
+               buttons: btns.join('|'), arrow: false, side: s.side || '' };
     }
     body.show = true;
     body.focus = focus;
@@ -13200,6 +13225,53 @@ function tutTick() {
   tutLayout(s);
 }
 
+// ⭐ THE ARROWS FLOAT BESIDE WHAT THEY POINT AT (rhoquinn8217, 2026-10-23:
+// *"The yellow arrows don't need to attached to the bubble. Instead have them
+// floating near the element. I also want them to move up and down or left and
+// right giving a visual animation of the arrow moving towards the element,
+// then away then back again continuously."*). Drawn here, over the dim, just
+// outside the lit part's opening; the bobbing is the style's (tutBob*). Each
+// stands on the side of its part that the words are on, when the window has
+// room for it there, else the side opposite, else across.
+function tutPlaceArrows(rects, s, pad, vw, vh) {
+  var host = tutById('tutArrows');
+  if (!host) return;
+  var a = Math.max(9, Math.round(vh * 0.035));       // half the arrow's width
+  var len = Math.round(a * 1.3);                      // how far it stands out
+  var bob = Math.round(a * 0.9);                      // how far it moves away
+  var gap = pad + 3;
+  var first = { left: 'right', right: 'left', below: 'up' }[(s && s.side) || ''] || 'down';
+  var order = { down: ['down', 'up', 'right', 'left'], up: ['up', 'down', 'right', 'left'],
+                right: ['right', 'left', 'down', 'up'], left: ['left', 'right', 'down', 'up'] }[first];
+  var places = rects.map(function (r) {
+    var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    var at = {
+      down: { x: cx - a, y: r.top - gap - len, ok: r.top - gap - len - bob >= 0 },
+      up: { x: cx - a, y: r.bottom + gap, ok: r.bottom + gap + len + bob <= vh },
+      right: { x: r.left - gap - len, y: cy - a, ok: r.left - gap - len - bob >= 0 },
+      left: { x: r.right + gap, y: cy - a, ok: r.right + gap + len + bob <= vw }
+    };
+    var dir = order.filter(function (d) { return at[d].ok; })[0] || first;
+    return { dir: dir, x: Math.round(at[dir].x), y: Math.round(at[dir].y) };
+  });
+  var key = JSON.stringify(places) + '|' + a;
+  if (key === TUT_LAST_ARROWS) return;
+  TUT_LAST_ARROWS = key;
+  // ⓘ Moved, not made again, so a bob in progress carries on.
+  while (host.children.length > places.length) host.removeChild(host.lastChild);
+  while (host.children.length < places.length) host.appendChild(document.createElement('div'));
+  places.forEach(function (p, i) {
+    var el = host.children[i];
+    var cls = 'tutArrow ' + p.dir;
+    if (el.className !== cls) el.className = cls;
+    el.style.left = p.x + 'px';
+    el.style.top = p.y + 'px';
+    el.style.setProperty('--a', a + 'px');
+    el.style.setProperty('--len', len + 'px');
+    el.style.setProperty('--bob', bob + 'px');
+  });
+}
+
 function tutRectOf(els) {
   var r = null;
   els.forEach(function (el) {
@@ -13223,23 +13295,30 @@ function tutLayout(s) {
     if (s.split) lit.forEach(function (el) { holes.push(tutRectOf([el])); });
     else if (lit.length) holes.push(tutRectOf(lit));
   }
-  // ⓘ An arrow points at the first lit part, or at each the step names;
-  // with nothing lit, there is none, and the words stand over the window's
-  // middle.
+  // ⓘ An arrow points at each part the step names, or at the first lit
+  // part; with nothing lit, there is none. The words stand over the middle of
+  // what the arrows point at, or over the window's middle.
   var middle = function (b) {
     return { ax: Math.max(0, Math.min(1000, Math.round((b.left + b.width / 2) / vw * 1000))),
              ay: Math.max(0, Math.min(1000, Math.round((b.top + b.height / 2) / vh * 1000))) };
   };
-  var r = holes[0];
-  TUT_HAS_LIT = !!r;
-  TUT_ANCHOR = r ? middle(r) : { ax: 500, ay: 500 };
-  TUT_ANCHORS = [];
-  if (r && TUT.phase === 'step' && s && s.anchors) {
+  var pointAt = [];
+  if (holes.length && s && s.anchors) {
     s.anchors().filter(function (el) { return el && el.getClientRects().length > 0; })
-      .forEach(function (el) { TUT_ANCHORS.push(middle(tutRectOf([el]))); });
-    if (TUT_ANCHORS.length) TUT_ANCHOR = TUT_ANCHORS[0];
+      .forEach(function (el) { pointAt.push(tutRectOf([el])); });
+  }
+  if (holes.length && !pointAt.length) pointAt.push(holes[0]);
+  TUT_HAS_LIT = pointAt.length > 0;
+  TUT_ANCHOR = { ax: 500, ay: 500 };
+  if (pointAt.length) {
+    var mids = pointAt.map(middle);
+    TUT_ANCHOR = {
+      ax: Math.round(mids.reduce(function (t, m) { return t + m.ax; }, 0) / mids.length),
+      ay: Math.round(mids.reduce(function (t, m) { return t + m.ay; }, 0) / mids.length)
+    };
   }
   tutSendWords();
+  tutPlaceArrows(pointAt, s, pad, vw, vh);
   var html = holes.map(function (h) {
     return '<rect x="' + Math.round(h.left - pad) + '" y="' + Math.round(h.top - pad) +
            '" width="' + Math.round(h.width + 2 * pad) + '" height="' + Math.round(h.height + 2 * pad) +
