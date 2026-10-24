@@ -123,6 +123,7 @@
     <ClCompile Include="..\tests\stop_wait_test.cpp" />
     <ClCompile Include="..\tests\front_rule_test.cpp" />
     <ClCompile Include="..\tests\lock_screen_rule_test.cpp" />
+    <ClCompile Include="..\tests\quick_switch_test.cpp" />
     <ClCompile Include="..\tests\input_pace_test.cpp" />
     <ClCompile Include="..\tests\polling_limits_test.cpp" />
     <ClCompile Include="..\tests\keyboard_device_test.cpp" />

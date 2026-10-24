@@ -133,6 +133,18 @@ bool ui_view_get(bool *compact, bool *quick, std::string *ordinal);
  * Defined below, after config_move.inl. */
 bool ui_open_on_bridge();
 void ui_set_open_on_bridge(bool on);
+/* The quick config switch (quick_switch.inl), kept beside it. Defined below,
+ * after config_move.inl. */
+bool ui_quick_switch();
+void ui_set_quick_switch(bool on);
+/* ...and at work (quick_switch_session.inl, after rebind.inl, which feeds it
+ * every report of a pad with a touchpad and sends its keys): whether Create
+ * is the switch's on this pad, so it does not resize the window
+ * (config_move.inl), and the page saying it has the front (rest_config.inl). */
+void quick_switch_report(const void *deviceKey, bool createHeld, int fingers, float mx, float my);
+const char *quick_switch_key(const void *deviceKey);
+bool quick_switch_owns_create(const void *deviceKey);
+void quick_switch_page_focused();
 /* Where the window stands right now, kept for the next one. Called on the way
  * out, while it still exists. */
 void ui_view_remember_pos();
@@ -293,6 +305,7 @@ namespace config_move { inline void state_load(); }
 #include "app/tv_sessions.inl"       // which TV a bridge session belongs to, and its port; agent.inl asks it
 #include "app/protocol_level.inl"    // whether this listener and a TV app can work together; agent.inl answers with it
 #include "app/open_on_bridge.inl"      // whether a bridge opens the settings window; agent.inl and the tray ask it
+#include "app/quick_switch.inl"        // the quick config switch: its setting, its swipe, its keys; pure
 #include "app/agent.inl"
 #include "input/mouse_device.inl"      // needs g_agent_usbip_server, find_relative_asset, run_usbip_attach
 #include "input/keyboard_device.inl"   // same dependencies as the mouse above
@@ -341,6 +354,7 @@ static bool ctm_window_steering(const void *deviceKey) { return window_move::ste
 // helpers.
 #include "app/config_move.inl"      // Options moves the settings page; rebind.inl calls it
 #include "input/rebind.inl"
+#include "app/quick_switch_session.inl"   // the quick config switch at work; rebind.inl feeds it
 #include "input/touch_mouse.inl"   // touchpad cursor/scroll/taps; needs the mouse device and the gyro mailbox
 #include "input/trigger_click.inl" // the trigger as a mouse click; needs the mouse device and the gyro gate
 #include "input/stick_mouse.inl"   // stick cursor; needs the gyro gate and mailbox
@@ -391,6 +405,14 @@ bool ui_open_on_bridge()
 void ui_set_open_on_bridge(bool on)
 {
     config_move::set_open_on_bridge(on);
+}
+bool ui_quick_switch()
+{
+    return config_move::quick_switch_on();
+}
+void ui_set_quick_switch(bool on)
+{
+    config_move::set_quick_switch(on);
 }
 void ui_view_remember_pos()
 {

@@ -27,6 +27,8 @@ namespace {
 
 std::map<std::string, std::string> g_cfg;
 bool g_configModeEffective = false;
+// The quick config switch, as the listener would answer it (ui_quick_switch).
+bool g_quickSwitch = false;
 
 int32_t g_pushedX = 0;      // summed cursor deltas pushed to the mailbox
 int32_t g_pushedY = 0;
@@ -72,6 +74,7 @@ void reset_stubs()
     g_dropX = -1;
     g_cfg.clear();
     g_configModeEffective = false;
+    g_quickSwitch = false;
     g_pushedX = 0;
     g_pushedY = 0;
     g_pushCount = 0;
@@ -131,6 +134,7 @@ static InputPad device_input_pad_for(const std::vector<unsigned char> &)
     return pad;
 }
 static bool ctm_rebind_config_mode_effective() { return g_configModeEffective; }
+static bool ui_quick_switch() { return g_quickSwitch; }
 
 namespace device_log {
 struct msg {
@@ -2092,6 +2096,86 @@ int run_touch_mouse_tests()
     }
 
     // ---- The two-finger swipe up -------------------------------------------
+
+    section("touch: with the quick config switch on, two fingers up and down press nothing, sideways still does");
+    {
+        // ⓘ rhoquinn8217, 2026-10-23: "when turned on, the pre controller
+        // setting will be disabled". Up and down are the switch's then.
+        reset_stubs();
+        fresh_device();
+        g_quickSwitch = true;
+        g_cfg["touchpad_two_finger_swipe_up"] = "win+tab";
+        g_cfg["touchpad_two_finger_swipe_down"] = "arrowdown";
+        g_cfg["touchpad_two_finger_swipe_left"] = "arrowleft";
+        auto r = rest_report();
+        set_point(r, 0, true, 1, 800, 800);
+        set_point(r, 1, true, 2, 1100, 800);
+        run_step(r, 0);
+        set_point(r, 0, true, 1, 800, 450);      // 350 up
+        set_point(r, 1, true, 2, 1100, 450);
+        run_step(r, 30);
+        CTM_CHECK_EQ(g_pulseCount, 0);
+        set_point(r, 0, false, 1, 800, 450);
+        set_point(r, 1, false, 2, 1100, 450);
+        run_step(r, 60);
+        set_point(r, 0, true, 1, 800, 300);
+        set_point(r, 1, true, 2, 1100, 300);
+        run_step(r, 200);
+        set_point(r, 0, true, 1, 800, 700);      // 400 down
+        set_point(r, 1, true, 2, 1100, 700);
+        run_step(r, 230);
+        CTM_CHECK_EQ(g_pulseCount, 0);
+        set_point(r, 0, false, 1, 800, 700);
+        set_point(r, 1, false, 2, 1100, 700);
+        run_step(r, 260);
+        set_point(r, 0, true, 1, 1400, 500);
+        set_point(r, 1, true, 2, 1700, 500);
+        run_step(r, 400);
+        set_point(r, 0, true, 1, 800, 500);      // 600 left
+        set_point(r, 1, true, 2, 1100, 500);
+        run_step(r, 430);
+        CTM_CHECK_EQ(g_pulseCount, 1);
+        CTM_CHECK_EQ(static_cast<int>(g_pulseUsage), 0x50);   // ArrowLeft
+    }
+
+    section("touch: Create held with the quick config switch on, the touchpad stands down");
+    {
+        reset_stubs();
+        fresh_device();
+        g_quickSwitch = true;
+        g_cfg["touchpad_to_mouse"] = "true";
+        const ctm_rebind::BitSpot &create = ctm_rebind::kDs5Layout.spots[ctm_rebind::kBtnSelect];
+        auto r = rest_report();
+        r[create.byteIndex] = static_cast<uint8_t>(r[create.byteIndex] | create.mask);
+        set_point(r, 0, true, 1, 800, 500);
+        run_step(r, 0);
+        set_point(r, 0, true, 1, 1100, 500);
+        run_step(r, 20);
+        set_point(r, 0, true, 1, 1400, 500);
+        run_step(r, 40);
+        CTM_CHECK_EQ(g_pushCount, 0);
+        // Create up: the same finger points again, from where it is now
+        r[create.byteIndex] = static_cast<uint8_t>(r[create.byteIndex] & ~create.mask);
+        set_point(r, 0, true, 1, 1500, 500);
+        run_step(r, 60);
+        set_point(r, 0, true, 1, 1700, 500);
+        run_step(r, 80);
+        CTM_CHECK(g_pushCount > 0);
+        CTM_CHECK(g_pushedX > 0);
+        // and with the switch off, Create held changes nothing
+        reset_stubs();
+        fresh_device();
+        g_cfg["touchpad_to_mouse"] = "true";
+        auto q = rest_report();
+        q[create.byteIndex] = static_cast<uint8_t>(q[create.byteIndex] | create.mask);
+        set_point(q, 0, true, 1, 800, 500);
+        run_step(q, 0);
+        set_point(q, 0, true, 1, 1100, 500);
+        run_step(q, 20);
+        set_point(q, 0, true, 1, 1400, 500);
+        run_step(q, 40);
+        CTM_CHECK(g_pushCount > 0);
+    }
 
     section("touch: a two-finger swipe up presses Win+Tab once, and is not a tap");
     {

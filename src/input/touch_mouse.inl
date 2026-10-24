@@ -1046,6 +1046,11 @@ inline void step(const void *deviceKey, const std::string &section,
     // place): the same two fingers moving up or down would scroll as well.
     // ⓘ Left and right whatever the scroll does, which reads up and down
     // alone; and one-finger scroll uses one finger.
+    // ⭐ AND UP AND DOWN NOT AT ALL WHILE THE QUICK CONFIG SWITCH IS ON
+    // (rhoquinn8217, 2026-10-23: "when turned on, the pre controller setting
+    // will be disabled"): Create and two fingers up or down switch configs
+    // then, for every controller (quick_switch.inl).
+    const bool quickSwitchOn = ui_quick_switch();
     std::string swipeRaw[kSwipeDirs];
     binding::Target swipeTarget[kSwipeDirs];
     bool swipeWants[kSwipeDirs] = {};
@@ -1054,7 +1059,8 @@ inline void step(const void *deviceKey, const std::string &section,
         swipeRaw[d] = device_config_str(section.c_str(), kSwipeKeys[d]);
         swipeTarget[d] = swipe_target(swipeRaw[d]);
         const bool vertical = d == kSwipeUp || d == kSwipeDown;
-        swipeWants[d] = swipeTarget[d].kind != binding::kNone && !(vertical && scrollFingers == 2);
+        swipeWants[d] = swipeTarget[d].kind != binding::kNone &&
+                        !(vertical && (scrollFingers == 2 || quickSwitchOn));
         if (swipeWants[d]) swipeOn = true;
     }
 
@@ -1089,6 +1095,17 @@ inline void step(const void *deviceKey, const std::string &section,
     // anchor rather than measuring movement against where a finger was before
     // the gate closed -- which would arrive as one jump.
     if (!ctm_gyro_mouse::gate_open(gate, lay, data, len)) {
+        drop_hold(st, deviceKey);
+        if (st.clickMask != 0) fire_click(st);   // a tap already made
+        st = TouchState();
+        return;
+    }
+
+    // ⭐ CREATE HELD WHILE THE QUICK CONFIG SWITCH IS ON: the touchpad is the
+    // switch's, so the cursor, the scroll, the taps and the swipes stand
+    // down until Create comes up, as for a shut gate, and the touch starts
+    // afresh after.
+    if (quickSwitchOn && ctm_rebind::is_pressed(lay, data, len, ctm_rebind::kBtnSelect)) {
         drop_hold(st, deviceKey);
         if (st.clickMask != 0) fire_click(st);   // a tap already made
         st = TouchState();
@@ -1464,7 +1481,7 @@ inline void step(const void *deviceKey, const std::string &section,
                     << "[touch] two-finger swipe " << kSwipeNames[dir] << ": "
                     << (swipeRaw[dir].empty() ? std::string("(nothing set)") : swipeRaw[dir])
                     << (acts ? " done, " :
-                        !swipeWants[dir] ? " not done, not set or two-finger scroll is on, " :
+                        !swipeWants[dir] ? " not done: not set, two-finger scroll is on, or the quick config switch has it, " :
                                           " not done, the pad is driving the configs window, ")
                     << static_cast<int>(dx) << " across and " << static_cast<int>(dy)
                     << " down, " << (nowMs - st.sessionStart) << "ms into the touch");
