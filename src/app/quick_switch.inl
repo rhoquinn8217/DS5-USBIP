@@ -17,8 +17,11 @@
 // corrected once (*"Config’s own two-finger swipe up and down should still
 // work ... When simple and quick mode are in focus, two finger swipe up or
 // down is disabled and only control the wheel."*) before the press replaced
-// Create. That last rule stands: with the window in front in Simple or Quick,
-// two fingers up or down move the wheel (step(), below).
+// Create. With the window in front in Simple or Quick, two fingers swiped up
+// or down moved the wheel until rhoquinn8217, 2026-10-26: *"I want to change
+// two finger swipe when quick mode or simple mode is up to the same 1 thumb
+// touch and 1 thumb swipe to switch to next or previous config."*
+// (front_steps(), below).
 //
 // ⓘ This file is the setting, the gestures and the keys a step is sent as,
 // with no windows.h, so the test binary can reach them.
@@ -99,9 +102,11 @@ struct Swipes {
     Track t[2];
 };
 
-// The steps the two fingers of this report make together: +1 for each that has
-// just gone far enough up (the next config), -1 for each down, 0 none. ⓘ The
-// pad's y grows downward.
+// The step this report makes: +1 when a finger has just gone far enough up
+// (the next config), -1 down, 0 none. ⭐ One step for the two fingers' touches:
+// a step decides the other finger's touch as well, so two fingers swiped
+// together step once, as one swiping beside a resting one does, and not twice.
+// ⓘ The pad's y grows downward.
 inline int swipe_steps(Swipes &s, const Touch (&now)[2])
 {
     int steps = 0;
@@ -122,54 +127,36 @@ inline int swipe_steps(Swipes &s, const Touch (&now)[2])
             const float ay = dy < 0 ? -dy : dy;
             if (ay >= ax && ay >= static_cast<float>(kVerticalUnits)) {
                 tr.done = true;
-                steps += dy < 0 ? 1 : -1;
+                if (steps == 0) steps = dy < 0 ? 1 : -1;
             } else if (ax > ay && ax >= static_cast<float>(kSidewaysUnits)) {
                 tr.done = true;
             }
         }
         next[i] = tr;
     }
+    if (steps != 0) {
+        for (Track &tr : next) {
+            if (tr.id >= 0) tr.done = true;
+        }
+    }
     s.t[0] = next[0];
     s.t[1] = next[1];
     return steps;
 }
 
-// One controller's two-finger swipe in the window, followed report by report.
-struct Pad {
-    bool tracking = false;   // two fingers down and armed, measured from x0, y0
-    float x0 = 0.0f;
-    float y0 = 0.0f;
-    bool done = false;       // this touch has decided; again once every finger lifts
-};
-
-// ⭐ TWO FINGERS UP OR DOWN WITH THE WINDOW IN FRONT IN SIMPLE OR QUICK: +1 the
-// next config (up), -1 the one before (down), 0 none. Only while armed, and
-// once per touch, as the two-finger swipe acts: the first direction met
-// decides it, so a stroke that goes sideways steps nothing however it ends.
-inline int step(Pad &p, bool armed, int fingers, float mx, float my)
+// ⭐ THE SAME WITH THE WINDOW IN FRONT IN SIMPLE OR QUICK (armed), with no
+// press: one thumb resting and the other swiping step the wheel. Counted only
+// while both are on the pad, since one finger alone moves the cursor there,
+// and measured afresh each time the second comes down. ⓘ Two fingers swiped
+// together, the gesture this replaced, still step once, as above.
+inline int front_steps(Swipes &s, bool armed, const Touch (&now)[2])
 {
-    if (fingers != 2 || !armed) {
-        p.tracking = false;
-        if (fingers == 0) p.done = false;
+    const int fingers = (now[0].down ? 1 : 0) + (now[1].down ? 1 : 0);
+    if (!armed || fingers != 2) {
+        s = Swipes();
         return 0;
     }
-    if (!p.tracking) {
-        p.tracking = true;
-        p.x0 = mx;
-        p.y0 = my;
-        return 0;
-    }
-    if (p.done) return 0;
-    const float dx = mx - p.x0;
-    const float dy = my - p.y0;
-    const float ax = dx < 0 ? -dx : dx;
-    const float ay = dy < 0 ? -dy : dy;
-    if (ay >= ax && ay >= static_cast<float>(kVerticalUnits)) {
-        p.done = true;
-        return dy < 0 ? 1 : -1;
-    }
-    if (ax > ay && ax >= static_cast<float>(kSidewaysUnits)) p.done = true;
-    return 0;
+    return swipe_steps(s, now);
 }
 
 // ⭐ THE PAGE HEARS A STEP AS A KEY: KeyJ for the next config, KeyK for the

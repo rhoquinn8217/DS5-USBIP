@@ -11,10 +11,13 @@
 // taps, swipes or press (rhoquinn8217, 2026-10-23: "Disable all touch pad
 // rebinds during this time including touch-pad to mouse"). From the press that
 // opens it to the last finger lifting.
-// ⭐ AND THE WINDOW IN FRONT IN SIMPLE OR QUICK MOVES ITS WHEEL ON TWO FINGERS UP
-// OR DOWN, from earlier the same day (*"When simple and quick mode are in focus,
-// two finger swipe up or down is disabled and only control the wheel"*); the
-// config's own swipe up and down and its two-finger scroll stand aside there.
+// ⭐ AND WITH THE WINDOW IN FRONT IN SIMPLE OR QUICK THE SAME SWIPE MOVES ITS
+// WHEEL, one thumb resting and the other swiping, with no press (rhoquinn8217,
+// 2026-10-26: *"the same 1 thumb touch and 1 thumb swipe"*), where two fingers
+// swiped together did (2026-10-23: *"When simple and quick mode are in focus,
+// two finger swipe up or down is disabled and only control the wheel"*). The
+// config's own swipe up and down and its two-finger scroll stand aside there;
+// one finger alone still moves the cursor.
 // ⓘ A press with the window already in front opens nothing: it is there.
 // ⓘ Advanced has no wheel: a swipe there steps nothing.
 //
@@ -57,7 +60,7 @@ struct Session {
 struct PadState {
     quick_switch::Press press;
     quick_switch::Swipes swipes;    // each finger's swipe while the window is open
-    quick_switch::Pad swipe;        // two fingers with the wheel in front
+    quick_switch::Swipes front;     // the same, with the wheel in front and both fingers down
 };
 
 inline std::mutex g_mutex;
@@ -128,8 +131,6 @@ inline void close_when_sent(unsigned id)
 inline void report(const void *deviceKey, bool pressed, const quick_switch::Touch (&touch)[2])
 {
     const int fingers = (touch[0].down ? 1 : 0) + (touch[1].down ? 1 : 0);
-    const float mx = fingers == 2 ? (touch[0].x + touch[1].x) / 2.0f : 0.0f;
-    const float my = fingers == 2 ? (touch[0].y + touch[1].y) / 2.0f : 0.0f;
     if (!config_move::quick_switch_on()) {
         unsigned closer = 0;
         {
@@ -161,7 +162,7 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
         Session &s = g_session;
         const bool mine = s.active && s.device == deviceKey;
         const bool opens = quick_switch::opens(ps.press, fingers, pressed);
-        const int swipe = quick_switch::step(ps.swipe, wheelInFront, fingers, mx, my);
+        const int swipe = quick_switch::front_steps(ps.front, wheelInFront, touch);
         if (mine && s.pressed && !s.ending) {
             if (fingers == 0) {
                 s.ending = true;

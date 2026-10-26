@@ -1006,11 +1006,12 @@ inline void step(const void *deviceKey, const std::string &section,
     const std::string scrollRaw = device_config_str(section.c_str(), "touchpad_scroll");
     // ⭐ THE QUICK CONFIG SWITCH (quick_switch.inl). While its window is open
     // the touchpad is its own (below). And while the configs window is in front
-    // in Simple or Quick, two fingers up and down only move the wheel
-    // (rhoquinn8217, 2026-10-23: "When simple and quick mode are in focus,
-    // two finger swipe up or down is disabled and only control the wheel"):
-    // the config's own swipe up and down stand aside, and so does
-    // two-finger scroll, whose wheel ticks would step the wheel again.
+    // in Simple or Quick, two fingers on the pad moving up or down only move
+    // the wheel (rhoquinn8217, 2026-10-23: "When simple and quick mode are in
+    // focus, two finger swipe up or down is disabled and only control the
+    // wheel"; one thumb resting and the other swiping since 2026-10-26): the
+    // config's own swipe up and down stand aside, and so does two-finger
+    // scroll, whose wheel ticks would step the wheel again.
     const bool switchHasSwipes = quick_switch_has_vertical_swipes();
     const int scrollFingers =
         (scrollRaw == "1")                                               ? 1 :

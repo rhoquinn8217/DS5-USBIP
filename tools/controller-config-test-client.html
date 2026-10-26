@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.99 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.100 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,16 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.100 Auto link asks nothing (rhoquinn8217: "Remove Auto Link
+             confirmation pop up box, its not needed"): its button and its
+             key set it, in place of another config's as well, or take it
+             away, at once, and so does Advanced's Remove auto link.
+             Quick's tutorial asks for the press alone, with no OK after
+             it. The quick config switch's help says what the listener
+             now does with this window in front in Simple or Quick: the
+             wheel moves on the switch's own swipe, one thumb resting and
+             the other swiping ("the same 1 thumb touch and 1 thumb
+             swipe"), where two fingers swiped together did.
     2.66.99 Quick's tutorial draws a controller's buttons in its words as
             the legends draw them, for the pad pressed last: a PlayStation
             shape or an Xbox letter in a circle, L1 and R1 or LB and RB in
@@ -2842,15 +2852,15 @@
          pressing the touchpad open this window in Quick while a finger
          stays on it, each swipe of a finger up or down steps the config,
          one thumb resting and the other swiping, and the last
-         finger lifting closes it; in Simple and Quick in front, two
-         fingers up and down move the wheel. Every controller's,
+         finger lifting closes it; in Simple and Quick in front, the same
+         swipe moves the wheel, with no press (2026-10-26). Every controller's,
          "essentially a global setting", so it is here. The listener
          keeps it and does the switching.
          Painted by paintQuickSwitch(); a pad stop of its own
          (data-gp-focus), as Open on bridge has. -->
     <label class="ovcheck ovnext" id="quickSwitchLabel"
       title="Unticked: the touchpad does what the config says. Tick it to switch configs by pressing the touchpad with two fingers."><input type="checkbox" id="quickSwitch" data-gp-focus="1" onchange="toggleQuickSwitch()">Press the touchpad with two fingers to switch configs</label>
-    <div class="ovhelp">Every controller: Quick view stays while a finger rests on the touchpad, and each swipe of another finger up or down changes the config. In Simple and Quick, two fingers up and down move the wheel.</div>
+    <div class="ovhelp">Every controller: Quick view stays while a finger rests on the touchpad, and each swipe of another finger up or down changes the config. In Simple and Quick, the same swipe beside a resting thumb moves the wheel, with no press.</div>
   </div>
   <div class="ovcard conn">
     <!-- ⓘ The light is this card's own (paintConnLight). The line beside
@@ -2920,7 +2930,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.66.99</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.66.100</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -4619,14 +4629,10 @@ function normSerial(raw) {
   return String(raw || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 32);
 }
 
-function stopAutoLink(configName, serial, who) {
-  askConfirm('Remove auto link',
-             'Stop automatically setting <code>' + esc(configName) + '</code> for ' +
-             (who ? esc(who) : 'this controller') + '?',
-             function() { stopAutoLinkConfirmed(configName, serial); }, true);
-}
-
-function stopAutoLinkConfirmed(configName, serial) {
+// ⭐ AUTO LINK ASKS NOTHING, set or removed (rhoquinn8217, 2026-10-26: "Remove
+// Auto Link confirmation pop up box, its not needed"): this, and
+// claimAutoLink below, act at once, and the button's light says what was done.
+function stopAutoLink(configName, serial) {
   call('POST', '/api/v1/configs/' + encodeURIComponent(configName) + '/unautolink',
        { serial: serial })
     .then(function() { loadConfigs(); loadDevices(); }).catch(function(){});
@@ -6642,10 +6648,9 @@ function gpTriangle() {
 
 // What 🗘 does, decided from the claim the way paintCompact lights it. With no
 // serial there is nothing to remember the controller by, and with no config
-// and no claim nothing to set or remove. Removing asks first; setting asks
-// when it replaces another config's claim. The question names the controller
-// as each layout's own button does: by nickname in Simple and Quick, with its
-// serial in Advanced.
+// and no claim nothing to set or remove. Either is done at once, with no
+// question, a claim set in place of another config's as well (stopAutoLink
+// says why).
 function autoLinkToggle(ordinal) {
   var d = deviceByOrdinal(ordinal);
   if (!d) return;
@@ -6654,9 +6659,9 @@ function autoLinkToggle(ordinal) {
   var claimedBy = claimOf(mySerial);
   var linked = COMPACT ? quickShown(d) : (d.linked_config || '');
   if (claimedBy && (!linked || claimedBy.toLowerCase() === linked.toLowerCase())) {
-    stopAutoLink(claimedBy, mySerial, COMPACT ? nameFor(d.ordinal) : whoIs(d.ordinal));
+    stopAutoLink(claimedBy, mySerial);
   } else if (linked) {
-    setAutoLink(d.ordinal, linked, mySerial, claimedBy);
+    claimAutoLink(d.ordinal, linked, mySerial);
   }
 }
 
@@ -6699,7 +6704,7 @@ function autoLinkBtnHtml(d) {
            lbl + '</button>';
   }
   // ⭐ Live when another config holds the claim -- REPLACING one is the
-  // common case, and setAutoLink asks first then.
+  // common case, and the press moves it.
   return '<button class="cauto-btn" ' + press + 'title="auto link ' + esc(linked) +
          ' to this controller: it gets this config whenever it bridges' +
          (claimedBy ? ', in place of ' + esc(claimedBy) : '') + '">' + lbl + '</button>';
@@ -7065,7 +7070,7 @@ function loadDevices() {
         : '<span class="muted">none</span>';
       var autoBtn = claimedBy
         ? '<button onclick="stopAutoLink(\'' + esc(claimedBy) + '\',\'' +
-          esc(mySerial) + '\',\'' + esc(whoIs(dev.ordinal)) + '\')" ' +
+          esc(mySerial) + '\')" ' +
           'title="this controller stops claiming a config at bridge time">' +
           'Remove auto link</button>'
         : '';
@@ -7436,34 +7441,6 @@ function commitNameRow() {
 //
 // ⭐ This is ordinary markup, so it takes a real title, and ○ backs out of it.
 var CONFIRM_CB = null;
-
-// Nickname AND serial: the nickname is how you recognise the tab, the serial is
-// what the setting is keyed on, and a destructive confirmation should name its
-// target precisely.
-function whoIs(ordinal) {
-  var d = deviceByOrdinal(ordinal);
-  var nick = nameFor(ordinal);
-  return (d && d.serial) ? (nick + ' (' + d.serial + ')') : nick;
-}
-
-// The same, for a question set as HTML: the serial as a name, the nickname
-// as text (rhoquinn8217, 2026-09-09).
-function whoIsHtml(ordinal) {
-  var d = deviceByOrdinal(ordinal);
-  var nick = esc(nameFor(ordinal));
-  return (d && d.serial) ? (nick + ' (<code>' + esc(d.serial) + '</code>)') : nick;
-}
-
-// Sets the claim, asking only when it would REPLACE one. Setting a first claim
-// is unremarkable; changing one silently alters what a controller does next
-// time it bridges.
-function setAutoLink(ordinal, configName, serial, currentlyClaimedBy) {
-  if (!currentlyClaimedBy) { claimAutoLink(ordinal, configName, serial); return; }
-  askConfirm('Set auto link',
-             'Change auto linked config for ' + whoIsHtml(ordinal) +
-             ' from <code>' + esc(currentlyClaimedBy) + '</code> to <code>' + esc(configName) + '</code>?',
-             function() { claimAutoLink(ordinal, configName, serial); }, true);
-}
 
 // ⭐ TITLED WITH THE BUTTON THAT OPENED IT. "Controller config" was the same
 // on every dialog, so it said nothing -- and a confirmation exists precisely to
@@ -9734,7 +9711,7 @@ function paintQuickSwitch() {
   var label = document.getElementById('quickSwitchLabel');
   if (label) {
     label.title = QUICK_SWITCH
-      ? 'Ticked: two fingers pressing the touchpad open Quick view while a finger rests on it, and each swipe of another finger up or down changes the config; in Simple and Quick, two fingers up and down move the wheel. Untick it to turn both off.'
+      ? 'Ticked: two fingers pressing the touchpad open Quick view while a finger rests on it, and each swipe of another finger up or down changes the config; in Simple and Quick, the same swipe beside a resting thumb moves the wheel. Untick it to turn both off.'
       : 'Unticked: the touchpad does what the config says. Tick it to switch configs by pressing the touchpad with two fingers.';
   }
 }
@@ -10366,9 +10343,9 @@ function compactAskExit(title, buttons) {
   askConfirm(title, '', function () { restore(); if (go) go(); });
 }
 
-// 🗘: claim this controller for the config it is reading. The full page's
-// setAutoLink does the asking when another config holds the claim, and the
-// claiming; the repaint that follows lights the 🗘.
+// 🗘: claim this controller for the config it is reading, at once, in place of
+// another config's claim too (claimAutoLink); the repaint that follows lights
+// the 🗘.
 function compactAutoLink() {
   var d = deviceByOrdinal(ACTIVE);
   if (!d || !d.linked_config) return;
@@ -10381,11 +10358,11 @@ function compactAutoLink() {
     });
   });
   if (claimedBy === d.linked_config) return;
-  setAutoLink(d.ordinal, d.linked_config, mySerial, claimedBy);
+  claimAutoLink(d.ordinal, d.linked_config, mySerial);
 }
 
-// 🗘 lit: remove the claim. The full page's stopAutoLink asks first, then
-// drops it; the repaint that follows puts the button out.
+// 🗘 lit: remove the claim, at once (stopAutoLink); the repaint that follows
+// puts the button out.
 // ⛔ NOT `d.linked_config` ANY MORE (2026-09-19). The claim is held by whatever
 // config claimed this serial, which is the same thing as the linked config
 // while the button is lit -- but NOT when no config is linked at all, which is
@@ -10403,7 +10380,7 @@ function compactAutoUnlink() {
   });
   var name = claimedBy || d.linked_config;
   if (!name) return;
-  stopAutoLink(name, mySerial, nameFor(d.ordinal));
+  stopAutoLink(name, mySerial);
 }
 
 // The compact views' Unlink: the same call the picker's "(no config)" makes.
@@ -11888,7 +11865,7 @@ function selfTest() {
   //    above its caller has happened three times.
   ['renderTabs','buildDevicePane','setStickyHead','paintStickyHead','measureSticky',
    'nameFor','deviceLabelShort','settingsKindOf',
-   'askConfirm','confirmYes','confirmNo','whoIs','setAutoLink','claimAutoLink',
+   'askConfirm','confirmYes','confirmNo','claimAutoLink',
    'stopAutoLink','archive','unlinkConfirmed','renameConfig','copyConfigFor','createFromPreset','presetCancel','openPresetInfo','closePresetInfo','renameKey','loadConfigs','loadDevices',
    'openConfig','applyPick','newConfigFor','preserveScroll','setDown','gpCollect',
    'rateTag','rateTags','refreshRates','setRateLimit','pollRates',
@@ -12183,16 +12160,14 @@ function selfTest() {
     var keepFocus = GP_FOCUS, keepIndex = GP_INDEX, keepSelecting = GP_SELECTING;
     var keepDevices = LAST_DEVICES, keepConfigs = CONFIGS;
     var keepUnlink = window.unlinkConfirmed, keepStop = window.stopAutoLink,
-        keepSet = window.setAutoLink, keepLinkParts = window.linkParts;
+        keepClaim = window.claimAutoLink, keepLinkParts = window.linkParts;
     var keepWant = QUICK_WANT, keepWantTimer = QUICK_WANT_TIMER;
     var keepInflight = QUICK_LINK_INFLIGHT;
     QUICK_LINK_INFLIGHT = null;
     var calls = [];
     window.unlinkConfirmed = function (o) { calls.push('unlink ' + o); };
     window.stopAutoLink = function (c, s) { calls.push('stop ' + c + ' ' + s); };
-    window.setAutoLink = function (o, c, s, by) {
-      calls.push('set ' + o + ' ' + c + ' ' + s + ' ' + (by || '-'));
-    };
+    window.claimAutoLink = function (o, c, s) { calls.push('set ' + o + ' ' + c + ' ' + s); };
     // ⓘ A link that never answers, so nothing runs after the test is over.
     window.linkParts = function (o, body) {
       calls.push('link ' + o + ' ' + ((body && body.config) || '(none)'));
@@ -12242,10 +12217,10 @@ function selfTest() {
         ['linked and auto linked: remove it', 'cfg_a', [{ name: 'cfg_a', auto_link: ['aabbccddeeff'] }],
          'stop cfg_a aabbccddeeff'],
         ['linked, auto linked by nothing: set it', 'cfg_a', [{ name: 'cfg_a', auto_link: [] }],
-         'set selftest_1 cfg_a aabbccddeeff -'],
-        ['linked, another config auto links it: set, saying which it replaces', 'cfg_a',
+         'set selftest_1 cfg_a aabbccddeeff'],
+        ['linked, another config auto links it: set it in that one\'s place', 'cfg_a',
          [{ name: 'cfg_a', auto_link: [] }, { name: 'cfg_b', auto_link: ['aabbccddeeff'] }],
-         'set selftest_1 cfg_a aabbccddeeff cfg_b'],
+         'set selftest_1 cfg_a aabbccddeeff'],
         ['no config, a claim standing: remove it', '',
          [{ name: 'cfg_b', auto_link: ['aabbccddeeff'] }], 'stop cfg_b aabbccddeeff'],
         ['no config, no claim: nothing', '', [{ name: 'cfg_b', auto_link: [] }], '']
@@ -12364,7 +12339,7 @@ function selfTest() {
       GP_FOCUS = keepFocus; GP_INDEX = keepIndex; GP_SELECTING = keepSelecting;
       LAST_DEVICES = keepDevices; CONFIGS = keepConfigs;
       window.unlinkConfirmed = keepUnlink; window.stopAutoLink = keepStop;
-      window.setAutoLink = keepSet; window.linkParts = keepLinkParts;
+      window.claimAutoLink = keepClaim; window.linkParts = keepLinkParts;
     }
   }
 
@@ -12502,6 +12477,31 @@ function selfTest() {
     ok('quick switch: steps before the wheel wait for it', QUICK_SWITCH_WAITING === 2);
     QUICK_SWITCH_WAITING = keepWaiting;
     COMPACT = keepCompact;
+  }
+
+  // 13. ⭐ AUTO LINK ASKS NOTHING (2.66.100): set in another config's place, and
+  //     removed, at once, with no question up.
+  {
+    var keepCall = window.call, keepClaimer = window.claimAutoLink;
+    var keepDevs = LAST_DEVICES, keepCfgs = CONFIGS, keepLayout = COMPACT, wasUp = CONFIRM_CB;
+    var sent = [];
+    // ⓘ Calls that never answer, so nothing runs after the test is over.
+    window.call = function (m, p) { sent.push(m + ' ' + p); return new Promise(function () {}); };
+    window.claimAutoLink = function (o, c) { sent.push('claim ' + o + ' ' + c); };
+    COMPACT = false;
+    LAST_DEVICES = [{ ordinal: 'selftest_al', serial: 'AA:BB:CC:DD:EE:01', linked_config: 'cfg_a' }];
+    CONFIGS = [{ name: 'cfg_a', auto_link: [] }, { name: 'cfg_b', auto_link: ['aabbccddee01'] }];
+    autoLinkToggle('selftest_al');
+    var askedSet = CONFIRM_CB !== wasUp;
+    CONFIGS = [{ name: 'cfg_a', auto_link: ['aabbccddee01'] }];
+    autoLinkToggle('selftest_al');
+    var askedStop = CONFIRM_CB !== wasUp;
+    window.call = keepCall; window.claimAutoLink = keepClaimer;
+    LAST_DEVICES = keepDevs; CONFIGS = keepCfgs; COMPACT = keepLayout;
+    ok('auto link asks nothing: set in another config\'s place, and removed, at once',
+       !askedSet && !askedStop &&
+       sent.join(' | ') === 'claim selftest_al cfg_a | POST /api/v1/configs/cfg_a/unautolink',
+       sent.join(' | '));
   }
 
   // The tutorial (2.66.92): its practice controllers are answered here and
@@ -12642,7 +12642,7 @@ function selfTest() {
 // ahead of every handler on the page; only the tutorial's stand-ins and, on
 // a step that asks for it, its presses or the things lit, answer. ⓘ P and R
 // still place and size the window, as Options and Create do from the pad in
-// the listener. And the page's own question (auto link's OK) and an open
+// the listener. And the page's own question, should one come up, and an open
 // list (the rate limit's) take the keys while they are up.
 //
 // ⭐ THREE KINDS OF STEP, after rhoquinn8217 went through it (2026-10-23):
@@ -12708,7 +12708,7 @@ function tutMockMake() {
     // ⓘ Real time to begin with, so the limit's step has a 250 to pick.
     limits: { tutorial_1: 'real_time', tutorial_2: 'real_time', tutorial_3: 'real_time' },
     // ⓘ Each auto links to the config it starts on, so the mark stands
-    // beside a name in every wheel, and auto link asks before it moves.
+    // beside a name in every wheel.
     auto: { 'gyro-to-mouse-L2-aiming': ['0a0000000001'], 'stick-to-mouse': ['0a0000000002'],
             'touchpad-to-mouse': ['0a0000000003'] }
   };
@@ -12899,13 +12899,6 @@ function tutQ() {
   return out;
 }
 
-// The page's own question, while it is up: auto link's "Change auto linked
-// config", with OK and Cancel.
-function tutConfirmCard() {
-  var card = CONFIRM_CB ? document.querySelector('#confirmBox .confirmCard') : null;
-  return card ? [card] : [];
-}
-
 function tutShoulderKeys(code, gated, plain) {
   return (gated || plain) && (code === 'KeyQ' || code === 'KeyE');
 }
@@ -12954,13 +12947,12 @@ var TUT_QUICK = [
              tutHl('Continue') + '.';
     } },
   // 4 (*"Move bubble to right side of window, disable continue and direct
-  // user to press auto link button click yes"*). The OK is the page's own
-  // question, which comes when the controller auto links to another config:
-  // `enter` turns the wheel off the one it auto links to, so it always comes.
+  // user to press auto link button click yes"*; then, 2026-10-26, *"Remove
+  // Auto Link confirmation pop up box, its not needed"*, so there is no OK to
+  // choose): `enter` turns the wheel off the one it auto links to, so the
+  // press sets an auto link rather than removing one.
   { side: 'right', act: true, focus: '#cpick',
-    lit: function () {
-      return tutQ('.chints .chint:nth-child(2)', '.cdrum-frame').concat(tutConfirmCard());
-    },
+    lit: function () { return tutQ('.chints .chint:nth-child(2)', '.cdrum-frame'); },
     split: true,
     keys: function (code, gated, plain) {
       return (gated && code === 'KeyY') || (plain && code === 'KeyA');
@@ -12974,9 +12966,8 @@ var TUT_QUICK = [
       tutRefresh();
     },
     words: function () {
-      return 'Press ' + tutKey('autolink') + ' to auto link the config in the middle, then ' +
-             'choose ' + tutHl('OK') + ': ' + tutNick() + ' will pick it by itself every time ' +
-             'it is bridged.';
+      return 'Press ' + tutKey('autolink') + ' to auto link the config in the middle: ' +
+             tutNick() + ' will pick it by itself every time it is bridged.';
     },
     done: function () {
       var p = tutPad();
