@@ -32,6 +32,7 @@ int run_usbip_limits_tests();
 int run_fallback_serial_tests();
 int run_device_names_tests();
 int run_tray_menu_tests();
+int run_tutorial_bubble_rule_tests();
 int run_same_controller_tests();
 int run_same_device_tests();
 int run_device_capabilities_tests();
@@ -155,6 +156,7 @@ int main(int argc, char **argv)
     run_fallback_serial_tests();
     run_device_names_tests();
     run_tray_menu_tests();
+    run_tutorial_bubble_rule_tests();
     run_same_controller_tests();
     run_same_device_tests();
     run_device_capabilities_tests();

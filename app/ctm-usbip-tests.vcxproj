@@ -107,6 +107,7 @@
     <ClCompile Include="..\tests\fallback_serial_test.cpp" />
     <ClCompile Include="..\tests\device_names_test.cpp" />
     <ClCompile Include="..\tests\tray_menu_test.cpp" />
+    <ClCompile Include="..\tests\tutorial_bubble_rule_test.cpp" />
     <ClCompile Include="..\tests\same_controller_test.cpp" />
     <ClCompile Include="..\tests\device_capabilities_test.cpp" />
     <ClCompile Include="..\tests\same_device_test.cpp" />

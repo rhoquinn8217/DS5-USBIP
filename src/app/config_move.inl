@@ -867,6 +867,13 @@ struct SavedView {
 inline std::mutex g_quickViewMutex;
 inline SavedView g_quickView;
 
+// ⭐ THE TUTORIALS (rhoquinn8217, 2026-10-14): whether Simple's has been seen,
+// kept here with the rest; tutorial_state.inl says what it means. And the
+// tray's request to show it again, which lives until the page takes it and
+// is not kept.
+inline std::atomic_bool g_tutorialSimpleSeen{false};
+inline std::atomic_bool g_tutorialAsked{false};
+
 inline void state_save()
 {
     // ⓘ Before the snapshot, not after: a place noted while this runs marks
@@ -896,6 +903,7 @@ inline void state_save()
         << "size_quick = " << g_sizeQuick.load() << "\n";
     out << open_on_bridge::default_line() << open_on_bridge::line(g_openOnBridge.load());
     out << quick_switch::line(g_quickSwitch.load());
+    out << tutorial_state::seen_line(g_tutorialSimpleSeen.load());
     if (view.on) {
         if (!view.ordinal.empty()) out << "ordinal = " << view.ordinal << "\n";
     } else {
@@ -970,6 +978,10 @@ inline void state_load()
             g_quickSwitch.store(quick_switch::parse(val));
             continue;
         }
+        if (key == tutorial_state::kSimpleSeenKey) {
+            g_tutorialSimpleSeen.store(tutorial_state::parse_seen(val));
+            continue;
+        }
         // ⚠️ T-253: this must sit ABOVE the atoi fallback -- these values
         // are a PAIR, not a single number, and atoi would silently take the
         // width and drop the height.
@@ -1029,7 +1041,8 @@ inline void state_load()
         << " quick=" << g_sizeQuick.load()
         << " posQuick=" << (g_posQuick.have ? 1 : 0)
         << " " << g_posQuick.x << "," << g_posQuick.y
-        << " open_on_bridge=" << (g_openOnBridge.load() ? 1 : 0));
+        << " open_on_bridge=" << (g_openOnBridge.load() ? 1 : 0)
+        << " tutorial_simple_seen=" << (g_tutorialSimpleSeen.load() ? 1 : 0));
 }
 
 // The "Open on bridge" switch: read by the bridge, set by the tray and the
@@ -1095,6 +1108,20 @@ inline void end_quick_view()
     }
     state_save();
 }
+
+// Whether Simple's tutorial has been seen: set by the page when it is skipped
+// or ended, and kept at once.
+inline bool tutorial_seen() { return g_tutorialSimpleSeen.load(); }
+inline void set_tutorial_seen(bool seen)
+{
+    g_tutorialSimpleSeen.store(seen);
+    state_save();
+}
+
+// The tray's "Show tutorial": asked for there, taken by the page.
+inline void ask_tutorial() { g_tutorialAsked.store(true); }
+inline bool tutorial_asked() { return g_tutorialAsked.load(); }
+inline void take_tutorial() { g_tutorialAsked.store(false); }
 
 // This layout's slot, and the table it indexes.
 inline std::atomic_int &size_slot()

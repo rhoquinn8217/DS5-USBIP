@@ -70,6 +70,10 @@ inline const wchar_t *const kQuit = L"Quit";
 // it acts: here Windows' own administrator prompt. ⓘ By code point, like the
 // padlock below.
 inline const wchar_t *const kRemoveOld = L"Remove old controllers\u2026";
+// ⭐ SHOW TUTORIAL (rhoquinn8217, 2026-10-14: *"put it in the tray menu"*),
+// beside Remove old controllers: the Controller Configs window's tutorial,
+// which starts by itself only the first time.
+inline const wchar_t *const kShowTutorial = L"Show tutorial";
 
 // ⓘ By code point, so no editor and no compiler setting can turn it into
 // something else on the way to the screen. It is the mark the settings page's
