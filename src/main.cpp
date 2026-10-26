@@ -143,13 +143,15 @@ int ui_tutorial_asked();
 void ui_tutorial_take();
 /* The tutorial's words, drawn beside the configs window rather than in it
  * (tutorial_bubble.inl): shown with what a step says and the buttons under
- * it, hidden, and a click on one of those buttons handed over once. Defined
- * below, after tutorial_bubble.inl. */
+ * it, hidden, a click on one of those buttons handed over once, and the side
+ * of what is lit they stand on. Defined below, after tutorial_bubble.inl. */
 void ui_tutorial_words_show(const std::string &title, const std::string &count, const std::string &words,
                             const std::string &buttons, const std::string &focus, bool arrow,
-                            int ax, int ay, const std::string &side, const std::string &anchors);
+                            int ax, int ay, const std::string &side, const std::string &anchors,
+                            const std::string &target, const std::string &obstacles, int clear);
 void ui_tutorial_words_hide();
 std::string ui_tutorial_words_take_press();
+std::string ui_tutorial_words_side();
 /* Where the window stands right now, kept for the next one. Called on the way
  * out, while it still exists. */
 void ui_view_remember_pos();
@@ -438,7 +440,8 @@ void ui_tutorial_take()
 }
 void ui_tutorial_words_show(const std::string &title, const std::string &count, const std::string &words,
                             const std::string &buttons, const std::string &focus, bool arrow,
-                            int ax, int ay, const std::string &side, const std::string &anchors)
+                            int ax, int ay, const std::string &side, const std::string &anchors,
+                            const std::string &target, const std::string &obstacles, int clear)
 {
     tutorial_bubble::Content c;
     c.show = true;
@@ -454,6 +457,11 @@ void ui_tutorial_words_show(const std::string &title, const std::string &count, 
     c.ay = ay;
     c.prefer = tutorial_bubble_rule::parse_prefer(side);
     c.anchors = tutorial_bubble_rule::parse_anchors(anchors);
+    const std::vector<tutorial_bubble_rule::Box> lit = tutorial_bubble_rule::parse_boxes(target);
+    c.hasTarget = !lit.empty();
+    if (c.hasTarget) c.target = lit.front();
+    c.obstacles = tutorial_bubble_rule::parse_boxes(obstacles);
+    c.clear = clear < 0 ? 0 : (clear > 1000 ? 1000 : clear);
     tutorial_bubble::update(c);
 }
 void ui_tutorial_words_hide()
@@ -463,6 +471,10 @@ void ui_tutorial_words_hide()
 std::string ui_tutorial_words_take_press()
 {
     return tutorial_bubble::take_press();
+}
+std::string ui_tutorial_words_side()
+{
+    return tutorial_bubble::side();
 }
 void ui_view_remember_pos()
 {

@@ -231,6 +231,53 @@ int run_tutorial_bubble_rule_tests()
         CTM_CHECK(inside(q.window, work));
     }
 
+    // ⭐ Beside what is lit, over the window where it covers nothing
+    // (rhoquinn8217, 2026-10-26: "I also want the bubble to overlap the window
+    // as long as it's not covering any text or elements on the window").
+    section("tutorial words: beside what is lit, over the window's empty part, off what is on it");
+    {
+        // Simple's window: its title bar, the name the step lights, a panel under it.
+        const tbr::Box simple{ 528, 560, 1392, 1030 };
+        const tbr::Box name{ 650, 600, 1000, 650 };
+        const std::vector<tbr::Box> on = { name, { 560, 680, 1360, 1000 }, { 528, 560, 1392, 590 } };
+        tbr::Placement p;
+        CTM_CHECK(tbr::place_near(name, work, 200, 60, on, tbr::Prefer::Left, 20, 8, 900, 6, &p));
+        CTM_CHECK(p.side == tbr::Side::Left);
+        CTM_CHECK(p.window.right <= name.left - 20);    // room left for the arrow
+        CTM_CHECK(!tbr::overlaps_any(p.window, on));
+        CTM_CHECK(inside(p.window, work));
+        CTM_CHECK(p.window.right > simple.left);        // over the window's own empty corner
+    }
+
+    section("tutorial words: the step's own side first, even when another is nearer");
+    {
+        const tbr::Box lit{ 600, 700, 1300, 760 };
+        // Everything around it on the window is taken; above the window is free.
+        const std::vector<tbr::Box> on = { lit, { 528, 560, 1392, 690 }, { 528, 770, 1392, 1030 } };
+        tbr::Placement p;
+        CTM_CHECK(tbr::place_near(lit, work, 300, 100, on, tbr::Prefer::Above, 10, 8, 900, 6, &p));
+        CTM_CHECK(p.side == tbr::Side::Above);
+        CTM_CHECK(p.window.bottom <= 560);
+        CTM_CHECK(!tbr::overlaps_any(p.window, on));
+    }
+
+    section("tutorial words: nowhere to stand leaves them to the rule before");
+    {
+        const tbr::Box lit{ 900, 500, 1000, 540 };
+        tbr::Placement p;
+        CTM_CHECK(!tbr::place_near(lit, work, 300, 100, { work }, tbr::Prefer::Left, 10, 8, 900, 6, &p));
+    }
+
+    section("tutorial words: boxes as the page sends them, a broken one left out");
+    {
+        const auto b = tbr::parse_boxes("10,20,30,40|bad|5,5,5,9|0,0,2000,1000|1,2,3");
+        CTM_CHECK_EQ(b.size(), size_t(2));
+        CTM_CHECK(b[0].left == 10 && b[0].top == 20 && b[0].right == 30 && b[0].bottom == 40);
+        CTM_CHECK(b[1].right == 1000);
+        CTM_CHECK(tbr::parse_boxes("").empty());
+        CTM_CHECK(std::string(tbr::side_name(tbr::Side::Left)) == "left");
+    }
+
     section("tutorial words: below asked with no room below goes above, still clear of the window");
     {
         // Quick opens at the bottom of the screen: nothing fits under it.

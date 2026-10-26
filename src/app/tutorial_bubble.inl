@@ -47,6 +47,14 @@ struct Content {
     int ax = 500, ay = 500;   // the lit part's middle, thousandths of the page's view
     std::vector<std::pair<int, int>> anchors;   // every arrow's, when there are several
     tbr::Prefer prefer = tbr::Prefer::None;     // the side the step asks for
+    // ⭐ What the step lights and what is on the window, thousandths of the
+    // page's view, for the words to stand beside the one and off the other
+    // (tbr::place_near); `clear` is the room the page's arrow takes, in
+    // thousandths of the view's height. No target: the rule above places them.
+    bool hasTarget = false;
+    tbr::Box target;
+    std::vector<tbr::Box> obstacles;
+    int clear = 0;
 };
 
 inline std::mutex g_mutex;
@@ -186,8 +194,11 @@ inline void draw_glyph_mark(HDC dc, int x, int y, int h, const std::wstring &gly
 // ⭐ THE LAYOUT, from the words and from where the configs window and the
 // screen's working area are. The words box, its buttons under it at its
 // right, and the arrow on the side facing the window, when there is one.
+// `client` is the window's page, which the page's thousandths are of; `keep`,
+// when given, is where the words stand now, kept while it covers nothing.
 inline Layout compute_layout(HDC dc, Fonts *fonts, const Content &c, UINT dpi,
-                             const RECT &frame, const RECT &work)
+                             const RECT &frame, const RECT &work, const RECT &client,
+                             const POINT *keep = nullptr)
 {
     fonts_for(fonts, dpi);
     Layout L;
@@ -256,6 +267,42 @@ inline Layout compute_layout(HDC dc, Fonts *fonts, const Content &c, UINT dpi,
     std::vector<std::pair<int, int>> anchors = c.anchors;
     if (anchors.empty()) anchors.push_back({ c.ax, c.ay });
     L.place = tbr::place_at(win, area, stackW, stackH, arrow, gap, L.round, anchors, c.prefer);
+    // ⭐ BESIDE WHAT IS LIT, OVER THE WINDOW WHERE IT COVERS NOTHING
+    // (tbr::place_near): the page's thousandths made the page's pixels, its
+    // title bar one more thing to keep off. Where the words stand now stays,
+    // while it still covers nothing, so a tip changing or the wheel turning
+    // under them moves nothing.
+    if (c.hasTarget && c.prefer != tbr::Prefer::Center) {
+        const int cw = client.right - client.left, ch = client.bottom - client.top;
+        const auto onPage = [&](const tbr::Box &b) {
+            return tbr::Box{ client.left + cw * b.left / 1000, client.top + ch * b.top / 1000,
+                             client.left + cw * b.right / 1000, client.top + ch * b.bottom / 1000 };
+        };
+        std::vector<tbr::Box> obstacles;
+        for (const tbr::Box &b : c.obstacles) obstacles.push_back(onPage(b));
+        if (client.top > frame.top) obstacles.push_back({ frame.left, frame.top, frame.right, client.top });
+        const int margin = px(8, dpi);
+        const tbr::Box target = onPage(c.target);
+        tbr::Placement beside;
+        bool kept = false;
+        if (keep != nullptr) {
+            const tbr::Box here{ keep->x, keep->y, keep->x + stackW, keep->y + stackH };
+            const bool onScreen = here.left >= area.left + margin && here.top >= area.top + margin &&
+                                  here.right <= area.right - margin && here.bottom <= area.bottom - margin;
+            if (onScreen && !tbr::overlaps_any(here, obstacles) && !tbr::overlaps_any(here, { target })) {
+                beside.window = here;
+                beside.side = here.right <= target.left ? tbr::Side::Left
+                          : here.left >= target.right ? tbr::Side::Right
+                          : here.bottom <= target.top ? tbr::Side::Above : tbr::Side::Below;
+                beside.arrowsAt.assign(1, 0);
+                kept = true;
+            }
+        }
+        if (kept || tbr::place_near(target, area, stackW, stackH, obstacles, c.prefer,
+                                    ch * c.clear / 1000, margin, px(900, dpi), px(6, dpi), &beside)) {
+            L.place = beside;
+        }
+    }
     // ⓘ Widened to stand over two arrows far apart: the words box spans it.
     int wordsW = boxW;
     const bool across = L.place.side == tbr::Side::Above || L.place.side == tbr::Side::Below;
@@ -438,6 +485,44 @@ inline void paint(HDC dc, Fonts *fonts, const Layout &L, int width, int height, 
 inline Layout g_layout;   // the window thread's alone
 inline Fonts g_fonts;     // likewise
 inline std::wstring g_shown;
+inline std::wstring g_shownStep;    // the step's words, to know a new one
+inline std::wstring g_shownPlace;   // the window's place and the screen, to know a move
+inline std::string g_side;          // the side the words stand on, for the page's arrow (g_mutex)
+
+// ⭐ ONE WORDS BOX, SLIDING TO THE NEXT STEP (rhoquinn8217, 2026-10-26: "I
+// want a persistent tutorial bubble that move to where the next step is"):
+// from where it stands to its new place, easing in, a quarter of a second.
+inline const UINT_PTR kSlideTimer = 2;
+inline const ULONGLONG kSlideMs = 240;
+inline POINT g_slideFrom{}, g_slideTo{};
+inline ULONGLONG g_slideAt = 0;
+inline bool g_sliding = false;
+
+inline void slide_stop(HWND hwnd)
+{
+    if (g_sliding) KillTimer(hwnd, kSlideTimer);
+    g_sliding = false;
+}
+
+inline void slide_step(HWND hwnd)
+{
+    const ULONGLONG gone = GetTickCount64() - g_slideAt;
+    const double t = gone >= kSlideMs ? 1.0 : static_cast<double>(gone) / kSlideMs;
+    const double e = 1.0 - (1.0 - t) * (1.0 - t) * (1.0 - t);
+    const int x = g_slideFrom.x + static_cast<int>((g_slideTo.x - g_slideFrom.x) * e + (g_slideTo.x >= g_slideFrom.x ? 0.5 : -0.5));
+    const int y = g_slideFrom.y + static_cast<int>((g_slideTo.y - g_slideFrom.y) * e + (g_slideTo.y >= g_slideFrom.y ? 0.5 : -0.5));
+    SetWindowPos(hwnd, nullptr, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+    if (t >= 1.0) slide_stop(hwnd);
+}
+
+inline void slide_to(HWND hwnd, POINT from, POINT to)
+{
+    g_slideFrom = from;
+    g_slideTo = to;
+    g_slideAt = GetTickCount64();
+    if (!g_sliding) SetTimer(hwnd, kSlideTimer, 15, nullptr);
+    g_sliding = true;
+}
 
 inline HWND configs_window()
 {
@@ -457,12 +542,25 @@ inline RECT frame_of(HWND w)
 
 inline void hide_now(HWND hwnd)
 {
+    slide_stop(hwnd);
     if (IsWindowVisible(hwnd)) ShowWindow(hwnd, SW_HIDE);
     g_shown.clear();
+    g_shownStep.clear();
+    g_shownPlace.clear();
+    std::lock_guard<std::mutex> lock(g_mutex);
+    g_side.clear();
+}
+
+inline std::wstring box_text(const tbr::Box &b)
+{
+    return std::to_wstring(b.left) + L"," + std::to_wstring(b.top) + L"," + std::to_wstring(b.right) + L"," +
+           std::to_wstring(b.bottom) + L";";
 }
 
 // ⭐ PLACE AND SHOW, or hide: on every update from the page and on the timer.
 // Nothing is moved or drawn again unless something it depends on changed.
+// ⭐ A new place on the same screen is SLID to; the configs window moved, or
+// the words shown for the first time, they are put there at once.
 inline void refresh(HWND hwnd)
 {
     Content c;
@@ -477,31 +575,66 @@ inline void refresh(HWND hwnd)
     }
     const UINT dpi = GetDpiForWindow(win);
     const RECT frame = frame_of(win);
+    // ⓘ The page: the window's client area, on the screen.
+    RECT client{};
+    GetClientRect(win, &client);
+    MapWindowPoints(win, nullptr, reinterpret_cast<POINT *>(&client), 2);
     MONITORINFO mi{};
     mi.cbSize = sizeof mi;
     GetMonitorInfoW(MonitorFromWindow(win, MONITOR_DEFAULTTONEAREST), &mi);
-    std::wstring key = c.title + L"|" + c.count + L"|" + c.words + L"|" + (c.arrow ? L"1" : L"0") +
-                       wide(c.focus) + L"|";
+    // ⓘ A step is its words; the rest the page says about it (the halo, the
+    // buttons' looks, what is lit and what is on the window) can change
+    // within it.
+    const std::wstring step = c.title + L"|" + c.count + L"|" + c.words;
+    std::wstring key = step + L"|" + (c.arrow ? L"1" : L"0") + wide(c.focus) + L"|";
     for (const Button &b : c.buttons) key += wide(b.id) + L":" + b.label + L":" + wide(b.kind) + L";";
     key += L"|" + std::to_wstring(static_cast<int>(c.prefer)) + L"|";
     for (const auto &a : c.anchors) key += std::to_wstring(a.first) + L"," + std::to_wstring(a.second) + L";";
-    key += L"|" +
-                       std::to_wstring(c.ax) + L"," + std::to_wstring(c.ay) + L"|" +
-                       std::to_wstring(frame.left) + L"," + std::to_wstring(frame.top) + L"," +
-                       std::to_wstring(frame.right) + L"," + std::to_wstring(frame.bottom) + L"|" +
-                       std::to_wstring(mi.rcWork.left) + L"," + std::to_wstring(mi.rcWork.top) + L"," +
-                       std::to_wstring(mi.rcWork.right) + L"," + std::to_wstring(mi.rcWork.bottom) + L"|" +
-                       std::to_wstring(dpi);
+    key += L"|" + std::to_wstring(c.ax) + L"," + std::to_wstring(c.ay) + L"|";
+    if (c.hasTarget) key += box_text(c.target);
+    key += L"|";
+    for (const tbr::Box &b : c.obstacles) key += box_text(b);
+    key += L"|" + std::to_wstring(c.clear);
+    const std::wstring place = std::to_wstring(frame.left) + L"," + std::to_wstring(frame.top) + L"," +
+                               std::to_wstring(frame.right) + L"," + std::to_wstring(frame.bottom) + L"|" +
+                               std::to_wstring(client.left) + L"," + std::to_wstring(client.top) + L"," +
+                               std::to_wstring(client.right) + L"," + std::to_wstring(client.bottom) + L"|" +
+                               std::to_wstring(mi.rcWork.left) + L"," + std::to_wstring(mi.rcWork.top) + L"," +
+                               std::to_wstring(mi.rcWork.right) + L"," + std::to_wstring(mi.rcWork.bottom) + L"|" +
+                               std::to_wstring(dpi);
+    key += L"#" + place;
     if (key == g_shown && IsWindowVisible(hwnd)) return;
+    const bool visible = IsWindowVisible(hwnd) != FALSE;
+    RECT now{};
+    GetWindowRect(hwnd, &now);
+    // ⓘ Where the words stand, or are on their way to.
+    const POINT here = g_sliding ? g_slideTo : POINT{ now.left, now.top };
+    const bool sameStep = visible && step == g_shownStep && place == g_shownPlace;
     HDC dc = GetDC(hwnd);
-    g_layout = compute_layout(dc, &g_fonts, c, dpi, frame, mi.rcWork);
+    g_layout = compute_layout(dc, &g_fonts, c, dpi, frame, mi.rcWork, client, sameStep ? &here : nullptr);
     ReleaseDC(hwnd, dc);
+    {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        g_side = c.prefer == tbr::Prefer::Center ? "center" : tbr::side_name(g_layout.place.side);
+    }
     SetWindowRgn(hwnd, make_region(g_layout), FALSE);   // ⓘ Windows owns the region now
     const tbr::Box &w = g_layout.place.window;
-    SetWindowPos(hwnd, HWND_TOPMOST, w.left, w.top, w.width(), w.height(),
-                 SWP_NOACTIVATE | SWP_SHOWWINDOW);
+    const POINT to{ w.left, w.top };
+    const UINT show = SWP_NOACTIVATE | SWP_SHOWWINDOW;
+    if (visible && place == g_shownPlace && g_sliding && to.x == g_slideTo.x && to.y == g_slideTo.y) {
+        // ⓘ On its way there already: only the size, and the slide carries on.
+        SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, w.width(), w.height(), show | SWP_NOMOVE);
+    } else if (visible && place == g_shownPlace && (now.left != to.x || now.top != to.y)) {
+        SetWindowPos(hwnd, HWND_TOPMOST, now.left, now.top, w.width(), w.height(), show);
+        slide_to(hwnd, POINT{ now.left, now.top }, to);
+    } else {
+        slide_stop(hwnd);
+        SetWindowPos(hwnd, HWND_TOPMOST, to.x, to.y, w.width(), w.height(), show);
+    }
     InvalidateRect(hwnd, nullptr, FALSE);
     g_shown = key;
+    g_shownStep = step;
+    g_shownPlace = place;
 }
 
 // The id of the button under a point, or "": a greyed one answers nothing.
@@ -560,6 +693,7 @@ inline LRESULT CALLBACK wnd_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
     }
     case WM_TIMER:
         if (wp == kFollowTimer) refresh(hwnd);
+        else if (wp == kSlideTimer) slide_step(hwnd);
         return 0;
     default:
         if (msg == kMsgUpdate) {
@@ -627,6 +761,14 @@ inline void hide()
     update(Content());
 }
 
+// The side the words stand on now, for the arrow the page draws: "left",
+// "right", "above", "below" or "center"; "" while they are not shown.
+inline std::string side()
+{
+    std::lock_guard<std::mutex> lock(g_mutex);
+    return g_side;
+}
+
 // A click on a button, handed over once: its id, or "".
 inline std::string take_press()
 {
@@ -636,17 +778,18 @@ inline std::string take_press()
     return p;
 }
 
-// ⓘ `DS5-USBIP tutorial-words-picture <file.bmp> [dpi] [start|corners|left|marks]`:
+// ⓘ `DS5-USBIP tutorial-words-picture <file.bmp> [dpi] [start|corners|left|beside|marks]`:
 // the words as Quick's step that asks for a press shows them (or the card the
 // tour opens with; or the step with two arrows, at L1 and R1 in the panel's
 // corners; or a step that asks for the window's left side; or every button's
-// mark, as the legends draw them), beside a stand-in
+// mark, as the legends draw them; or a step standing beside what is lit,
+// off what is on the window, its place printed), beside a stand-in
 // for Quick's window, drawn into a picture rather than onto the screen, so
 // the drawing can be looked at with no window and no page.
 inline int picture_mode(int argc, wchar_t **argv)
 {
     if (argc < 3) {
-        std::wcout << L"usage: DS5-USBIP tutorial-words-picture <file.bmp> [dpi] [start|corners|left|marks]"
+        std::wcout << L"usage: DS5-USBIP tutorial-words-picture <file.bmp> [dpi] [start|corners|left|beside|marks]"
                    << std::endl;
         return 2;
     }
@@ -672,6 +815,20 @@ inline int picture_mode(int argc, wchar_t **argv)
         c.ax = 150;
         c.ay = 400;
         c.prefer = tbr::Prefer::Left;
+    } else if (sample == L"beside") {
+        // ⓘ The window's left half lit, its right half taken: the words
+        // stand at its left, off what is on it.
+        c.count = L"5 of 16";
+        c.words = L"Press [[Unlink]]: Dual stops using a config.";
+        c.buttons = { { "next", L"Continue", "off" }, { "prev", L"Go back", "plain" },
+                      { "end", L"End tutorial", "plain" } };
+        c.focus = "prev";
+        c.arrow = false;
+        c.prefer = tbr::Prefer::Left;
+        c.hasTarget = true;
+        c.target = { 300, 400, 450, 500 };
+        c.obstacles = { { 300, 400, 450, 500 }, { 500, 0, 1000, 1000 } };
+        c.clear = 100;
     } else if (sample == L"marks") {
         c.count = L"every mark";
         c.words = L"PlayStation [[*\u2715]] [[*\u25cb]] [[*\u25a1]] [[*\u25b3]] [[*\u2630]] [[*\\|/]] "
@@ -703,7 +860,8 @@ inline int picture_mode(int argc, wchar_t **argv)
     HDC screen = GetDC(nullptr);
     HDC mem = CreateCompatibleDC(screen);
     Fonts fonts;
-    const Layout L = compute_layout(mem, &fonts, c, dpi, frame, work);
+    const RECT page{ frame.left, frame.top + px(30, dpi), frame.right, frame.bottom };
+    const Layout L = compute_layout(mem, &fonts, c, dpi, frame, work, page);
     const int w = L.place.window.width(), h = L.place.window.height();
     BITMAPINFO bi{};
     bi.bmiHeader.biSize = sizeof bi.bmiHeader;
@@ -744,7 +902,8 @@ inline int picture_mode(int argc, wchar_t **argv)
         if (f != nullptr) DeleteObject(f);
     }
     std::wcout << (ok ? L"wrote " : L"could not write ") << argv[2] << L" (" << w << L"x" << h
-               << L", " << (L.place.side == tbr::Side::Above ? L"above" : L"not above") << L")" << std::endl;
+               << L", " << tbr::side_name(L.place.side) << L" at " << L.place.window.left << L","
+               << L.place.window.top << L")" << std::endl;
     return ok ? 0 : 1;
 }
 

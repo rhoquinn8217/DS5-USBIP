@@ -739,9 +739,12 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
         // says whether one points at a lit part, "anchors" where each arrow
         // points when there are several ("ax,ay|ax,ay"), "side" the side of
         // the window the step asks for, and "title" heads the start's card
-        // and the end's question. A GET of tutorial-press hands
-        // over a click on one of the buttons, by its id, once, for the page to
-        // act on.
+        // and the end's question. "target" is what the step lights and
+        // "obstacles" what is on the window ("l,t,r,b|...", thousandths of
+        // the view), for the words to stand beside the one and off the other,
+        // with "clear" left for the page's arrow. A GET of tutorial-press
+        // hands over a click on one of the buttons, by its id, once, for the
+        // page to act on, and says which side of what is lit the words stand.
         if (what == "tutorial-bubble") {
             if (req.method != "POST") {
                 *out = rest_error_response(405, "method not allowed", "Allow: POST, OPTIONS\r\n");
@@ -768,7 +771,8 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
             if (flag("show")) {
                 ui_tutorial_words_show(text("title"), text("count"), text("words"), text("buttons"),
                                        text("focus"), flag("arrow"), number("ax", 500), number("ay", 500),
-                                       text("side"), text("anchors"));
+                                       text("side"), text("anchors"), text("target"),
+                                       text("obstacles"), number("clear", 0));
             } else {
                 ui_tutorial_words_hide();
             }
@@ -780,7 +784,8 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
                 *out = rest_error_response(405, "method not allowed", "Allow: GET, OPTIONS\r\n");
                 return true;
             }
-            *out = rest_http_response(200, std::string(R"({"press":")") + ui_tutorial_words_take_press() + R"("})");
+            *out = rest_http_response(200, std::string(R"({"press":")") + ui_tutorial_words_take_press() +
+                                           R"(","side":")" + ui_tutorial_words_side() + R"("})");
             return true;
         }
 
