@@ -12905,6 +12905,13 @@ function tutQ() {
   return out;
 }
 
+// The page's own question, while it is up: auto link's "Change auto linked
+// config", with OK and Cancel.
+function tutConfirmCard() {
+  var card = CONFIRM_CB ? document.querySelector('#confirmBox .confirmCard') : null;
+  return card ? [card] : [];
+}
+
 function tutShoulderKeys(code, gated, plain) {
   return (gated || plain) && (code === 'KeyQ' || code === 'KeyE');
 }
