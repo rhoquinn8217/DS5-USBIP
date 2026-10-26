@@ -161,6 +161,11 @@ Filename: "{app}\{#ExeName}"; Description: "Start {#AppName}"; Flags: nowait pos
 [UninstallRun]
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""{#AppName}"""; Flags: runhidden waituntilterminated; RunOnceId: "RemoveDS5USBIPFirewallRule"
 
+[UninstallDelete]
+; The install's stamp (CurStepChanged), written by code rather than listed in
+; [Files], so the uninstaller would not know to take it.
+Type: files; Name: "{app}\install-stamp.txt"
+
 [Code]
 { ======================================================================
   ALREADY INSTALLED: UPGRADE OR UNINSTALL (2026-10-12)
@@ -740,6 +745,13 @@ var
   Code: Integer;
 begin
   if CurStep <> ssPostInstall then Exit;
+  { A stamp of this install beside the program, new each time setup runs, so
+    a reinstall of the same version counts too: the first start after it
+    opens the configs window in Simple, and its tutorials start by themselves
+    again (src/app/tutorial_state.inl). Written before "Start DS5-USBIP" on the
+    last page can run. }
+  SaveStringToFile(ExpandConstant('{app}\install-stamp.txt'),
+    GetDateTimeString('yyyy/mm/dd hh:nn:ss.zzz', '-', ':') + #13#10, False);
   WizardForm.StatusLabel.Caption := 'Removing old controllers Windows kept from past bridges...';
   RemoveOldDevices(ExpandConstant('{app}\{#ExeName}'));
   if not StreamHostFound() then Exit;

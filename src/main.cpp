@@ -133,13 +133,13 @@ bool ui_view_get(bool *compact, bool *quick, std::string *ordinal);
  * Defined below, after config_move.inl. */
 bool ui_open_on_bridge();
 void ui_set_open_on_bridge(bool on);
-/* The tutorials (tutorial_state.inl): whether Simple's has been seen, kept in
- * window-state.txt, and the tray's request to show it again. Defined below,
- * after config_move.inl. */
-bool ui_tutorial_seen();
-void ui_set_tutorial_seen(bool seen);
-void ui_tutorial_ask();
-bool ui_tutorial_asked();
+/* The tutorials (tutorial_state.inl): whether Simple's and Quick's have been
+ * seen, kept in window-state.txt, and the tray's request for one, by its
+ * tutorial_state::Kind. Defined below, after config_move.inl. */
+bool ui_tutorial_seen(int kind);
+void ui_set_tutorial_seen(int kind, bool seen);
+void ui_tutorial_ask(int kind);
+int ui_tutorial_asked();
 void ui_tutorial_take();
 /* The tutorial's words, drawn beside the configs window rather than in it
  * (tutorial_bubble.inl): shown with what a step says and the buttons under
@@ -301,7 +301,11 @@ void synthetic_devices_stop();
 // ⓘ And the same shape again (T-239): agent.inl reads the window's remembered
 // place the moment it has settled what a relative path means, and
 // config_move.inl is included well below because rebind.inl needs it there.
-namespace config_move { inline void state_load(); }
+// The install's check follows it there (tutorial_state.inl).
+namespace config_move {
+inline void state_load();
+inline void install_check(const std::wstring &exeFolder);
+}
 #include "input/gyro_calibration_fetch.inl"   // needs CtmBackend; agent.inl calls it
 #include "app/nickname.inl"      // controller nicknames; agent.inl assigns one per session
 #include "app/same_controller.inl"   // which older session a new bridge retires; agent.inl asks it
@@ -412,19 +416,19 @@ void ui_set_open_on_bridge(bool on)
 {
     config_move::set_open_on_bridge(on);
 }
-bool ui_tutorial_seen()
+bool ui_tutorial_seen(int kind)
 {
-    return config_move::tutorial_seen();
+    return config_move::tutorial_seen(kind);
 }
-void ui_set_tutorial_seen(bool seen)
+void ui_set_tutorial_seen(int kind, bool seen)
 {
-    config_move::set_tutorial_seen(seen);
+    config_move::set_tutorial_seen(kind, seen);
 }
-void ui_tutorial_ask()
+void ui_tutorial_ask(int kind)
 {
-    config_move::ask_tutorial();
+    config_move::ask_tutorial(kind);
 }
-bool ui_tutorial_asked()
+int ui_tutorial_asked()
 {
     return config_move::tutorial_asked();
 }

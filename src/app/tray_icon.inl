@@ -39,7 +39,6 @@ inline const UINT kIdQuit     = 3;
 inline const UINT kIdOpenOnBridge = 4;
 inline const UINT kIdOpenFolder = 5;
 inline const UINT kIdRemoveOld = 6;
-inline const UINT kIdTutorial = 7;
 // ⓘ The title's line. Choosing it closes the menu and does nothing else.
 inline const UINT kIdHeader   = 10;
 // ⓘ One id for each line of the Controllers list, in the order it was read as
@@ -48,6 +47,8 @@ inline const UINT kIdHeader   = 10;
 inline const UINT   kIdDeviceFirst = 100;
 inline const size_t kMaxListed     = 64;
 inline const UINT   kIdModeFirst   = 200;
+// ⓘ And one for each tutorial in Show tutorial's list.
+inline const UINT   kIdTutorialFirst = 300;
 
 // ⭐⭐ THE ICON GOES NOW (rhoquinn8217, 2026-10-01: *"I want to run it in the
 // background and the tray icon to be the place where it is closed."*).
@@ -403,25 +404,24 @@ inline void remove_old_controllers()
     }
 }
 
-// ⭐ The menu's "Show tutorial" (rhoquinn8217, 2026-10-14). Quick is the one
-// layout with a tour yet (2026-10-23: *"I want to demo quick mode tutorial
-// first"*), so the window goes to Quick, by the same change_layout its Window
-// Mode line uses, and opens if it was not open. The page collects the request
+// ⭐ A tutorial from the menu's "Show tutorial" list (rhoquinn8217,
+// 2026-10-14, a list since 2026-10-26). The window goes to the layout it
+// tours, by the same change_layout its Window Mode line uses, and opens if it
+// was not open: asked for here, it is wanted. The page collects the request
 // within a second and starts the tour on its practice controllers, so nothing
 // needs to be bridged for it.
-// ⓘ kModes[2] is Quick.
-inline void show_tutorial()
+inline void show_tutorial(const tray_menu::Tutorial &tour)
 {
-    ui_tutorial_ask();
+    ui_tutorial_ask(tour.kind);
     bool compact = false, quick = false;
     std::string ordinal;
     ui_view_get(&compact, &quick, &ordinal);
     ctm_open_ui::FindState open;
     EnumWindows(ctm_open_ui::find_window_proc, reinterpret_cast<LPARAM>(&open));
     const bool wasOpen = open.found != nullptr;
-    change_layout(2);
+    change_layout(tour.mode);
     if (!wasOpen) ctm_chord_show_ui(ordinal);
-    device_log::session_w() << L"tray: Show tutorial, in Quick"
+    device_log::session_w() << L"tray: Show tutorial, " << tour.name
                             << (wasOpen ? L"" : L"; the config window is opening for it");
 }
 
@@ -505,8 +505,13 @@ inline void show_menu(HWND hwnd)
     // ⭐ Remove old controllers, in a group of its own above Quit
     // (rhoquinn8217, 2026-10-13): a rarely used tidy-up that asks first.
     // ⭐ Show tutorial above it (rhoquinn8217, 2026-10-14), the other thing
-    // here that is wanted now and then rather than every day.
-    AppendMenuW(menu, MF_STRING, kIdTutorial, tray_menu::kShowTutorial);
+    // here that is wanted now and then rather than every day: a list of the
+    // tutorials since 2026-10-26.
+    const HMENU tours = CreatePopupMenu();
+    for (int i = 0; i < tray_menu::kTutorialCount; ++i) {
+        AppendMenuW(tours, MF_STRING, kIdTutorialFirst + static_cast<UINT>(i), tray_menu::kTutorials[i].name);
+    }
+    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(tours), tray_menu::kShowTutorial);
     AppendMenuW(menu, MF_STRING, kIdRemoveOld, tray_menu::kRemoveOld);
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
 
@@ -524,7 +529,7 @@ inline void show_menu(HWND hwnd)
         menu, TPM_RIGHTBUTTON | TPM_RETURNCMD | TPM_NONOTIFY,
         pt.x, pt.y, 0, hwnd, nullptr));
     PostMessageW(hwnd, WM_NULL, 0, 0);
-    // ⓘ Takes the two side menus with it. The picture is ours to let go of.
+    // ⓘ Takes the side menus with it. The picture is ours to let go of.
     DestroyMenu(menu);
     if (header != nullptr) DeleteObject(header);
 
@@ -538,6 +543,11 @@ inline void show_menu(HWND hwnd)
     }
     if (chosen >= kIdModeFirst && chosen < kIdModeFirst + static_cast<UINT>(tray_menu::kModeCount)) {
         change_layout(static_cast<int>(chosen - kIdModeFirst));
+        return;
+    }
+    if (chosen >= kIdTutorialFirst &&
+        chosen < kIdTutorialFirst + static_cast<UINT>(tray_menu::kTutorialCount)) {
+        show_tutorial(tray_menu::kTutorials[chosen - kIdTutorialFirst]);
         return;
     }
 
@@ -571,9 +581,6 @@ inline void show_menu(HWND hwnd)
     case kIdSettings:
         // ⓘ The same path the chord takes, with no controller in hand.
         ctm_chord_show_ui(std::string());
-        break;
-    case kIdTutorial:
-        show_tutorial();
         break;
     case kIdRemoveOld:
         remove_old_controllers();

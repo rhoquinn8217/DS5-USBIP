@@ -847,12 +847,15 @@ inline const char *state_file() { return "window-state.txt"; }
 // since 2026-10-15.
 inline std::atomic_bool g_openOnBridge{open_on_bridge::kDefault};
 
-// ⭐ THE TUTORIALS (rhoquinn8217, 2026-10-14): whether Simple's has been seen,
-// kept here with the rest; tutorial_state.inl says what it means. And the
-// tray's request to show it again, which lives until the page takes it and
-// is not kept.
+// ⭐ THE TUTORIALS (rhoquinn8217, 2026-10-14): whether Simple's and Quick's
+// have been seen, kept here with the rest; tutorial_state.inl says what it
+// means. The tray's request for one, which lives until the page takes it and
+// is not kept. And the last install's stamp this person's listener saw.
 inline std::atomic_bool g_tutorialSimpleSeen{false};
-inline std::atomic_bool g_tutorialAsked{false};
+inline std::atomic_bool g_tutorialQuickSeen{false};
+inline std::atomic_int  g_tutorialAsked{tutorial_state::None};
+inline std::mutex g_stampMutex;
+inline std::string g_installStamp;
 
 inline void state_save()
 {
@@ -872,7 +875,14 @@ inline void state_save()
         << "size_simple = " << g_sizeCompact.load() << "\n"
         << "size_quick = " << g_sizeQuick.load() << "\n";
     out << open_on_bridge::default_line() << open_on_bridge::line(g_openOnBridge.load());
-    out << tutorial_state::seen_line(g_tutorialSimpleSeen.load());
+    out << tutorial_state::seen_line(tutorial_state::kSimpleSeenKey, g_tutorialSimpleSeen.load())
+        << tutorial_state::seen_line(tutorial_state::kQuickSeenKey, g_tutorialQuickSeen.load());
+    {
+        std::lock_guard<std::mutex> lock(g_stampMutex);
+        if (!g_installStamp.empty()) {
+            out << tutorial_state::kInstallStampKey << " = " << g_installStamp << "\n";
+        }
+    }
     {
         std::lock_guard<std::mutex> lock(g_ordinalMutex);
         if (!g_ordinal.empty()) out << "ordinal = " << g_ordinal << "\n";
@@ -945,6 +955,15 @@ inline void state_load()
             g_tutorialSimpleSeen.store(tutorial_state::parse_seen(val));
             continue;
         }
+        if (key == tutorial_state::kQuickSeenKey) {
+            g_tutorialQuickSeen.store(tutorial_state::parse_seen(val));
+            continue;
+        }
+        if (key == tutorial_state::kInstallStampKey) {
+            std::lock_guard<std::mutex> lock(g_stampMutex);
+            g_installStamp = val;
+            continue;
+        }
         // ⚠️ T-253: this must sit ABOVE the atoi fallback -- these values
         // are a PAIR, not a single number, and atoi would silently take the
         // width and drop the height.
@@ -1005,7 +1024,35 @@ inline void state_load()
         << " posQuick=" << (g_posQuick.have ? 1 : 0)
         << " " << g_posQuick.x << "," << g_posQuick.y
         << " open_on_bridge=" << (g_openOnBridge.load() ? 1 : 0)
-        << " tutorial_simple_seen=" << (g_tutorialSimpleSeen.load() ? 1 : 0));
+        << " tutorial_simple_seen=" << (g_tutorialSimpleSeen.load() ? 1 : 0)
+        << " tutorial_quick_seen=" << (g_tutorialQuickSeen.load() ? 1 : 0));
+}
+
+// ⭐ THE FIRST START AFTER AN INSTALL (tutorial_state.inl): the window opens
+// in Simple, and both tours start by themselves again. Run once, after
+// state_load, with the folder the exe is in. ⓘ Known, so the page takes
+// Simple from here rather than from its own memory of the last window.
+inline void install_check(const std::wstring &exeFolder)
+{
+    std::ifstream f((exeFolder + L"\\" + tutorial_state::kStampFile).c_str());
+    if (!f) return;
+    std::string line;
+    std::getline(f, line);
+    const std::string stamp = tutorial_state::stamp_from_file(line);
+    {
+        std::lock_guard<std::mutex> lock(g_stampMutex);
+        if (!tutorial_state::fresh_install(stamp, g_installStamp)) return;
+        g_installStamp = stamp;
+    }
+    g_compact.store(true);
+    g_quick.store(false);
+    g_known.store(true);
+    g_tutorialSimpleSeen.store(false);
+    g_tutorialQuickSeen.store(false);
+    state_save();
+    device_log::input(device_log::msg()
+        << "ui/install: the first start after an install (" << stamp
+        << "): the window opens in Simple, and both tutorials will start by themselves again");
 }
 
 // The "Open on bridge" switch: read by the bridge, set by the tray and the
@@ -1018,19 +1065,22 @@ inline void set_open_on_bridge(bool on)
     state_save();
 }
 
-// Whether Simple's tutorial has been seen: set by the page when it is skipped
-// or ended, and kept at once.
-inline bool tutorial_seen() { return g_tutorialSimpleSeen.load(); }
-inline void set_tutorial_seen(bool seen)
+// Whether a tour has been seen: set by the page as it starts one, and kept at
+// once.
+inline bool tutorial_seen(int kind)
 {
-    g_tutorialSimpleSeen.store(seen);
+    return kind == tutorial_state::Quick ? g_tutorialQuickSeen.load() : g_tutorialSimpleSeen.load();
+}
+inline void set_tutorial_seen(int kind, bool seen)
+{
+    (kind == tutorial_state::Quick ? g_tutorialQuickSeen : g_tutorialSimpleSeen).store(seen);
     state_save();
 }
 
-// The tray's "Show tutorial": asked for there, taken by the page.
-inline void ask_tutorial() { g_tutorialAsked.store(true); }
-inline bool tutorial_asked() { return g_tutorialAsked.load(); }
-inline void take_tutorial() { g_tutorialAsked.store(false); }
+// The tray's list of tutorials: one asked for there, taken by the page.
+inline void ask_tutorial(int kind) { g_tutorialAsked.store(kind); }
+inline int tutorial_asked() { return g_tutorialAsked.load(); }
+inline void take_tutorial() { g_tutorialAsked.store(tutorial_state::None); }
 
 // This layout's slot, and the table it indexes.
 inline std::atomic_int &size_slot()
