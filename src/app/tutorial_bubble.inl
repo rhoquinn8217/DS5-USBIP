@@ -277,7 +277,8 @@ inline Layout compute_layout(HDC dc, Fonts *fonts, const Content &c, UINT dpi,
         L.btns.push_back({ x, rowTop, x + btnW[i], rowTop + btnH });
         x += btnW[i] + between;
     }
-    if (!c.arrow) return L;
+    // ⓘ None over the window's middle: there is nothing beside it to point at.
+    if (!c.arrow || c.prefer == tbr::Prefer::Center) return L;
     for (const int a : L.place.arrowsAt) {
         Layout::Tri t{};
         switch (L.place.side) {
@@ -686,6 +687,7 @@ inline int picture_mode(int argc, wchar_t **argv)
         c.buttons = { { "skip", L"Skip", "plain" }, { "begin", L"Begin tutorial", "go" } };
         c.focus = "begin";
         c.arrow = false;
+        c.prefer = tbr::Prefer::Center;      // ⓘ over the window's middle, as the tours open
     } else {
         c.count = L"4 of 13";
         c.words = L"Press [[*\u25b3]] to auto link the config in the middle, then choose [[OK]]: Dual "

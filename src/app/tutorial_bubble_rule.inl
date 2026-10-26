@@ -164,16 +164,20 @@ enum class Side { Above, Below, Right, Left };
 // ⭐ THE SIDE A STEP ASKS FOR (rhoquinn8217, 2026-10-23, going through Quick's
 // tour: "Put the bubble on the left side of the config", "Move bubble to right
 // side of window", "Move bubble to bottom side of window"). None leaves it to
-// the rule below.
-enum class Prefer { None, Above, Below, Left, Right };
+// the rule below. Center is over the window's middle, not beside it
+// (2026-10-26: "For the introduction and closing step of the tutorial, put
+// the bubble in the center of the config window").
+enum class Prefer { None, Above, Below, Left, Right, Center };
 
-// The page names it "above", "below", "left" or "right"; anything else is None.
+// The page names it "above", "below", "left", "right" or "center"; anything
+// else is None.
 inline Prefer parse_prefer(const std::string &side)
 {
     if (side == "above") return Prefer::Above;
     if (side == "below") return Prefer::Below;
     if (side == "left") return Prefer::Left;
     if (side == "right") return Prefer::Right;
+    if (side == "center") return Prefer::Center;
     return Prefer::None;
 }
 
@@ -243,6 +247,18 @@ inline Placement place_at(const Box &win, const Box &work, int stackW, int stack
                           const std::vector<std::pair<int, int>> &anchors, Prefer prefer)
 {
     const int margin = gap;
+    // ⭐ CENTER: the words and buttons over the middle of the window itself,
+    // kept on the screen, with no arrow to point anywhere.
+    if (prefer == Prefer::Center) {
+        Placement p;
+        const int x = clamp_to(win.left + (win.width() - stackW) / 2, work.left + margin,
+                               work.right - margin - stackW);
+        const int y = clamp_to(win.top + (win.height() - stackH) / 2, work.top + margin,
+                               work.bottom - margin - stackH);
+        p.window = { x, y, x + stackW, y + stackH };
+        p.arrowsAt.push_back(0);
+        return p;
+    }
     std::vector<int> xs, ys;
     for (const auto &a : anchors) {
         xs.push_back(win.left + win.width() * clamp_to(a.first, 0, 1000) / 1000);

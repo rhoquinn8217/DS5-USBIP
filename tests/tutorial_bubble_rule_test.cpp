@@ -212,6 +212,25 @@ int run_tutorial_bubble_rule_tests()
         CTM_CHECK(tbr::parse_prefer("sideways") == tbr::Prefer::None);
     }
 
+    // ⭐ The tours' opening card and last step (rhoquinn8217, 2026-10-26: "For
+    // the introduction and closing step of the tutorial, put the bubble in the
+    // center of the config window").
+    section("tutorial words: center is over the window's middle, and on the screen");
+    {
+        CTM_CHECK(tbr::parse_prefer("center") == tbr::Prefer::Center);
+        const tbr::Box simple{ 528, 560, 1392, 1030 };
+        const auto p = tbr::place_at(simple, work, 380, 130, 12, 10, 10, { { 500, 500 } }, tbr::Prefer::Center);
+        CTM_CHECK(inside(p.window, simple));
+        CTM_CHECK_EQ(p.window.width(), 380);
+        CTM_CHECK_EQ(p.window.height(), 130);
+        CTM_CHECK_EQ(p.window.left + p.window.width() / 2, simple.left + simple.width() / 2);
+        CTM_CHECK_EQ(p.window.top + p.window.height() / 2, simple.top + simple.height() / 2);
+        // A window mostly off the screen's edge: the words stay on it.
+        const tbr::Box off{ 1800, 980, 2400, 1300 };
+        const auto q = tbr::place_at(off, work, 380, 130, 12, 10, 10, { { 500, 500 } }, tbr::Prefer::Center);
+        CTM_CHECK(inside(q.window, work));
+    }
+
     section("tutorial words: below asked with no room below goes above, still clear of the window");
     {
         // Quick opens at the bottom of the screen: nothing fits under it.
