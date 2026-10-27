@@ -817,9 +817,11 @@ inline int picture_mode(int argc, wchar_t **argv)
         c.prefer = tbr::Prefer::Left;
     } else if (sample == L"beside") {
         // ⓘ The window's left half lit, its right half taken: the words
-        // stand at its left, off what is on it.
-        c.count = L"5 of 16";
-        c.words = L"Press [[Unlink]]: Dual stops using a config.";
+        // stand at its left, off what is on it, with the auto link mark lit
+        // as Simple's step draws it.
+        c.count = L"11 of 17";
+        c.words = L"[[\U0001F5D8]] beside [[stick_to_mouse]] marks the config Dual auto links to. "
+                  L"A controller auto links to one config at a time.";
         c.buttons = { { "next", L"Continue", "off" }, { "prev", L"Go back", "plain" },
                       { "end", L"End tutorial", "plain" } };
         c.focus = "prev";

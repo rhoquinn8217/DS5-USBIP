@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.103 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.104 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,12 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.104 Simple's tutorial lights the auto link mark beside the config
+            it auto linked, in a step of its own after Auto link
+            (rhoquinn8217: "add a step after autolink highlighting the
+            symbol next to the config that was auto link"); the wheel's
+            rows keep the mark in a span of its own for it, and read as
+            before. Seventeen steps.
     2.66.103 The tutorials' words stay up through a tour and slide to each
             step's place, standing as near to what it lights as they can,
             on its side first, over the window wherever they cover none of
@@ -2915,7 +2921,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.66.103</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.66.104</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -6774,13 +6780,21 @@ var DRUM_ROLL = null;         // { from, t0, ms }: a roll under way
 // track two rows out.
 var DRUM_REACH = 4;           // rows drawn each side of the choice
 var DRUM_ROLL_ROWS = 2;       // the longest roll; a longer step starts this far out
+// ⓘ The auto link mark after a name, in a span of its own: the tutorial
+// lights it (rhoquinn8217, 2026-10-27). The row reads as before.
+function drumRowText(text) {
+  var mark = ' \ud83d\uddd8';
+  if (text.slice(-mark.length) !== mark) return esc(text);
+  return esc(text.slice(0, -mark.length)) + ' <span class="cdrum-auto">\ud83d\uddd8</span>';
+}
+
 function drumRows(sel) {
   var n = sel.options.length, at = Math.max(0, sel.selectedIndex), html = '';
   for (var k = -DRUM_REACH; k <= DRUM_REACH; k++) {
     if (n < 2 && k !== 0) continue;
     var i = ((at + k) % n + n) % n;
     html += '<span class="cdrum-row' + (k === 0 ? ' on' : '') + '" style="top:' +
-            drumTop(k) + 'em">' + esc(sel.options[i].text) + '</span>';
+            drumTop(k) + 'em">' + drumRowText(sel.options[i].text) + '</span>';
   }
   return html;
 }
@@ -12420,7 +12434,8 @@ function selfTest() {
     TUT_MOCK = keepMock;
   }
 
-  // Simple's tour (2.66.101): sixteen steps with words, the last ending it;
+  // Simple's tour (2.66.101): seventeen steps with words (sixteen until
+  // 2.66.104), the last ending it;
   // a config made from a pre-set joins the practice ones, linked to the
   // controller it was made on, auto links and is archived without reaching
   // the listener; and which tour starts by itself.
@@ -12441,8 +12456,8 @@ function selfTest() {
     var simpleWords = TUT_SIMPLE.map(function (st) { return st.words(); });
     TUT = keepTutS;
     TUT_MOCK = keepMockS;
-    ok('the tutorial: Simple has sixteen steps, each with words, the last ending it',
-       TUT_SIMPLE.length === 16 && TUT_SIMPLE[15].act === 'end' &&
+    ok('the tutorial: Simple has seventeen steps, each with words, the last ending it',
+       TUT_SIMPLE.length === 17 && TUT_SIMPLE[16].act === 'end' &&
        simpleWords.every(function (w) { return !!w && w.indexOf('undefined') < 0; }),
        simpleWords.join(' / '));
     ok('the tutorial: Simple makes a practice config from a pre-set, auto links it and archives it',
@@ -12458,6 +12473,25 @@ function selfTest() {
        tutAutoKindFor('simple', fresh, [{ supports_config: false }]) === '' &&
        tutAutoKindFor('', fresh, bridged) === '' &&
        tutAutoKindFor('simple', null, bridged) === '', '');
+  }
+
+  // The wheel's rows keep the auto link mark in a span of its own, for the
+  // tour to light (2.66.104), and read as before.
+  {
+    var markSel = document.createElement('select');
+    markSel.innerHTML = '<option>a</option><option selected>b \ud83d\uddd8</option>';
+    var markHolder = document.createElement('span');
+    markHolder.innerHTML = drumRows(markSel);
+    var markRows = [].slice.call(markHolder.querySelectorAll('.cdrum-row'));
+    var markOn = markHolder.querySelector('.cdrum-row.on');
+    ok('the wheel\'s rows keep the auto link mark in a span of its own, the words as before',
+       !!markOn && markOn.textContent === 'b \ud83d\uddd8' && markRows.length > 1 &&
+       markRows.every(function (r) {
+         var marked = r.textContent.slice(-3) === ' \ud83d\uddd8';
+         var spans = r.querySelectorAll('.cdrum-auto');
+         return spans.length === (marked ? 1 : 0) && (!marked || spans[0].textContent === '\ud83d\uddd8');
+       }),
+       markOn ? markOn.innerHTML : 'no middle row');
   }
 
   // The tour's buttons are the legend's own (2.66.99): a pad's drawn as the
@@ -12522,7 +12556,7 @@ function selfTest() {
 // changing the thing you assume is at fault.
 // ⭐⭐ THE TUTORIALS (rhoquinn8217, 2026-10-14: *"I want a tutorial when a
 // mode for each mode. Lets start with simple mode."*). One per Window Mode:
-// Quick's (2026-10-23, thirteen steps) and Simple's (2026-10-26, sixteen,
+// Quick's (2026-10-23, thirteen steps) and Simple's (2026-10-26, seventeen,
 // *"Based on how we did the quick mode tutorial"*). Advanced has none yet.
 //
 // ⭐⭐ WHEN ONE STARTS (rhoquinn8217, 2026-10-26): from the tray's list of
@@ -13109,12 +13143,13 @@ var TUT_QUICK = [
     } }
 ];
 
-// ⭐⭐ SIMPLE'S SIXTEEN (rhoquinn8217, 2026-10-26, the list they went through:
+// ⭐⭐ SIMPLE'S SEVENTEEN (rhoquinn8217, 2026-10-26, the list they went through:
 // *"Based on how we did the quick mode tutorial, build a list a of steps for
 // me to review for a simple view tutorial"*). Simple's own: the controllers
 // either side of its panel, the button column beside the wheel, a config
 // made from a pre-set and put away again (*"do a step for archive"*), and the
-// tip under the legend.
+// tip under the legend. Sixteen until 2026-10-27, when the auto link mark
+// took a step of its own.
 var TUT_SIMPLE = [
   // 1
   { side: 'left', lit: function () { return tutQ('.cname .devemo', '.cname .batt'); },
@@ -13233,7 +13268,18 @@ var TUT_SIMPLE = [
       var p = tutPad();
       return !!p && !!TUT_MOCK.links[p.ordinal] && tutAutoOf(p.ordinal) === TUT_MOCK.links[p.ordinal];
     } },
-  // 11 (*"do a step for archive"*), with Edit beside it shown and locked.
+  // 11 (rhoquinn8217, 2026-10-27: *"add a step after autolink highlighting
+  // the symbol next to the config that was auto link"*): the 🗘 the wheel
+  // puts after its name (drumRows keeps it in a span of its own), on the
+  // right as Auto link's words were, so they move little.
+  { side: 'right', lit: function () { return tutQ('.cdrum-row.on .cdrum-auto'); },
+    words: function () {
+      var p = tutPad(), name = p ? tutAutoOf(p.ordinal) : '';
+      return tutHl('\ud83d\uddd8') + ' beside ' + (name ? tutHl(name) : 'the config in the middle') +
+             ' marks the config ' + tutNick() + ' auto links to. A controller auto links to one ' +
+             'config at a time.';
+    } },
+  // 12 (*"do a step for archive"*), with Edit beside it shown and locked.
   { side: 'right', act: true, focus: '.csbtns .carchive-btn', split: true,
     lit: function () {
       return tutQ('.csbtns > button:nth-child(2)', '.csbtns .carchive-btn').concat(tutConfirmCard());
@@ -13247,14 +13293,14 @@ var TUT_SIMPLE = [
              ' has no config again.';
     },
     done: function () { return !!TUT.made && TUT_MOCK.configs.indexOf(TUT.made) < 0; } },
-  // 12 (*"Need a step to show the hint and how to click it to see the next
+  // 13 (*"Need a step to show the hint and how to click it to see the next
   // one"*): a click is the way, and a controller has none, so Continue stays.
   { side: 'left', free: true, lit: function () { return tutQ('.cinfo'); },
     words: function () {
       return 'This line is a tip, and a new one comes every 30 seconds. Click it to see the next ' +
              'one, then choose ' + tutHl('Continue') + '.';
     } },
-  // 13: the window's place and size. Options and Create reach the listener
+  // 14: the window's place and size. Options and Create reach the listener
   // from the pad's own report, and P and R pass.
   { side: 'left', free: true, split: true,
     lit: function () {
@@ -13267,7 +13313,7 @@ var TUT_SIMPLE = [
              'window out of the way, and ' + tutKey('resize') + ' or ' + tutHl('\ud83d\uddd7') +
              ' changes its size. Try them, then choose ' + tutHl('Continue') + '.';
     } },
-  // 14: Circle reaches Close, and Close itself stays locked, as in Quick's.
+  // 15: Circle reaches Close, and Close itself stays locked, as in Quick's.
   // ⛔ Close takes the halo first (keyAim): Simple's Circle closes the window
   // when it finds no Close to go to.
   { side: 'right', act: true, stay: true, keyAim: '.cbar > button.cclose',
@@ -13285,7 +13331,7 @@ var TUT_SIMPLE = [
              ' puts this window away, and your controller goes back to your game.';
     },
     done: function () { return !!TUT.circled; } },
-  // 15: the mode picker, opened and not used, as in Quick's.
+  // 16: the mode picker, opened and not used, as in Quick's.
   { side: 'right', act: true, stay: true, noPick: true, focus: '#cselMode',
     lit: function () { return tutQ('#cselMode'); },
     pointer: function () { return GP_SELECTING !== tutById('cselMode'); },
@@ -13295,7 +13341,7 @@ var TUT_SIMPLE = [
              'mode stays as it is.';
     },
     done: function () { return GP_SELECTING === tutById('cselMode'); } },
-  // 16
+  // 17
   { lit: function () { return []; }, act: 'end',
     words: function () {
       var back = padLegend() === PAD_LEGEND_PS
