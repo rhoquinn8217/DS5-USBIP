@@ -322,5 +322,39 @@ int run_tutorial_bubble_rule_tests()
         CTM_CHECK(b[1].first == 500 && b[1].second == 500);
         CTM_CHECK(tbr::parse_anchors("").empty());
     }
+
+    section("tutorial words: the slide starts and ends slowly, and is quickest half way");
+    {
+        CTM_CHECK(tbr::ease_in_out(0.0) == 0.0 && tbr::ease_in_out(1.0) == 1.0);
+        CTM_CHECK(tbr::ease_in_out(-1.0) == 0.0 && tbr::ease_in_out(2.0) == 1.0);
+        CTM_CHECK(tbr::ease_in_out(0.5) > 0.4999 && tbr::ease_in_out(0.5) < 0.5001);
+        // Never back the way it came, and the two halves mirror each other.
+        double last = 0.0;
+        bool forward = true, mirrored = true;
+        for (int i = 1; i <= 100; ++i) {
+            const double t = i / 100.0, e = tbr::ease_in_out(t);
+            if (e < last) forward = false;
+            const double d = e + tbr::ease_in_out(1.0 - t) - 1.0;
+            if (d > 1e-9 || d < -1e-9) mirrored = false;
+            last = e;
+        }
+        CTM_CHECK(forward);
+        CTM_CHECK(mirrored);
+        // Slow off the mark and into the stop, quickest in the middle tenth.
+        const double first = tbr::ease_in_out(0.1), middle = tbr::ease_in_out(0.55) - tbr::ease_in_out(0.45);
+        CTM_CHECK(first < 0.01);
+        CTM_CHECK(middle > 0.14);
+        CTM_CHECK(1.0 - tbr::ease_in_out(0.9) < 0.01);
+    }
+
+    section("tutorial words: a longer slide takes longer, within a third to a half of a second");
+    {
+        CTM_CHECK_EQ(tbr::slide_ms(0, 96), 260);
+        CTM_CHECK_EQ(tbr::slide_ms(400, 96), 360);
+        CTM_CHECK_EQ(tbr::slide_ms(600, 144), 360);   // the same way at 150%
+        CTM_CHECK_EQ(tbr::slide_ms(5000, 96), 480);
+        CTM_CHECK(tbr::slide_ms(200, 96) < tbr::slide_ms(500, 96));
+        CTM_CHECK_EQ(tbr::slide_ms(400, 0), 360);     // no dpi reads as 96
+    }
     return 0;
 }

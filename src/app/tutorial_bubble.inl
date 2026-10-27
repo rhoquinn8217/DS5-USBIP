@@ -491,24 +491,29 @@ inline std::string g_side;          // the side the words stand on, for the page
 
 // ⭐ ONE WORDS BOX, SLIDING TO THE NEXT STEP (rhoquinn8217, 2026-10-26: "I
 // want a persistent tutorial bubble that move to where the next step is"):
-// from where it stands to its new place, easing in, a quarter of a second.
-inline const UINT_PTR kSlideTimer = 2;
-inline const ULONGLONG kSlideMs = 240;
+// from where it stands to its new place, starting slowly, quickest half way
+// and slowing as it arrives (tbr::ease_in_out), a third to a half of a
+// second by how far it goes (tbr::slide_ms).
+// ⭐ A STEP EVERY FRAME (2026-10-27, "Make animation for fluid"): the
+// window's thread moves it once each time the screen refreshes (frame_wait,
+// in thread_main's loop), where it was a 15 ms timer, which Windows runs
+// at 64 a second at most, against the stream's 120; and the time gone is the
+// steady clock's, where GetTickCount64 moved in steps of 15.6 ms.
 inline POINT g_slideFrom{}, g_slideTo{};
-inline ULONGLONG g_slideAt = 0;
+inline std::chrono::steady_clock::time_point g_slideAt;
+inline int g_slideMs = 0;
 inline bool g_sliding = false;
 
-inline void slide_stop(HWND hwnd)
+inline void slide_stop(HWND)
 {
-    if (g_sliding) KillTimer(hwnd, kSlideTimer);
     g_sliding = false;
 }
 
 inline void slide_step(HWND hwnd)
 {
-    const ULONGLONG gone = GetTickCount64() - g_slideAt;
-    const double t = gone >= kSlideMs ? 1.0 : static_cast<double>(gone) / kSlideMs;
-    const double e = 1.0 - (1.0 - t) * (1.0 - t) * (1.0 - t);
+    const double gone = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - g_slideAt).count();
+    const double t = g_slideMs <= 0 || gone >= g_slideMs ? 1.0 : gone / g_slideMs;
+    const double e = tbr::ease_in_out(t);
     const int x = g_slideFrom.x + static_cast<int>((g_slideTo.x - g_slideFrom.x) * e + (g_slideTo.x >= g_slideFrom.x ? 0.5 : -0.5));
     const int y = g_slideFrom.y + static_cast<int>((g_slideTo.y - g_slideFrom.y) * e + (g_slideTo.y >= g_slideFrom.y ? 0.5 : -0.5));
     SetWindowPos(hwnd, nullptr, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
@@ -519,9 +524,19 @@ inline void slide_to(HWND hwnd, POINT from, POINT to)
 {
     g_slideFrom = from;
     g_slideTo = to;
-    g_slideAt = GetTickCount64();
-    if (!g_sliding) SetTimer(hwnd, kSlideTimer, 15, nullptr);
+    g_slideAt = std::chrono::steady_clock::now();
+    const double dx = to.x - from.x, dy = to.y - from.y;
+    g_slideMs = tbr::slide_ms(std::sqrt(dx * dx + dy * dy), GetDpiForWindow(hwnd));
     g_sliding = true;
+}
+
+// ⓘ Until the screen's next refresh: DwmFlush waits for the desktop's next
+// composition, so each step of a slide is a frame of its own. One that did
+// not wait, with nothing being composed, gives way to a short sleep.
+inline void frame_wait()
+{
+    const auto before = std::chrono::steady_clock::now();
+    if (FAILED(DwmFlush()) || std::chrono::steady_clock::now() - before < std::chrono::milliseconds(1)) Sleep(4);
 }
 
 inline HWND configs_window()
@@ -693,7 +708,6 @@ inline LRESULT CALLBACK wnd_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
     }
     case WM_TIMER:
         if (wp == kFollowTimer) refresh(hwnd);
-        else if (wp == kSlideTimer) slide_step(hwnd);
         return 0;
     default:
         if (msg == kMsgUpdate) {
@@ -729,10 +743,25 @@ inline void thread_main()
     g_hwnd.store(hwnd);
     SetTimer(hwnd, kFollowTimer, 100, nullptr);
     refresh(hwnd);
+    // ⓘ While the words slide: what is waiting, then a frame, then a step;
+    // otherwise asleep until a message comes.
     MSG m;
-    while (GetMessageW(&m, nullptr, 0, 0) > 0) {
-        TranslateMessage(&m);
-        DispatchMessageW(&m);
+    bool quit = false;
+    while (!quit) {
+        if (!g_sliding) {
+            if (GetMessageW(&m, nullptr, 0, 0) <= 0) break;
+            TranslateMessage(&m);
+            DispatchMessageW(&m);
+            continue;
+        }
+        while (PeekMessageW(&m, nullptr, 0, 0, PM_REMOVE)) {
+            if (m.message == WM_QUIT) { quit = true; break; }
+            TranslateMessage(&m);
+            DispatchMessageW(&m);
+        }
+        if (quit || !g_sliding) continue;
+        frame_wait();
+        if (g_sliding) slide_step(hwnd);
     }
     g_hwnd.store(nullptr);
     g_running.store(false);

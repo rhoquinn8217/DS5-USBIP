@@ -439,4 +439,28 @@ inline const char *side_name(Side s)
     return s == Side::Below ? "below" : s == Side::Left ? "left" : s == Side::Right ? "right" : "above";
 }
 
+// ⭐ HOW THE WORDS SLIDE (rhoquinn8217, 2026-10-27: "Make animation for
+// fluid. When moving the tutorial bubble lets add acceleration", choosing
+// between three curves): the one that starts slowly, speeds up and slows
+// down again as it arrives, cubic ease-in-out. How far along the way the
+// words are at `t`, the share of the slide's time gone: 0 at 0, 1 at 1,
+// half way at half time.
+inline double ease_in_out(double t)
+{
+    if (t <= 0.0) return 0.0;
+    if (t >= 1.0) return 1.0;
+    if (t < 0.5) return 4.0 * t * t * t;
+    const double u = 2.0 - 2.0 * t;
+    return 1.0 - u * u * u / 2.0;
+}
+
+// How long a slide of `distance` pixels takes at `dpi`, in milliseconds:
+// longer for a longer way, from 260 for a hop to 480 across a screen.
+inline int slide_ms(double distance, unsigned dpi)
+{
+    const double dips = distance * 96.0 / (dpi > 0 ? dpi : 96);
+    const double ms = 260.0 + dips * 0.25;
+    return ms <= 260.0 ? 260 : ms >= 480.0 ? 480 : static_cast<int>(ms + 0.5);
+}
+
 }  // namespace tutorial_bubble_rule
