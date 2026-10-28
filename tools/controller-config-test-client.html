@@ -49,6 +49,17 @@
             you and what Close does; and the first step says which
             controllers show their battery. Simple has twenty-two steps,
             Quick fourteen. (2.66.108 is the quick config switch's.)
+    2.66.108 The quick config switch's help says what the listener now
+             does (rhoquinn8217: "press again to lift restriction and the
+             config window persists after both fingers are lifted"): from
+             two fingers pressing the touchpad to the last finger lifting,
+             nothing of the touchpad reaches Windows or the game, the press
+             that opens this window included, and pressing again keeps the
+             window, the touchpad the config's again, in the layout it had
+             before ("on the second press, it should bring you to simple or
+             advance based on what you had open last"): the listener sends
+             Ctrl+Alt+Shift+V, and this page takes the layout it is told.
+             (2.66.101 to 2.66.107 are taken on another branch.)
     2.66.107 The tutorials' branch takes in 2.66.100: auto link asks
             nothing here too, and the tours' notes say so (Quick's
             practice controllers already started with no auto link), and
@@ -2934,14 +2945,17 @@
          stays on it, each swipe of a finger up or down steps the config,
          one thumb resting and the other swiping, and the last
          finger lifting closes it; in Simple and Quick in front, the same
-         swipe moves the wheel, with no press (2026-10-26). Every controller's,
+         swipe moves the wheel, with no press (2026-10-26). Until the last
+         finger lifts, the touchpad reaches neither Windows nor the game,
+         and pressing again keeps the window (2026-10-27), in the layout it
+         had before (2026-10-28). Every controller's,
          "essentially a global setting", so it is here. The listener
          keeps it and does the switching.
          Painted by paintQuickSwitch(); a pad stop of its own
          (data-gp-focus), as Open on bridge has. -->
     <label class="ovcheck ovnext" id="quickSwitchLabel"
       title="Unticked: the touchpad does what the config says. Tick it to switch configs by pressing the touchpad with two fingers."><input type="checkbox" id="quickSwitch" data-gp-focus="1" onchange="toggleQuickSwitch()">Press the touchpad with two fingers to switch configs</label>
-    <div class="ovhelp">Every controller: Quick view stays while a finger rests on the touchpad, and each swipe of another finger up or down changes the config. In Simple and Quick, the same swipe beside a resting thumb moves the wheel, with no press.</div>
+    <div class="ovhelp">Every controller: Quick view stays while a finger rests on the touchpad, each swipe of another finger up or down changes the config, and pressing again keeps the window, in the layout you had open last. Until then the touchpad reaches neither Windows nor the game. In Simple and Quick, the same swipe beside a resting thumb moves the wheel, with no press.</div>
   </div>
   <div class="ovcard conn">
     <!-- ⓘ The light is this card's own (paintConnLight). The line beside
@@ -6972,6 +6986,25 @@ function quickSwitchStep(delta) {
   QUICK_SWITCH_WAITING_AT = Date.now();
 }
 
+// ⭐ THE QUICK CONFIG SWITCH'S SECOND PRESS (KeyV): the window stays, in the
+// layout it had before the switch showed it Quick (rhoquinn8217, 2026-10-28:
+// "on the second press, it should bring you to simple or advance based on
+// what you had open last"). The listener has put that layout back already;
+// this asks for it as the window's opening does (restoreView), the window
+// taking that layout's own size and place, on the controller it shows now.
+// ⓘ A step not yet linked is linked first.
+function quickSwitchKeep() {
+  quickLinkOnLeave();
+  fetch(base() + '/api/v1/ui/view')
+    .then(function (r) { return r.json(); })
+    .then(function (v) {
+      if (!v || !v.known) return;
+      var mode = v.compact ? (v.quick ? 'quick' : 'simple') : 'advanced';
+      if (mode !== modeName()) setMode(mode, true);
+    })
+    .catch(function () {});
+}
+
 // ⭐ A STEP NOT YET LINKED IS LINKED AS THE WINDOW GOES (rhoquinn8217,
 // 2026-10-23: the quick config switch's window closes "immediately when
 // there are no fingers touching the touchpad"). A step links once the steps
@@ -8730,7 +8763,10 @@ var CONFIG_MODE_KEYS = {
   // up for the next config, down for the one before. They step the wheel
   // whatever has focus, and bring the focus to it.
   KeyJ: function () { quickSwitchStep(1); },
-  KeyK: function () { quickSwitchStep(-1); }
+  KeyK: function () { quickSwitchStep(-1); },
+  // ⭐ ITS SECOND PRESS (2.66.108): the window stays, in the layout it had
+  // before the switch showed it Quick.
+  KeyV: function () { quickSwitchKeep(); }
   // ⛔ NO KeyC. Create resizes the window now (rhoquinn8217, 2026-09-20) and
   // the listener reads it from the raw report, so it no longer sends a key --
   // see rebind.inl. It used to cycle compact and full, then after T-233 only
@@ -9801,7 +9837,7 @@ function paintQuickSwitch() {
   var label = document.getElementById('quickSwitchLabel');
   if (label) {
     label.title = QUICK_SWITCH
-      ? 'Ticked: two fingers pressing the touchpad open Quick view while a finger rests on it, and each swipe of another finger up or down changes the config; in Simple and Quick, the same swipe beside a resting thumb moves the wheel. Untick it to turn both off.'
+      ? 'Ticked: two fingers pressing the touchpad open Quick view while a finger rests on it, each swipe of another finger up or down changes the config, and pressing again keeps the window, in the layout you had open last; until then the touchpad reaches neither Windows nor the game. In Simple and Quick, the same swipe beside a resting thumb moves the wheel. Untick it to turn both off.'
       : 'Unticked: the touchpad does what the config says. Tick it to switch configs by pressing the touchpad with two fingers.';
   }
 }
@@ -9922,9 +9958,10 @@ document.addEventListener('keydown', function (ev) {
   // ⭐ A gate keystroke means a REBOUND pad is driving this page, so say why its
   // remaps are not doing their usual thing. The help text said so, but that is
   // read while configuring and never while it matters.
-  // ⓘ Not for the quick config switch's steps (KeyJ, KeyK): its window is up
-  // for a glance at the config landed on, and says nothing else meanwhile.
-  if (ev.code !== 'KeyJ' && ev.code !== 'KeyK') noteRemapsSuspended();
+  // ⓘ Not for the quick config switch's steps (KeyJ, KeyK) or its second
+  // press (KeyV): its window is up for a glance at the config landed on,
+  // and says nothing else meanwhile.
+  if (ev.code !== 'KeyJ' && ev.code !== 'KeyK' && ev.code !== 'KeyV') noteRemapsSuspended();
   var fn = CONFIG_MODE_KEYS[ev.code];
   if (!fn) return;
   ev.preventDefault();
@@ -12571,6 +12608,8 @@ function selfTest() {
   //     and a step that comes before the wheel waiting for it.
   ok('quick switch: its next and previous steps reach the page',
      typeof CONFIG_MODE_KEYS.KeyJ === 'function' && typeof CONFIG_MODE_KEYS.KeyK === 'function');
+  ok('quick switch: its second press reaches the page',
+     typeof CONFIG_MODE_KEYS.KeyV === 'function' && typeof quickSwitchKeep === 'function');
   {
     var keepWaiting = QUICK_SWITCH_WAITING, keepCompact = COMPACT;
     COMPACT = false;

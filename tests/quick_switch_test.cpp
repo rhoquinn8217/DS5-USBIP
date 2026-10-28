@@ -48,6 +48,30 @@ int run_quick_switch_tests()
         CTM_CHECK(!opens(q, 0, true));     // pressed with no finger: no
     }
 
+    section("quick switch: a press is seen as it goes in, with any number of fingers");
+    {
+        Press p;
+        CTM_CHECK(press_edge(p, true));
+        CTM_CHECK(!press_edge(p, true));         // held
+        CTM_CHECK(!press_edge(p, false));
+        CTM_CHECK(press_edge(p, true));          // in again
+    }
+
+    section("quick switch: while the window holds the touchpad, only the two asked for");
+    {
+        // ⓘ rhoquinn8217, 2026-10-27: "1 finger scroll up or down while the
+        // other finger stays put" and "press again to lift restriction and
+        // the config window persists after both fingers are lifted".
+        CTM_CHECK(while_held(false, 2, 0) == Held::Stay);
+        CTM_CHECK(while_held(false, 1, 0) == Held::Stay);
+        CTM_CHECK(while_held(false, 2, 1) == Held::Step);
+        CTM_CHECK(while_held(false, 1, -1) == Held::Step);
+        CTM_CHECK(while_held(true, 2, 0) == Held::Keep);    // pressed again: kept
+        CTM_CHECK(while_held(true, 1, 0) == Held::Keep);    // with one finger too
+        CTM_CHECK(while_held(true, 2, 1) == Held::Keep);    // the press wins a step
+        CTM_CHECK(while_held(false, 0, 0) == Held::Close);  // every finger up
+    }
+
     section("quick switch: one thumb resting, the other swiping up then down, a step a swipe");
     {
         // ⓘ rhoquinn8217, 2026-10-23: "both thumbs touch and press and
@@ -182,6 +206,32 @@ int run_quick_switch_tests()
         CTM_CHECK_EQ(front_steps(q, true, u), 0);
         u[1].y = 0.0f;                           // 100 more up: nothing
         CTM_CHECK_EQ(front_steps(q, true, u), 0);
+    }
+
+    section("quick switch: a second press's layout key goes once, after the steps");
+    {
+        // ⓘ rhoquinn8217, 2026-10-28: "on the second press, it should bring
+        // you to simple or advance based on what you had open last".
+        Keys k;
+        queue(k, 1);
+        queue_layout(k);
+        CTM_CHECK(!idle(k));
+        std::string sent;
+        bool down = false;
+        for (long long t = 0; t < 400; t += 4) {
+            const char *code = key_now(k, t);
+            if (code != nullptr && !down) sent += std::string(code) + " ";
+            down = code != nullptr;
+        }
+        CTM_CHECK(sent == "KeyJ KeyV ");
+        CTM_CHECK(idle(k));
+        // alone, it goes at once
+        Keys q;
+        queue_layout(q);
+        CTM_CHECK(std::string(key_now(q, 1000)) == "KeyV");
+        CTM_CHECK(key_now(q, 1040) == nullptr);
+        CTM_CHECK(key_now(q, 1080) == nullptr);
+        CTM_CHECK(idle(q));
     }
 
     section("quick switch: lifted while the window is still coming, it closes once it is there");

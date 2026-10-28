@@ -380,9 +380,10 @@ inline void apply(const void *deviceKey,
         // ⭐ THE QUICK CONFIG SWITCH reads the same fingers, and the pad
         // pressed in, on every report, in the window or out of it: two
         // fingers pressing open the window in Quick, each swipe of a finger
-        // up or down steps the config, and the last finger lifting closes
-        // it (quick_switch_session.inl). ⓘ Before anything here changes the
-        // report, and it changes nothing itself.
+        // up or down steps the config, the last finger lifting closes it,
+        // and a second press keeps it (quick_switch_session.inl). ⓘ Before
+        // anything here changes the report, and it changes nothing itself:
+        // mouse_exclusive.inl hides the touchpad it holds.
         {
             int x1 = 0, y1 = 0, x2 = 0, y2 = 0;
             const bool at1 = f1 && ctm_rebind::touch_finger_pos(chordLayout, data, len, 0, &x1, &y1);
