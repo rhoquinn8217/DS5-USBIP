@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.109 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.110 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,18 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.110 The tours' steps in the order of the window (rhoquinn8217:
+            "switch 3 and 4. After the wheel description, start with the
+            "New" button and go down to each. After each button is done go
+            to the do the resize button then the mode selector then the
+            close button. After that and the last step in the tutorial
+            should be the hints."): R3's limit before the wheel; Simple's
+            button column top to bottom, New with its pre-set, Edit,
+            Unlink, Auto link, Archive, and Quick's presses in the same
+            order, Unlink before auto link; then the position, the size,
+            the mode list, Circle and Close; Simple's tip last before the
+            card that ends it. Auto link, after Unlink now, first puts
+            back the config the controller used.
     2.66.109 From their run of setup 76 (rhoquinn8217, nine asks): a
             controller the browser sees, unbridged, drives a tour as a
             bridged one does ("An unbridged controller can't select or
@@ -2999,7 +3011,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.66.109</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.66.110</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -12707,8 +12719,8 @@ function selfTest() {
       return /^Press [^:]*: /.test(w) ? w.replace(/^Press [^:]*: /, '').split('.')[0] : w;
     };
     var bothKind = function (st) { return String(st.act || '') + !!st.free + !!st.stay; };
-    var bothSteps = [[1, 1], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [17, 9], [18, 10],
-                     [19, 11], [20, 12], [21, 13], [22, 14]];
+    var bothSteps = [[1, 1], [3, 3], [4, 4], [11, 5], [12, 6], [13, 7], [14, 8], [16, 9], [17, 10],
+                     [18, 11], [19, 12], [20, 13], [22, 14]];
     var unlike = bothSteps.filter(function (n) {
       var a = TUT_SIMPLE[n[0] - 1], b = TUT_QUICK[n[1] - 1];
       return bothWords(a) !== bothWords(b) || bothKind(a) !== bothKind(b);
@@ -13040,7 +13052,13 @@ function tutMockCall(method, path, body) {
   hit = /^\/api\/v1\/devices\/([^\/]+)\/([a-z_]+)$/.exec(p);
   if (hit && tutMockPad(decodeURIComponent(hit[1]))) {
     var ord = decodeURIComponent(hit[1]);
-    if (method === 'POST' && hit[2] === 'link') m.links[ord] = (body && body.config) || '';
+    if (method === 'POST' && hit[2] === 'link') {
+      var next = (body && body.config) || '';
+      // ⓘ The config it used, when it is unlinked: auto link's step puts
+      // it back (tutEnsureLinked).
+      if (!next && m.links[ord]) (m.was = m.was || {})[ord] = m.links[ord];
+      m.links[ord] = next;
+    }
     if (method === 'POST' && hit[2] === 'polling_rate') {
       m.limits[ord] = String((body && body.polling_rate) || '250');
     }
@@ -13236,14 +13254,15 @@ function tutUpDownKeys(code, gated, plain) {
 // list that came of it, *"build, yes to both"*). What both windows have
 // comes in the same order and says the same words, but for the button each
 // has (Simple's on the page, Quick's □ and △ on the pad): the controller,
-// L1 and R1, the wheel, R3's limit, auto link and its mark, Unlink and (no
-// config); then the window's position, its size, the mode list, ○, Close and
-// the way back. Simple's own come between: a config made from a pre-set,
-// with its rebinds looked over, shown in the wheel, and archived again; Edit;
-// and the tip. Auto link comes before Unlink in both, as it did in Quick's:
-// after Unlink the wheel shows (no config), which cannot be auto linked. The
-// words are written once, here, for both, and the self-test holds them the
-// same.
+// L1 and R1, R3's limit, the wheel, Unlink and (no config), auto link and its
+// mark; then the window's position, its size, the mode list, ○, Close and
+// the way back. Simple's own come between, in the order of its button
+// column: a config made from a pre-set, with its rebinds looked over, shown
+// in the wheel; Edit; then Unlink and auto link as above, and Archive; and
+// the tip, last before the end. Since 2026-10-28 auto link comes after
+// Unlink, as the window shows them, and the config the controller used comes
+// back to the middle for it (tutEnsureLinked). The words are written once,
+// here, for both, and the self-test holds them the same.
 // ⭐ AND FROM THEIR RUN OF SETUP 76 (2026-10-28): the position and the size in
 // steps of their own, the legend's resize and 🗗 in one (*"separate step for
 // position button"*; *"combine the step for the resize button in the lengend
@@ -13278,9 +13297,15 @@ function tutWordsRate() {
 }
 // ⓘ `press`: what to press, Simple's button on the page or Quick's on the
 // pad; `also`, the other way to do it, where there is one.
+// ⓘ After Unlink, the config it used is back in the middle, and the words
+// say so: read off the practice controller, so they are the same however the
+// step was reached.
 function tutWordsAutoLink(press, also) {
-  return 'Press ' + press + ': ' + tutNick() + ' will pick the config in the middle by itself every ' +
-         "time it's bridged." + (also || '');
+  var p = tutPad(), now = p ? TUT_MOCK.links[p.ordinal] : '';
+  var was = p && TUT_MOCK.was ? TUT_MOCK.was[p.ordinal] : '';
+  var back = now && now === was ? tutHl(now) + ' is in the middle again. ' : '';
+  return back + 'Press ' + press + ': ' + tutNick() + ' will pick the config in the middle by itself ' +
+         "every time it's bridged." + (also || '');
 }
 function tutWordsMark() {
   var p = tutPad(), name = p ? tutAutoOf(p.ordinal) : '';
@@ -13323,11 +13348,25 @@ function tutWordsEnd() {
 }
 
 // ⓘ Auto link and Unlink act on the config the controller uses: one is
-// linked for them when none is, the one it auto links to or the first.
+// linked for them when none is. After Unlink, the one it used (`was`); else
+// the config the tour made, the one it auto links to, or the first.
 function tutEnsureLinked() {
   var p = tutPad();
   if (!p || TUT_MOCK.links[p.ordinal]) return;
-  TUT_MOCK.links[p.ordinal] = tutAutoOf(p.ordinal) || TUT_MOCK.configs[0];
+  var back = [TUT_MOCK.was && TUT_MOCK.was[p.ordinal], TUT && TUT.made, tutAutoOf(p.ordinal),
+              TUT_MOCK.configs[0]].filter(function (c) {
+    return c && TUT_MOCK.configs.indexOf(c) >= 0;
+  })[0];
+  if (!back) return;
+  TUT_MOCK.links[p.ordinal] = back;
+  tutRefresh();
+}
+// ⓘ And (no config)'s step finds it using none: gone back to from auto
+// link, which linked one for its press.
+function tutEnsureUnlinked() {
+  var p = tutPad();
+  if (!p || !TUT_MOCK.links[p.ordinal]) return;
+  TUT_MOCK.links[p.ordinal] = '';
   tutRefresh();
 }
 // ⓘ The limit's step starts at real time, so it has a 250 to pick.
@@ -13387,8 +13426,10 @@ function tutSizeStep(legend) {
 }
 
 // ⭐ QUICK'S FOURTEEN, as rhoquinn8217 went through the tour three times and
-// asked for it changed (2026-10-23), then lined up with Simple's (above).
-// `act` marks a step that waits for one thing:
+// asked for it changed (2026-10-23), then lined up with Simple's (above), and
+// in Simple's order since 2026-10-28 (*"switch 3 and 4"*: R3's limit before
+// the wheel; the presses beside the wheel top to bottom, Unlink then auto
+// link). `act` marks a step that waits for one thing:
 // Continue is greyed out, `keys` lets its presses through to the page, `done`
 // says when it has been done, and Go back onto it puts the practice
 // controllers back as it found them (or `undo`); with `stay`, the step stays
@@ -13419,9 +13460,7 @@ var TUT_QUICK = [
     split: true, anchors: function () { return tutQ('.cqcorner.l', '.cqcorner.r'); },
     keys: tutShoulderKeys,
     words: function () { return tutWordsShoulders(''); } },
-  // 3 (*"combine step 3 and 4"*: the wheel, and turning it)
-  { free: true, lit: function () { return tutQ('.cwheel'); }, keys: tutUpDownKeys, words: tutWordsWheel },
-  // 4 (*"Move bubble to left side of window, disable continue and direct user
+  // 3 (*"Move bubble to left side of window, disable continue and direct user
   // to press right stick button and select 250"*). The list is the page's
   // own, and takes the keys while it is open. ⭐ R3 alone opens it, as on the
   // page (*"Rate Limit should not be able to focused and expanded with x
@@ -13432,23 +13471,9 @@ var TUT_QUICK = [
       return !!GP_SELECTING || ((gated || plain) && code === 'KeyL');
     },
     enter: tutRateEnter, words: tutWordsRate, done: tutRateDone },
+  // 4 (*"combine step 3 and 4"*: the wheel, and turning it)
+  { free: true, lit: function () { return tutQ('.cwheel'); }, keys: tutUpDownKeys, words: tutWordsWheel },
   // 5 (*"Move bubble to right side of window, disable continue and direct
-  // user to press auto link button click yes"*; then, 2026-10-26, *"Remove
-  // Auto Link confirmation pop up box, its not needed"*, so there is no OK to
-  // choose; and 2026-10-27, *"yes to both"*: the practice controllers start
-  // with no auto link, so the press sets one, as in Simple's).
-  { side: 'right', act: true, focus: '#cpick',
-    lit: function () { return tutQ('.chints .chint:nth-child(2)', '.cdrum-frame'); },
-    split: true,
-    keys: function (code, gated, plain) {
-      return (gated && code === 'KeyY') || (plain && code === 'KeyA');
-    },
-    enter: tutEnsureLinked,
-    words: function () { return tutWordsAutoLink(tutKey('autolink')); },
-    done: tutAutoLinkDone },
-  // 6: the mark auto link leaves.
-  tutMarkStep(),
-  // 7 (*"Move bubble to right side of window, disable continue and direct
   // user to press unlink button"*)
   { side: 'right', act: true, focus: '#cpick',
     lit: function () { return tutQ('.chints .chint:nth-child(1)', '.cdrum-frame'); }, split: true,
@@ -13458,9 +13483,27 @@ var TUT_QUICK = [
     enter: tutEnsureLinked,
     words: function () { return tutWordsUnlink(tutKey('unlink')); },
     done: tutUnlinkDone },
-  // 8 (*"After unlink is preformed, need a step showing that no config is set
+  // 6 (*"After unlink is preformed, need a step showing that no config is set
   // after that."*): what the wheel shows now.
-  { side: 'right', lit: function () { return tutQ('.cdrum-frame'); }, words: tutWordsNoConfig },
+  { side: 'right', lit: function () { return tutQ('.cdrum-frame'); }, enter: tutEnsureUnlinked,
+    words: tutWordsNoConfig },
+  // 7 (*"Move bubble to right side of window, disable continue and direct
+  // user to press auto link button click yes"*; then, 2026-10-26, *"Remove
+  // Auto Link confirmation pop up box, its not needed"*, so there is no OK to
+  // choose; and 2026-10-27, *"yes to both"*: the practice controllers start
+  // with no auto link, so the press sets one, as in Simple's). ⓘ After
+  // Unlink, the config the controller used comes back to the middle for it.
+  { side: 'right', act: true, focus: '#cpick',
+    lit: function () { return tutQ('.chints .chint:nth-child(2)', '.cdrum-frame'); },
+    split: true,
+    keys: function (code, gated, plain) {
+      return (gated && code === 'KeyY') || (plain && code === 'KeyA');
+    },
+    enter: tutEnsureLinked,
+    words: function () { return tutWordsAutoLink(tutKey('autolink')); },
+    done: tutAutoLinkDone },
+  // 8: the mark auto link leaves.
+  tutMarkStep(),
   // 9 (*"Move bubble to bottom side of window, Enable the "Continue" button
   // and allow the user to press both buttons until they are done"*, the
   // position alone since 2026-10-28). Options reaches the listener from the
@@ -13500,6 +13543,15 @@ var TUT_QUICK = [
 // both tours have were lined up with Quick's (above); nineteen until their run
 // of setup 76 (2026-10-28), when the pre-set's rebinds, the config made, and
 // Edit apart from Archive took steps of their own.
+// ⭐ IN THE ORDER OF THE WINDOW (rhoquinn8217, 2026-10-28: *"switch 3 and 4.
+// After the wheel description, start with the "New" button and go down to
+// each. After each button is done go to the do the resize button then the
+// mode selector then the close button. After that and the last step in the
+// tutorial should be the hints."*, shown the list, then *"build"*): R3's limit
+// before the wheel; the button column top to bottom, New with its pre-set,
+// Edit, Unlink, Auto link, Archive; the position (kept before the size), the
+// size, the mode list, Circle and Close; the tip last, before the card that
+// ends the tour.
 var TUT_SIMPLE = [
   // 1
   { side: 'left', lit: function () { return tutQ('.cname .devemo', '.cname .batt'); },
@@ -13509,43 +13561,18 @@ var TUT_SIMPLE = [
     split: true, anchors: function () { return tutQ('.cside.l .carrow', '.cside.r .carrow'); },
     keys: tutShoulderKeys,
     words: function () { return tutWordsShoulders(', shown either side'); } },
-  // 3: ⓘ Simple's wheel steps only under the halo, so each press takes the
-  // halo there for its moment (keyAim), and gives it back.
-  { side: 'left', free: true, keyAim: '#cpick', lit: function () { return tutQ('.cwheel'); },
-    keys: tutUpDownKeys, words: tutWordsWheel },
-  // 4: R3 alone reaches the limit, as on the page.
+  // 3: R3 alone reaches the limit, as on the page.
   { side: 'right', act: true, keyTarget: '.crate select',
     lit: function () { return tutQ('.cname .crate'); },
     keys: function (code, gated, plain) {
       return !!GP_SELECTING || ((gated || plain) && code === 'KeyL');
     },
     enter: tutRateEnter, words: tutWordsRate, done: tutRateDone },
-  // 5 (*"direct to press the button on the page but note the same can be
-  // done with a controller button"*): Triangle does it on the wheel. On the
-  // config the controller uses, before Unlink, as in Quick's.
-  { side: 'right', act: true, focus: '.csbtns .cauto-btn', keyAim: '#cpick',
-    lit: function () { return tutQ('.csbtns .cauto-btn'); },
-    keys: function (code, gated, plain) {
-      return (gated && code === 'KeyY') || (plain && code === 'KeyA');
-    },
-    enter: tutEnsureLinked,
-    words: function () { return tutWordsAutoLink(tutHl('Auto link'), tutAlso('autolink')); },
-    done: tutAutoLinkDone },
-  // 6: the mark auto link leaves.
-  tutMarkStep(),
-  // 7 (*"direct to press the button on the page but note the same can be
-  // done with a controller button"*): Square does it on the wheel.
-  { side: 'right', act: true, focus: '.csbtns .cunlink-btn', keyAim: '#cpick',
-    lit: function () { return tutQ('.csbtns .cunlink-btn'); },
-    keys: function (code, gated, plain) {
-      return (gated && code === 'KeyX') || (plain && code === 'KeyU');
-    },
-    enter: tutEnsureLinked,
-    words: function () { return tutWordsUnlink(tutHl('Unlink'), tutAlso('unlink')); },
-    done: tutUnlinkDone },
-  // 8
-  { side: 'left', lit: function () { return tutQ('.cwheel'); }, words: tutWordsNoConfig },
-  // 9: New, then one pre-set from the list it opens, the rest locked.
+  // 4: ⓘ Simple's wheel steps only under the halo, so each press takes the
+  // halo there for its moment (keyAim), and gives it back.
+  { side: 'left', free: true, keyAim: '#cpick', lit: function () { return tutQ('.cwheel'); },
+    keys: tutUpDownKeys, words: tutWordsWheel },
+  // 5: New, then one pre-set from the list it opens, the rest locked.
   { side: 'right', act: true,
     focus: function () { return PRESET_OPEN ? tutPresetRow() : tutNewBtn(); },
     lit: function () { return PRESET_OPEN ? tutCard('presetBox') : [tutNewBtn()]; },
@@ -13556,7 +13583,7 @@ var TUT_SIMPLE = [
              'is a ready-made config to start from.';
     },
     done: function () { return PRESET_INFO_OPEN === 'stick-to-mouse'; } },
-  // 10 (rhoquinn8217, 2026-10-28: *"when the pre-set is shown, add a step
+  // 6 (rhoquinn8217, 2026-10-28: *"when the pre-set is shown, add a step
   // before instruction to click use. Highlight the rebinds and tell them to
   // review them."*): its page's Buttons section. ⓘ Gone back to, the page
   // comes up again; Continue leaves it up for Use this (`keepOpen`).
@@ -13571,7 +13598,7 @@ var TUT_SIMPLE = [
       return 'Its page says what it does, then lists what it sets. These are its rebinds, what each ' +
              'button does with it: review them, then choose ' + tutHl('Continue') + '.';
     } },
-  // 11: Use this. ⓘ Gone back to, the page comes up again.
+  // 7: Use this. ⓘ Gone back to, the page comes up again.
   { side: 'above', act: true,
     focus: function () { return document.getElementById('presetInfoUse'); },
     enter: tutPresetInfoUp,
@@ -13582,7 +13609,7 @@ var TUT_SIMPLE = [
       return 'Choose ' + tutHl('Use this') + ' to make a config from ' + tutHl('stick-to-mouse') + '.';
     },
     done: tutCreatedUp },
-  // 12: the box that comes after it. ⓘ Gone back to, it comes up again.
+  // 8: the box that comes after it. ⓘ Gone back to, it comes up again.
   { side: 'above', act: true,
     enter: function () { if (!tutCreatedUp()) tutCreatedBox(); },
     tick: function () { tutBoxLocks(tutCreatedUp()); },
@@ -13593,7 +13620,7 @@ var TUT_SIMPLE = [
              'Advanced Mode. For this tour, choose ' + tutHl('Go back') + ' in the box.';
     },
     done: function () { return !CONFIRM_CB; } },
-  // 13 (rhoquinn8217, 2026-10-28: *"After the creating a config and then
+  // 9 (rhoquinn8217, 2026-10-28: *"After the creating a config and then
   // selecting go back add a step to show the newly created config."*): the
   // wheel's middle, where it is.
   { side: 'left', lit: function () { return tutQ('.cdrum-row.on'); },
@@ -13601,13 +13628,39 @@ var TUT_SIMPLE = [
       return tutHl(TUT.made || 'The new config') + ', the config you just made, is in the middle of ' +
              'the wheel: ' + tutNick() + ' uses it now.';
     } },
-  // 14 (*"separate steps for describing Edit button and describing and
+  // 10 (*"separate steps for describing Edit button and describing and
   // instructing to press the Archive button"*): Edit, shown and locked.
   { side: 'right', lit: function () { return tutQ('.csbtns > button:nth-child(2)'); },
     words: function () {
       return tutHl('Edit') + ' opens the config in the middle in Advanced Mode, where every ' +
              'setting can be changed.';
     } },
+  // 11 (*"direct to press the button on the page but note the same can be
+  // done with a controller button"*): Square does it on the wheel.
+  { side: 'right', act: true, focus: '.csbtns .cunlink-btn', keyAim: '#cpick',
+    lit: function () { return tutQ('.csbtns .cunlink-btn'); },
+    keys: function (code, gated, plain) {
+      return (gated && code === 'KeyX') || (plain && code === 'KeyU');
+    },
+    enter: tutEnsureLinked,
+    words: function () { return tutWordsUnlink(tutHl('Unlink'), tutAlso('unlink')); },
+    done: tutUnlinkDone },
+  // 12
+  { side: 'left', lit: function () { return tutQ('.cwheel'); }, enter: tutEnsureUnlinked,
+    words: tutWordsNoConfig },
+  // 13 (*"direct to press the button on the page but note the same can be
+  // done with a controller button"*): Triangle does it on the wheel. ⓘ After
+  // Unlink, the config made comes back to the middle for it.
+  { side: 'right', act: true, focus: '.csbtns .cauto-btn', keyAim: '#cpick',
+    lit: function () { return tutQ('.csbtns .cauto-btn'); },
+    keys: function (code, gated, plain) {
+      return (gated && code === 'KeyY') || (plain && code === 'KeyA');
+    },
+    enter: tutEnsureLinked,
+    words: function () { return tutWordsAutoLink(tutHl('Auto link'), tutAlso('autolink')); },
+    done: tutAutoLinkDone },
+  // 14: the mark auto link leaves.
+  tutMarkStep(),
   // 15 (*"do a step for archive"*)
   { side: 'right', act: true, focus: '.csbtns .carchive-btn', split: true,
     lit: function () { return tutQ('.csbtns .carchive-btn').concat(tutConfirmCard()); },
@@ -13618,26 +13671,19 @@ var TUT_SIMPLE = [
              ', then choose ' + tutHl('OK') + ', and ' + tutNick() + ' has no config again.';
     },
     done: function () { return !!TUT.made && TUT_MOCK.configs.indexOf(TUT.made) < 0; } },
-  // 16 (*"Need a step to show the hint and how to click it to see the next
-  // one"*): a click is the way, and a controller has none, so Continue stays.
-  { side: 'left', free: true, lit: function () { return tutQ('.cinfo'); },
-    words: function () {
-      return 'This line is a tip, and a new one comes every 30 seconds. Click it to see the next ' +
-             'one, then choose ' + tutHl('Continue') + '.';
-    } },
-  // 17: the window's position, as in Quick's. Options reaches the listener
+  // 16: the window's position, as in Quick's. Options reaches the listener
   // from the pad's own report, and P passes.
   { side: 'left', free: true, lit: function () { return tutQ('.clegend .lgi:nth-child(6)'); },
     words: tutWordsPosition },
-  // 18: its size, the legend's and 🗗's, as in Quick's.
+  // 17: its size, the legend's and 🗗's, as in Quick's.
   tutSizeStep('.clegend .lgi:nth-child(7)'),
-  // 19: the mode picker, opened and not used, as in Quick's.
+  // 18: the mode picker, opened and not used, as in Quick's.
   { side: 'right', act: true, stay: true, noPick: true, focus: '#cselMode',
     lit: function () { return tutQ('#cselMode'); },
     pointer: function () { return GP_SELECTING !== tutById('cselMode'); },
     words: function () { return tutWordsMode('SIMPLE MODE'); },
     done: function () { return GP_SELECTING === tutById('cselMode'); } },
-  // 20: Circle, lit alone in the legend, as in Quick's. ⛔ Close takes the
+  // 19: Circle, lit alone in the legend, as in Quick's. ⛔ Close takes the
   // halo first (keyAim): Simple's Circle closes the window when it finds no
   // Close to go to.
   { side: 'above', act: true, keyAim: '.cbar > button.cclose',
@@ -13648,8 +13694,16 @@ var TUT_SIMPLE = [
     pressed: function () { TUT.circled = true; },
     words: tutWordsCircle,
     done: function () { return !!TUT.circled; } },
-  // 21: where Circle took you, and what Close does, Close itself locked.
+  // 20: where Circle took you, and what Close does, Close itself locked.
   { side: 'right', lit: function () { return tutQ('.cbar > button.cclose'); }, words: tutWordsClose },
+  // 21 (*"Need a step to show the hint and how to click it to see the next
+  // one"*, and the last before the end since 2026-10-28): a click is the
+  // way, and a controller has none, so Continue stays.
+  { side: 'left', free: true, lit: function () { return tutQ('.cinfo'); },
+    words: function () {
+      return 'This line is a tip, and a new one comes every 30 seconds. Click it to see the next ' +
+             'one, then choose ' + tutHl('Continue') + '.';
+    } },
   // 22
   { lit: function () { return []; }, act: 'end', words: tutWordsEnd }
 ];
