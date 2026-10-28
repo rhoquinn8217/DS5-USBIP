@@ -443,26 +443,8 @@ void ui_tutorial_words_show(const std::string &title, const std::string &count, 
                             int ax, int ay, const std::string &side, const std::string &anchors,
                             const std::string &target, const std::string &obstacles, int clear)
 {
-    tutorial_bubble::Content c;
-    c.show = true;
-    c.title = tutorial_bubble::wide(title);
-    c.count = tutorial_bubble::wide(count);
-    c.words = tutorial_bubble::wide(words);
-    for (const tutorial_bubble_rule::ButtonSpec &b : tutorial_bubble_rule::parse_buttons(buttons)) {
-        c.buttons.push_back({ b.id, tutorial_bubble::wide(b.label), b.kind });
-    }
-    c.focus = focus;
-    c.arrow = arrow;
-    c.ax = ax;
-    c.ay = ay;
-    c.prefer = tutorial_bubble_rule::parse_prefer(side);
-    c.anchors = tutorial_bubble_rule::parse_anchors(anchors);
-    const std::vector<tutorial_bubble_rule::Box> lit = tutorial_bubble_rule::parse_boxes(target);
-    c.hasTarget = !lit.empty();
-    if (c.hasTarget) c.target = lit.front();
-    c.obstacles = tutorial_bubble_rule::parse_boxes(obstacles);
-    c.clear = clear < 0 ? 0 : (clear > 1000 ? 1000 : clear);
-    tutorial_bubble::update(c);
+    tutorial_bubble::update(tutorial_bubble::content_of(title, count, words, buttons, focus, arrow, ax, ay, side,
+                                                        anchors, target, obstacles, clear));
 }
 void ui_tutorial_words_hide()
 {
@@ -850,6 +832,9 @@ int wmain(int argc, wchar_t **argv)
     // ⓘ The tutorial's words drawn into a picture, to look at with no window
     // and no page (tutorial_bubble.inl).
     if (mode == L"tutorial-words-picture") return tutorial_bubble::picture_mode(argc, argv);
+    // ⓘ And what the page sent for them, placed one after another as the
+    // listener places them, to compare where a step's words stand.
+    if (mode == L"tutorial-words-replay") return tutorial_bubble::replay_mode(argc, argv);
     if (mode == L"remove-old-devices") {
         bool report = false;
         for (int i = 2; i < argc; ++i) {
