@@ -211,4 +211,30 @@ inline const char *key_now(Keys &k, long long nowMs)
     return key_code(k.current);
 }
 
+// ⭐ WHEN THE WINDOW A PRESS OPENED MAY GO, once the last finger has lifted
+// (or the switch was turned off) at liftedAt. ⓘ The page hears steps only once
+// it has asked which layout to show (heard, from heardAt); keysIdle says
+// nothing is waiting or on its way.
+// ⭐ NOT BEFORE IT IS THERE (rhoquinn8217, 2026-10-27: "If I press the
+// touchpad with two fingers then release immediately, the config window
+// doesn't go away when it should"): lifted while the browser was still
+// starting, the close found no window, and the window then came and stayed.
+// So while it is coming nothing closes, and it goes as soon as it is there.
+// ⓘ Steps still to send are given the page, and kDrainMs once it hears them;
+// nothing waits longer than kGiveUpMs from the lift, a window that never
+// came or a page that never asked included.
+constexpr long long kDrainMs = 300;
+constexpr long long kGiveUpMs = 4000;
+
+inline bool close_now(long long nowMs, long long liftedAt, bool coming, bool heard,
+                      long long heardAt, bool keysIdle)
+{
+    if (nowMs - liftedAt >= kGiveUpMs) return true;
+    if (coming) return false;
+    if (keysIdle) return true;
+    if (!heard) return false;
+    const long long from = heardAt > liftedAt ? heardAt : liftedAt;
+    return nowMs - from >= kDrainMs;
+}
+
 }  // namespace quick_switch

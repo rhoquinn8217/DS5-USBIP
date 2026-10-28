@@ -34,6 +34,9 @@
 // and which kept the first step waiting a second more. A step that comes
 // before the page has drawn its wheel waits in the page, and a step not yet
 // linked when the window closes is linked by the page as it goes.
+// ⛔ AND THE WINDOW CLOSES ONLY ONCE IT IS THERE: fingers lifted while the
+// browser was still starting found no window to close, and it came and stayed
+// (rhoquinn8217, 2026-10-27). quick_switch::close_now.
 #pragma once
 
 #include <atomic>
@@ -50,6 +53,7 @@ struct Session {
     const void *device = nullptr;   // whose fingers
     bool pressed = false;           // a press opened it: it ends when the last finger lifts
     bool openedWindow = false;      // so it closes the window, and puts the layout back
+    bool launched = false;          // its open has been made: the window is coming, or there
     unsigned askedAtOpen = 0;       // the pages' layout questions when the window was asked for
     bool ending = false;            // done once the steps are sent, the window then closed
     long long endAt = 0;            // when it began to end
@@ -71,11 +75,6 @@ inline unsigned g_nextId = 1;
 // each window opens.
 inline std::atomic<unsigned> g_pageAsked{0};
 
-// ⓘ The last finger lifted, the window waits this long at most for steps
-// still on their way to the page. A page that has not yet asked for its layout
-// had nothing to show, and closes at once.
-constexpr long long kDrainMs = 300;
-
 inline long long now_ms()
 {
     return ctm_rebind::chord_now_ms();
@@ -91,19 +90,41 @@ inline bool window_wheel_in_front()
     return compact && ctm_rebind_config_mode_effective();
 }
 
-// The window the press opened, closed once its steps have gone, and the
-// layout put back. ⓘ Its own thread: the report path must not sleep.
+// The open this switch asked for has been made: its window is on its way, or
+// another open already under way brings one. ⓘ From the thread that made it.
+inline void mark_launched(unsigned id)
+{
+    std::lock_guard<std::mutex> lock(g_mutex);
+    if (g_session.active && g_session.id == id) g_session.launched = true;
+}
+
+// The window the press opened, closed once it is there and its steps have
+// gone, and the layout put back (quick_switch::close_now says when). ⓘ Its
+// own thread: the report path must not sleep.
+// ⓘ The window is coming until its open has been made and the open's claim
+// is let go, which happens once the window exists (open_ui.inl,
+// raise_when_ready) or the open gave up.
 inline void close_when_sent(unsigned id)
 {
     std::thread([id]() {
+        long long heardAt = -1;
+        long long liftedAt = 0;
+        bool waitedForWindow = false;
         for (;;) {
             bool done = false;
+            const bool inFlight = ctm_open_ui::open_in_flight();
             {
                 std::lock_guard<std::mutex> lock(g_mutex);
                 Session &s = g_session;
                 if (!s.active || s.id != id) return;   // a new switch has the window
+                const long long now = now_ms();
                 const bool heard = g_pageAsked.load() != s.askedAtOpen;
-                if (!heard || quick_switch::idle(s.keys) || now_ms() - s.endAt >= kDrainMs) {
+                if (heard && heardAt < 0) heardAt = now;
+                const bool coming = s.openedWindow && (!s.launched || inFlight);
+                if (coming) waitedForWindow = true;
+                liftedAt = s.endAt;
+                if (quick_switch::close_now(now, s.endAt, coming, heard, heardAt,
+                                            quick_switch::idle(s.keys))) {
                     s.active = false;
                     done = true;
                 }
@@ -111,6 +132,7 @@ inline void close_when_sent(unsigned id)
             if (done) break;
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
+        const long long closedAfter = now_ms() - liftedAt;
         ui_close_window();
         // ⛔ GONE BEFORE THE LAYOUT GOES BACK. The page's own goodbye
         // remembers the window's place, in the slot of the layout the listener
@@ -121,7 +143,10 @@ inline void close_when_sent(unsigned id)
         }
         config_move::end_quick_view();
         device_log::input(device_log::msg()
-            << "quick switch: the last finger lifted -- the window closed, and the layout it had before is back");
+            << "quick switch: the last finger lifted -- the window closed "
+            << closedAfter << " ms after"
+            << (waitedForWindow ? ", once it was there" : "")
+            << ", and the layout it had before is back");
     }).detach();
 }
 
@@ -156,6 +181,7 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
     Did did = Did::Nothing;
     int step = 0;
     unsigned closer = 0;
+    unsigned opened = 0;
     {
         std::lock_guard<std::mutex> lock(g_mutex);
         PadState &ps = g_pads[deviceKey];
@@ -192,6 +218,7 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
                 s.openedWindow = true;
                 s.askedAtOpen = g_pageAsked.load();
                 s.id = g_nextId++;
+                opened = s.id;
                 ps.swipes = quick_switch::Swipes();
                 did = Did::Opened;
             }
@@ -223,7 +250,10 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
         config_move::begin_quick_view(ordinal);
         // ⓘ The gate waits four seconds for the page, as for the shortcut.
         ctm_rebind::g_gateProvisionalUntil.store(now_ms() + 4000);
-        std::thread([ordinal]() { ctm_chord_show_ui(ordinal); }).detach();
+        std::thread([ordinal, opened]() {
+            ctm_chord_show_ui(ordinal);
+            mark_launched(opened);
+        }).detach();
     }
     device_log::input(device_log::msg()
         << "quick switch: " << ordinal << " -- "

@@ -6,8 +6,10 @@
 // controller to the next config and down to the one before, one thumb resting
 // and the other swiping, and two fingers swiped together step once; with the
 // window in front in Simple or Quick (armed), the same, with no press, while
-// both fingers are down (2026-10-26), one finger alone stepping nothing; and
-// each step reaches the page as one press of its own key.
+// both fingers are down (2026-10-26), one finger alone stepping nothing; the
+// window a press opened closes once it is there, never before, so fingers
+// lifted at once still close it (2026-10-27); and each step reaches the page
+// as one press of its own key.
 //
 // WHAT THESE CANNOT DO. No window opens here and no pad is read: the window,
 // the gate and the link are looked at with the listener running.
@@ -180,6 +182,37 @@ int run_quick_switch_tests()
         CTM_CHECK_EQ(front_steps(q, true, u), 0);
         u[1].y = 0.0f;                           // 100 more up: nothing
         CTM_CHECK_EQ(front_steps(q, true, u), 0);
+    }
+
+    section("quick switch: lifted while the window is still coming, it closes once it is there");
+    {
+        // ⓘ rhoquinn8217, 2026-10-27: "If I press the touchpad with two
+        // fingers then release immediately, the config window doesn't go away
+        // when it should".
+        const long long lift = 1000;
+        CTM_CHECK(!close_now(1000, lift, true, false, -1, true));    // still coming
+        CTM_CHECK(!close_now(1400, lift, true, false, -1, true));
+        CTM_CHECK(close_now(1410, lift, false, false, -1, true));    // there, nothing to send: now
+        // there and its page up, nothing to send: now
+        CTM_CHECK(close_now(1500, lift, false, true, 1450, true));
+    }
+
+    section("quick switch: steps still to send wait for the page, then 300 ms at most");
+    {
+        const long long lift = 1000;
+        CTM_CHECK(!close_now(1200, lift, false, false, -1, false));  // the page has not asked
+        CTM_CHECK(!close_now(1600, lift, false, true, 1500, false)); // asked: 100 ms in
+        CTM_CHECK(close_now(1800, lift, false, true, 1500, false));  // 300 ms after it asked
+        CTM_CHECK(close_now(1300, lift, false, true, 900, false));   // asked before the lift: 300 from the lift
+        CTM_CHECK(close_now(1050, lift, false, true, 900, true));    // all sent: now
+    }
+
+    section("quick switch: nothing waits past four seconds from the lift");
+    {
+        const long long lift = 1000;
+        CTM_CHECK(!close_now(4999, lift, true, false, -1, false));
+        CTM_CHECK(close_now(5000, lift, true, false, -1, false));    // a window that never came
+        CTM_CHECK(close_now(5000, lift, false, false, -1, false));   // a page that never asked
     }
 
     section("quick switch: a step is one press of its key, then a gap");

@@ -202,6 +202,15 @@ inline void release_open()
     g_open_in_flight = false;
 }
 
+// ⓘ Whether an open is under way: from its claim until its window exists or
+// it gave up. The quick config switch waits on this to close a window it
+// asked for that is not there yet (quick_switch_session.inl).
+inline bool open_in_flight()
+{
+    std::lock_guard<std::mutex> lock(g_open_mutex);
+    return g_open_in_flight;
+}
+
 inline std::wstring page_url_untokened(uint16_t restPort)
 {
     return L"http://127.0.0.1:" + std::to_wstring(restPort) + L"/?app";
