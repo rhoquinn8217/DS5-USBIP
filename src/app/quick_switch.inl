@@ -32,10 +32,12 @@
 // the other finger stays put / * press again to lift restriction and the
 // config window persists after both fingers are lifted / Only these for
 // now."*). The pad shortcut, two fingers resting and Options, stays as it is
-// (*"Leave it the way it is whether ticked or not."*), and a kept window,
-// once closed, leaves the shortcut and the tray on the layout from before
-// (*"opens the one you had before"*). while_held(), below; the holding is in
-// mouse_exclusive.inl.
+// (*"Leave it the way it is whether ticked or not."*). And the second press
+// puts the window in the layout from before, Simple or Advanced, at once
+// (2026-10-28: *"on the second press, it should bring you to simple or
+// advance based on what you had open last"*), where at first it stayed Quick
+// and the layout came back only once it closed. while_held() and the layout
+// key, below; the holding is in mouse_exclusive.inl.
 //
 // ⓘ This file is the setting, the gestures and the keys a step is sent as,
 // with no windows.h, so the test binary can reach them.
@@ -93,7 +95,10 @@ inline bool opens(Press &p, int fingers, bool pressed)
 
 // ⭐ WHAT A REPORT DOES WHILE THE WINDOW A PRESS OPENED HOLDS THE TOUCHPAD:
 // only the two things asked for. The last finger lifting closes it; a press
-// keeps it, and lets the touchpad go; a swipe beside a resting finger steps
+// keeps it, in the layout it had before (rhoquinn8217, 2026-10-28: "double
+// touchpad press should bring you to quick mode on the first press but on the
+// second press, it should bring you to simple or advance based on what you had
+// open last"), and lets the touchpad go; a swipe beside a resting finger steps
 // the config (swipe_steps, below); anything else does nothing.
 enum class Held { Stay, Step, Keep, Close };
 
@@ -197,17 +202,23 @@ inline int front_steps(Swipes &s, bool armed, const Touch (&now)[2])
 // one before, with the gate's three modifiers (rebind.inl), held a moment and
 // let go, one at a time. The page's CONFIG_MODE_KEYS turn them into a step of
 // the wheel whatever has focus.
+// ⭐ AND KeyV, ONCE, FOR A SECOND PRESS: the window takes the layout it had
+// before the switch showed it Quick (see while_held), after any steps still on
+// their way, so they land in the wheel they were swiped on.
 constexpr long long kKeyDownMs = 40;
 constexpr long long kKeyGapMs = 40;
+constexpr int kLayoutKey = 2;
 
 inline const char *key_code(int step)
 {
+    if (step == kLayoutKey) return "KeyV";
     return step > 0 ? "KeyJ" : "KeyK";
 }
 
 struct Keys {
     int pending = 0;       // steps waiting: more next than before, or fewer
-    int current = 0;       // the step being sent: +1, -1, or 0 for none
+    bool layout = false;   // the layout key waiting, after the steps
+    int current = 0;       // the key being sent: +1, -1, kLayoutKey, or 0 for none
     bool inGap = false;    // its key is up again, before the next
     long long until = 0;   // when the press, or the gap after it, ends
 };
@@ -217,10 +228,15 @@ inline void queue(Keys &k, int step)
     k.pending += step;
 }
 
+inline void queue_layout(Keys &k)
+{
+    k.layout = true;
+}
+
 // Nothing waiting and nothing on its way.
 inline bool idle(const Keys &k)
 {
-    return k.pending == 0 && k.current == 0;
+    return k.pending == 0 && !k.layout && k.current == 0;
 }
 
 // The key to hold down on this report, or nullptr, asked on every report while
@@ -238,9 +254,15 @@ inline const char *key_now(Keys &k, long long nowMs)
         k.current = 0;
         k.inGap = false;
     }
-    if (k.pending == 0) return nullptr;
-    k.current = k.pending > 0 ? 1 : -1;
-    k.pending -= k.current;
+    if (k.pending != 0) {
+        k.current = k.pending > 0 ? 1 : -1;
+        k.pending -= k.current;
+    } else if (k.layout) {
+        k.current = kLayoutKey;
+        k.layout = false;
+    } else {
+        return nullptr;
+    }
     k.until = nowMs + kKeyDownMs;
     return key_code(k.current);
 }

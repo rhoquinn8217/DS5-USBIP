@@ -208,6 +208,32 @@ int run_quick_switch_tests()
         CTM_CHECK_EQ(front_steps(q, true, u), 0);
     }
 
+    section("quick switch: a second press's layout key goes once, after the steps");
+    {
+        // ⓘ rhoquinn8217, 2026-10-28: "on the second press, it should bring
+        // you to simple or advance based on what you had open last".
+        Keys k;
+        queue(k, 1);
+        queue_layout(k);
+        CTM_CHECK(!idle(k));
+        std::string sent;
+        bool down = false;
+        for (long long t = 0; t < 400; t += 4) {
+            const char *code = key_now(k, t);
+            if (code != nullptr && !down) sent += std::string(code) + " ";
+            down = code != nullptr;
+        }
+        CTM_CHECK(sent == "KeyJ KeyV ");
+        CTM_CHECK(idle(k));
+        // alone, it goes at once
+        Keys q;
+        queue_layout(q);
+        CTM_CHECK(std::string(key_now(q, 1000)) == "KeyV");
+        CTM_CHECK(key_now(q, 1040) == nullptr);
+        CTM_CHECK(key_now(q, 1080) == nullptr);
+        CTM_CHECK(idle(q));
+    }
+
     section("quick switch: lifted while the window is still coming, it closes once it is there");
     {
         // ⓘ rhoquinn8217, 2026-10-27: "If I press the touchpad with two

@@ -1115,11 +1115,29 @@ inline void end_quick_view()
     state_save();
 }
 
+// ...and pressed again, the window stays, in the layout from before, Simple
+// or Advanced (rhoquinn8217, 2026-10-28: "on the second press, it should
+// bring you to simple or advance based on what you had open last"): the layout
+// goes back at once, for the page to take (its KeyV), and the controller it
+// shows stays the one that pressed.
+inline void keep_quick_view()
+{
+    SavedView view;
+    {
+        std::lock_guard<std::mutex> lock(g_quickViewMutex);
+        if (!g_quickView.on) return;
+        view = g_quickView;
+        g_quickView = SavedView();
+    }
+    g_compact.store(view.compact);
+    g_quick.store(view.quick);
+    g_known.store(view.known);
+    state_save();
+}
+
 // ...unless the person picked a layout in that window meanwhile, which is
-// theirs (rhoquinn8217, 2026-10-27, of a window a second press kept: the tray
-// opens "the one you had before" -- and one they chose is the one they had).
-// What the switch saved is let go rather than put back. ⓘ From set_view, on
-// the page's switch.
+// theirs: what the switch saved is let go rather than put back. ⓘ From
+// set_view, on the page's switch.
 inline void drop_quick_view()
 {
     std::lock_guard<std::mutex> lock(g_quickViewMutex);
