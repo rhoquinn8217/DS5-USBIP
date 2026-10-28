@@ -490,6 +490,11 @@ inline void restore_geometry_soon()
 // window is put back at the size that layout was left at, in that layout's
 // home place. ⓘ The page cannot do this half: R3 never reaches it, so it does
 // not know the index. It sends `restore` and leaves the window alone.
+// ⭐ A SWITCH IN A WINDOW THE QUICK CONFIG SWITCH OPENED is the person's
+// choice, and stands: what the switch saved to put back is let go
+// (drop_quick_view, below).
+inline void drop_quick_view();
+
 inline void set_view(bool compact, bool quick, bool restore)
 {
     quick = compact && quick;
@@ -505,6 +510,7 @@ inline void set_view(bool compact, bool quick, bool restore)
         return;
     }
     if (!changed) { state_save(); return; }
+    drop_quick_view();
     // ⛔ T-253: and its dragged size with it. A switch already resets this
     // view to its ENTRY size, and the page resizes to that same size on the
     // switch -- so keeping a custom one here would put the two placers into
@@ -1107,6 +1113,38 @@ inline void end_quick_view()
         g_ordinal = view.ordinal;
     }
     state_save();
+}
+
+// ...and pressed again, the window stays, in the layout from before, Simple
+// or Advanced (rhoquinn8217, 2026-10-28: "on the second press, it should
+// bring you to simple or advance based on what you had open last"): the layout
+// goes back at once, for the page to take (its KeyV), and the controller it
+// shows stays the one that pressed.
+inline void keep_quick_view()
+{
+    SavedView view;
+    {
+        std::lock_guard<std::mutex> lock(g_quickViewMutex);
+        if (!g_quickView.on) return;
+        view = g_quickView;
+        g_quickView = SavedView();
+    }
+    g_compact.store(view.compact);
+    g_quick.store(view.quick);
+    g_known.store(view.known);
+    state_save();
+}
+
+// ...unless the person picked a layout in that window meanwhile, which is
+// theirs: what the switch saved is let go rather than put back. ⓘ From
+// set_view, on the page's switch.
+inline void drop_quick_view()
+{
+    std::lock_guard<std::mutex> lock(g_quickViewMutex);
+    if (!g_quickView.on) return;
+    g_quickView = SavedView();
+    device_log::input(device_log::msg()
+        << "quick switch: a layout was picked in its window -- it stands, rather than the one from before");
 }
 
 // Whether Simple's tutorial has been seen: set by the page when it is skipped
