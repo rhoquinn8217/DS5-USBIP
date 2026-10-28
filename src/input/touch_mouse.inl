@@ -1004,9 +1004,18 @@ inline void step(const void *deviceKey, const std::string &section,
     //
     // ⓘ An older config saying "true" meant two fingers, and still does.
     const std::string scrollRaw = device_config_str(section.c_str(), "touchpad_scroll");
+    // ⭐ THE QUICK CONFIG SWITCH (quick_switch.inl). While its window is open
+    // the touchpad is its own (below). And while the configs window is in front
+    // in Simple or Quick, two fingers on the pad moving up or down only move
+    // the wheel (rhoquinn8217, 2026-10-23: "When simple and quick mode are in
+    // focus, two finger swipe up or down is disabled and only control the
+    // wheel"; one thumb resting and the other swiping since 2026-10-26): the
+    // config's own swipe up and down stand aside, and so does two-finger
+    // scroll, whose wheel ticks would step the wheel again.
+    const bool switchHasSwipes = quick_switch_has_vertical_swipes();
     const int scrollFingers =
-        (scrollRaw == "1")                          ? 1 :
-        (scrollRaw == "2" || scrollRaw == "true")   ? 2 : 0;
+        (scrollRaw == "1")                                               ? 1 :
+        ((scrollRaw == "2" || scrollRaw == "true") && !switchHasSwipes)  ? 2 : 0;
     const bool scrollOn = scrollFingers > 0;
     // ⭐⭐ THE TOUCHPAD'S GESTURES ARE REMAPPABLE (T-242, 2026-09-20).
     // rhoquinn8217: *"touchpad_one_finger_tap - can be remapped to anything /
@@ -1046,6 +1055,10 @@ inline void step(const void *deviceKey, const std::string &section,
     // place): the same two fingers moving up or down would scroll as well.
     // ⓘ Left and right whatever the scroll does, which reads up and down
     // alone; and one-finger scroll uses one finger.
+    // ⓘ Nor while the quick config switch has them, in Simple or Quick in
+    // front (above). They act otherwise, the switch on or off
+    // (rhoquinn8217, 2026-10-23: "Config's own two-finger swipe up and down
+    // should still work").
     std::string swipeRaw[kSwipeDirs];
     binding::Target swipeTarget[kSwipeDirs];
     bool swipeWants[kSwipeDirs] = {};
@@ -1054,7 +1067,8 @@ inline void step(const void *deviceKey, const std::string &section,
         swipeRaw[d] = device_config_str(section.c_str(), kSwipeKeys[d]);
         swipeTarget[d] = swipe_target(swipeRaw[d]);
         const bool vertical = d == kSwipeUp || d == kSwipeDown;
-        swipeWants[d] = swipeTarget[d].kind != binding::kNone && !(vertical && scrollFingers == 2);
+        swipeWants[d] = swipeTarget[d].kind != binding::kNone &&
+                        !(vertical && (scrollFingers == 2 || switchHasSwipes));
         if (swipeWants[d]) swipeOn = true;
     }
 
@@ -1099,6 +1113,19 @@ inline void step(const void *deviceKey, const std::string &section,
     const TouchPoint p2 = read_point(data, static_cast<size_t>(lay.touch.finger2));
     const int fingers = (p1.down ? 1 : 0) + (p2.down ? 1 : 0);
     const TouchPoint &only = p1.down ? p1 : p2;   // meaningful when fingers == 1
+
+    // ⭐ THE QUICK CONFIG SWITCH HAS THE TOUCHPAD (quick_switch_session.inl):
+    // from two fingers pressing it in to the last finger lifting, nothing of
+    // it acts (rhoquinn8217, 2026-10-23: "Disable all touch pad rebinds
+    // during this time including touch-pad to mouse"). The cursor, the
+    // scroll, the taps, the swipes and the press stand down as for a shut
+    // gate, and the next touch starts afresh.
+    if (quick_switch_holds_touchpad(deviceKey, fingers, ctm_rebind::touch_pressed(lay, data, len))) {
+        drop_hold(st, deviceKey);
+        if (st.clickMask != 0) fire_click(st);   // a tap already made
+        st = TouchState();
+        return;
+    }
 
     // ⭐ A PUT-BACK IS CHECKED AGAIN FOR A MOMENT, for movement that was already
     // on its way to Windows when it happened. ⓘ Nothing of this touch moves the
@@ -1464,7 +1491,7 @@ inline void step(const void *deviceKey, const std::string &section,
                     << "[touch] two-finger swipe " << kSwipeNames[dir] << ": "
                     << (swipeRaw[dir].empty() ? std::string("(nothing set)") : swipeRaw[dir])
                     << (acts ? " done, " :
-                        !swipeWants[dir] ? " not done, not set or two-finger scroll is on, " :
+                        !swipeWants[dir] ? " not done: not set, two-finger scroll is on, or the quick config switch has it, " :
                                           " not done, the pad is driving the configs window, ")
                     << static_cast<int>(dx) << " across and " << static_cast<int>(dy)
                     << " down, " << (nowMs - st.sessionStart) << "ms into the touch");

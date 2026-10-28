@@ -129,10 +129,33 @@ void ui_view_set(bool compact, bool quick, bool restore);
  * asks for when it comes back. */
 void ui_view_note_ordinal(const std::string &ordinal);
 bool ui_view_get(bool *compact, bool *quick, std::string *ordinal);
+/* Where the window will go and how big it will be, in physical pixels, for
+ * the layout it will show, so the browser can be started there (open_ui.inl).
+ * False while no layout is known. */
+bool ui_opening_rect(int *x, int *y, int *w, int *h);
 /* The "Open on bridge" switch (open_on_bridge.inl), kept in window-state.txt.
  * Defined below, after config_move.inl. */
 bool ui_open_on_bridge();
 void ui_set_open_on_bridge(bool on);
+/* The quick config switch (quick_switch.inl), kept beside it. Defined below,
+ * after config_move.inl. */
+bool ui_quick_switch();
+void ui_set_quick_switch(bool on);
+/* ...and at work (quick_switch_session.inl, after rebind.inl, which feeds it
+ * every report of a pad with a touchpad and sends its keys): whether two
+ * fingers up and down are the switch's right now, so the config's own swipes
+ * and two-finger scroll stand aside (touch_mouse.inl), and a page asking which
+ * layout to show as it opens (rest_config.inl). */
+void quick_switch_report(const void *deviceKey, bool pressed,
+                         bool down0, int id0, float x0, float y0,
+                         bool down1, int id1, float x1, float y1);
+bool quick_switch_holds_touchpad(const void *deviceKey, int fingers, bool pressed);
+const char *quick_switch_key(const void *deviceKey);
+bool quick_switch_has_vertical_swipes();
+void quick_switch_page_asked_view();
+/* ...and whether the window up now is the switch's own (config_move.inl):
+ * the page asks as it opens, and starts no tutorial by itself in it. */
+bool ui_quick_view_on();
 /* The tutorials (tutorial_state.inl): whether Simple's and Quick's have been
  * seen, kept in window-state.txt, and the tray's request for one, by its
  * tutorial_state::Kind. Defined below, after config_move.inl. */
@@ -317,6 +340,7 @@ inline void install_check(const std::wstring &exeFolder);
 #include "app/tv_sessions.inl"       // which TV a bridge session belongs to, and its port; agent.inl asks it
 #include "app/protocol_level.inl"    // whether this listener and a TV app can work together; agent.inl answers with it
 #include "app/open_on_bridge.inl"      // whether a bridge opens the settings window; agent.inl and the tray ask it
+#include "app/quick_switch.inl"        // the quick config switch: its setting, its swipe, its keys; pure
 #include "app/agent.inl"
 #include "input/mouse_device.inl"      // needs g_agent_usbip_server, find_relative_asset, run_usbip_attach
 #include "input/keyboard_device.inl"   // same dependencies as the mouse above
@@ -365,6 +389,7 @@ static bool ctm_window_steering(const void *deviceKey) { return window_move::ste
 // helpers.
 #include "app/config_move.inl"      // Options moves the settings page; rebind.inl calls it
 #include "input/rebind.inl"
+#include "app/quick_switch_session.inl"   // the quick config switch at work; rebind.inl feeds it
 #include "input/touch_mouse.inl"   // touchpad cursor/scroll/taps; needs the mouse device and the gyro mailbox
 #include "input/trigger_click.inl" // the trigger as a mouse click; needs the mouse device and the gyro gate
 #include "input/stick_mouse.inl"   // stick cursor; needs the gyro gate and mailbox
@@ -410,6 +435,10 @@ bool ui_view_get(bool *compact, bool *quick, std::string *ordinal)
 {
     return config_move::view_get(compact, quick, ordinal);
 }
+bool ui_opening_rect(int *x, int *y, int *w, int *h)
+{
+    return config_move::opening_rect(x, y, w, h);
+}
 bool ui_open_on_bridge()
 {
     return config_move::open_on_bridge();
@@ -417,6 +446,18 @@ bool ui_open_on_bridge()
 void ui_set_open_on_bridge(bool on)
 {
     config_move::set_open_on_bridge(on);
+}
+bool ui_quick_switch()
+{
+    return config_move::quick_switch_on();
+}
+void ui_set_quick_switch(bool on)
+{
+    config_move::set_quick_switch(on);
+}
+bool ui_quick_view_on()
+{
+    return config_move::quick_view_on();
 }
 bool ui_tutorial_seen(int kind)
 {

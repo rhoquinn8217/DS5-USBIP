@@ -167,6 +167,7 @@ carry it; upstream's own history is unchanged.
 | 2026-10-22 | Every bridged controller reads no config while Windows is locked, so its buttons are Windows' own on the lock screen and can type a PIN, and no config can map them away from it. At the unlock each reads its auto link, or what it read before the lock; a config picked while locked is kept, and a controller bridged while locked waits for the unlock for its auto link. | `b4247db`, merge `c4fb311` |
 | 2026-10-23 | PC sound into DualSense haptics: the low part of what the PC plays, explosions, engines and bass, felt in a bridged DualSense's or Edge's two actuators, mixed into its own sound stream before it goes out on a cable or on Bluetooth; the sound itself is not touched. Four settings in a config's Audio section: `audio_haptics` (off until turned on), `audio_haptics_strength`, `audio_haptics_bass_hz` and `audio_haptics_mode`, where yield, the default, steps aside while a game sends its own haptics and comes back after, mix plays both and replace plays only the PC's sound. While it is on, the pad's sound stream keeps running whenever there is sound to feel. `DS5-USBIP audio-haptics-probe` prints what the PC plays and what a pad would feel of it, a line a second. And each pad's sound gains are read from its own section, on a cable and on Bluetooth, where every pad's were read from the DualSense's; `audio_gain` goes to 100, as it can only lower. | `3c48544`, `af30c82`, `5478046`, merge `0e868c4` |
 | 2026-10-23 | Quick mode's tutorial, started from the tray's Show tutorial, which puts the Controller Configs window in Quick. Thirteen steps on three practice controllers, Dual, Nova and Pixel, and four practice configs: nothing done in the tour reaches a real controller or config, and the real ones come back when it ends. Its words and its Continue, Go back and End tutorial buttons are drawn by the listener in a window of their own beside the configs window, on the side each step asks for, never taking the keyboard; a controller's buttons in the words are drawn as the legends draw them, for the pad pressed last, and a keyboard's as its keys. Arrows float beside what a step points at and a feathered spotlight dims the rest. A step that asks for something greys Continue out and moves on once it is done, everything else is locked while the tour runs, and Go back closes any box or list a step opened. Simple's tour, built first, is left out until it is redone for Simple's current layout. The mode picker greys out the mode the window is in. Page 2.66.92 and 2.66.94 to 2.66.99. | `5e88dae`, `44fcbdb`, `26ae402`, `f7f2e24`, `4668418`, `621d35a`, `d71b9c1`, `1b9ecdb`, `2aff4a2`, `95ca91e`, merge `6ef30ac` |
+| 2026-10-27 | The quick config switch, for every controller, turned on by "Press the touchpad with two fingers to switch configs" on Overview's first card, which is now called Bridging Options. Two fingers pressing the touchpad open the Controller Configs window in Quick on that controller for as long as a finger stays on the touchpad; each swipe of a finger up or down, one thumb resting and the other swiping, steps it to the next config or the one before, shown on the wheel and linked as the window goes; and the window closes the moment the last finger lifts, or as soon as it has opened when the fingers lift at once. While it is open nothing of the touchpad reaches the game or the mouse, and afterwards the layout and the controller the shortcut and the tray open on are put back. With the window already up in Simple or Quick, the same swipe moves its wheel with no press, and the config's own swipe up and down and its two-finger scroll stand aside there. Two fingers swiped together step once. Auto link asks nothing: setting it, moving it from another config and removing it happen at once. Simple and Quick windows open straight at their size and place, with no larger window first. Page 2.66.93 and 2.66.100. | `a91aa36`, `2b6019e`, `4fabb9d`, `b053f4d`, `21bd91d`, `d9fe374`, `50e775e`, `be5a7d0`, `e8ba775`, `53917f0`, merge `ecbf18d` |
 
 ## Files changed
 
@@ -182,7 +183,7 @@ ENet library, removed with the ENet transport).
  LINK                                          |     0
  README.md                                     |   310 +-
  app/compatibility.manifest                    |    27 +
- app/ctm-usbip-tests.vcxproj                   |   149 +
+ app/ctm-usbip-tests.vcxproj                   |   151 +
  app/ctm-usbip.ico                             |   Bin 156019 -> 30139 bytes
  app/ctm-usbip.rc                              |    26 +-
  app/ctm-usbip.vcxproj                         |    63 +-
@@ -232,7 +233,7 @@ ENet library, removed with the ENet transport).
  src/app/agent_session_sweep.inl               |   333 +
  src/app/cli.inl                               |    65 +-
  src/app/common.inl                            |   166 +-
- src/app/config_move.inl                       |  1259 +++
+ src/app/config_move.inl                       |  1392 +++
  src/app/console_attach.inl                    |    82 +
  src/app/control_caller.inl                    |    48 +
  src/app/device_capabilities.inl               |    75 +
@@ -246,13 +247,15 @@ ENet library, removed with the ENet transport).
  src/app/old_devices.inl                       |   267 +
  src/app/old_devices_rule.inl                  |    91 +
  src/app/open_on_bridge.inl                    |    92 +
- src/app/open_ui.inl                           |   888 ++
+ src/app/open_ui.inl                           |   931 ++
  src/app/overlay_window.inl                    |  2472 +++++
  src/app/paired_tv.inl                         |   495 +
  src/app/protocol_level.inl                    |    77 +
+ src/app/quick_switch.inl                      |   240 +
+ src/app/quick_switch_session.inl              |   326 +
  src/app/quit_request.inl                      |    28 +
  src/app/rest.inl                              |   885 ++
- src/app/rest_config.inl                       |  1459 +++
+ src/app/rest_config.inl                       |  1491 +++
  src/app/rest_config_sessions.inl              |   243 +
  src/app/rest_sessions.inl                     |    33 +
  src/app/rest_shared_section.inl               |    55 +
@@ -275,6 +278,7 @@ ENet library, removed with the ENet transport).
  src/app/window_icon.inl                       |   242 +
  src/app/window_icon_rule.inl                  |    68 +
  src/app/window_move.inl                       |   250 +
+ src/app/window_open_rule.inl                  |    32 +
  src/app/window_size_rule.inl                  |   101 +
  src/audio/audio_gain.inl                      |   151 +
  src/audio/audio_haptics.inl                   |   299 +
@@ -300,12 +304,12 @@ ENet library, removed with the ENet transport).
  src/config/polling_limits.inl                 |   150 +
  src/input/battery.inl                         |   105 +
  src/input/binding_names.inl                   |   250 +
- src/input/button_layout.inl                   |  1130 ++
+ src/input/button_layout.inl                   |  1151 ++
  src/input/chord_gate.inl                      |    66 +
  src/input/gyro_calibration.inl                |   168 +
  src/input/gyro_calibration_fetch.inl          |    99 +
  src/input/gyro_hold.inl                       |    48 +
- src/input/gyro_mouse.inl                      |  1190 +++
+ src/input/gyro_mouse.inl                      |  1190 ++
  src/input/held_edges.inl                      |    67 +
  src/input/key_pulse.inl                       |   106 +
  src/input/keyboard_device.inl                 |   397 +
@@ -315,14 +319,14 @@ ENet library, removed with the ENet transport).
  src/input/mouse_held.inl                      |    99 +
  src/input/osk.inl                             |   228 +
  src/input/pad_press.inl                       |   116 +
- src/input/rebind.inl                          |  1332 +++
+ src/input/rebind.inl                          |  1361 +++
  src/input/stick_mouse.inl                     |   474 +
- src/input/touch_mouse.inl                     |  1680 +++
+ src/input/touch_mouse.inl                     |  1707 +++
  src/input/trigger_click.inl                   |   857 ++
  src/input/trigger_effect.inl                  |   637 ++
  src/log/capped_log.inl                        |   117 +
  src/log/device_log.inl                        |   233 +
- src/main.cpp                                  |  1018 +-
+ src/main.cpp                                  |  1052 +-
  src/map/runtime.cpp                           |    90 +-
  src/usbdisplay/README.md                      |    13 +
  src/usbip/device.inl                          |  1068 +-
@@ -336,7 +340,7 @@ ENet library, removed with the ENet transport).
  tests/audio_haptics_dsp_test.cpp              |   250 +
  tests/binding_names_test.cpp                  |   211 +
  tests/bridge_handshake_test.cpp               |   631 ++
- tests/button_layout_test.cpp                  |  1189 +++
+ tests/button_layout_test.cpp                  |  1189 ++
  tests/capped_log_test.cpp                     |   140 +
  tests/config_store_test.cpp                   |   991 ++
  tests/control_caller_test.cpp                 |    73 +
@@ -369,8 +373,9 @@ ENet library, removed with the ENet transport).
  tests/polling_limits_test.cpp                 |   122 +
  tests/product_version_test.cpp                |    45 +
  tests/protocol_level_test.cpp                 |   101 +
+ tests/quick_switch_test.cpp                   |   251 +
  tests/quit_request_test.cpp                   |    69 +
- tests/rebind_test.cpp                         |   747 ++
+ tests/rebind_test.cpp                         |   752 ++
  tests/rest_parser_test.cpp                    |   252 +
  tests/rest_shared_section_test.cpp            |    79 +
  tests/rumble_floor_test.cpp                   |    87 +
@@ -381,8 +386,8 @@ ENet library, removed with the ENet transport).
  tests/stop_wait_test.cpp                      |    93 +
  tests/stream_commands_test.cpp                |   118 +
  tests/taskbar_rule_test.cpp                   |    46 +
- tests/tests_main.cpp                          |   189 +
- tests/touch_mouse_test.cpp                    |  2427 +++++
+ tests/tests_main.cpp                          |   193 +
+ tests/touch_mouse_test.cpp                    |  2591 +++++
  tests/tray_menu_test.cpp                      |   235 +
  tests/trigger_click_test.cpp                  |   901 ++
  tests/trigger_effect_test.cpp                 |   529 +
@@ -394,10 +399,11 @@ ENet library, removed with the ENet transport).
  tests/usbip_server_test.cpp                   |   687 ++
  tests/window_icon_rule_test.cpp               |   108 +
  tests/window_move_test.cpp                    |   136 +
+ tests/window_open_rule_test.cpp               |    43 +
  tests/window_size_rule_test.cpp               |   129 +
- tools/controller-config-test-client.html      | 13590 ++++++++++++++++++++++++
+ tools/controller-config-test-client.html      | 13736 ++++++++++++++++++++++++
  tools/create-desktop-shortcut.bat             |    46 +
  tools/create-desktop-shortcut.ps1             |   148 +
  tools/osk-mockups.py                          |   103 +
- 223 files changed, 68375 insertions(+), 1568 deletions(-)
+ 228 files changed, 69907 insertions(+), 1568 deletions(-)
 ```

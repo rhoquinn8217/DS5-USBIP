@@ -646,13 +646,20 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
         // back. ⓘ "known" is false on a listener that has just started and has
         // never seen a page; the page then falls back to its own record.
         if (req.method == "GET" && what == "view") {
+            // ⭐ A page's first question as it opens: its scripts are
+            // running and its keys are heard, so the quick config switch's
+            // steps may go (quick_switch_session.inl).
+            quick_switch_page_asked_view();
             bool compact = false, quick = false;
             std::string ordinal;
             const bool known = ui_view_get(&compact, &quick, &ordinal);
+            // ⓘ And whether this is the quick config switch's window, which
+            // starts no tutorial by itself.
             *out = rest_http_response(200,
                 std::string("{\"known\":") + (known ? "true" : "false") +
                 ",\"compact\":" + (compact ? "true" : "false") +
                 ",\"quick\":" + (quick ? "true" : "false") +
+                ",\"quick_switch\":" + (ui_quick_view_on() ? "true" : "false") +
                 ",\"ordinal\":\"" + rest_json_escape(ordinal) + "\"}");
             return true;
         }
@@ -683,6 +690,34 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
             }
             *out = rest_http_response(200, std::string(R"({"on":)") +
                                            (ui_open_on_bridge() ? "true" : "false") + "}");
+            return true;
+        }
+
+        // ⭐ THE QUICK CONFIG SWITCH (rhoquinn8217, 2026-10-23), the same
+        // shape as Open on bridge: GET says it, POST {"on": bool} sets it.
+        // ⓘ quick_switch.inl says what it is.
+        if (what == "quick-switch") {
+            if (req.method == "POST") {
+                RestJson json;
+                std::string parseError;
+                if (!rest_parse_flat_json(req.body, &json, &parseError)) {
+                    *out = rest_error_response(400, parseError);
+                    return true;
+                }
+                auto on = json.bools.find("on");
+                if (on == json.bools.end()) {
+                    *out = rest_error_response(400, "say on, true or false");
+                    return true;
+                }
+                ui_set_quick_switch(on->second);
+                device_log::session_w() << L"settings page: the quick config switch is "
+                                        << (on->second ? L"on" : L"off") << L" now";
+            } else if (req.method != "GET") {
+                *out = rest_error_response(405, "method not allowed", "Allow: GET, POST, OPTIONS\r\n");
+                return true;
+            }
+            *out = rest_http_response(200, std::string(R"({"on":)") +
+                                           (ui_quick_switch() ? "true" : "false") + "}");
             return true;
         }
 
