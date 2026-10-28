@@ -377,6 +377,23 @@ inline void apply(const void *deviceKey,
         const bool f2 = ctm_rebind::touch_finger_down(chordLayout, data, len, 1);
         const bool options = ctm_rebind::is_pressed(chordLayout, data, len, ctm_rebind::kBtnStart);
 
+        // ⭐ THE QUICK CONFIG SWITCH reads the same fingers, and the pad
+        // pressed in, on every report, in the window or out of it: two
+        // fingers pressing open the window in Quick, each swipe of a finger
+        // up or down steps the config, and the last finger lifting closes
+        // it (quick_switch_session.inl). ⓘ Before anything here changes the
+        // report, and it changes nothing itself.
+        {
+            int x1 = 0, y1 = 0, x2 = 0, y2 = 0;
+            const bool at1 = f1 && ctm_rebind::touch_finger_pos(chordLayout, data, len, 0, &x1, &y1);
+            const bool at2 = f2 && ctm_rebind::touch_finger_pos(chordLayout, data, len, 1, &x2, &y2);
+            quick_switch_report(deviceKey, ctm_rebind::touch_pressed(chordLayout, data, len),
+                at1, ctm_rebind::touch_finger_id(chordLayout, data, len, 0),
+                static_cast<float>(x1), static_cast<float>(y1),
+                at2, ctm_rebind::touch_finger_id(chordLayout, data, len, 1),
+                static_cast<float>(x2), static_cast<float>(y2));
+        }
+
         // ⛔ EDGE, not level. Options is held for about 300ms and this runs at
         // 250Hz, so a level check would fire seventy times for one press.
         // ⓘ This pad's own edge -- see ChordPad for why it is not shared.
@@ -720,6 +737,18 @@ inline void apply(const void *deviceKey,
                 // ⓘ Shift for Shift+Tab. The modifier rides in report byte 0
                 // alongside the key, which is how a real keyboard sends it.
                 gateMods = static_cast<uint8_t>(gateMods | g.modifier);
+            }
+        }
+
+        // ⭐ THE QUICK CONFIG SWITCH'S STEPS (quick_switch_session.inl): KeyJ
+        // for the next config, KeyK for the one before, a moment each, which
+        // the page turns into a step of the wheel. In the same key set as the
+        // buttons', so nothing else publishes this pad's keys.
+        if (const char *qsKey = quick_switch_key(deviceKey)) {
+            const KeyName *k = key_for(qsKey);
+            if (k != nullptr && k->usage != 0 && gateCount < 6) {
+                gateKeys[gateCount++] = k->usage;
+                gateMods = static_cast<uint8_t>(gateMods | CTM_GATE_MODS);
             }
         }
 

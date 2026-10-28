@@ -847,6 +847,26 @@ inline const char *state_file() { return "window-state.txt"; }
 // since 2026-10-15.
 inline std::atomic_bool g_openOnBridge{open_on_bridge::kDefault};
 
+// ⭐ THE QUICK CONFIG SWITCH (rhoquinn8217, 2026-10-23), kept beside it;
+// quick_switch.inl says what it is. Off until it is turned on.
+inline std::atomic_bool g_quickSwitch{false};
+
+// ⭐ ITS WINDOW IS QUICK, FOR ITSELF ALONE (rhoquinn8217, 2026-10-23: "always
+// use quick view for quick config select button/gesture"). While the window
+// it opened is up, the layout and the controller the shortcut and the tray
+// open on wait here, and go back when it closes (end_quick_view). The file
+// keeps them rather than Quick meanwhile, so a listener stopped mid-switch
+// remembers them too.
+struct SavedView {
+    bool on = false;
+    bool compact = false;
+    bool quick = false;
+    bool known = false;
+    std::string ordinal;
+};
+inline std::mutex g_quickViewMutex;
+inline SavedView g_quickView;
+
 // ⭐ THE TUTORIALS (rhoquinn8217, 2026-10-14): whether Simple's has been seen,
 // kept here with the rest; tutorial_state.inl says what it means. And the
 // tray's request to show it again, which lives until the page takes it and
@@ -862,9 +882,19 @@ inline void state_save()
     std::ostringstream out;
     out << "# DS5-USBIP window state, written by config_move.inl (T-239).\n"
         << "# Safe to delete: the window then opens at its defaults.\n";
-    out << "compact = " << (g_compact.load() ? 1 : 0) << "\n"
-        << "quick = " << (g_quick.load() ? 1 : 0) << "\n"
-        << "known = " << (g_known.load() ? 1 : 0) << "\n"
+    SavedView view;
+    {
+        std::lock_guard<std::mutex> lock(g_quickViewMutex);
+        view = g_quickView;
+    }
+    if (!view.on) {
+        view.compact = g_compact.load();
+        view.quick = g_quick.load();
+        view.known = g_known.load();
+    }
+    out << "compact = " << (view.compact ? 1 : 0) << "\n"
+        << "quick = " << (view.quick ? 1 : 0) << "\n"
+        << "known = " << (view.known ? 1 : 0) << "\n"
         // ⓘ Marks a file that counts Advanced's TWO sizes (2026-10-02); one
         // without it counted three, and state_load() moves its index down.
         << "advanced_sizes = 2\n"
@@ -872,8 +902,11 @@ inline void state_save()
         << "size_simple = " << g_sizeCompact.load() << "\n"
         << "size_quick = " << g_sizeQuick.load() << "\n";
     out << open_on_bridge::default_line() << open_on_bridge::line(g_openOnBridge.load());
+    out << quick_switch::line(g_quickSwitch.load());
     out << tutorial_state::seen_line(g_tutorialSimpleSeen.load());
-    {
+    if (view.on) {
+        if (!view.ordinal.empty()) out << "ordinal = " << view.ordinal << "\n";
+    } else {
         std::lock_guard<std::mutex> lock(g_ordinalMutex);
         if (!g_ordinal.empty()) out << "ordinal = " << g_ordinal << "\n";
     }
@@ -939,6 +972,10 @@ inline void state_load()
         }
         if (key == open_on_bridge::kDefaultKey) {
             openDefaultSeen = true;
+            continue;
+        }
+        if (key == quick_switch::kKey) {
+            g_quickSwitch.store(quick_switch::parse(val));
             continue;
         }
         if (key == tutorial_state::kSimpleSeenKey) {
@@ -1015,6 +1052,60 @@ inline bool open_on_bridge() { return g_openOnBridge.load(); }
 inline void set_open_on_bridge(bool on)
 {
     g_openOnBridge.store(on);
+    state_save();
+}
+
+// The quick config switch: read on every report of a pad with a touchpad,
+// set by the settings page, and written with the rest at once.
+inline bool quick_switch_on() { return g_quickSwitch.load(); }
+inline void set_quick_switch(bool on)
+{
+    g_quickSwitch.store(on);
+    state_save();
+}
+
+// The window the quick config switch opens shows Quick, on the switching
+// controller. ⓘ Before the window is asked for: the page asks which layout
+// to show (ui/view) as it opens. Called again while one waits, it keeps
+// what it saved first.
+inline void begin_quick_view(const std::string &ordinal)
+{
+    {
+        std::lock_guard<std::mutex> lock(g_quickViewMutex);
+        if (!g_quickView.on) {
+            g_quickView.on = true;
+            g_quickView.compact = g_compact.load();
+            g_quickView.quick = g_quick.load();
+            g_quickView.known = g_known.load();
+            std::lock_guard<std::mutex> ordinalLock(g_ordinalMutex);
+            g_quickView.ordinal = g_ordinal;
+        }
+    }
+    g_compact.store(true);
+    g_quick.store(true);
+    g_known.store(true);
+    std::lock_guard<std::mutex> lock(g_ordinalMutex);
+    g_ordinal = ordinal;
+}
+
+// ...and once its window has closed, the layout and the controller it held
+// back are the window's again.
+inline void end_quick_view()
+{
+    SavedView view;
+    {
+        std::lock_guard<std::mutex> lock(g_quickViewMutex);
+        if (!g_quickView.on) return;
+        view = g_quickView;
+        g_quickView = SavedView();
+    }
+    g_compact.store(view.compact);
+    g_quick.store(view.quick);
+    g_known.store(view.known);
+    {
+        std::lock_guard<std::mutex> lock(g_ordinalMutex);
+        g_ordinal = view.ordinal;
+    }
     state_save();
 }
 
@@ -1099,6 +1190,43 @@ inline void remember_size_now(const RECT &rc)
 
 // The size this layout is at, applied about the window's CENTRE so it grows
 // and shrinks in place, then clamped fully on screen.
+// ⭐ WHERE THE WINDOW WILL BE PUT, BEFORE THERE IS ONE (rhoquinn8217,
+// 2026-10-23: "when the window opens in simple or quick mode, a larger window
+// blips open and close then the simple or quick mode window opens after.
+// Can we prevent that first larger window open blip?"). The restore
+// (restore_geometry_soon) puts a window that has come back at its layout's
+// size and place once the page says so; the browser asked for that same
+// rectangle at the start opens the window there, and the restore then moves
+// nothing. The same reckoning as the restore's: the size someone dragged, or
+// the layout's own; the place it was left, or its home (the bottom centre
+// for Simple and Quick, the middle for Advanced); clamped into the work
+// area. ⓘ False while no layout is known: the page decides then.
+inline bool opening_rect(int *x, int *y, int *w, int *h)
+{
+    if (!g_known.load()) return false;
+    const SizeShare *table = size_table();
+    const int idx = size_slot().load();
+    const RECT wa = work_area();
+    int customW = 0, customH = 0;
+    const bool custom = last_custom_size(&customW, &customH);
+    const int ww = custom ? ctm_window_size::from_thousandths(customW, wa.right - wa.left)
+                          : (int)((wa.right - wa.left) * table[idx].w);
+    const int hh = custom ? ctm_window_size::from_thousandths(customH, wa.bottom - wa.top)
+                          : (int)((wa.bottom - wa.top) * table[idx].h);
+    int xx = 0, yy = 0;
+    if (!last_pos(&xx, &yy)) {
+        xx = wa.left + ((wa.right - wa.left) - ww) / 2;
+        yy = g_compact.load() ? wa.bottom - bottom_gap(wa) - hh
+                              : wa.top + ((wa.bottom - wa.top) - hh) / 2;
+    }
+    clamp_into(wa, ww, hh, xx, yy);
+    *x = xx;
+    *y = yy;
+    *w = ww;
+    *h = hh;
+    return true;
+}
+
 inline void apply_size(HWND hwnd, int *outW, int *outH)
 {
     RECT rc;
@@ -1210,7 +1338,12 @@ inline bool handle_report(const void *deviceKey, const ctm_rebind::Layout &lay,
         // so a release seen later -- with the page back in front -- is not
         // read as a tap.
         g_movers.abandon_all();
-        r3_edge(deviceKey, false);
+        // ⭐ Create as it stands, not "up": one already held when the window
+        // comes forward is no press, so it does not resize it (rhoquinn8217,
+        // 2026-10-23: "Create should still resize the window when it is in
+        // focus" -- a press made there). The quick config switch brings the
+        // window up with Create held.
+        r3_edge(deviceKey, ctm_overlay::button_down(lay, data, len, 8));
         // ⓘ A hold dropped this way never sees Options come up, so the place
         // it steered to is written here instead.
         flush_pos();

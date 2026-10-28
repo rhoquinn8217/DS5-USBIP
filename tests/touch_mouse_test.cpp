@@ -27,6 +27,12 @@ namespace {
 
 std::map<std::string, std::string> g_cfg;
 bool g_configModeEffective = false;
+// The quick config switch: on, its window open, and whether two fingers up
+// and down are its own right now, the window in front in Simple or Quick
+// (quick_switch_holds_touchpad, quick_switch_has_vertical_swipes).
+bool g_quickSwitch = false;
+bool g_switchSession = false;
+bool g_switchHasSwipes = false;
 
 int32_t g_pushedX = 0;      // summed cursor deltas pushed to the mailbox
 int32_t g_pushedY = 0;
@@ -72,6 +78,9 @@ void reset_stubs()
     g_dropX = -1;
     g_cfg.clear();
     g_configModeEffective = false;
+    g_quickSwitch = false;
+    g_switchSession = false;
+    g_switchHasSwipes = false;
     g_pushedX = 0;
     g_pushedY = 0;
     g_pushCount = 0;
@@ -131,6 +140,12 @@ static InputPad device_input_pad_for(const std::vector<unsigned char> &)
     return pad;
 }
 static bool ctm_rebind_config_mode_effective() { return g_configModeEffective; }
+// ⓘ The listener's own rule: the press itself, and the window it opened.
+static bool quick_switch_holds_touchpad(const void *, int fingers, bool pressed)
+{
+    return g_quickSwitch && (g_switchSession || (fingers == 2 && pressed));
+}
+static bool quick_switch_has_vertical_swipes() { return g_switchHasSwipes; }
 
 namespace device_log {
 struct msg {
@@ -2092,6 +2107,155 @@ int run_touch_mouse_tests()
     }
 
     // ---- The two-finger swipe up -------------------------------------------
+
+    section("touch: with the quick config switch on, the config's own swipe up still acts");
+    {
+        // ⓘ rhoquinn8217, 2026-10-23: "Config's own two-finger swipe up and
+        // down should still work".
+        reset_stubs();
+        fresh_device();
+        g_quickSwitch = true;
+        g_cfg["touchpad_two_finger_swipe_up"] = "win+tab";
+        auto r = rest_report();
+        set_point(r, 0, true, 1, 800, 800);
+        set_point(r, 1, true, 2, 1100, 800);
+        run_step(r, 0);
+        set_point(r, 0, true, 1, 800, 450);
+        set_point(r, 1, true, 2, 1100, 450);
+        run_step(r, 30);
+        CTM_CHECK_EQ(g_pulseCount, 1);
+    }
+
+    section("touch: Simple or Quick in front with the switch on, up and down are the wheel's, sideways still acts");
+    {
+        // ⓘ rhoquinn8217, 2026-10-23: "When simple and quick mode are in
+        // focus, two finger swipe up or down is disabled and only control
+        // the wheel".
+        reset_stubs();
+        fresh_device();
+        g_quickSwitch = true;
+        g_switchHasSwipes = true;
+        g_cfg["touchpad_two_finger_swipe_up"] = "win+tab";
+        g_cfg["touchpad_two_finger_swipe_down"] = "arrowdown";
+        g_cfg["touchpad_two_finger_swipe_left"] = "arrowleft";
+        auto r = rest_report();
+        set_point(r, 0, true, 1, 800, 800);
+        set_point(r, 1, true, 2, 1100, 800);
+        run_step(r, 0);
+        set_point(r, 0, true, 1, 800, 450);      // 350 up
+        set_point(r, 1, true, 2, 1100, 450);
+        run_step(r, 30);
+        CTM_CHECK_EQ(g_pulseCount, 0);
+        set_point(r, 0, false, 1, 800, 450);
+        set_point(r, 1, false, 2, 1100, 450);
+        run_step(r, 60);
+        set_point(r, 0, true, 1, 800, 300);
+        set_point(r, 1, true, 2, 1100, 300);
+        run_step(r, 200);
+        set_point(r, 0, true, 1, 800, 700);      // 400 down
+        set_point(r, 1, true, 2, 1100, 700);
+        run_step(r, 230);
+        CTM_CHECK_EQ(g_pulseCount, 0);
+        set_point(r, 0, false, 1, 800, 700);
+        set_point(r, 1, false, 2, 1100, 700);
+        run_step(r, 260);
+        set_point(r, 0, true, 1, 1400, 500);
+        set_point(r, 1, true, 2, 1700, 500);
+        run_step(r, 400);
+        set_point(r, 0, true, 1, 800, 500);      // 600 left
+        set_point(r, 1, true, 2, 1100, 500);
+        run_step(r, 430);
+        CTM_CHECK_EQ(g_pulseCount, 1);
+        CTM_CHECK_EQ(static_cast<int>(g_pulseUsage), 0x50);   // ArrowLeft
+    }
+
+    section("touch: Simple or Quick in front with the switch on, two fingers do not scroll");
+    {
+        reset_stubs();
+        fresh_device();
+        g_quickSwitch = true;
+        g_switchHasSwipes = true;
+        g_cfg["touchpad_scroll"] = "2";
+        auto r = rest_report();
+        set_point(r, 0, true, 1, 800, 300);
+        set_point(r, 1, true, 2, 1100, 300);
+        run_step(r, 0);
+        for (int i = 1; i <= 10; ++i) {
+            set_point(r, 0, true, 1, 800, 300 + i * 50);
+            set_point(r, 1, true, 2, 1100, 300 + i * 50);
+            run_step(r, i * 16);
+        }
+        CTM_CHECK_EQ(g_wheelSum, 0);
+        // and out of the window it scrolls as ever
+        reset_stubs();
+        fresh_device();
+        g_quickSwitch = true;
+        g_cfg["touchpad_scroll"] = "2";
+        auto q = rest_report();
+        set_point(q, 0, true, 1, 800, 300);
+        set_point(q, 1, true, 2, 1100, 300);
+        run_step(q, 0);
+        for (int i = 1; i <= 10; ++i) {
+            set_point(q, 0, true, 1, 800, 300 + i * 50);
+            set_point(q, 1, true, 2, 1100, 300 + i * 50);
+            run_step(q, i * 16);
+        }
+        CTM_CHECK(g_wheelSum != 0);
+    }
+
+    section("touch: the quick config switch's press and its window, the touchpad stands down");
+    {
+        // ⓘ rhoquinn8217, 2026-10-23: "Disable all touch pad rebinds during
+        // this time including touch-pad to mouse".
+        reset_stubs();
+        fresh_device();
+        g_quickSwitch = true;
+        g_cfg["touchpad_to_mouse"] = "true";
+        g_cfg["touchpad_press_touch_drag"] = "MouseLeft";
+        const int clickByte = ctm_rebind::kDs5Layout.touch.clickByte;
+        const uint8_t clickMask = ctm_rebind::kDs5Layout.touch.clickMask;
+        auto r = rest_report();
+        // two fingers pressing: nothing held
+        set_point(r, 0, true, 1, 800, 500);
+        set_point(r, 1, true, 2, 1100, 500);
+        r[clickByte] = static_cast<uint8_t>(r[clickByte] | clickMask);
+        run_step(r, 0);
+        run_step(r, 20);
+        CTM_CHECK_EQ(static_cast<int>(g_dragMask), 0);
+        // its window open, one finger moving: no cursor
+        g_switchSession = true;
+        r[clickByte] = static_cast<uint8_t>(r[clickByte] & ~clickMask);
+        set_point(r, 1, false, 2, 1100, 500);
+        run_step(r, 40);
+        set_point(r, 0, true, 1, 1100, 300);
+        run_step(r, 60);
+        set_point(r, 0, true, 1, 1400, 100);
+        run_step(r, 80);
+        CTM_CHECK_EQ(g_pushCount, 0);
+        CTM_CHECK_EQ(static_cast<int>(g_dragMask), 0);
+        // the last finger lifted, the window gone: a new touch points again
+        g_switchSession = false;
+        set_point(r, 0, false, 1, 1400, 100);
+        run_step(r, 100);
+        set_point(r, 0, true, 3, 800, 500);
+        run_step(r, 120);
+        set_point(r, 0, true, 3, 1100, 500);
+        run_step(r, 140);
+        set_point(r, 0, true, 3, 1400, 500);
+        run_step(r, 160);
+        CTM_CHECK(g_pushCount > 0);
+        // and with the switch off, a two-finger press is the config's own
+        reset_stubs();
+        fresh_device();
+        g_cfg["touchpad_press_touch_drag"] = "MouseLeft";
+        auto q = rest_report();
+        set_point(q, 0, true, 1, 800, 500);
+        set_point(q, 1, true, 2, 1100, 500);
+        q[clickByte] = static_cast<uint8_t>(q[clickByte] | clickMask);
+        run_step(q, 0);
+        run_step(q, 20);
+        CTM_CHECK(g_dragMask != 0);
+    }
 
     section("touch: a two-finger swipe up presses Win+Tab once, and is not a tap");
     {
