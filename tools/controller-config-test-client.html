@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.110 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.111 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,11 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.111 Simple's tour takes a step for each section of the pre-set's
+            page (rhoquinn8217: "We need 2 more steps to highlight the
+            different rebind sections in the pre-set description."):
+            Triggers, then the two sticks together, then Buttons, top to
+            bottom, before Use this. Twenty-four steps.
     2.66.110 The tours' steps in the order of the window (rhoquinn8217:
             "switch 3 and 4. After the wheel description, start with the
             "New" button and go down to each. After each button is done go
@@ -3025,7 +3030,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.66.110</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.66.111</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -12705,8 +12710,8 @@ function selfTest() {
     var simpleWords = TUT_SIMPLE.map(function (st) { return st.words(); });
     TUT = keepTutS;
     TUT_MOCK = keepMockS;
-    ok('the tutorial: Simple has twenty-two steps, each with words, the last ending it',
-       TUT_SIMPLE.length === 22 && TUT_SIMPLE[21].act === 'end' &&
+    ok('the tutorial: Simple has twenty-four steps, each with words, the last ending it',
+       TUT_SIMPLE.length === 24 && TUT_SIMPLE[23].act === 'end' &&
        simpleWords.every(function (w) { return !!w && w.indexOf('undefined') < 0; }),
        simpleWords.join(' / '));
     ok('the tutorial: Simple makes a practice config from a pre-set, auto links it and archives it',
@@ -12758,8 +12763,8 @@ function selfTest() {
       return /^Press [^:]*: /.test(w) ? w.replace(/^Press [^:]*: /, '').split('.')[0] : w;
     };
     var bothKind = function (st) { return String(st.act || '') + !!st.free + !!st.stay; };
-    var bothSteps = [[1, 1], [3, 3], [4, 4], [11, 5], [12, 6], [13, 7], [14, 8], [16, 9], [17, 10],
-                     [18, 11], [19, 12], [20, 13], [22, 14]];
+    var bothSteps = [[1, 1], [3, 3], [4, 4], [13, 5], [14, 6], [15, 7], [16, 8], [18, 9], [19, 10],
+                     [20, 11], [21, 12], [22, 13], [24, 14]];
     var unlike = bothSteps.filter(function (n) {
       var a = TUT_SIMPLE[n[0] - 1], b = TUT_QUICK[n[1] - 1];
       return bothWords(a) !== bothWords(b) || bothKind(a) !== bothKind(b);
@@ -12768,6 +12773,34 @@ function selfTest() {
     TUT_MOCK = keepBoth[1];
     ok('the tutorial: the steps both tours have say the same words, and wait the same way',
        unlike.length === 0, unlike.join(', ') || 'all alike');
+  }
+
+  // Simple's tour lights the pre-set's page a section a step (2.66.111: "We
+  // need 2 more steps to highlight the different rebind sections in the
+  // pre-set description"): Triggers, the two sticks together, then Buttons,
+  // each leaving the page up for the next. On made-up tables, put back after.
+  {
+    var infoTables = document.getElementById('presetInfoTables');
+    var keepInfo = [PRESET_INFO_OPEN, infoTables.innerHTML];
+    var infoRows = presetInfoRows([
+      { key: 'rebind_7', value: 'MouseLeft' }, { key: 'rebind_6', value: 'MouseRight' },
+      { key: 'left_stick_mode', value: 'scroll' }, { key: 'right_stick_mode', value: 'mouse' },
+      { key: 'rebind_0', value: 'Enter' }]);
+    infoTables.innerHTML = ['Triggers', 'Left stick', 'Right stick', 'Buttons'].map(function (name) {
+      return presetTable(name, infoRows[name] || []);
+    }).join('');
+    PRESET_INFO_OPEN = 'stick-to-mouse';
+    var infoLit = [6, 7, 8].map(function (n) {
+      var parts = TUT_SIMPLE[n - 1].lit();
+      return parts.filter(function (el) { return el.tagName === 'H4'; })
+        .map(function (h) { return h.textContent; }).join('+') + ' ' + parts.length;
+    });
+    PRESET_INFO_OPEN = keepInfo[0];
+    infoTables.innerHTML = keepInfo[1];
+    ok('the tutorial: Simple lights each section of the pre-set page on a step of its own',
+       infoLit.join(' / ') === 'Triggers 2 / Left stick+Right stick 4 / Buttons 2' &&
+       [6, 7, 8].every(function (n) { return TUT_SIMPLE[n - 1].keepOpen === true; }),
+       infoLit.join(' / '));
   }
 
   // A pad the browser sees is taken by a tour as the gate's keystrokes for
@@ -12868,7 +12901,7 @@ function selfTest() {
 // changing the thing you assume is at fault.
 // ⭐⭐ THE TUTORIALS (rhoquinn8217, 2026-10-14: *"I want a tutorial when a
 // mode for each mode. Lets start with simple mode."*). One per Window Mode:
-// Quick's (2026-10-23, fourteen steps) and Simple's (2026-10-26, twenty-two,
+// Quick's (2026-10-23, fourteen steps) and Simple's (2026-10-26, twenty-four,
 // *"Based on how we did the quick mode tutorial"*), the steps both have
 // lined up since 2026-10-27 (ONE LIST FOR BOTH TOURS, below). Advanced has
 // none yet.
@@ -13431,13 +13464,28 @@ function tutPresetInfoUp() {
   var have = (PRESETS || []).some(function (x) { return x.name === 'stick-to-mouse'; });
   if (PRESET_INFO_OPEN !== 'stick-to-mouse' && have) openPresetInfo(ACTIVE, 'stick-to-mouse');
 }
-// The pre-set page's rebinds: its Buttons section, heading and tables.
-function tutRebinds() {
+// The pre-set page's sections named, each its heading and its tables.
+function tutPresetSections(names) {
   if (!PRESET_INFO_OPEN) return [];
-  var head = [].slice.call(document.querySelectorAll('#presetInfoTables h4')).filter(function (h) {
-    return h.textContent.trim() === 'Buttons';
-  })[0];
-  return head ? [head, head.nextElementSibling].filter(Boolean) : [];
+  var parts = [];
+  [].slice.call(document.querySelectorAll('#presetInfoTables h4')).forEach(function (h) {
+    if (names.indexOf(h.textContent.trim()) >= 0) parts.push(h, h.nextElementSibling);
+  });
+  return parts.filter(Boolean);
+}
+// ⓘ A step for one of them, or for the two sticks together: the page put up
+// again when gone back to, the section scrolled into sight, its heading
+// first, and the page left up for the next step (`keepOpen`).
+function tutPresetStep(names, words) {
+  var lit = function () { return tutPresetSections(names); };
+  return { side: 'above', keepOpen: true, lit: lit, words: words,
+           enter: function () {
+             tutPresetInfoUp();
+             var parts = lit();
+             if (!parts.length) return;
+             parts[parts.length - 1].scrollIntoView({ block: 'nearest' });
+             parts[0].scrollIntoView({ block: 'nearest' });
+           } };
 }
 
 // ⓘ The mark's step, the same in both (rhoquinn8217, 2026-10-27: *"add a step
@@ -13572,7 +13620,7 @@ var TUT_QUICK = [
   { lit: function () { return []; }, act: 'end', words: tutWordsEnd }
 ];
 
-// ⭐⭐ SIMPLE'S TWENTY-TWO (rhoquinn8217, 2026-10-26, the list they went
+// ⭐⭐ SIMPLE'S TWENTY-FOUR (rhoquinn8217, 2026-10-26, the list they went
 // through: *"Based on how we did the quick mode tutorial, build a list a of
 // steps for me to review for a simple view tutorial"*). Simple's own: the
 // controllers either side of its panel, the button column beside the wheel,
@@ -13581,7 +13629,8 @@ var TUT_QUICK = [
 // mark took a step of its own; seventeen until later that day, when the steps
 // both tours have were lined up with Quick's (above); nineteen until their run
 // of setup 76 (2026-10-28), when the pre-set's rebinds, the config made, and
-// Edit apart from Archive took steps of their own.
+// Edit apart from Archive took steps of their own; twenty-two until their run
+// of setup 81 the same day, when each section of the pre-set's page took one.
 // ⭐ IN THE ORDER OF THE WINDOW (rhoquinn8217, 2026-10-28: *"switch 3 and 4.
 // After the wheel description, start with the "New" button and go down to
 // each. After each button is done go to the do the resize button then the
@@ -13622,22 +13671,27 @@ var TUT_SIMPLE = [
              'is a ready-made config to start from.';
     },
     done: function () { return PRESET_INFO_OPEN === 'stick-to-mouse'; } },
-  // 6 (rhoquinn8217, 2026-10-28: *"when the pre-set is shown, add a step
-  // before instruction to click use. Highlight the rebinds and tell them to
-  // review them."*): its page's Buttons section. ⓘ Gone back to, the page
-  // comes up again; Continue leaves it up for Use this (`keepOpen`).
-  { side: 'above', keepOpen: true,
-    enter: function () {
-      tutPresetInfoUp();
-      var parts = tutRebinds();
-      if (parts.length) parts[parts.length - 1].scrollIntoView({ block: 'nearest' });
-    },
-    lit: tutRebinds,
-    words: function () {
-      return 'Its page says what it does, then lists what it sets. These are its rebinds, what each ' +
-             'button does with it: review them, then choose ' + tutHl('Continue') + '.';
-    } },
-  // 7: Use this. ⓘ Gone back to, the page comes up again.
+  // 6 to 8 (rhoquinn8217, 2026-10-28: *"when the pre-set is shown, add a
+  // step before instruction to click use. Highlight the rebinds and tell them
+  // to review them."*, then, from their run of setup 81: *"We need 2 more
+  // steps to highlight the different rebind sections in the pre-set
+  // description."*): its page's sections, top to bottom, a step each, the two
+  // sticks together. ⓘ Gone back to, the page comes up again; Continue leaves
+  // it up for the next, and the last for Use this.
+  tutPresetStep(['Triggers'], function () {
+    return 'Its page says what it does, then lists its rebinds, section by section. ' +
+           tutHl('Triggers') + ': what each trigger does with it. Review them, then choose ' +
+           tutHl('Continue') + '.';
+  }),
+  tutPresetStep(['Left stick', 'Right stick'], function () {
+    return tutHl('Left stick') + ' and ' + tutHl('Right stick') + ': what each stick does with it. ' +
+           'Review them, then choose ' + tutHl('Continue') + '.';
+  }),
+  tutPresetStep(['Buttons'], function () {
+    return tutHl('Buttons') + ': what each button does with it. Review them, then choose ' +
+           tutHl('Continue') + '.';
+  }),
+  // 9: Use this. ⓘ Gone back to, the page comes up again.
   { side: 'above', act: true,
     focus: function () { return document.getElementById('presetInfoUse'); },
     enter: tutPresetInfoUp,
@@ -13648,7 +13702,7 @@ var TUT_SIMPLE = [
       return 'Choose ' + tutHl('Use this') + ' to make a config from ' + tutHl('stick-to-mouse') + '.';
     },
     done: tutCreatedUp },
-  // 8: the box that comes after it. ⓘ Gone back to, it comes up again.
+  // 10: the box that comes after it. ⓘ Gone back to, it comes up again.
   { side: 'above', act: true,
     enter: function () { if (!tutCreatedUp()) tutCreatedBox(); },
     tick: function () { tutBoxLocks(tutCreatedUp()); },
@@ -13659,7 +13713,7 @@ var TUT_SIMPLE = [
              'Advanced Mode. For this tour, choose ' + tutHl('Go back') + ' in the box.';
     },
     done: function () { return !CONFIRM_CB; } },
-  // 9 (rhoquinn8217, 2026-10-28: *"After the creating a config and then
+  // 11 (rhoquinn8217, 2026-10-28: *"After the creating a config and then
   // selecting go back add a step to show the newly created config."*): the
   // wheel's middle, where it is.
   { side: 'left', lit: function () { return tutQ('.cdrum-row.on'); },
@@ -13667,14 +13721,14 @@ var TUT_SIMPLE = [
       return tutHl(TUT.made || 'The new config') + ', the config you just made, is in the middle of ' +
              'the wheel: ' + tutNick() + ' uses it now.';
     } },
-  // 10 (*"separate steps for describing Edit button and describing and
+  // 12 (*"separate steps for describing Edit button and describing and
   // instructing to press the Archive button"*): Edit, shown and locked.
   { side: 'right', lit: function () { return tutQ('.csbtns > button:nth-child(2)'); },
     words: function () {
       return tutHl('Edit') + ' opens the config in the middle in Advanced Mode, where every ' +
              'setting can be changed.';
     } },
-  // 11 (*"direct to press the button on the page but note the same can be
+  // 13 (*"direct to press the button on the page but note the same can be
   // done with a controller button"*): Square does it on the wheel.
   { side: 'right', act: true, focus: '.csbtns .cunlink-btn', keyAim: '#cpick',
     lit: function () { return tutQ('.csbtns .cunlink-btn'); },
@@ -13684,10 +13738,10 @@ var TUT_SIMPLE = [
     enter: tutEnsureLinked,
     words: function () { return tutWordsUnlink(tutHl('Unlink'), tutAlso('unlink')); },
     done: tutUnlinkDone },
-  // 12
+  // 14
   { side: 'left', lit: function () { return tutQ('.cwheel'); }, enter: tutEnsureUnlinked,
     words: tutWordsNoConfig },
-  // 13 (*"direct to press the button on the page but note the same can be
+  // 15 (*"direct to press the button on the page but note the same can be
   // done with a controller button"*): Triangle does it on the wheel. ⓘ After
   // Unlink, the config made comes back to the middle for it.
   { side: 'right', act: true, focus: '.csbtns .cauto-btn', keyAim: '#cpick',
@@ -13698,9 +13752,9 @@ var TUT_SIMPLE = [
     enter: tutEnsureLinked,
     words: function () { return tutWordsAutoLink(tutHl('Auto link'), tutAlso('autolink')); },
     done: tutAutoLinkDone },
-  // 14: the mark auto link leaves.
+  // 16: the mark auto link leaves.
   tutMarkStep(),
-  // 15 (*"do a step for archive"*)
+  // 17 (*"do a step for archive"*)
   { side: 'right', act: true, focus: '.csbtns .carchive-btn', split: true,
     lit: function () { return tutQ('.csbtns .carchive-btn').concat(tutConfirmCard()); },
     anchors: function () { return tutQ('.csbtns .carchive-btn'); },
@@ -13710,19 +13764,19 @@ var TUT_SIMPLE = [
              ', then choose ' + tutHl('OK') + ', and ' + tutNick() + ' has no config again.';
     },
     done: function () { return !!TUT.made && TUT_MOCK.configs.indexOf(TUT.made) < 0; } },
-  // 16: the window's position, as in Quick's. Options reaches the listener
+  // 18: the window's position, as in Quick's. Options reaches the listener
   // from the pad's own report, and P passes.
   { side: 'left', free: true, lit: function () { return tutQ('.clegend .lgi:nth-child(6)'); },
     words: tutWordsPosition },
-  // 17: its size, the legend's and 🗗's, as in Quick's.
+  // 19: its size, the legend's and 🗗's, as in Quick's.
   tutSizeStep('.clegend .lgi:nth-child(7)'),
-  // 18: the mode picker, opened and not used, as in Quick's.
+  // 20: the mode picker, opened and not used, as in Quick's.
   { side: 'right', act: true, stay: true, noPick: true, focus: '#cselMode',
     lit: function () { return tutQ('#cselMode'); },
     pointer: function () { return GP_SELECTING !== tutById('cselMode'); },
     words: function () { return tutWordsMode('SIMPLE MODE'); },
     done: function () { return GP_SELECTING === tutById('cselMode'); } },
-  // 19: Circle, lit alone in the legend, as in Quick's. ⛔ Close takes the
+  // 21: Circle, lit alone in the legend, as in Quick's. ⛔ Close takes the
   // halo first (keyAim): Simple's Circle closes the window when it finds no
   // Close to go to.
   { side: 'above', act: true, keyAim: '.cbar > button.cclose',
@@ -13733,9 +13787,9 @@ var TUT_SIMPLE = [
     pressed: function () { TUT.circled = true; },
     words: tutWordsCircle,
     done: function () { return !!TUT.circled; } },
-  // 20: where Circle took you, and what Close does, Close itself locked.
+  // 22: where Circle took you, and what Close does, Close itself locked.
   { side: 'right', lit: function () { return tutQ('.cbar > button.cclose'); }, words: tutWordsClose },
-  // 21 (*"Need a step to show the hint and how to click it to see the next
+  // 23 (*"Need a step to show the hint and how to click it to see the next
   // one"*, and the last before the end since 2026-10-28): a click is the
   // way, and a controller has none, so Continue stays.
   { side: 'left', free: true, lit: function () { return tutQ('.cinfo'); },
@@ -13743,7 +13797,7 @@ var TUT_SIMPLE = [
       return 'This line is a tip, and a new one comes every 30 seconds. Click it to see the next ' +
              'one, then choose ' + tutHl('Continue') + '.';
     } },
-  // 22
+  // 24
   { lit: function () { return []; }, act: 'end', words: tutWordsEnd }
 ];
 
@@ -14036,7 +14090,7 @@ function tutNext() {
   var s = tutStep();
   if (!s || !tutCanContinue(s) || TUT.busy) return;
   // ⓘ What the step shows stays up for the next where it says so
-  // (`keepOpen`): the pre-set's page, from its rebinds to Use this.
+  // (`keepOpen`): the pre-set's page, from its sections to Use this.
   tutShow(TUT.at + 1, !!s.keepOpen);
 }
 
