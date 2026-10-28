@@ -48,6 +48,30 @@ int run_quick_switch_tests()
         CTM_CHECK(!opens(q, 0, true));     // pressed with no finger: no
     }
 
+    section("quick switch: a press is seen as it goes in, with any number of fingers");
+    {
+        Press p;
+        CTM_CHECK(press_edge(p, true));
+        CTM_CHECK(!press_edge(p, true));         // held
+        CTM_CHECK(!press_edge(p, false));
+        CTM_CHECK(press_edge(p, true));          // in again
+    }
+
+    section("quick switch: while the window holds the touchpad, only the two asked for");
+    {
+        // ⓘ rhoquinn8217, 2026-10-27: "1 finger scroll up or down while the
+        // other finger stays put" and "press again to lift restriction and
+        // the config window persists after both fingers are lifted".
+        CTM_CHECK(while_held(false, 2, 0) == Held::Stay);
+        CTM_CHECK(while_held(false, 1, 0) == Held::Stay);
+        CTM_CHECK(while_held(false, 2, 1) == Held::Step);
+        CTM_CHECK(while_held(false, 1, -1) == Held::Step);
+        CTM_CHECK(while_held(true, 2, 0) == Held::Keep);    // pressed again: kept
+        CTM_CHECK(while_held(true, 1, 0) == Held::Keep);    // with one finger too
+        CTM_CHECK(while_held(true, 2, 1) == Held::Keep);    // the press wins a step
+        CTM_CHECK(while_held(false, 0, 0) == Held::Close);  // every finger up
+    }
+
     section("quick switch: one thumb resting, the other swiping up then down, a step a swipe");
     {
         // ⓘ rhoquinn8217, 2026-10-23: "both thumbs touch and press and

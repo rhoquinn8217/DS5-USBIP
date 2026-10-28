@@ -1,7 +1,7 @@
 // The quick config switch at work: two fingers pressing the touchpad open the
 // configs window in Quick view, each swipe of a finger up or down steps the
 // controller's config there (one thumb resting, the other swiping), and the
-// window closes the moment the last finger lifts.
+// window closes the moment the last finger lifts -- or, pressed again, stays.
 // 🔗 quick_switch.inl for what was asked, the gestures and the keys; rebind.inl
 // feeds this every report of a pad with a touchpad, in the window or out of
 // it, and sends the keys from its config-mode branch; touch_mouse.inl asks it
@@ -11,6 +11,13 @@
 // taps, swipes or press (rhoquinn8217, 2026-10-23: "Disable all touch pad
 // rebinds during this time including touch-pad to mouse"). From the press that
 // opens it to the last finger lifting.
+// ⭐⭐ AND NONE OF IT REACHES WINDOWS OR THE GAME, the press that opens it
+// included (rhoquinn8217, 2026-10-27: "that press should not register in
+// windows or the game"): the gate takes the pad only once the window has the
+// front, half a second on, so until then the touches and the press went out
+// with the report. mouse_exclusive.inl blanks them while holds_touchpad says
+// so. ⭐ A second press keeps the window and lets the touchpad go
+// (quick_switch::while_held, restore_when_closed).
 // ⭐ AND WITH THE WINDOW IN FRONT IN SIMPLE OR QUICK THE SAME SWIPE MOVES ITS
 // WHEEL, one thumb resting and the other swiping, with no press (rhoquinn8217,
 // 2026-10-26: *"the same 1 thumb touch and 1 thumb swipe"*), where two fingers
@@ -54,6 +61,7 @@ struct Session {
     bool pressed = false;           // a press opened it: it ends when the last finger lifts
     bool openedWindow = false;      // so it closes the window, and puts the layout back
     bool launched = false;          // its open has been made: the window is coming, or there
+    bool kept = false;              // pressed again: the window is the person's, and stays
     unsigned askedAtOpen = 0;       // the pages' layout questions when the window was asked for
     bool ending = false;            // done once the steps are sent, the window then closed
     long long endAt = 0;            // when it began to end
@@ -150,6 +158,34 @@ inline void close_when_sent(unsigned id)
     }).detach();
 }
 
+// The window a second press kept is the person's: it stays, and the switch
+// lets it be. Once it closes, by its Close or anything else, the layout and
+// the controller the shortcut and the tray open on are put back, as the
+// switch's own close puts them back (rhoquinn8217, 2026-10-27: "opens the one
+// you had before") -- unless a layout was picked in it, which then stands
+// (config_move.inl, set_view), or a newer switch has the window by then and
+// puts them back itself. ⓘ Its own thread, looking about four times a second.
+inline void restore_when_closed(unsigned id)
+{
+    std::thread([id]() {
+        // ⓘ First the window itself, which a quick second press can come before.
+        for (int i = 0; i < 160 && !ctm_open_ui::window_exists(); ++i) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(25));
+        }
+        while (ctm_open_ui::window_exists()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(250));
+        }
+        {
+            std::lock_guard<std::mutex> lock(g_mutex);
+            if (g_session.id != id && g_session.active) return;   // a newer switch has it
+        }
+        config_move::end_quick_view();
+        device_log::input(device_log::msg()
+            << "quick switch: the window it kept closed -- the layout it had before is back,"
+            << " unless one was picked in it");
+    }).detach();
+}
+
 // Every report of a pad with a touchpad, read before anything changes the
 // report: whether the pad is pressed in, and each of its two fingers -- down
 // or not, the id the pad gave its touch, and where it is.
@@ -177,33 +213,49 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
     // for nothing.
     const bool wheelInFront = fingers == 2 && window_wheel_in_front();
     const bool inFront = pressed && fingers == 2 && (wheelInFront || ctm_rebind_config_mode_effective());
-    enum class Did { Nothing, Opened, Stepped, Lifted, InFront, SomeoneElse };
+    enum class Did { Nothing, Opened, Stepped, Lifted, Kept, InFront, SomeoneElse };
     Did did = Did::Nothing;
     int step = 0;
     unsigned closer = 0;
     unsigned opened = 0;
+    unsigned kept = 0;
     {
         std::lock_guard<std::mutex> lock(g_mutex);
         PadState &ps = g_pads[deviceKey];
         Session &s = g_session;
         const bool mine = s.active && s.device == deviceKey;
-        const bool opens = quick_switch::opens(ps.press, fingers, pressed);
+        const bool pressEdge = quick_switch::press_edge(ps.press, pressed);
+        const bool opens = pressEdge && fingers == 2;
         const int swipe = quick_switch::front_steps(ps.front, wheelInFront, touch);
         if (mine && s.pressed && !s.ending) {
-            if (fingers == 0) {
+            // ⓘ Each finger by itself, not the two together: a thumb swiping
+            // beside a resting one moves their midpoint as well, and would
+            // step twice.
+            const int steps = quick_switch::swipe_steps(ps.swipes, touch);
+            switch (quick_switch::while_held(pressEdge, fingers, steps)) {
+            case quick_switch::Held::Close:
                 s.ending = true;
                 s.endAt = now_ms();
                 closer = s.id;
                 did = Did::Lifted;
-            } else {
-                // ⓘ Each finger by itself, not the two together: a thumb
-                // swiping beside a resting one moves their midpoint as well,
-                // and would step twice.
-                step = quick_switch::swipe_steps(ps.swipes, touch);
-                if (step != 0) {
-                    quick_switch::queue(s.keys, step);
-                    did = Did::Stepped;
-                }
+                break;
+            case quick_switch::Held::Keep:
+                // ⭐ The window is the person's now: the touchpad goes back to
+                // the config, and the window stays when the fingers lift.
+                // ⓘ Steps still on their way are sent first (key()).
+                s.ending = true;
+                s.kept = true;
+                if (quick_switch::idle(s.keys)) s.active = false;
+                kept = s.id;
+                did = Did::Kept;
+                break;
+            case quick_switch::Held::Step:
+                quick_switch::queue(s.keys, steps);
+                step = steps;
+                did = Did::Stepped;
+                break;
+            case quick_switch::Held::Stay:
+                break;
             }
         } else if (opens) {
             if (s.active && s.device != deviceKey && !s.ending) {
@@ -242,6 +294,7 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
         }
     }
     if (closer != 0) close_when_sent(closer);
+    if (kept != 0) restore_when_closed(kept);
     if (did == Did::Nothing || did == Did::Lifted) return;
 
     const std::string ordinal = ctm_ordinal_for_device(deviceKey);
@@ -258,6 +311,7 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
     device_log::input(device_log::msg()
         << "quick switch: " << ordinal << " -- "
         << (did == Did::Opened ? "two fingers pressed: the window opening in Quick" :
+            did == Did::Kept ? "pressed again: the window stays, and the touchpad is the config's again" :
             did == Did::InFront ? "two fingers pressed, with the window in front already" :
             did == Did::SomeoneElse ? "the touchpad, while another controller is switching" :
             step > 0 ? "up: the next config" : "down: the config before"));
@@ -273,13 +327,18 @@ inline const char *key(const void *deviceKey)
     if (!s.active || s.device != deviceKey) return nullptr;
     if (s.openedWindow && g_pageAsked.load() == s.askedAtOpen) return nullptr;
     const char *k = quick_switch::key_now(s.keys, now_ms());
-    // ⓘ A window someone else opened stays; this switch is done with it.
-    if (k == nullptr && s.ending && !s.openedWindow && quick_switch::idle(s.keys)) s.active = false;
+    // ⓘ A window someone else opened stays, and so does one a second press
+    // kept; this switch is done with it once its steps have gone.
+    if (k == nullptr && s.ending && (!s.openedWindow || s.kept) && quick_switch::idle(s.keys)) {
+        s.active = false;
+    }
     return k;
 }
 
-// Whether the touchpad is the switch's right now: the press that opens the
-// window, and every report after it until the last finger lifts.
+// Whether the touchpad is the switch's right now, kept from the listener's own
+// touchpad (touch_mouse.inl) and from Windows and the game (mouse_exclusive.inl):
+// any press with two fingers on it, and every report after the press that
+// opens the window until the last finger lifts or a second press keeps it.
 inline bool holds_touchpad(const void *deviceKey, int fingers, bool pressed)
 {
     if (!config_move::quick_switch_on()) return false;

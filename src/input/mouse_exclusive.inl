@@ -52,7 +52,6 @@ inline void apply(const void *deviceKey,
                   const std::vector<unsigned char> &descriptor,
                   const std::string &config, uint8_t *data, size_t len)
 {
-    (void)deviceKey;
     if (data == nullptr) return;
 
     // ⛔ THE SAME TWO STEPS EVERY OTHER HOOK USES: the descriptor names the
@@ -61,6 +60,23 @@ inline void apply(const void *deviceKey,
     const InputPad pad = device_input_pad_for(descriptor);
     if (pad.layout == nullptr) return;
     const ctm_rebind::Layout &lay = *pad.layout;
+
+    // ⭐⭐ THE TOUCHPAD WHILE THE QUICK CONFIG SWITCH HOLDS IT, whatever the
+    // config, or with none (rhoquinn8217, 2026-10-27: "if the touchpad is
+    // pressed, that press should not register in windows or the game", and
+    // touch, tap and press restricted "until both fingers are lifted"): from
+    // two fingers pressing to the last finger lifting, or a second press, the
+    // touches and the press go out as no finger and no press.
+    // ⓘ quick_switch_session.inl, holds_touchpad. Before the config's own
+    // switches below, which a pad with no config never reaches.
+    if (lay.touch.present && len >= ctm_rebind::touch_min_len(lay)) {
+        const int fingers = (ctm_rebind::touch_finger_down(lay, data, len, 0) ? 1 : 0) +
+                            (ctm_rebind::touch_finger_down(lay, data, len, 1) ? 1 : 0);
+        if (quick_switch_holds_touchpad(deviceKey, fingers, ctm_rebind::touch_pressed(lay, data, len))) {
+            ctm_rebind::blank_touch(lay, data, len);
+        }
+    }
+
     const std::string section = device_settings_section(pad.kind, config);
     if (section.empty()) return;
 

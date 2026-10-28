@@ -22,6 +22,20 @@
 // two finger swipe when quick mode or simple mode is up to the same 1 thumb
 // touch and 1 thumb swipe to switch to next or previous config."*
 // (front_steps(), below).
+// ⭐ AND THE PRESS AND THE TOUCHPAD HELD BACK, A SECOND PRESS KEEPING THE
+// WINDOW (rhoquinn8217, 2026-10-27: *"if there are two fingers touching the
+// touchpad, if the touchpad is pressed, that press should not register in
+// windows or the game.  In addition to opening the config window temporarily,
+// it should also temporarily restrict touchpad touch, tap and press from
+// reaching windows or the game until both fingers are lifted.  Possible
+// actions while touching the touchpad. / * 1 finger scroll up or down while
+// the other finger stays put / * press again to lift restriction and the
+// config window persists after both fingers are lifted / Only these for
+// now."*). The pad shortcut, two fingers resting and Options, stays as it is
+// (*"Leave it the way it is whether ticked or not."*), and a kept window,
+// once closed, leaves the shortcut and the tray on the layout from before
+// (*"opens the one you had before"*). while_held(), below; the holding is in
+// mouse_exclusive.inl.
 //
 // ⓘ This file is the setting, the gestures and the keys a step is sent as,
 // with no windows.h, so the test binary can reach them.
@@ -64,11 +78,31 @@ struct Press {
     bool wasPressed = false;
 };
 
-inline bool opens(Press &p, int fingers, bool pressed)
+// The touchpad going in on this report, with any number of fingers.
+inline bool press_edge(Press &p, bool pressed)
 {
     const bool edge = pressed && !p.wasPressed;
     p.wasPressed = pressed;
-    return edge && fingers == 2;
+    return edge;
+}
+
+inline bool opens(Press &p, int fingers, bool pressed)
+{
+    return press_edge(p, pressed) && fingers == 2;
+}
+
+// ⭐ WHAT A REPORT DOES WHILE THE WINDOW A PRESS OPENED HOLDS THE TOUCHPAD:
+// only the two things asked for. The last finger lifting closes it; a press
+// keeps it, and lets the touchpad go; a swipe beside a resting finger steps
+// the config (swipe_steps, below); anything else does nothing.
+enum class Held { Stay, Step, Keep, Close };
+
+inline Held while_held(bool pressEdge, int fingers, int steps)
+{
+    if (fingers == 0) return Held::Close;
+    if (pressEdge) return Held::Keep;
+    if (steps != 0) return Held::Step;
+    return Held::Stay;
 }
 
 // ⭐ A FINGER SWIPED UP OR DOWN, WHILE THE WINDOW IS OPEN, ANOTHER RESTING OR

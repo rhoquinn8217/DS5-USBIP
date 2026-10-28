@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.100 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.108 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,14 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.108 The quick config switch's help says what the listener now
+             does (rhoquinn8217: "press again to lift restriction and the
+             config window persists after both fingers are lifted"): from
+             two fingers pressing the touchpad to the last finger lifting,
+             nothing of the touchpad reaches Windows or the game, the press
+             that opens this window included, and pressing again keeps the
+             window, the touchpad the config's again. (2.66.101 to
+             2.66.107 are taken on another branch.)
     2.66.100 Auto link asks nothing (rhoquinn8217: "Remove Auto Link
              confirmation pop up box, its not needed"): its button and its
              key set it, in place of another config's as well, or take it
@@ -2859,14 +2867,16 @@
          stays on it, each swipe of a finger up or down steps the config,
          one thumb resting and the other swiping, and the last
          finger lifting closes it; in Simple and Quick in front, the same
-         swipe moves the wheel, with no press (2026-10-26). Every controller's,
+         swipe moves the wheel, with no press (2026-10-26). Until the last
+         finger lifts, the touchpad reaches neither Windows nor the game,
+         and pressing again keeps the window (2026-10-27). Every controller's,
          "essentially a global setting", so it is here. The listener
          keeps it and does the switching.
          Painted by paintQuickSwitch(); a pad stop of its own
          (data-gp-focus), as Open on bridge has. -->
     <label class="ovcheck ovnext" id="quickSwitchLabel"
       title="Unticked: the touchpad does what the config says. Tick it to switch configs by pressing the touchpad with two fingers."><input type="checkbox" id="quickSwitch" data-gp-focus="1" onchange="toggleQuickSwitch()">Press the touchpad with two fingers to switch configs</label>
-    <div class="ovhelp">Every controller: Quick view stays while a finger rests on the touchpad, and each swipe of another finger up or down changes the config. In Simple and Quick, the same swipe beside a resting thumb moves the wheel, with no press.</div>
+    <div class="ovhelp">Every controller: Quick view stays while a finger rests on the touchpad, each swipe of another finger up or down changes the config, and pressing again keeps the window. Until then the touchpad reaches neither Windows nor the game. In Simple and Quick, the same swipe beside a resting thumb moves the wheel, with no press.</div>
   </div>
   <div class="ovcard conn">
     <!-- ⓘ The light is this card's own (paintConnLight). The line beside
@@ -2936,7 +2946,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.66.100</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.66.108</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -9717,7 +9727,7 @@ function paintQuickSwitch() {
   var label = document.getElementById('quickSwitchLabel');
   if (label) {
     label.title = QUICK_SWITCH
-      ? 'Ticked: two fingers pressing the touchpad open Quick view while a finger rests on it, and each swipe of another finger up or down changes the config; in Simple and Quick, the same swipe beside a resting thumb moves the wheel. Untick it to turn both off.'
+      ? 'Ticked: two fingers pressing the touchpad open Quick view while a finger rests on it, each swipe of another finger up or down changes the config, and pressing again keeps the window; until then the touchpad reaches neither Windows nor the game. In Simple and Quick, the same swipe beside a resting thumb moves the wheel. Untick it to turn both off.'
       : 'Unticked: the touchpad does what the config says. Tick it to switch configs by pressing the touchpad with two fingers.';
   }
 }
