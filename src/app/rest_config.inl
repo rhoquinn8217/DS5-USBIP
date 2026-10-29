@@ -653,10 +653,13 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
             bool compact = false, quick = false;
             std::string ordinal;
             const bool known = ui_view_get(&compact, &quick, &ordinal);
+            // ⓘ And whether this is the quick config switch's window, which
+            // starts no tutorial by itself.
             *out = rest_http_response(200,
                 std::string("{\"known\":") + (known ? "true" : "false") +
                 ",\"compact\":" + (compact ? "true" : "false") +
                 ",\"quick\":" + (quick ? "true" : "false") +
+                ",\"quick_switch\":" + (ui_quick_view_on() ? "true" : "false") +
                 ",\"ordinal\":\"" + rest_json_escape(ordinal) + "\"}");
             return true;
         }
@@ -719,10 +722,11 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
         }
 
         // ⭐ THE TUTORIALS (rhoquinn8217, 2026-10-14): a GET says whether
-        // Simple's has been seen and whether the tray asked for it, once a
-        // second while the page is in view, as Open on bridge is read. A POST
-        // of {"seen": true} keeps it seen; {"taken": true} clears the tray's
-        // request once the page has it (tutorial_state.inl).
+        // Simple's and Quick's have been seen and which the tray asked for,
+        // once a second while the page is in view, as Open on bridge is read.
+        // A POST of {"seen": "simple"} or {"seen": "quick"} keeps that one
+        // seen; {"taken": true} clears the tray's request once the page has
+        // it (tutorial_state.inl).
         if (what == "tutorial") {
             if (req.method == "POST") {
                 RestJson json;
@@ -731,23 +735,32 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
                     *out = rest_error_response(400, parseError);
                     return true;
                 }
-                auto seen = json.bools.find("seen");
+                auto seen = json.strings.find("seen");
                 auto taken = json.bools.find("taken");
-                if (seen == json.bools.end() && taken == json.bools.end()) {
-                    *out = rest_error_response(400, "say seen or taken, true or false");
+                const int kind = seen == json.strings.end() ? tutorial_state::None
+                                                            : tutorial_state::kind_of(seen->second);
+                if (seen != json.strings.end() && kind == tutorial_state::None) {
+                    *out = rest_error_response(400, "seen is simple or quick");
                     return true;
                 }
-                if (seen != json.bools.end()) {
-                    ui_set_tutorial_seen(seen->second);
-                    device_log::session_w() << L"settings page: the Simple tutorial is "
-                                            << (seen->second ? L"seen" : L"unseen") << L" now";
+                if (seen == json.strings.end() && taken == json.bools.end()) {
+                    *out = rest_error_response(400, "say seen (simple or quick) or taken (true)");
+                    return true;
+                }
+                if (kind != tutorial_state::None) {
+                    ui_set_tutorial_seen(kind, true);
+                    device_log::session_w() << L"settings page: the "
+                                            << (kind == tutorial_state::Quick ? L"Quick" : L"Simple")
+                                            << L" tutorial is seen now";
                 }
                 if (taken != json.bools.end() && taken->second) ui_tutorial_take();
             } else if (req.method != "GET") {
                 *out = rest_error_response(405, "method not allowed", "Allow: GET, POST, OPTIONS\r\n");
                 return true;
             }
-            *out = rest_http_response(200, tutorial_state::json(ui_tutorial_seen(), ui_tutorial_asked()));
+            *out = rest_http_response(200, tutorial_state::json(ui_tutorial_seen(tutorial_state::Simple),
+                                                                ui_tutorial_seen(tutorial_state::Quick),
+                                                                ui_tutorial_asked()));
             return true;
         }
 
@@ -761,9 +774,12 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
         // says whether one points at a lit part, "anchors" where each arrow
         // points when there are several ("ax,ay|ax,ay"), "side" the side of
         // the window the step asks for, and "title" heads the start's card
-        // and the end's question. A GET of tutorial-press hands
-        // over a click on one of the buttons, by its id, once, for the page to
-        // act on.
+        // and the end's question. "target" is what the step lights and
+        // "obstacles" what is on the window ("l,t,r,b|...", thousandths of
+        // the view), for the words to stand beside the one and off the other,
+        // with "clear" left for the page's arrow. A GET of tutorial-press
+        // hands over a click on one of the buttons, by its id, once, for the
+        // page to act on, and says which side of what is lit the words stand.
         if (what == "tutorial-bubble") {
             if (req.method != "POST") {
                 *out = rest_error_response(405, "method not allowed", "Allow: POST, OPTIONS\r\n");
@@ -790,7 +806,8 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
             if (flag("show")) {
                 ui_tutorial_words_show(text("title"), text("count"), text("words"), text("buttons"),
                                        text("focus"), flag("arrow"), number("ax", 500), number("ay", 500),
-                                       text("side"), text("anchors"));
+                                       text("side"), text("anchors"), text("target"),
+                                       text("obstacles"), number("clear", 0));
             } else {
                 ui_tutorial_words_hide();
             }
@@ -802,7 +819,8 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
                 *out = rest_error_response(405, "method not allowed", "Allow: GET, OPTIONS\r\n");
                 return true;
             }
-            *out = rest_http_response(200, std::string(R"({"press":")") + ui_tutorial_words_take_press() + R"("})");
+            *out = rest_http_response(200, std::string(R"({"press":")") + ui_tutorial_words_take_press() +
+                                           R"(","side":")" + ui_tutorial_words_side() + R"("})");
             return true;
         }
 

@@ -71,8 +71,8 @@ inline const wchar_t *const kQuit = L"Quit";
 // padlock below.
 inline const wchar_t *const kRemoveOld = L"Remove old controllers\u2026";
 // ⭐ SHOW TUTORIAL (rhoquinn8217, 2026-10-14: *"put it in the tray menu"*),
-// beside Remove old controllers: the Controller Configs window's tutorial,
-// which starts by itself only the first time.
+// beside Remove old controllers: the Controller Configs window's tutorials,
+// listed under it (kTutorials), each of which starts by itself only once.
 inline const wchar_t *const kShowTutorial = L"Show tutorial";
 
 // ⓘ By code point, so no editor and no compiler setting can turn it into
@@ -161,6 +161,21 @@ inline constexpr Mode kModes[3] = {
     { L"Quick",    true,  true  },
 };
 inline constexpr int kModeCount = 3;
+
+// ⭐ THE LIST UNDER SHOW TUTORIAL (rhoquinn8217, 2026-10-26: *"put a list of
+// tutorials in the tray for now"*): each tours one layout, which the window
+// goes to as it starts. `mode` is its place in kModes, `kind` the page's name
+// for it (tutorial_state::Kind: 1 Simple, 2 Quick).
+struct Tutorial {
+    const wchar_t *name;
+    int mode;
+    int kind;
+};
+inline constexpr Tutorial kTutorials[2] = {
+    { L"Simple mode", 1, 1 },
+    { L"Quick mode",  2, 2 },
+};
+inline constexpr int kTutorialCount = 2;
 
 // Which of the three the window is in, or -1 when the listener has not been
 // told: it has just started for the first time and no window has opened yet.

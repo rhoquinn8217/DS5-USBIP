@@ -1533,6 +1533,9 @@ static int run_agent(uint16_t port)
         // HERE because the line above is the one that settles what a relative
         // path means -- reading it earlier would resolve somewhere else.
         config_move::state_load();
+        // ⓘ And the first start after an install puts the window in Simple
+        // and lets both tutorials start again (tutorial_state.inl).
+        config_move::install_check(module_directory());
     }
 
     // ⭐ Open the page HERE, once the agent is actually listening.

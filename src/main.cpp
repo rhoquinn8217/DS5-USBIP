@@ -153,23 +153,28 @@ bool quick_switch_holds_touchpad(const void *deviceKey, int fingers, bool presse
 const char *quick_switch_key(const void *deviceKey);
 bool quick_switch_has_vertical_swipes();
 void quick_switch_page_asked_view();
-/* The tutorials (tutorial_state.inl): whether Simple's has been seen, kept in
- * window-state.txt, and the tray's request to show it again. Defined below,
- * after config_move.inl. */
-bool ui_tutorial_seen();
-void ui_set_tutorial_seen(bool seen);
-void ui_tutorial_ask();
-bool ui_tutorial_asked();
+/* ...and whether the window up now is the switch's own (config_move.inl):
+ * the page asks as it opens, and starts no tutorial by itself in it. */
+bool ui_quick_view_on();
+/* The tutorials (tutorial_state.inl): whether Simple's and Quick's have been
+ * seen, kept in window-state.txt, and the tray's request for one, by its
+ * tutorial_state::Kind. Defined below, after config_move.inl. */
+bool ui_tutorial_seen(int kind);
+void ui_set_tutorial_seen(int kind, bool seen);
+void ui_tutorial_ask(int kind);
+int ui_tutorial_asked();
 void ui_tutorial_take();
 /* The tutorial's words, drawn beside the configs window rather than in it
  * (tutorial_bubble.inl): shown with what a step says and the buttons under
- * it, hidden, and a click on one of those buttons handed over once. Defined
- * below, after tutorial_bubble.inl. */
+ * it, hidden, a click on one of those buttons handed over once, and the side
+ * of what is lit they stand on. Defined below, after tutorial_bubble.inl. */
 void ui_tutorial_words_show(const std::string &title, const std::string &count, const std::string &words,
                             const std::string &buttons, const std::string &focus, bool arrow,
-                            int ax, int ay, const std::string &side, const std::string &anchors);
+                            int ax, int ay, const std::string &side, const std::string &anchors,
+                            const std::string &target, const std::string &obstacles, int clear);
 void ui_tutorial_words_hide();
 std::string ui_tutorial_words_take_press();
+std::string ui_tutorial_words_side();
 /* Where the window stands right now, kept for the next one. Called on the way
  * out, while it still exists. */
 void ui_view_remember_pos();
@@ -321,7 +326,11 @@ void synthetic_devices_stop();
 // ⓘ And the same shape again (T-239): agent.inl reads the window's remembered
 // place the moment it has settled what a relative path means, and
 // config_move.inl is included well below because rebind.inl needs it there.
-namespace config_move { inline void state_load(); }
+// The install's check follows it there (tutorial_state.inl).
+namespace config_move {
+inline void state_load();
+inline void install_check(const std::wstring &exeFolder);
+}
 #include "input/gyro_calibration_fetch.inl"   // needs CtmBackend; agent.inl calls it
 #include "app/nickname.inl"      // controller nicknames; agent.inl assigns one per session
 #include "app/same_controller.inl"   // which older session a new bridge retires; agent.inl asks it
@@ -446,19 +455,23 @@ void ui_set_quick_switch(bool on)
 {
     config_move::set_quick_switch(on);
 }
-bool ui_tutorial_seen()
+bool ui_quick_view_on()
 {
-    return config_move::tutorial_seen();
+    return config_move::quick_view_on();
 }
-void ui_set_tutorial_seen(bool seen)
+bool ui_tutorial_seen(int kind)
 {
-    config_move::set_tutorial_seen(seen);
+    return config_move::tutorial_seen(kind);
 }
-void ui_tutorial_ask()
+void ui_set_tutorial_seen(int kind, bool seen)
 {
-    config_move::ask_tutorial();
+    config_move::set_tutorial_seen(kind, seen);
 }
-bool ui_tutorial_asked()
+void ui_tutorial_ask(int kind)
+{
+    config_move::ask_tutorial(kind);
+}
+int ui_tutorial_asked()
 {
     return config_move::tutorial_asked();
 }
@@ -468,23 +481,11 @@ void ui_tutorial_take()
 }
 void ui_tutorial_words_show(const std::string &title, const std::string &count, const std::string &words,
                             const std::string &buttons, const std::string &focus, bool arrow,
-                            int ax, int ay, const std::string &side, const std::string &anchors)
+                            int ax, int ay, const std::string &side, const std::string &anchors,
+                            const std::string &target, const std::string &obstacles, int clear)
 {
-    tutorial_bubble::Content c;
-    c.show = true;
-    c.title = tutorial_bubble::wide(title);
-    c.count = tutorial_bubble::wide(count);
-    c.words = tutorial_bubble::wide(words);
-    for (const tutorial_bubble_rule::ButtonSpec &b : tutorial_bubble_rule::parse_buttons(buttons)) {
-        c.buttons.push_back({ b.id, tutorial_bubble::wide(b.label), b.kind });
-    }
-    c.focus = focus;
-    c.arrow = arrow;
-    c.ax = ax;
-    c.ay = ay;
-    c.prefer = tutorial_bubble_rule::parse_prefer(side);
-    c.anchors = tutorial_bubble_rule::parse_anchors(anchors);
-    tutorial_bubble::update(c);
+    tutorial_bubble::update(tutorial_bubble::content_of(title, count, words, buttons, focus, arrow, ax, ay, side,
+                                                        anchors, target, obstacles, clear));
 }
 void ui_tutorial_words_hide()
 {
@@ -493,6 +494,10 @@ void ui_tutorial_words_hide()
 std::string ui_tutorial_words_take_press()
 {
     return tutorial_bubble::take_press();
+}
+std::string ui_tutorial_words_side()
+{
+    return tutorial_bubble::side();
 }
 void ui_view_remember_pos()
 {
@@ -868,6 +873,9 @@ int wmain(int argc, wchar_t **argv)
     // ⓘ The tutorial's words drawn into a picture, to look at with no window
     // and no page (tutorial_bubble.inl).
     if (mode == L"tutorial-words-picture") return tutorial_bubble::picture_mode(argc, argv);
+    // ⓘ And what the page sent for them, placed one after another as the
+    // listener places them, to compare where a step's words stand.
+    if (mode == L"tutorial-words-replay") return tutorial_bubble::replay_mode(argc, argv);
     if (mode == L"remove-old-devices") {
         bool report = false;
         for (int i = 2; i < argc; ++i) {

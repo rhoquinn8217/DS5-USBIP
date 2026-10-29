@@ -212,6 +212,72 @@ int run_tutorial_bubble_rule_tests()
         CTM_CHECK(tbr::parse_prefer("sideways") == tbr::Prefer::None);
     }
 
+    // ⭐ The tours' opening card and last step (rhoquinn8217, 2026-10-26: "For
+    // the introduction and closing step of the tutorial, put the bubble in the
+    // center of the config window").
+    section("tutorial words: center is over the window's middle, and on the screen");
+    {
+        CTM_CHECK(tbr::parse_prefer("center") == tbr::Prefer::Center);
+        const tbr::Box simple{ 528, 560, 1392, 1030 };
+        const auto p = tbr::place_at(simple, work, 380, 130, 12, 10, 10, { { 500, 500 } }, tbr::Prefer::Center);
+        CTM_CHECK(inside(p.window, simple));
+        CTM_CHECK_EQ(p.window.width(), 380);
+        CTM_CHECK_EQ(p.window.height(), 130);
+        CTM_CHECK_EQ(p.window.left + p.window.width() / 2, simple.left + simple.width() / 2);
+        CTM_CHECK_EQ(p.window.top + p.window.height() / 2, simple.top + simple.height() / 2);
+        // A window mostly off the screen's edge: the words stay on it.
+        const tbr::Box off{ 1800, 980, 2400, 1300 };
+        const auto q = tbr::place_at(off, work, 380, 130, 12, 10, 10, { { 500, 500 } }, tbr::Prefer::Center);
+        CTM_CHECK(inside(q.window, work));
+    }
+
+    // ⭐ Beside what is lit, over the window where it covers nothing
+    // (rhoquinn8217, 2026-10-26: "I also want the bubble to overlap the window
+    // as long as it's not covering any text or elements on the window").
+    section("tutorial words: beside what is lit, over the window's empty part, off what is on it");
+    {
+        // Simple's window: its title bar, the name the step lights, a panel under it.
+        const tbr::Box simple{ 528, 560, 1392, 1030 };
+        const tbr::Box name{ 650, 600, 1000, 650 };
+        const std::vector<tbr::Box> on = { name, { 560, 680, 1360, 1000 }, { 528, 560, 1392, 590 } };
+        tbr::Placement p;
+        CTM_CHECK(tbr::place_near(name, work, 200, 60, on, tbr::Prefer::Left, 20, 8, 900, 6, &p));
+        CTM_CHECK(p.side == tbr::Side::Left);
+        CTM_CHECK(p.window.right <= name.left - 20);    // room left for the arrow
+        CTM_CHECK(!tbr::overlaps_any(p.window, on));
+        CTM_CHECK(inside(p.window, work));
+        CTM_CHECK(p.window.right > simple.left);        // over the window's own empty corner
+    }
+
+    section("tutorial words: the step's own side first, even when another is nearer");
+    {
+        const tbr::Box lit{ 600, 700, 1300, 760 };
+        // Everything around it on the window is taken; above the window is free.
+        const std::vector<tbr::Box> on = { lit, { 528, 560, 1392, 690 }, { 528, 770, 1392, 1030 } };
+        tbr::Placement p;
+        CTM_CHECK(tbr::place_near(lit, work, 300, 100, on, tbr::Prefer::Above, 10, 8, 900, 6, &p));
+        CTM_CHECK(p.side == tbr::Side::Above);
+        CTM_CHECK(p.window.bottom <= 560);
+        CTM_CHECK(!tbr::overlaps_any(p.window, on));
+    }
+
+    section("tutorial words: nowhere to stand leaves them to the rule before");
+    {
+        const tbr::Box lit{ 900, 500, 1000, 540 };
+        tbr::Placement p;
+        CTM_CHECK(!tbr::place_near(lit, work, 300, 100, { work }, tbr::Prefer::Left, 10, 8, 900, 6, &p));
+    }
+
+    section("tutorial words: boxes as the page sends them, a broken one left out");
+    {
+        const auto b = tbr::parse_boxes("10,20,30,40|bad|5,5,5,9|0,0,2000,1000|1,2,3");
+        CTM_CHECK_EQ(b.size(), size_t(2));
+        CTM_CHECK(b[0].left == 10 && b[0].top == 20 && b[0].right == 30 && b[0].bottom == 40);
+        CTM_CHECK(b[1].right == 1000);
+        CTM_CHECK(tbr::parse_boxes("").empty());
+        CTM_CHECK(std::string(tbr::side_name(tbr::Side::Left)) == "left");
+    }
+
     section("tutorial words: below asked with no room below goes above, still clear of the window");
     {
         // Quick opens at the bottom of the screen: nothing fits under it.
@@ -255,6 +321,40 @@ int run_tutorial_bubble_rule_tests()
         CTM_CHECK(b[0].first == 1000 && b[0].second == 5);   // past 1000 reads as 1000
         CTM_CHECK(b[1].first == 500 && b[1].second == 500);
         CTM_CHECK(tbr::parse_anchors("").empty());
+    }
+
+    section("tutorial words: the slide starts and ends slowly, and is quickest half way");
+    {
+        CTM_CHECK(tbr::ease_in_out(0.0) == 0.0 && tbr::ease_in_out(1.0) == 1.0);
+        CTM_CHECK(tbr::ease_in_out(-1.0) == 0.0 && tbr::ease_in_out(2.0) == 1.0);
+        CTM_CHECK(tbr::ease_in_out(0.5) > 0.4999 && tbr::ease_in_out(0.5) < 0.5001);
+        // Never back the way it came, and the two halves mirror each other.
+        double last = 0.0;
+        bool forward = true, mirrored = true;
+        for (int i = 1; i <= 100; ++i) {
+            const double t = i / 100.0, e = tbr::ease_in_out(t);
+            if (e < last) forward = false;
+            const double d = e + tbr::ease_in_out(1.0 - t) - 1.0;
+            if (d > 1e-9 || d < -1e-9) mirrored = false;
+            last = e;
+        }
+        CTM_CHECK(forward);
+        CTM_CHECK(mirrored);
+        // Slow off the mark and into the stop, quickest in the middle tenth.
+        const double first = tbr::ease_in_out(0.1), middle = tbr::ease_in_out(0.55) - tbr::ease_in_out(0.45);
+        CTM_CHECK(first < 0.01);
+        CTM_CHECK(middle > 0.14);
+        CTM_CHECK(1.0 - tbr::ease_in_out(0.9) < 0.01);
+    }
+
+    section("tutorial words: a longer slide takes longer, within a third to a half of a second");
+    {
+        CTM_CHECK_EQ(tbr::slide_ms(0, 96), 260);
+        CTM_CHECK_EQ(tbr::slide_ms(400, 96), 360);
+        CTM_CHECK_EQ(tbr::slide_ms(600, 144), 360);   // the same way at 150%
+        CTM_CHECK_EQ(tbr::slide_ms(5000, 96), 480);
+        CTM_CHECK(tbr::slide_ms(200, 96) < tbr::slide_ms(500, 96));
+        CTM_CHECK_EQ(tbr::slide_ms(400, 0), 360);     // no dpi reads as 96
     }
     return 0;
 }

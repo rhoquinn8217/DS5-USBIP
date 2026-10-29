@@ -42,12 +42,49 @@ int run_tray_menu_tests()
         CTM_CHECK(!tutorial_state::parse_seen("0"));
         CTM_CHECK(!tutorial_state::parse_seen(""));      // a file from before: shown once more
         CTM_CHECK(!tutorial_state::parse_seen("yes"));   // junk: the same
-        CTM_CHECK_EQ(tutorial_state::seen_line(true), std::string("tutorial_simple_seen = 1\n"));
-        CTM_CHECK_EQ(tutorial_state::seen_line(false), std::string("tutorial_simple_seen = 0\n"));
-        CTM_CHECK_EQ(tutorial_state::json(false, false), std::string(R"({"simple_seen":false,"request":""})"));
-        // ⓘ The tray asks for Quick's tour, the one there is (2026-10-23).
-        CTM_CHECK_EQ(tutorial_state::json(true, true), std::string(R"({"simple_seen":true,"request":"quick"})"));
+        CTM_CHECK_EQ(tutorial_state::seen_line(tutorial_state::kSimpleSeenKey, true),
+                     std::string("tutorial_simple_seen = 1\n"));
+        CTM_CHECK_EQ(tutorial_state::seen_line(tutorial_state::kQuickSeenKey, false),
+                     std::string("tutorial_quick_seen = 0\n"));
+        CTM_CHECK_EQ(tutorial_state::json(false, false, tutorial_state::None),
+                     std::string(R"({"simple_seen":false,"quick_seen":false,"request":""})"));
+        CTM_CHECK_EQ(tutorial_state::json(true, false, tutorial_state::Simple),
+                     std::string(R"({"simple_seen":true,"quick_seen":false,"request":"simple"})"));
+        CTM_CHECK_EQ(tutorial_state::json(true, true, tutorial_state::Quick),
+                     std::string(R"({"simple_seen":true,"quick_seen":true,"request":"quick"})"));
+        CTM_CHECK_EQ(tutorial_state::kind_of("simple"), int(tutorial_state::Simple));
+        CTM_CHECK_EQ(tutorial_state::kind_of("quick"), int(tutorial_state::Quick));
+        CTM_CHECK_EQ(tutorial_state::kind_of("advanced"), int(tutorial_state::None));
         CTM_CHECK_EQ(narrow(tray_menu::kShowTutorial), std::string("Show tutorial"));
+    }
+
+    section("tutorial: the tray's list, each tour going to the layout it is named for");
+    {
+        CTM_CHECK_EQ(tray_menu::kTutorialCount, 2);
+        CTM_CHECK_EQ(narrow(tray_menu::kTutorials[0].name), std::string("Simple mode"));
+        CTM_CHECK_EQ(narrow(tray_menu::kTutorials[1].name), std::string("Quick mode"));
+        for (int i = 0; i < tray_menu::kTutorialCount; ++i) {
+            const tray_menu::Tutorial &t = tray_menu::kTutorials[i];
+            CTM_CHECK(t.mode >= 0 && t.mode < tray_menu::kModeCount);
+            CTM_CHECK(narrow(t.name).rfind(narrow(tray_menu::kModes[t.mode].name), 0) == 0);
+            CTM_CHECK_EQ(std::string(tutorial_state::kind_name(t.kind)),
+                         t.mode == 1 ? std::string("simple") : std::string("quick"));
+        }
+    }
+
+    section("tutorial: an install's stamp starts the tours again, and nothing else does");
+    {
+        CTM_CHECK(tutorial_state::fresh_install("2026-10-26 10:00:00.000", ""));        // the first install
+        CTM_CHECK(tutorial_state::fresh_install("2026-10-27 09:00:00.000",
+                                                "2026-10-26 10:00:00.000"));           // a reinstall
+        CTM_CHECK(!tutorial_state::fresh_install("2026-10-26 10:00:00.000",
+                                                 "2026-10-26 10:00:00.000"));          // already seen
+        CTM_CHECK(!tutorial_state::fresh_install("", ""));                             // a build's own folder
+        CTM_CHECK(!tutorial_state::fresh_install("", "2026-10-26 10:00:00.000"));
+        CTM_CHECK_EQ(tutorial_state::stamp_from_file("2026-10-26 10:00:00.000\r\n"),
+                     std::string("2026-10-26 10:00:00.000"));
+        CTM_CHECK_EQ(tutorial_state::stamp_from_file("  stamp  \nmore"), std::string("stamp"));
+        CTM_CHECK_EQ(tutorial_state::stamp_from_file(""), std::string(""));
     }
 
     section("open on bridge: kept in window-state.txt, on unless it says 0");

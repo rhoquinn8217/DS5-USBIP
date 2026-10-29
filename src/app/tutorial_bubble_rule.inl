@@ -164,16 +164,20 @@ enum class Side { Above, Below, Right, Left };
 // ⭐ THE SIDE A STEP ASKS FOR (rhoquinn8217, 2026-10-23, going through Quick's
 // tour: "Put the bubble on the left side of the config", "Move bubble to right
 // side of window", "Move bubble to bottom side of window"). None leaves it to
-// the rule below.
-enum class Prefer { None, Above, Below, Left, Right };
+// the rule below. Center is over the window's middle, not beside it
+// (2026-10-26: "For the introduction and closing step of the tutorial, put
+// the bubble in the center of the config window").
+enum class Prefer { None, Above, Below, Left, Right, Center };
 
-// The page names it "above", "below", "left" or "right"; anything else is None.
+// The page names it "above", "below", "left", "right" or "center"; anything
+// else is None.
 inline Prefer parse_prefer(const std::string &side)
 {
     if (side == "above") return Prefer::Above;
     if (side == "below") return Prefer::Below;
     if (side == "left") return Prefer::Left;
     if (side == "right") return Prefer::Right;
+    if (side == "center") return Prefer::Center;
     return Prefer::None;
 }
 
@@ -243,6 +247,18 @@ inline Placement place_at(const Box &win, const Box &work, int stackW, int stack
                           const std::vector<std::pair<int, int>> &anchors, Prefer prefer)
 {
     const int margin = gap;
+    // ⭐ CENTER: the words and buttons over the middle of the window itself,
+    // kept on the screen, with no arrow to point anywhere.
+    if (prefer == Prefer::Center) {
+        Placement p;
+        const int x = clamp_to(win.left + (win.width() - stackW) / 2, work.left + margin,
+                               work.right - margin - stackW);
+        const int y = clamp_to(win.top + (win.height() - stackH) / 2, work.top + margin,
+                               work.bottom - margin - stackH);
+        p.window = { x, y, x + stackW, y + stackH };
+        p.arrowsAt.push_back(0);
+        return p;
+    }
     std::vector<int> xs, ys;
     for (const auto &a : anchors) {
         xs.push_back(win.left + win.width() * clamp_to(a.first, 0, 1000) / 1000);
@@ -317,6 +333,134 @@ inline Placement place(const Box &win, const Box &work, int stackW, int stackH,
                        int arrow, int gap, int round, int ax, int ay)
 {
     return place_at(win, work, stackW, stackH, arrow, gap, round, { { ax, ay } }, Prefer::None);
+}
+
+// Boxes as the page sends them: "l,t,r,b|l,t,r,b", each in thousandths of its
+// view. ⓘ An item that is not four numbers is left out, a number past 1000
+// reads as 1000, and an empty box is left out.
+inline std::vector<Box> parse_boxes(const std::string &text)
+{
+    std::vector<Box> out;
+    size_t at = 0;
+    while (at < text.size()) {
+        size_t end = text.find('|', at);
+        if (end == std::string::npos) end = text.size();
+        const std::string item = text.substr(at, end - at);
+        int v[4] = { 0, 0, 0, 0 };
+        int got = 0;
+        bool ok = true;
+        size_t from = 0;
+        while (ok && got < 4 && from <= item.size()) {
+            size_t comma = item.find(',', from);
+            if (comma == std::string::npos) comma = item.size();
+            const std::string digits = item.substr(from, comma - from);
+            if (digits.empty()) { ok = false; break; }
+            int n = 0;
+            for (const char c : digits) {
+                if (c < '0' || c > '9') { ok = false; break; }
+                n = n >= 1000 ? 1000 : n * 10 + (c - '0');
+            }
+            v[got++] = n > 1000 ? 1000 : n;
+            from = comma + 1;
+        }
+        if (ok && got == 4 && from > item.size() && v[2] > v[0] && v[3] > v[1]) {
+            out.push_back({ v[0], v[1], v[2], v[3] });
+        }
+        at = end + 1;
+    }
+    return out;
+}
+
+inline bool overlaps_any(const Box &r, const std::vector<Box> &boxes)
+{
+    for (const Box &b : boxes) {
+        if (r.left < b.right && r.right > b.left && r.top < b.bottom && r.bottom > b.top) return true;
+    }
+    return false;
+}
+
+// ⭐ BESIDE WHAT IS LIT, OVER THE WINDOW WHERE IT COVERS NOTHING (rhoquinn8217,
+// 2026-10-26: "I also want the bubble to overlap the window as long as it's not
+// covering any text or elements on the window"): the words and their buttons,
+// `w` by `h`, as near to `target` as they can stand, on the side the step asks
+// for first (its opposite, then across, after it), sliding along that side
+// to find room, never over one of `obstacles` (what is on the window, and its
+// title bar) and on the work area, `margin` in from its edges. `clear` keeps
+// room between them and the target for the page's arrow; `reach` is how far
+// out they may go, `step` how finely the places are tried. False when nothing
+// fits within reach, for the rule above to place them.
+inline bool place_near(const Box &target, const Box &work, int w, int h,
+                       const std::vector<Box> &obstacles, Prefer prefer,
+                       int clear, int margin, int reach, int step, Placement *out)
+{
+    if (step < 1) step = 1;
+    Prefer order[4] = { Prefer::Above, Prefer::Below, Prefer::Left, Prefer::Right };
+    if (prefer == Prefer::Below) {
+        order[0] = Prefer::Below; order[1] = Prefer::Above;
+    } else if (prefer == Prefer::Left) {
+        order[0] = Prefer::Left; order[1] = Prefer::Right; order[2] = Prefer::Above; order[3] = Prefer::Below;
+    } else if (prefer == Prefer::Right) {
+        order[0] = Prefer::Right; order[1] = Prefer::Left; order[2] = Prefer::Above; order[3] = Prefer::Below;
+    }
+    const int cx = (target.left + target.right) / 2, cy = (target.top + target.bottom) / 2;
+    for (const Prefer s : order) {
+        const bool beside = s == Prefer::Left || s == Prefer::Right;
+        const int span = beside ? h : w;
+        for (int d = clear; d <= reach; d += step) {
+            for (int off = 0; off <= span; off += 2 * step) {
+                for (int sign = 1; sign >= -1; sign -= 2) {
+                    if (off == 0 && sign < 0) continue;
+                    const int shift = off * sign;
+                    int x = 0, y = 0;
+                    if (s == Prefer::Left) { x = target.left - d - w; y = cy - h / 2 + shift; }
+                    else if (s == Prefer::Right) { x = target.right + d; y = cy - h / 2 + shift; }
+                    else if (s == Prefer::Above) { x = cx - w / 2 + shift; y = target.top - d - h; }
+                    else { x = cx - w / 2 + shift; y = target.bottom + d; }
+                    const Box r{ x, y, x + w, y + h };
+                    if (r.left < work.left + margin || r.top < work.top + margin ||
+                        r.right > work.right - margin || r.bottom > work.bottom - margin) continue;
+                    if (overlaps_any(r, obstacles)) continue;
+                    out->side = s == Prefer::Below ? Side::Below : s == Prefer::Left ? Side::Left
+                              : s == Prefer::Right ? Side::Right : Side::Above;
+                    out->window = r;
+                    out->arrowsAt.assign(1, 0);
+                    out->arrowAt = 0;
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+// The side the words stand on, as the page names it: for the arrow it draws.
+inline const char *side_name(Side s)
+{
+    return s == Side::Below ? "below" : s == Side::Left ? "left" : s == Side::Right ? "right" : "above";
+}
+
+// ⭐ HOW THE WORDS SLIDE (rhoquinn8217, 2026-10-27: "Make animation for
+// fluid. When moving the tutorial bubble lets add acceleration", choosing
+// between three curves): the one that starts slowly, speeds up and slows
+// down again as it arrives, cubic ease-in-out. How far along the way the
+// words are at `t`, the share of the slide's time gone: 0 at 0, 1 at 1,
+// half way at half time.
+inline double ease_in_out(double t)
+{
+    if (t <= 0.0) return 0.0;
+    if (t >= 1.0) return 1.0;
+    if (t < 0.5) return 4.0 * t * t * t;
+    const double u = 2.0 - 2.0 * t;
+    return 1.0 - u * u * u / 2.0;
+}
+
+// How long a slide of `distance` pixels takes at `dpi`, in milliseconds:
+// longer for a longer way, from 260 for a hop to 480 across a screen.
+inline int slide_ms(double distance, unsigned dpi)
+{
+    const double dips = distance * 96.0 / (dpi > 0 ? dpi : 96);
+    const double ms = 260.0 + dips * 0.25;
+    return ms <= 260.0 ? 260 : ms >= 480.0 ? 480 : static_cast<int>(ms + 0.5);
 }
 
 }  // namespace tutorial_bubble_rule
