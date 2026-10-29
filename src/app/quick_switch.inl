@@ -1,8 +1,9 @@
 // The quick config switch: two fingers pressing the touchpad open the configs
-// window in Quick view for as long as a finger stays on it, each swipe of a
-// finger up or down steps the controller to the next config or the one before
-// (one thumb resting, the other swiping), and the window closes the moment the
-// last finger lifts. For every controller.
+// window in Quick view as the press comes up (not for a press held to the TV's
+// release), for as long as a finger stays on it; each swipe of a finger up or
+// down steps the controller to the next config or the one before (one thumb
+// resting, the other swiping), and the window closes the moment the last
+// finger lifts. For every controller.
 //
 // ⭐ rhoquinn8217, 2026-10-23, the gesture as it stands: *"change create swipe
 // up/down gesture to, two finger touch and press to temporarily open the quick
@@ -38,6 +39,14 @@
 // advance based on what you had open last"*), where at first it stayed Quick
 // and the layout came back only once it closed. while_held() and the layout
 // key, below; the holding is in mouse_exclusive.inl.
+// ⭐ AND THE WINDOW OPENS AS THE PRESS COMES BACK UP, not as it goes in, and
+// only for a press shorter than the TV's release gesture (rhoquinn8217,
+// 2026-10-28: *"for 2 finger press release and 1 figure hold, don't bring up
+// the quick mode until the press is released and only if the press is less
+// than 4 seconds which is when a release is attempted."*): two fingers
+// pressed and held about four seconds release the pad on the TV, and the
+// window came up over it the moment they pressed. Armed and armed_report(),
+// below.
 //
 // ⓘ This file is the setting, the gestures and the keys a step is sent as,
 // with no windows.h, so the test binary can reach them.
@@ -72,10 +81,10 @@ inline std::string line(bool on)
 constexpr int kVerticalUnits = 300;
 constexpr int kSidewaysUnits = 480;
 
-// ⭐ THE PRESS THAT OPENS IT: the touchpad pressed in while two fingers are on
-// it, at the moment it goes in. Once per press; a press held does not open it
-// again. ⓘ The TV's release gesture is two fingers pressed and HELD about four
-// seconds, so a quick press is the one to make.
+// ⭐ THE PRESS THAT ARMS IT: the touchpad pressed in while two fingers are on
+// it, at the moment it goes in. Once per press; a press held does not arm it
+// again. ⓘ The window opens as the press comes up (Armed, below): the TV's
+// release gesture is two fingers pressed and HELD about four seconds.
 struct Press {
     bool wasPressed = false;
 };
@@ -88,9 +97,49 @@ inline bool press_edge(Press &p, bool pressed)
     return edge;
 }
 
-inline bool opens(Press &p, int fingers, bool pressed)
+inline bool arms(Press &p, int fingers, bool pressed)
 {
     return press_edge(p, pressed) && fingers == 2;
+}
+
+// ⭐ THE WINDOW OPENS AS THE ARMED PRESS COMES UP, within kReleaseGestureMs,
+// with a finger still on the pad to hold it open; it closes as before, when
+// the last finger lifts. A press held to the TV's release opens nothing, and
+// the touchpad stays the switch's until the last finger lifts, so the
+// release's touches reach neither Windows nor the game. A press let go as
+// every finger lifts opens nothing either: no finger is left to hold it.
+constexpr long long kReleaseGestureMs = 4000;
+
+struct Armed {
+    bool on = false;      // two fingers pressed it in, and nothing is open yet
+    long long since = 0;  // when it went in
+    bool spent = false;   // held to the release: it opens nothing
+};
+
+inline void arm(Armed &a, long long nowMs)
+{
+    a = Armed();
+    a.on = true;
+    a.since = nowMs;
+}
+
+enum class Up { None, Open, TooLong };
+
+// Each report while armed: TooLong once, as the press passes the release's
+// time; Open as it comes up before then, a finger still down; None
+// otherwise. Armed no longer once it opens, or once the last finger lifts.
+inline Up armed_report(Armed &a, bool pressed, int fingers, long long nowMs)
+{
+    if (!a.on) return Up::None;
+    const bool inTime = nowMs - a.since < kReleaseGestureMs;
+    if (pressed) {
+        if (a.spent || inTime) return Up::None;
+        a.spent = true;
+        return Up::TooLong;
+    }
+    const bool open = !a.spent && inTime && fingers > 0;
+    if (open || fingers == 0) a = Armed();
+    return open ? Up::Open : Up::None;
 }
 
 // ⭐ WHAT A REPORT DOES WHILE THE WINDOW A PRESS OPENED HOLDS THE TOUCHPAD:

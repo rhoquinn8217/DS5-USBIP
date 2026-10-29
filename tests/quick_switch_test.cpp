@@ -2,7 +2,9 @@
 // sent to the page as.
 //
 // ⭐ WHAT THESE PROTECT (rhoquinn8217, 2026-10-23): two fingers pressing the
-// touchpad open the window, once per press; each swipe of a finger up steps a
+// touchpad arm the switch, once per press, and the window opens as the press
+// comes up, under four seconds, the TV's release (2026-10-28); each swipe of a
+// finger up steps a
 // controller to the next config and down to the one before, one thumb resting
 // and the other swiping, and two fingers swiped together step once; with the
 // window in front in Simple or Quick (armed), the same, with no press, while
@@ -34,18 +36,58 @@ int run_quick_switch_tests()
         CTM_CHECK(line(false) == "quick_config_switch = 0\n");
     }
 
-    section("quick switch: two fingers pressing open it, once per press");
+    section("quick switch: two fingers pressing arm it, once per press");
     {
         Press p;
-        CTM_CHECK(!opens(p, 2, false));
-        CTM_CHECK(opens(p, 2, true));
-        CTM_CHECK(!opens(p, 2, true));     // held: not again
-        CTM_CHECK(!opens(p, 1, false));
-        CTM_CHECK(!opens(p, 1, true));     // one finger pressing: no
-        CTM_CHECK(!opens(p, 0, false));
-        CTM_CHECK(opens(p, 2, true));      // let go and pressed again: yes
+        CTM_CHECK(!arms(p, 2, false));
+        CTM_CHECK(arms(p, 2, true));
+        CTM_CHECK(!arms(p, 2, true));      // held: not again
+        CTM_CHECK(!arms(p, 1, false));
+        CTM_CHECK(!arms(p, 1, true));      // one finger pressing: no
+        CTM_CHECK(!arms(p, 0, false));
+        CTM_CHECK(arms(p, 2, true));       // let go and pressed again: yes
         Press q;
-        CTM_CHECK(!opens(q, 0, true));     // pressed with no finger: no
+        CTM_CHECK(!arms(q, 0, true));      // pressed with no finger: no
+    }
+
+    section("quick switch: the window opens as the press comes up, under four seconds, a finger on");
+    {
+        // ⓘ rhoquinn8217, 2026-10-28: "don't bring up the quick mode until
+        // the press is released and only if the press is less than 4 seconds".
+        Armed a;
+        CTM_CHECK(armed_report(a, false, 2, 0) == Up::None);      // not armed: nothing
+        arm(a, 1000);
+        CTM_CHECK(armed_report(a, true, 2, 1500) == Up::None);    // still pressed
+        CTM_CHECK(armed_report(a, false, 2, 1800) == Up::Open);   // up, two fingers on
+        CTM_CHECK(!a.on);
+        arm(a, 0);
+        CTM_CHECK(armed_report(a, true, 1, 2000) == Up::None);    // a finger off, still pressed
+        CTM_CHECK(armed_report(a, false, 1, 3999) == Up::Open);   // just under, one finger on
+        arm(a, 0);
+        CTM_CHECK(armed_report(a, false, 0, 200) == Up::None);    // every finger up with it
+        CTM_CHECK(!a.on);
+    }
+
+    section("quick switch: a press held four seconds is the TV's release, and opens nothing");
+    {
+        Armed a;
+        arm(a, 0);
+        CTM_CHECK(armed_report(a, true, 2, 3999) == Up::None);
+        CTM_CHECK(armed_report(a, true, 2, 4000) == Up::TooLong); // once
+        CTM_CHECK(armed_report(a, true, 2, 4500) == Up::None);
+        CTM_CHECK(armed_report(a, false, 2, 4600) == Up::None);   // up, fingers on: still held
+        CTM_CHECK(a.on);
+        CTM_CHECK(armed_report(a, false, 0, 4700) == Up::None);   // the last finger lifts
+        CTM_CHECK(!a.on);
+        arm(a, 0);
+        CTM_CHECK(armed_report(a, false, 2, 5000) == Up::None);   // up late, no report between
+        CTM_CHECK(a.on);
+        CTM_CHECK(armed_report(a, false, 0, 5100) == Up::None);
+        CTM_CHECK(!a.on);
+        arm(a, 0);
+        CTM_CHECK(armed_report(a, true, 2, 4200) == Up::TooLong);
+        arm(a, 6000);                                             // pressed again: armed afresh
+        CTM_CHECK(armed_report(a, false, 2, 6300) == Up::Open);
     }
 
     section("quick switch: a press is seen as it goes in, with any number of fingers");
