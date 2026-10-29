@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.113 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.114 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,19 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.114 From their run of setup 83, in both tours where they share
+            a step: step 1 drops "nothing you do here changes your real
+            ones" and says only the DualSense, DualSense Edge and
+            DualShock 4 support battery display; the wheel's step says
+            the config is applied once the wheel stops; the mode list's
+            step says what each mode is for, in their words; the pre-set
+            page's first step lights its description with Triggers; the
+            size's 🗗 is within the controller's reach ("I cant naviaget
+            to the resize button with the controller"); Circle's words
+            stand by the legend ("should be at the bottom of the window
+            closer to the legend"); and the tip's words and arrow stay
+            put while the tips change ("shouldn't move around for no
+            reason"): they go by the tip's row, which keeps its size.
     2.66.113 From their run of setup 82: the wheel's middle row is
             "selected" (rhoquinn8217: "can we use a better phrase than
             "middle of the wheel"", then "explain here only once that the
@@ -3041,7 +3054,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.66.113</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.66.114</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -12801,8 +12814,8 @@ function selfTest() {
     ok('the tutorial: the position step tells a tap from a hold, and the size is a step to try',
        /Tap \[\[\*.*hold it and steer with the left stick/.test(posPad) &&
        posKey.indexOf('On a controller, holding its position button') > 0 &&
-       TUT_SIMPLE[18].free === true && !TUT_SIMPLE[18].act &&
-       TUT_QUICK[9].free === true && !TUT_QUICK[9].act &&
+       TUT_SIMPLE[18].free === true && !TUT_SIMPLE[18].act && !!TUT_SIMPLE[18].focus &&
+       TUT_QUICK[9].free === true && !TUT_QUICK[9].act && !!TUT_QUICK[9].focus &&
        tutWordsResize().indexOf('two sizes') > 0,
        posPad + ' / ' + posKey);
   }
@@ -12827,10 +12840,13 @@ function selfTest() {
       return parts.filter(function (el) { return el.tagName === 'H4'; })
         .map(function (h) { return h.textContent; }).join('+') + ' ' + parts.length;
     });
+    var infoFirst = TUT_SIMPLE[5].lit()[0];
     PRESET_INFO_OPEN = keepInfo[0];
     infoTables.innerHTML = keepInfo[1];
-    ok('the tutorial: Simple lights each section of the pre-set page on a step of its own',
-       infoLit.join(' / ') === 'Triggers 2 / Left stick+Right stick 4 / Buttons 2' &&
+    ok('the tutorial: Simple lights each section of the pre-set page on a step of its own, ' +
+       'the first with the page\'s description',
+       infoLit.join(' / ') === 'Triggers 3 / Left stick+Right stick 4 / Buttons 2' &&
+       infoFirst === document.getElementById('presetInfoText') &&
        [6, 7, 8].every(function (n) { return TUT_SIMPLE[n - 1].keepOpen === true; }),
        infoLit.join(' / '));
   }
@@ -13379,12 +13395,14 @@ function tutUpDownKeys(code, gated, plain) {
 
 // ⓘ The battery is read from a DualSense's report, an Edge's and a DualShock
 // 4's (button_layout.inl); every other controller shows none (*"Specify
-// battery only show for some controllers"*, 2026-10-28).
+// battery only show for some controllers"*, 2026-10-28). Said their way since
+// (*"Remove the part ": nothing you do here changes your real ones". Change
+// last sentences. Only DualSense/DualSenseEdge/DS5 support battery
+// display."*): their DS5 is taken as the DS4, the DualSense being the DS5.
 function tutWordsDual() {
-  return 'This is ' + tutNick() + ', a practice controller for this tour: nothing you do here changes ' +
-         "your real ones. Every controller gets a random nickname like this when it's bridged. A " +
-         'DualSense, DualSense Edge or DualShock 4 shows its battery beside the name; other ' +
-         'controllers show none.';
+  return 'This is ' + tutNick() + ', a practice controller for this tour. Every controller gets a ' +
+         "random nickname like this when it's bridged. Only the DualSense, DualSense Edge and " +
+         'DualShock 4 support battery display.';
 }
 // ⓘ `where`: Simple shows the other controllers either side; Quick does not.
 function tutWordsShoulders(where) {
@@ -13394,11 +13412,13 @@ function tutWordsShoulders(where) {
 // ⭐ THE ONE PLACE THE WORDS SAY WHAT "SELECTED" IS (rhoquinn8217,
 // 2026-10-28: *"can we use a better phrase than "middle of the wheel""*,
 // then *"explain here only once that the middle of the wheel is the selected
-// config"*): every step after says "selected", their word for it.
+// config"*): every step after says "selected", their word for it. And when
+// it takes, in their words (*"The config is applied to Dual immediately after
+// the wheel stops and the config is selected."*).
 function tutWordsWheel() {
-  return 'This wheel holds your configs. The one in the middle is the selected config: ' + tutNick() +
-         ' uses it, a moment after the wheel stops. Try it: press ' + tutKey('updown') + ', then choose ' +
-         tutHl('Continue') + '.';
+  return 'This wheel holds your configs. The one in the middle is the selected config. The config is ' +
+         'applied to ' + tutNick() + ' immediately after the wheel stops and the config is selected. ' +
+         'Try it: press ' + tutKey('updown') + ', then choose ' + tutHl('Continue') + '.';
 }
 function tutWordsRate() {
   return 'How often ' + tutNick() + ' reports, and the most you allow. Press ' + tutKey('rate') +
@@ -13450,11 +13470,16 @@ function tutWordsResize() {
   return tutKey('resize') + ' or ' + tutHl('\ud83d\uddd7') + ' cycles this window through its two ' +
          'sizes. Try it, then choose ' + tutHl('Continue') + '.';
 }
-// ⓘ `mode`: the picker's name for the mode the window is in.
+// ⓘ `mode`: the picker's name for the mode the window is in. What each mode
+// is for, in rhoquinn8217's words (2026-10-28: *"Simple mode is a simple
+// preset maker, config selector and config manager. Advance mode customize
+// your rebinds for your configs. Quick mode is for quick switching between
+// configs that is handy mid-game."*).
 function tutWordsMode(mode) {
-  return 'Open ' + tutHl(mode) + ": it picks the window's mode. Simple makes and manages configs, " +
-         'Quick is a small view for switching them mid-game, and Advanced shows every setting. For ' +
-         'this tour, the mode stays as it is.';
+  return 'Open ' + tutHl(mode) + ": it picks the window's mode. Simple Mode is a simple preset maker, " +
+         'config selector and config manager. Advanced Mode customizes your rebinds for your configs. ' +
+         'Quick Mode is for quick switching between configs, which is handy mid-game. For this tour, ' +
+         'the mode stays as it is.';
 }
 function tutWordsCircle() { return 'Press ' + tutKey('close') + ' to see where it takes you.'; }
 function tutWordsClose() {
@@ -13525,9 +13550,16 @@ function tutPresetSections(names) {
 }
 // ⓘ A step for one of them, or for the two sticks together: the page put up
 // again when gone back to, the section scrolled into sight, its heading
-// first, and the page left up for the next step (`keepOpen`).
-function tutPresetStep(names, words) {
-  var lit = function () { return tutPresetSections(names); };
+// first, and the page left up for the next step (`keepOpen`). `withText`:
+// the description at the page's top lit with it, one light for both
+// (rhoquinn8217, 2026-10-28: *"step 6 should feather highlight both the
+// description at the top ad the first section"*).
+function tutPresetStep(names, words, withText) {
+  var lit = function () {
+    var parts = tutPresetSections(names);
+    var text = withText && parts.length ? tutById('presetInfoText') : null;
+    return text ? [text].concat(parts) : parts;
+  };
   return { side: 'above', keepOpen: true, lit: lit, words: words,
            enter: function () {
              tutPresetInfoUp();
@@ -13551,10 +13583,12 @@ function tutMarkStep() {
 // legend's. A step to try since 2026-10-28 (rhoquinn8217: *"19 should be a
 // try it step rather than an instruction. Explain that it cycle through 2
 // sizes. Keep the feather highlight on the legend button but don't point to
-// it with an arrow."*): both lit, the arrow at 🗗 alone. `legend`: where this
+// it with an arrow."*): both lit, the arrow at 🗗 alone. 🗗 is among the
+// halo's stops, a press of the d-pad from Continue (*"step 19, I cant
+// naviaget to the resize button with the controller"*). `legend`: where this
 // mode's legend has resize.
 function tutSizeStep(legend) {
-  return { side: 'below', free: true, split: true,
+  return { side: 'below', free: true, split: true, focus: '.cgroup button.csize',
            lit: function () { return tutQ(legend, '.cgroup button.csize'); },
            anchors: function () { return tutQ('.cgroup button.csize'); },
            hits: function () { return tutQ('.cgroup button.csize'); },
@@ -13583,7 +13617,11 @@ function tutSizeStep(legend) {
 // names the page's button); `rest`, where the halo stays once a staying step
 // is done; `pressed`, told when one of the step's presses goes through;
 // `tick`, run four times a second while the step is on screen; and
-// `keepOpen`, Continue leaving what the step shows up for the next.
+// `keepOpen`, Continue leaving what the step shows up for the next. And for
+// both: `arrowDir`, the side the arrow comes from when it is not the words';
+// `anchorBox`, a box for the words and the arrow in place of what is lit,
+// for a lit part whose size changes (the tip); and `focus` on a step to try,
+// a button the halo can reach there, starting on Continue.
 var TUT_QUICK = [
   // 1 (*"Put the bubble on the left side of the config"*; *"Don't use
   // "Practice" as the name of the controller. Use "Dual" and explain that
@@ -13657,8 +13695,9 @@ var TUT_QUICK = [
     words: function () { return tutWordsMode('QUICK MODE'); },
     done: function () { return GP_SELECTING === tutById('cselMode'); } },
   // 12: Circle, lit alone in the legend; it takes the pad into the footer,
-  // onto Close.
-  { side: 'above', act: true, lit: function () { return tutQ('.clegend .lgi:nth-child(3)'); },
+  // onto Close. The words beside the window, by the legend, as in Simple's.
+  { side: 'left', arrowDir: 'down', act: true,
+    lit: function () { return tutQ('.clegend .lgi:nth-child(3)'); },
     keys: tutCircleKeys, words: tutWordsCircle,
     done: function () { return !!FOOTER_MODE; },
     undo: function () { if (FOOTER_MODE) setFooterMode(false); } },
@@ -13736,7 +13775,7 @@ var TUT_SIMPLE = [
     return 'Its page says what it does, then lists its rebinds, section by section. ' +
            tutHl('Triggers') + ': what each trigger does with it. Review them, then choose ' +
            tutHl('Continue') + '.';
-  }),
+  }, true),
   tutPresetStep(['Left stick', 'Right stick'], function () {
     return tutHl('Left stick') + ' and ' + tutHl('Right stick') + ': what each stick does with it. ' +
            'Review them, then choose ' + tutHl('Continue') + '.';
@@ -13842,8 +13881,11 @@ var TUT_SIMPLE = [
     done: function () { return GP_SELECTING === tutById('cselMode'); } },
   // 21: Circle, lit alone in the legend, as in Quick's. ⛔ Close takes the
   // halo first (keyAim): Simple's Circle closes the window when it finds no
-  // Close to go to.
-  { side: 'above', act: true, keyAim: '.cbar > button.cclose',
+  // Close to go to. The words at the window's lower left, by the legend, and
+  // the arrow still above the mark (rhoquinn8217, 2026-10-28: *"step 21 should
+  // be at the bottom of the window closer to the legend"*): above, nothing in
+  // the window had room for them, so they stood over its top.
+  { side: 'left', arrowDir: 'down', act: true, keyAim: '.cbar > button.cclose',
     lit: function () { return tutQ('.clegend .lgi:nth-child(8)'); },
     hits: function () { return []; },
     keys: tutCircleKeys,
@@ -13855,8 +13897,12 @@ var TUT_SIMPLE = [
   { side: 'right', lit: function () { return tutQ('.cbar > button.cclose'); }, words: tutWordsClose },
   // 23 (*"Need a step to show the hint and how to click it to see the next
   // one"*, and the last before the end since 2026-10-28): a click is the
-  // way, and a controller has none, so Continue stays.
-  { side: 'left', free: true, lit: function () { return tutQ('.cinfo'); },
+  // way, and a controller has none, so Continue stays. ⭐ The words and the
+  // arrow go by the tip's ROW, which keeps its size, not by the tip, which
+  // is as wide as its words (rhoquinn8217, 2026-10-28: *"when cycling through
+  // hints, the shouldn't move around for no reason"*): each tip's width was a
+  // new place for the words, at times across the window.
+  { side: 'left', free: true, lit: function () { return tutQ('.cinfo'); }, anchorBox: tutTipRow,
     words: function () {
       return 'This line is a tip, and a new one comes every 30 seconds. Click it to see the next ' +
              'one, then choose ' + tutHl('Continue') + '.';
@@ -13864,6 +13910,17 @@ var TUT_SIMPLE = [
   // 24
   { lit: function () { return []; }, act: 'end', words: tutWordsEnd }
 ];
+
+// ⓘ The tip line's row: as wide as the footer's column of text, and as tall
+// as the tip line, which keeps two lines whatever the tip says.
+function tutTipRow() {
+  var tip = tutQ('.cinfo')[0];
+  var col = tip && tip.parentNode;
+  if (!tip || !col) return null;
+  var t = tip.getBoundingClientRect(), c = col.getBoundingClientRect();
+  return { left: c.left, top: t.top, right: c.right, bottom: t.bottom,
+           width: c.right - c.left, height: t.bottom - t.top };
+}
 
 // Simple's New, and the pre-set its step chooses in the list New opens.
 function tutNewBtn() { return document.querySelector('#compactBox .csbtns > button:first-child'); }
@@ -13891,11 +13948,12 @@ function tutLit(s) {
   });
 }
 
-// Where the halo starts on a step that asks for a press on something lit.
+// Where the halo starts on a step that asks for a press on something lit,
+// and on a step to try, the button it can reach (the size's 🗗).
 // ⓘ Shown elements only: the pre-set page's Use this is there while it is
 // closed too.
 function tutFocusTarget(s) {
-  if (!s || s.act !== true || !s.focus) return null;
+  if (!s || !(s.act === true || s.free) || !s.focus) return null;
   var el = tutEl(s.focus);
   return el && el.getClientRects().length > 0 ? el : null;
 }
@@ -14143,8 +14201,9 @@ function tutShow(i, keep) {
   if (s.act === true && !TUT.done[i]) TUT.mem[i] = tutSnapshot();
   // ⓘ Where the halo starts: on what a press acts on, End tutorial on the
   // last step and on a press that acts on nothing on screen, Continue on the
-  // rest.
-  TUT.focus = tutFocusTarget(s) || (s.act ? tutById('tutEnd') : tutById('tutNext'));
+  // rest. A step to try starts on Continue, its button a press away.
+  TUT.focus = (s.act === true ? tutFocusTarget(s) : null) ||
+              (s.act ? tutById('tutEnd') : tutById('tutNext'));
   tutRender();
   // ⓘ Its place at once, and with it the words (tutSendWords waits for it).
   tutLayout(s);
@@ -14245,7 +14304,7 @@ function tutCollect() {
   // a step whose press moved the halo elsewhere (to the wheel for Square and
   // Triangle, to New's list) has it back on what it acts on now.
   var s = tutStep();
-  if (TUT && TUT.focus && s && s.act === true &&
+  if (TUT && TUT.focus && s && (s.act === true || s.free) &&
       (!TUT.focus.isConnected || GP_FOCUS.indexOf(TUT.focus) < 0)) {
     TUT.focus = tutFocusTarget(s) || TUT.focus;
   }
@@ -14468,8 +14527,9 @@ function tutPlaceArrows(rects, s, pad, vw, vh) {
   var len = Math.round(a * 1.3);                      // how far it stands out
   var bob = Math.round(a * 0.9);                      // how far it moves away
   var gap = pad + 3;
-  // ⓘ On the side the words stand, as the listener says, or the step asks.
-  var first = { left: 'right', right: 'left', below: 'up', above: 'down' }[
+  // ⓘ On the side the words stand, as the listener says, or the step asks;
+  // or where the step says (`arrowDir`), for words that stand off to one side.
+  var first = (s && s.arrowDir) || { left: 'right', right: 'left', below: 'up', above: 'down' }[
     TUT_WORDS_SIDE || (s && s.side) || ''] || 'down';
   // ⓘ With no room on the words' side (a part at the window's edge, the words
   // past it), across from it before the far side, which is furthest from them.
@@ -14659,7 +14719,10 @@ function tutLayout(s) {
              ay: Math.max(0, Math.min(1000, Math.round((b.top + b.height / 2) / vh * 1000))) };
   };
   var pointAt = [];
-  if (holes.length && s && s.anchors) {
+  if (holes.length && s && s.anchorBox) {
+    var anchorRow = s.anchorBox();
+    if (anchorRow) pointAt.push(anchorRow);
+  } else if (holes.length && s && s.anchors) {
     s.anchors().filter(function (el) { return el && el.getClientRects().length > 0; })
       .forEach(function (el) { pointAt.push(tutRectOf([el])); });
   }
