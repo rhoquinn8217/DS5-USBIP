@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.116 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.118 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,18 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.118 The trunk with 2.66.115 (the presets' names drawn) and
+             2.66.117 (the quick switch's words) merged in beside the
+             tours' 2.66.113, 2.66.114 and 2.66.116, and no change of its
+             own: a number for the page they make together, which no
+             setup has carried.
+    2.66.117 The quick config switch's words say what the listener now
+             does (rhoquinn8217: "don't bring up the quick mode until the
+             press is released and only if the press is less than 4
+             seconds which is when a release is attempted"): Quick opens
+             as the two-finger press comes up, and a press held four
+             seconds, the TV's release, opens nothing. (2.66.113 to
+             2.66.116 are taken on other branches.)
     2.66.116 L3 goes to Simple's next tip, H on a keyboard, its mark at
             the tip's right (rhoquinn8217: "L3 in simple mode cycles
             through hints. Put the L3 button symbol at the right of the
@@ -3016,14 +3028,16 @@
          swipe moves the wheel, with no press (2026-10-26). Until the last
          finger lifts, the touchpad reaches neither Windows nor the game,
          and pressing again keeps the window (2026-10-27), in the layout it
-         had before (2026-10-28). Every controller's,
+         had before (2026-10-28). It opens as the press comes up, and not
+         for a press held four seconds, the TV's release (2026-10-28).
+         Every controller's,
          "essentially a global setting", so it is here. The listener
          keeps it and does the switching.
          Painted by paintQuickSwitch(); a pad stop of its own
          (data-gp-focus), as Open on bridge has. -->
     <label class="ovcheck ovnext" id="quickSwitchLabel"
       title="Unticked: the touchpad does what the config says. Tick it to switch configs by pressing the touchpad with two fingers."><input type="checkbox" id="quickSwitch" data-gp-focus="1" onchange="toggleQuickSwitch()">Press the touchpad with two fingers to switch configs</label>
-    <div class="ovhelp">Every controller: Quick view stays while a finger rests on the touchpad, each swipe of another finger up or down changes the config, and pressing again keeps the window, in the layout you had open last. Until then the touchpad reaches neither Windows nor the game. In Simple and Quick, the same swipe beside a resting thumb moves the wheel, with no press.</div>
+    <div class="ovhelp">Every controller: Quick view opens as the press comes up and stays while a finger rests on the touchpad; a press held four seconds is the TV's release, and opens nothing. Each swipe of another finger up or down changes the config, and pressing again keeps the window, in the layout you had open last. Until then the touchpad reaches neither Windows nor the game. In Simple and Quick, the same swipe beside a resting thumb moves the wheel, with no press.</div>
   </div>
   <div class="ovcard conn">
     <!-- ⓘ The light is this card's own (paintConnLight). The line beside
@@ -3093,7 +3107,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.66.116</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.66.118</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -10041,7 +10055,7 @@ function paintQuickSwitch() {
   var label = document.getElementById('quickSwitchLabel');
   if (label) {
     label.title = QUICK_SWITCH
-      ? 'Ticked: two fingers pressing the touchpad open Quick view while a finger rests on it, each swipe of another finger up or down changes the config, and pressing again keeps the window, in the layout you had open last; until then the touchpad reaches neither Windows nor the game. In Simple and Quick, the same swipe beside a resting thumb moves the wheel. Untick it to turn both off.'
+      ? 'Ticked: two fingers pressing the touchpad open Quick view as the press comes up, while a finger rests on it (held four seconds, the press is the TV\'s release, and opens nothing); each swipe of another finger up or down changes the config, and pressing again keeps the window, in the layout you had open last; until then the touchpad reaches neither Windows nor the game. In Simple and Quick, the same swipe beside a resting thumb moves the wheel. Untick it to turn both off.'
       : 'Unticked: the touchpad does what the config says. Tick it to switch configs by pressing the touchpad with two fingers.';
   }
 }
