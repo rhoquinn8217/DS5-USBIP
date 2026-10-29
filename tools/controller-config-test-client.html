@@ -34,7 +34,10 @@
              hand, or the controller on screen when a keyboard is in hand.
              A preset's words mark a button as {btn:N}. The line above a
              button section that explained "(PS button) | (Xbox button)" is
-             gone. (2.66.109 to 2.66.111 are taken on another branch.)
+             gone. No dash between the button and the words after it
+             (rhoquinn8217: "Is long dash appropriate now that we have
+             proper button symbols?"): a row reads "✕ remap". (2.66.109
+             to 2.66.111 are taken on another branch.)
     2.66.108 The quick config switch's help says what the listener now
              does (rhoquinn8217: "press again to lift restriction and the
              config window persists after both fingers are lifted"): from
@@ -5448,7 +5451,8 @@ function presetRowLabel(key) {
   var meta = (KEYS || []).filter(function(k) { return k.key === key; })[0];
   var m = /^(rebind|turbo)_(\d+)$/.exec(key);
   if (m) {
-    var what = m[1] === 'turbo' ? ' — rapid fire' : ' — remap';
+    // ⓘ No dash after the button, as the settings page has none (renderConfigEditor).
+    var what = m[1] === 'turbo' ? ' rapid fire' : ' remap';
     var mark = buttonMark(Number(m[2]));
     if (mark) return mark + esc(what);
     if (!meta) return esc(key);
@@ -5516,7 +5520,7 @@ function presetInfoRows(settings) {
 
   if (arrows.length === 4) {
     (groups['Buttons'] = groups['Buttons'] || []).push(
-      [DPAD_SVG + esc(' — remap'), 'ArrowKeys', 'Face buttons']);
+      [DPAD_SVG + esc(' remap'), 'ArrowKeys', 'Face buttons']);
   } else {
     arrows.forEach(function(s) {
       (groups['Buttons'] = groups['Buttons'] || []).push(
@@ -6484,14 +6488,19 @@ function renderConfigEditor(hostId, configName, prefix, ordinal) {
           // "what this row does" was otherwise buried in the help. The name
           // reads as a button -- (✕) | (A) -- and the row says what happens.
           var name = meta.name || (meta.help ? meta.help.split(' -- ')[0] : meta.key);
-          prettyKey = name + (m[1] === 'turbo' ? ' — rapid fire' : ' — remap');
+          // ⭐ NO DASH between the button and what the row does (rhoquinn8217,
+          // 2026-10-28: "Is long dash appropriate now that we have proper
+          // button symbols?"). It split a name in words from the word after
+          // it; a drawn button stands apart by itself, and the one still in
+          // words is in brackets: "(PS) | (Home) remap".
+          prettyKey = name + (m[1] === 'turbo' ? ' rapid fire' : ' remap');
           // ⭐ The button drawn as the legend draws it, the listener's words for
           // it kept for the one with no mark (buttonMark).
           markHtml = buttonMark(Number(m[2]));
         }
         var shownKey = only ? (prettyKey + ' (' + only + ' only)') : prettyKey;
         var nameHtml = markHtml
-          ? markHtml + esc((m[1] === 'turbo' ? ' — rapid fire' : ' — remap') +
+          ? markHtml + esc((m[1] === 'turbo' ? ' rapid fire' : ' remap') +
                            (only ? ' (' + only + ' only)' : ''))
           : esc(shownKey);
 
