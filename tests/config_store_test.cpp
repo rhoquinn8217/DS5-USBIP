@@ -581,6 +581,21 @@ int run_config_store_tests()
         }
     }
 
+    section("presets: a label names a button as {btn:N}, for the page to draw");
+    {
+        // ⭐ As a preset's words do (rhoquinn8217, 2026-10-28, asked whether
+        // New's list should show the legend's symbols too: "2. yes").
+        const char *const want[][2] = {
+            { "gyro-to-stick-L2-aiming", "gyro-to-stick (on {btn:6} for aiming)" },
+            { "gyro-to-mouse-r3-hold", "gyro-to-mouse (on {btn:11})" },
+            { "gyro-to-mouse-L2-aiming", "gyro-to-mouse (on {btn:6} for aiming)" } };
+        for (const auto &w : want) {
+            const ctm_presets::Preset *p = ctm_presets::find(w[0]);
+            CTM_CHECK(p != nullptr);
+            if (p) CTM_CHECK(std::string(p->label) == w[1]);
+        }
+    }
+
     section("presets: every mouse mode shares the desktop bindings");
     {
         const char *const names[] = { "gyro-to-mouse-always-on", "touchpad-to-mouse",

@@ -34,6 +34,13 @@
             on the left column and right trigger rebinds on the right");
             and Edit's step in their words. (2.66.115 is taken on another
             branch.)
+    2.66.115 New's list of presets, and a preset's title, draw a button in
+             its name as the legend does (rhoquinn8217, asked whether the
+             names should show the legend's symbols too: "2. yes"):
+             "gyro-to-stick (on L2 for aiming)" and "gyro-to-mouse (on r3)"
+             draw L2 and R3, in the set of the pad in hand. The line after
+             New says the button in words. (2.66.113 and 2.66.114 are
+             taken on another branch.)
     2.66.114 From their run of setup 83, in both tours where they share
             a step: step 1 drops "nothing you do here changes your real
             ones" and says only the DualSense, DualSense Edge and
@@ -4789,12 +4796,23 @@ function buttonMark(index, set) {
 }
 // ⭐ WORDS THAT NAME BUTTONS: a preset's help writes {btn:N} where a button
 // goes (config_presets.inl), and it is drawn here; the rest is text.
-function buttonWordsHtml(text) {
+function buttonWordsHtml(text, set) {
   return String(text || '').split(/(\{btn:\d+\})/).map(function (part) {
     var m = /^\{btn:(\d+)\}$/.exec(part);
-    var mark = m ? buttonMark(Number(m[1])) : '';
+    var mark = m ? buttonMark(Number(m[1]), set) : '';
     return mark || esc(part);
   }).join('');
+}
+// ⓘ The same words where only text goes, the line after New: the button's
+// short name in the set of the pad in hand, "L2" or "LT". A token with no
+// mark stays as it is, as buttonWordsHtml leaves it.
+function buttonWordsText(text, set) {
+  return String(text || '').replace(/\{btn:(\d+)\}/g, function (token, n) {
+    var m = BUTTON_MARKS[Number(n)];
+    var glyph = m && ((set || buttonMarkSet()) === PAD_LEGEND_XBOX ? m[1] : m[0]);
+    if (!glyph) return token;
+    return m[2] === 'dpad' ? 'd-pad ' + glyph : glyph;
+  });
 }
 
 function padLegend() {
@@ -4948,12 +4966,19 @@ function customConfigBase(sessionKind) {
 
 // ⭐ What the picker shows: a preset's LABEL (rhoquinn8217, 2026-10-11), which
 // may hold anything. Its name is what a config made from it is named after.
+// ⭐ A button in it is {btn:N}, as in its words, drawn as the legend draws it
+// in the list and the title (rhoquinn8217, 2026-10-28, asked whether New's
+// list should show the legend's symbols too: "2. yes"), and said in words
+// where only text goes.
 function presetLabel(p) {
   return (p && (p.label || p.name)) || '';
 }
+function presetLabelHtml(p) {
+  return buttonWordsHtml(presetLabel(p));
+}
 function presetLabelOf(name) {
   var p = PRESETS.filter(function(x) { return x.name === name; })[0];
-  return p ? presetLabel(p) : String(name || '');
+  return p ? buttonWordsText(presetLabel(p)) : String(name || '');
 }
 
 function nextConfigName(sessionKind, presetName) {
@@ -5533,7 +5558,7 @@ function openPresetPicker(ordinal, dev) {
     html += '<div class="prow">' +
             '<button data-preset="' + esc(p.name) + '" ' +
             'onclick="openPresetInfo(\'' + esc(ordinal) + '\',\'' +
-            esc(p.name) + '\')">' + esc(presetLabel(p)) + '</button></div>';
+            esc(p.name) + '\')">' + presetLabelHtml(p) + '</button></div>';
   });
   document.getElementById('presetList').innerHTML = html;
   document.getElementById('presetBox').style.display = 'flex';
@@ -5722,7 +5747,7 @@ function openPresetInfo(ordinal, presetName) {
         settings: [] };
   if (!p) return;
   var rows = presetInfoRows(p.settings);
-  document.getElementById('presetInfoTitle').textContent = presetLabel(p);
+  document.getElementById('presetInfoTitle').innerHTML = presetLabelHtml(p);
   // ⭐ Its buttons drawn too ({btn:N}, buttonWordsHtml).
   document.getElementById('presetInfoText').innerHTML = buttonWordsHtml(p.help || '');
   // ⓘ In the settings page's own section order, so the preview reads in the
@@ -12477,6 +12502,12 @@ function selfTest() {
     ok('the legends: Quick\'s polling limit is R3, RS, L',
        PAD_LEGEND_PS.rate === 'R3' && PAD_LEGEND_XBOX.rate === 'RS' &&
        KEY_LEGEND.rate === 'L');
+    var lt = buttonWordsHtml('on {btn:6} for aiming', PAD_LEGEND_XBOX);
+    ok('a preset\'s name: its button drawn as the legend draws it, and in words where only text goes',
+       buttonWordsText('gyro-to-mouse (on {btn:11})', PAD_LEGEND_PS) === 'gyro-to-mouse (on R3)' &&
+       buttonWordsText('gyro-to-mouse (on {btn:11})', PAD_LEGEND_XBOX) === 'gyro-to-mouse (on RS)' &&
+       buttonWordsText('{btn:99}', PAD_LEGEND_PS) === '{btn:99}' &&
+       lt.indexOf('kshoulder') >= 0 && lt.indexOf('>LT<') >= 0 && lt.indexOf('{btn') < 0, lt);
 
     var keepFocus = GP_FOCUS, keepIndex = GP_INDEX, keepSelecting = GP_SELECTING;
     var keepDevices = LAST_DEVICES, keepConfigs = CONFIGS;
