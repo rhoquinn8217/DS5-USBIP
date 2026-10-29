@@ -300,11 +300,38 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
 
     const std::string ordinal = ctm_ordinal_for_device(deviceKey);
     if (did == Did::Opened) {
-        // ⭐ Quick for this window alone, before it asks which layout to show.
-        config_move::begin_quick_view(ordinal);
         // ⓘ The gate waits four seconds for the page, as for the shortcut.
         ctm_rebind::g_gateProvisionalUntil.store(now_ms() + 4000);
         std::thread([ordinal, opened]() {
+            // ⛔ A WINDOW ALREADY THERE GOES FIRST, IN ITS OWN LAYOUT (rhoquinn8217,
+            // 2026-10-28: "sometimes when I use the two finger press hold quick
+            // switch, the text in quick mode is very large"). A window not in
+            // front, a kept one not yet given the front included, is replaced;
+            // its place and size are kept as it goes, in the slot of the layout
+            // the listener holds then. Quick was set first, so a Simple window's
+            // 1728x800 went into Quick's slot, and every Quick after it opened
+            // that size, its words sized to the window. So the old one is gone
+            // before Quick is set, as close_when_sent puts the layout back only
+            // once the window has gone.
+            if (ctm_open_ui::window_exists()) {
+                const long long from = now_ms();
+                ui_close_window();
+                for (int i = 0; i < 40 && ctm_open_ui::window_exists(); ++i) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(25));
+                }
+                device_log::input(device_log::msg()
+                    << "quick switch: the window that was there closed first, in its own layout, in "
+                    << (now_ms() - from) << " ms");
+            }
+            // ⭐ Quick for this window alone, before it asks which layout to show.
+            config_move::begin_quick_view(ordinal);
+            // ⓘ Pressed again while the old window went: kept, as at once.
+            bool keptMeanwhile = false;
+            {
+                std::lock_guard<std::mutex> lock(g_mutex);
+                keptMeanwhile = g_session.active && g_session.id == opened && g_session.kept;
+            }
+            if (keptMeanwhile) config_move::keep_quick_view();
             ctm_chord_show_ui(ordinal);
             mark_launched(opened);
         }).detach();
