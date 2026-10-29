@@ -52,6 +52,10 @@ struct Preset {
     // may hold anything: "touchpad-to-mouse (DS5|DS4)".
     const char *name;
     const char *label;
+    // ⭐ A BUTTON IN THE HELP IS {btn:N}, N its index as rebind_N has it, and
+    // the page draws it as the legend does, in the set of the pad in hand
+    // (rhoquinn8217, 2026-10-28: "update the presets to use those same
+    // symbols"). ⓘ Only the page reads the help (rest_config.inl, presets).
     const char *help;
     // Which device kinds it suits. ⓘ A preset that cannot act on a controller
     // is not offered for it -- a gyro preset on a pad with no gyro would be a
@@ -389,7 +393,7 @@ inline const Preset kPresets[] = {
     { "stick-to-mouse", "stick-to-mouse",
       "Right stick moves the cursor, left stick scrolls -- both thumbs where "
       "they already are. The least precise of the three for fine work, and "
-      "the one that needs no new habits. Square opens the on-screen keyboard.",
+      "the one that needs no new habits. {btn:2} opens the on-screen keyboard.",
       // ⭐ Every pad with a layout: a stick is the one pointer they all have
       // (rhoquinn8217, 2026-09-15, "available to all controllers").
       // ⓘ Its two trigger clicks reach an Xbox pad too. Those triggers have no
@@ -399,7 +403,7 @@ inline const Preset kPresets[] = {
       true, true, true, true, kStickMouseMode, CTM_PRESET_COUNT_OF(kStickMouseMode) },
     { "gyro-to-stick-L2-aiming", "gyro-to-stick (on L2 for aiming)",
       "For playing, in a game that will not take a mouse alongside a "
-      "controller: while L2 is held, the gyro moves the right stick, so the "
+      "controller: while {btn:6} is held, the gyro moves the right stick, so the "
       "camera is steady while you move and precise when you aim. Nothing else "
       "is bound.",
       // The same pads as its mouse twin, gyro-to-mouse-L2-aiming, for the same
@@ -410,20 +414,20 @@ inline const Preset kPresets[] = {
       "Tilt the controller to move the cursor, always on -- no trigger to "
       "hold. The most precise of the three for small movements, and the one "
       "that takes most getting used to. Either trigger holds the cursor still "
-      "so a click lands where you were pointing. Left stick scrolls. Square "
+      "so a click lands where you were pointing. Left stick scrolls. {btn:2} "
       "opens the on-screen keyboard.",
       // DualSense, Edge, DS4: a gyro. Not an Xbox pad, which has none.
       true, true, true, false, kGyroMouseMode, CTM_PRESET_COUNT_OF(kGyroMouseMode) },
     { "gyro-to-mouse-r3-hold", "gyro-to-mouse (on r3)",
-      "The same, but the gyro only moves the cursor while the RIGHT STICK is "
-      "held in. Put the pad down, or play normally, and the cursor stays where "
-      "it is. Either trigger holds it still to click, left stick scrolls, and "
-      "Square opens the on-screen keyboard.",
+      "The same, but the gyro only moves the cursor while the right stick is "
+      "held in, {btn:11}. Put the pad down, or play normally, and the cursor "
+      "stays where it is. Either trigger holds it still to click, left stick "
+      "scrolls, and {btn:2} opens the on-screen keyboard.",
       // The same pads as always-on: a gyro is what this needs, and R3 is on
       // every one of them.
       true, true, true, false, kGyroMouseR3Mode, CTM_PRESET_COUNT_OF(kGyroMouseR3Mode) },
     { "gyro-to-mouse-L2-aiming", "gyro-to-mouse (on L2 for aiming)",
-      "For playing, not for the desktop. Gyro aims only while L2 is held, so "
+      "For playing, not for the desktop. Gyro aims only while {btn:6} is held, so "
       "the camera is steady while you move and precise when you aim. Nothing "
       "else is bound: every button stays with the game.",
       // A gyro and an analog L2: DualSense, Edge, DS4.
@@ -431,7 +435,7 @@ inline const Preset kPresets[] = {
     { "gyro-to-mouse-DS5-AT", "gyro-to-mouse (DS5 adaptive triggers)",
       "The gyro moves the cursor and a trigger holds it still. Start to pull "
       "and the cursor stops; push past the break and it clicks. Keep holding "
-      "to drag. R2 is left click, L2 is right click, one finger scrolls.",
+      "to drag. {btn:7} is left click, {btn:6} is right click, one finger scrolls.",
       // ⛔ DualSense and Edge only. It is built around the adaptive trigger's
       // BREAK -- "push past the break and it clicks" -- and a DS4 has no
       // adaptive trigger. It would still click on travel there, but not as this
@@ -441,7 +445,7 @@ inline const Preset kPresets[] = {
       "The touchpad behaves like a laptop trackpad: one finger moves the "
       "cursor, two fingers scroll the page with them, and a tap clicks. The "
       "most familiar of the three, and the easiest to pick up, but your hand "
-      "leaves the sticks to use it. Square opens the on-screen keyboard.",
+      "leaves the sticks to use it. {btn:2} opens the on-screen keyboard.",
       // A two-finger touchpad: DualSense, Edge, DS4, and the name says both
       // (rhoquinn8217, 2026-09-15).
       // ⭐ THE LABEL SAYS BOTH (rhoquinn8217, 2026-10-11); the name was

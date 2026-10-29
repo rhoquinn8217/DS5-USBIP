@@ -49,6 +49,20 @@
             and the size is a step to try, its two sizes said, the
             legend's mark lit with no arrow ("19 should be a try it step
             rather than an instruction").
+    2.66.112 A pad's buttons drawn as the legend draws them wherever a
+             button is named (rhoquinn8217: "Using the how we did button
+             for the legend, I want you to update the presets to use those
+             same symbols and the rebind descriptions"): the rebind and
+             rapid-fire rows, the warnings under Cross and Circle, the
+             presets' previews and their words, in the set of the pad in
+             hand, or the controller on screen when a keyboard is in hand.
+             A preset's words mark a button as {btn:N}. The line above a
+             button section that explained "(PS button) | (Xbox button)" is
+             gone. A row reads "✕ - rebind", and the page and the
+             listener's help say rebind wherever they said remap
+             (rhoquinn8217: "use the word rebind instead of remap and use a
+             single normal "-" between symbol and rebind"). (2.66.109 to
+             2.66.111 and 2.66.113 are taken on another branch.)
     2.66.111 Simple's tour takes a step for each section of the pre-set's
             page (rhoquinn8217: "We need 2 more steps to highlight the
             different rebind sections in the pre-set description."):
@@ -1743,6 +1757,8 @@
   .kps text.k2 { font-size:10px; }
   .kdpad { width:1.08em; height:1.08em; flex:0 0 auto; vertical-align:-0.17em;
           fill:none; stroke:currentColor; stroke-width:1.25; stroke-linejoin:round; }
+  /* ⓘ One arm of the d-pad, filled, for a remap row of that direction. */
+  .kdpad .karm { fill:currentColor; }
   /* ⭐ A SHOULDER BUTTON IN A SHOULDER BUTTON'S SHAPE (rhoquinn8217,
      2026-10-16: "for shoulder button can you put them into this shape
      instead of a circle?", drawn as a box with its top corners well
@@ -4629,6 +4645,11 @@ var DPAD_SVG = '<svg class="kdpad" viewBox="0 0 20 20" aria-hidden="true">' +
 // as it carries words, where the PlayStation shapes are hidden.
 function shoulderMark(k) {
   if (padLegend() === KEY_LEGEND) return '<span class="kcap">' + esc(k) + '</span>';
+  return shoulderBox(k);
+}
+// ⓘ The box itself, whatever is in hand: a remap row names a pad's button
+// even while a keyboard drives the page (buttonMark).
+function shoulderBox(k) {
   return '<svg class="kshoulder" viewBox="0 0 24 20" role="img" aria-label="' + esc(k) + '">' +
          '<path d="M1.1 18.9V7.1A6 6 0 0 1 7.1 1.1H16.9A6 6 0 0 1 22.9 7.1V18.9Z"/>' +
          '<text x="12" y="14.2" text-anchor="middle">' + esc(k) + '</text></svg>';
@@ -4697,6 +4718,64 @@ function keyCap(glyph, set) {
          '<circle cx="10" cy="10" r="9"/>' +
          '<text x="10" y="' + (two ? '13.5" class="k2' : '14.55') + '" text-anchor="middle">' +
          esc(String(glyph)) + '</text></svg>';
+}
+
+// ⭐⭐ A PAD BUTTON DRAWN AS THE LEGEND DRAWS IT, wherever a button is named:
+// the remap rows' titles, the presets' previews and their words (rhoquinn8217,
+// 2026-10-28: "Using the how we did button for the legend, I want you to
+// update the presets to use those same symbols and the rebind
+// descriptions"). In the set of the pad in hand, as the legend's marks are;
+// with a keyboard in hand, the set of the controller on screen, since a row
+// names a pad's button, not a key.
+// ⓘ By the listener's button index, rebind_N: the PlayStation mark, the
+// Xbox one, and 'shoulder' for the four drawn as a shoulder button. The
+// d-pad's four are its cross with one arm filled (dpadArm).
+var BUTTON_MARKS = {
+  0: ['\u2715', 'A'], 1: ['\u25cb', 'B'], 2: ['\u25a1', 'X'], 3: ['\u25b3', 'Y'],
+  4: ['L1', 'LB', 'shoulder'], 5: ['R1', 'RB', 'shoulder'],
+  6: ['L2', 'LT', 'shoulder'], 7: ['R2', 'RT', 'shoulder'],
+  8: ['\\|/', '\u29c9'], 9: ['\u2630', '\u2630'],
+  10: ['L3', 'LS'], 11: ['R3', 'RS'],
+  12: ['up', 'up', 'dpad'], 13: ['down', 'down', 'dpad'],
+  14: ['left', 'left', 'dpad'], 15: ['right', 'right', 'dpad'],
+  // ⓘ An Xbox pad's own button has no mark of its own anywhere: its name stays.
+  16: ['PS', null]
+};
+var DPAD_ARMS = {
+  up: 'M7.6 3.2H12.4V7.6H7.6Z', down: 'M7.6 12.4H12.4V16.8H7.6Z',
+  left: 'M3.2 7.6H7.6V12.4H3.2Z', right: 'M12.4 7.6H16.8V12.4H12.4Z'
+};
+function dpadArm(dir) {
+  return '<svg class="kdpad" viewBox="0 0 20 20" role="img" aria-label="d-pad ' + dir + '">' +
+         '<path d="M7.6 3.2H12.4V7.6H16.8V12.4H12.4V16.8H7.6V12.4H3.2V7.6H7.6Z"/>' +
+         '<path class="karm" d="' + DPAD_ARMS[dir] + '"/></svg>';
+}
+function buttonMarkSet() {
+  var legend = padLegend();
+  if (legend !== KEY_LEGEND) return legend;
+  var d = deviceByOrdinal(ACTIVE);
+  return d ? padLegendForKind(d.kind) : PAD_LEGEND_PS;
+}
+// The mark for a button index, or '' for one with none (an Edge's back
+// buttons), where the listener's name stays.
+function buttonMark(index, set) {
+  var m = BUTTON_MARKS[index];
+  if (!m) return '';
+  set = set || buttonMarkSet();
+  var glyph = set === PAD_LEGEND_XBOX ? m[1] : m[0];
+  if (!glyph) return '';
+  if (m[2] === 'shoulder') return shoulderBox(glyph);
+  if (m[2] === 'dpad') return dpadArm(glyph);
+  return keyCap(glyph, set);
+}
+// ⭐ WORDS THAT NAME BUTTONS: a preset's help writes {btn:N} where a button
+// goes (config_presets.inl), and it is drawn here; the rest is text.
+function buttonWordsHtml(text) {
+  return String(text || '').split(/(\{btn:\d+\})/).map(function (part) {
+    var m = /^\{btn:(\d+)\}$/.exec(part);
+    var mark = m ? buttonMark(Number(m[1])) : '';
+    return mark || esc(part);
+  }).join('');
 }
 
 function padLegend() {
@@ -5472,17 +5551,22 @@ var PRESET_VALUE_NOTE = {
 //
 // ⓘ Copied from renderConfigEditor rather than reinvented, so the two cannot
 // drift into two different names for the same row.
+// ⓘ HTML: a button drawn as the settings page now draws it (buttonMark).
 function presetRowLabel(key) {
   var meta = (KEYS || []).filter(function(k) { return k.key === key; })[0];
   var m = /^(rebind|turbo)_(\d+)$/.exec(key);
   if (m) {
-    if (!meta) return key;
+    // ⓘ The words after the button the settings page has (renderConfigEditor).
+    var what = m[1] === 'turbo' ? ' - rapid fire' : ' - rebind';
+    var mark = buttonMark(Number(m[2]));
+    if (mark) return mark + esc(what);
+    if (!meta) return esc(key);
     var name = meta.name || (meta.help ? meta.help.split(' -- ')[0] : key);
-    return name + (m[1] === 'turbo' ? ' — rapid fire' : ' — remap');
+    return esc(name + what);
   }
   // ⓘ Settings keep their key: it is what you will search the page for, and
   // what the config file says.
-  return key;
+  return esc(key);
 }
 
 function presetRowValue(key, value) {
@@ -5541,7 +5625,7 @@ function presetInfoRows(settings) {
 
   if (arrows.length === 4) {
     (groups['Buttons'] = groups['Buttons'] || []).push(
-      ['d-pad — remap', 'ArrowKeys', 'Face buttons']);
+      [DPAD_SVG + esc(' - rebind'), 'ArrowKeys', 'Face buttons']);
   } else {
     arrows.forEach(function(s) {
       (groups['Buttons'] = groups['Buttons'] || []).push(
@@ -5562,7 +5646,8 @@ function presetTable(title, rows) {
   var table = function (list) {
     var t = '<table>';
     list.forEach(function(r) {
-      t += '<tr><td>' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td></tr>';
+      // ⓘ The label is HTML already (presetRowLabel), the value text.
+      t += '<tr><td>' + r[0] + '</td><td>' + esc(r[1]) + '</td></tr>';
     });
     return t + '</table>';
   };
@@ -5591,7 +5676,8 @@ function openPresetInfo(ordinal, presetName) {
   if (!p) return;
   var rows = presetInfoRows(p.settings);
   document.getElementById('presetInfoTitle').textContent = presetLabel(p);
-  document.getElementById('presetInfoText').textContent = p.help || '';
+  // ⭐ Its buttons drawn too ({btn:N}, buttonWordsHtml).
+  document.getElementById('presetInfoText').innerHTML = buttonWordsHtml(p.help || '');
   // ⓘ In the settings page's own section order, so the preview reads in the
   // same order as the thing it is previewing.
   // ⓘ The preview STACKS its sections, so this reads as a list rather than a
@@ -6331,15 +6417,10 @@ function renderConfigEditor(hostId, configName, prefix, ordinal) {
               // the section and marks it, so a title inside repeated it a
               // centimetre lower -- the same reason the controller panes have
               // no heading either: the tab IS the title.
-              // ⓘ The legend below STAYS: it explains the bracket notation,
-              // which nothing else does.
-              // ⭐ A LEGEND, once per button section (rhoquinn8217,
-              // 2026-09-01). The rows read (✕) | (A), and without a word
-              // saying so the second bracket is a guess.
-              (BUTTON_SECTIONS.indexOf(g) >= 0
-                ? '<div class="muted" style="font-size:11px;margin:4px 0 6px">' +
-                  '(PS button) | (Xbox button)</div>'
-                : '');
+              // ⓘ No line above a button section any more: it explained the
+              // rows' "(✕) | (A)", and they draw the pad in hand's own
+              // button now, as the legend does (2026-10-28, buttonMark).
+              '';
       groups[g].forEach(function(meta) {
         // ⛔ Debug keys are for someone reading the log, not for the person
         // adjusting a controller -- and every row is one more to scroll past.
@@ -6419,10 +6500,12 @@ function renderConfigEditor(hostId, configName, prefix, ordinal) {
           // ⓘ The name cell is the 1fr column and already carries the help
           // text, which is what this warning qualifies.
           if ((meta.key === 'rebind_0' || meta.key === 'rebind_1') && shown) {
+            // ⓘ The button drawn, as the row's title draws it (2026-10-28).
             pageButtonWarning = '<div class="warnc" style="font-size:11px;margin-top:3px">' +
+                    buttonMark(meta.key === 'rebind_0' ? 0 : 1) +
                     (meta.key === 'rebind_0'
-                      ? 'Cross selects on this page. While this is bound you will need a mouse or keyboard to change it back.'
-                      : 'Circle backs out on this page. While this is bound you will need a mouse or keyboard to change it back.') +
+                      ? ' selects on this page. While this is bound you will need a mouse or keyboard to change it back.'
+                      : ' backs out on this page. While this is bound you will need a mouse or keyboard to change it back.') +
                     '</div>';
           }
         } else if (meta.type === 'choice' && meta.choices) {
@@ -6503,15 +6586,28 @@ function renderConfigEditor(hostId, configName, prefix, ordinal) {
         // ⓘ Still falls back to parsing the help, so an older agent that sends
         // no name keeps its labels.
         var prettyKey = meta.key;
+        var markHtml = '';
         var m = /^(rebind|turbo)_(\d+)$/.exec(meta.key);
         if (m) {
           // ⭐ THE ACTION IS IN THE TITLE (rhoquinn8217, 2026-09-01), because
           // "what this row does" was otherwise buried in the help. The name
           // reads as a button -- (✕) | (A) -- and the row says what happens.
           var name = meta.name || (meta.help ? meta.help.split(' -- ')[0] : meta.key);
-          prettyKey = name + (m[1] === 'turbo' ? ' — rapid fire' : ' — remap');
+          // ⭐ "✕ - rebind": the config's own word, rebind_N, after a plain
+          // hyphen (rhoquinn8217, 2026-10-28: "use the word rebind instead of
+          // remap and use a single normal "-" between symbol and rebind"),
+          // where a long dash stood until they asked whether it suited a
+          // drawn button. The one still in words: "(PS) | (Home) - rebind".
+          prettyKey = name + (m[1] === 'turbo' ? ' - rapid fire' : ' - rebind');
+          // ⭐ The button drawn as the legend draws it, the listener's words for
+          // it kept for the one with no mark (buttonMark).
+          markHtml = buttonMark(Number(m[2]));
         }
         var shownKey = only ? (prettyKey + ' (' + only + ' only)') : prettyKey;
+        var nameHtml = markHtml
+          ? markHtml + esc((m[1] === 'turbo' ? ' - rapid fire' : ' - rebind') +
+                           (only ? ' (' + only + ' only)' : ''))
+          : esc(shownKey);
 
         html += '<div class="row' + (managed ? '' : ' off') + (inert ? ' inert' : '') +
                 '" id="row-' + id + '">' +
@@ -6520,7 +6616,8 @@ function renderConfigEditor(hostId, configName, prefix, ordinal) {
                 ' onchange="toggleManaged(\'' + id + '\',\'' + esc(prefix) +
                 '\',\'' + esc(configName) + '\',\'' + esc(meta.key) + '\')" ' +
                 'title="unchecked: the listener leaves this alone and the game controls it">' +
-                '<div class="name">' + esc(shownKey) + note + pageButtonWarning + '</div>' +
+                '<div class="name" title="' + esc(shownKey) + '">' + nameHtml + note +
+                pageButtonWarning + '</div>' +
                 control + '</div>';
       });
       html += '</div>';
@@ -8033,7 +8130,8 @@ function noteRemapsSuspended() {
   // ⭐ This is where Safe Edit Mode gets advertised, because this is the moment
   // someone notices the cursor has stopped and wonders why. A permanent banner
   // would become furniture; this appears exactly when it answers a question.
-  box.innerHTML = '<strong>Remaps and cursor are paused here.</strong><br>' +
+  // ⓘ "Rebinds", the page's word for them since 2026-10-28.
+  box.innerHTML = '<strong>Rebinds and cursor are paused here.</strong><br>' +
     'Turn <strong>Safe Edit Mode</strong> off to keep them &mdash; your inputs ' +
     'then mirror in an active game.';
   document.getElementById('bubbles').appendChild(box);
