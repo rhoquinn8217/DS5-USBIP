@@ -52,10 +52,11 @@ struct Preset {
     // may hold anything: "touchpad-to-mouse (DS5|DS4)".
     const char *name;
     const char *label;
-    // ⭐ A BUTTON IN THE HELP IS {btn:N}, N its index as rebind_N has it, and
-    // the page draws it as the legend does, in the set of the pad in hand
-    // (rhoquinn8217, 2026-10-28: "update the presets to use those same
-    // symbols"). ⓘ Only the page reads the help (rest_config.inl, presets).
+    // ⭐ A BUTTON IN THE HELP OR THE LABEL IS {btn:N}, N its index as rebind_N
+    // has it, and the page draws it as the legend does, in the set of the pad
+    // in hand (rhoquinn8217, 2026-10-28: "update the presets to use those same
+    // symbols", then, asked whether New's list should too: "2. yes").
+    // ⓘ Only the page reads either (rest_config.inl, presets).
     const char *help;
     // Which device kinds it suits. ⓘ A preset that cannot act on a controller
     // is not offered for it -- a gyro preset on a pad with no gyro would be a
@@ -401,7 +402,7 @@ inline const Preset kPresets[] = {
       // were silent there; now a trigger past a threshold is a press
       // (kSpotTriggerTravel, button_layout.inl).
       true, true, true, true, kStickMouseMode, CTM_PRESET_COUNT_OF(kStickMouseMode) },
-    { "gyro-to-stick-L2-aiming", "gyro-to-stick (on L2 for aiming)",
+    { "gyro-to-stick-L2-aiming", "gyro-to-stick (on {btn:6} for aiming)",
       "For playing, in a game that will not take a mouse alongside a "
       "controller: while {btn:6} is held, the gyro moves the right stick, so the "
       "camera is steady while you move and precise when you aim. Nothing else "
@@ -418,7 +419,7 @@ inline const Preset kPresets[] = {
       "opens the on-screen keyboard.",
       // DualSense, Edge, DS4: a gyro. Not an Xbox pad, which has none.
       true, true, true, false, kGyroMouseMode, CTM_PRESET_COUNT_OF(kGyroMouseMode) },
-    { "gyro-to-mouse-r3-hold", "gyro-to-mouse (on r3)",
+    { "gyro-to-mouse-r3-hold", "gyro-to-mouse (on {btn:11})",
       "The same, but the gyro only moves the cursor while the right stick is "
       "held in, {btn:11}. Put the pad down, or play normally, and the cursor "
       "stays where it is. Either trigger holds it still to click, left stick "
@@ -426,7 +427,7 @@ inline const Preset kPresets[] = {
       // The same pads as always-on: a gyro is what this needs, and R3 is on
       // every one of them.
       true, true, true, false, kGyroMouseR3Mode, CTM_PRESET_COUNT_OF(kGyroMouseR3Mode) },
-    { "gyro-to-mouse-L2-aiming", "gyro-to-mouse (on L2 for aiming)",
+    { "gyro-to-mouse-L2-aiming", "gyro-to-mouse (on {btn:6} for aiming)",
       "For playing, not for the desktop. Gyro aims only while {btn:6} is held, so "
       "the camera is steady while you move and precise when you aim. Nothing "
       "else is bound: every button stays with the game.",
