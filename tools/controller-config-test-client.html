@@ -28,16 +28,17 @@
     2.66.112 A pad's buttons drawn as the legend draws them wherever a
              button is named (rhoquinn8217: "Using the how we did button
              for the legend, I want you to update the presets to use those
-             same symbols and the rebind descriptions"): the remap and
+             same symbols and the rebind descriptions"): the rebind and
              rapid-fire rows, the warnings under Cross and Circle, the
              presets' previews and their words, in the set of the pad in
              hand, or the controller on screen when a keyboard is in hand.
              A preset's words mark a button as {btn:N}. The line above a
              button section that explained "(PS button) | (Xbox button)" is
-             gone. No dash between the button and the words after it
-             (rhoquinn8217: "Is long dash appropriate now that we have
-             proper button symbols?"): a row reads "✕ remap". (2.66.109
-             to 2.66.111 are taken on another branch.)
+             gone. A row reads "✕ - rebind", and the page and the
+             listener's help say rebind wherever they said remap
+             (rhoquinn8217: "use the word rebind instead of remap and use a
+             single normal "-" between symbol and rebind"). (2.66.109 to
+             2.66.111 and 2.66.113 are taken on another branch.)
     2.66.108 The quick config switch's help says what the listener now
              does (rhoquinn8217: "press again to lift restriction and the
              config window persists after both fingers are lifted"): from
@@ -5451,8 +5452,8 @@ function presetRowLabel(key) {
   var meta = (KEYS || []).filter(function(k) { return k.key === key; })[0];
   var m = /^(rebind|turbo)_(\d+)$/.exec(key);
   if (m) {
-    // ⓘ No dash after the button, as the settings page has none (renderConfigEditor).
-    var what = m[1] === 'turbo' ? ' rapid fire' : ' remap';
+    // ⓘ The words after the button the settings page has (renderConfigEditor).
+    var what = m[1] === 'turbo' ? ' - rapid fire' : ' - rebind';
     var mark = buttonMark(Number(m[2]));
     if (mark) return mark + esc(what);
     if (!meta) return esc(key);
@@ -5520,7 +5521,7 @@ function presetInfoRows(settings) {
 
   if (arrows.length === 4) {
     (groups['Buttons'] = groups['Buttons'] || []).push(
-      [DPAD_SVG + esc(' remap'), 'ArrowKeys', 'Face buttons']);
+      [DPAD_SVG + esc(' - rebind'), 'ArrowKeys', 'Face buttons']);
   } else {
     arrows.forEach(function(s) {
       (groups['Buttons'] = groups['Buttons'] || []).push(
@@ -6488,19 +6489,19 @@ function renderConfigEditor(hostId, configName, prefix, ordinal) {
           // "what this row does" was otherwise buried in the help. The name
           // reads as a button -- (✕) | (A) -- and the row says what happens.
           var name = meta.name || (meta.help ? meta.help.split(' -- ')[0] : meta.key);
-          // ⭐ NO DASH between the button and what the row does (rhoquinn8217,
-          // 2026-10-28: "Is long dash appropriate now that we have proper
-          // button symbols?"). It split a name in words from the word after
-          // it; a drawn button stands apart by itself, and the one still in
-          // words is in brackets: "(PS) | (Home) remap".
-          prettyKey = name + (m[1] === 'turbo' ? ' rapid fire' : ' remap');
+          // ⭐ "✕ - rebind": the config's own word, rebind_N, after a plain
+          // hyphen (rhoquinn8217, 2026-10-28: "use the word rebind instead of
+          // remap and use a single normal "-" between symbol and rebind"),
+          // where a long dash stood until they asked whether it suited a
+          // drawn button. The one still in words: "(PS) | (Home) - rebind".
+          prettyKey = name + (m[1] === 'turbo' ? ' - rapid fire' : ' - rebind');
           // ⭐ The button drawn as the legend draws it, the listener's words for
           // it kept for the one with no mark (buttonMark).
           markHtml = buttonMark(Number(m[2]));
         }
         var shownKey = only ? (prettyKey + ' (' + only + ' only)') : prettyKey;
         var nameHtml = markHtml
-          ? markHtml + esc((m[1] === 'turbo' ? ' rapid fire' : ' remap') +
+          ? markHtml + esc((m[1] === 'turbo' ? ' - rapid fire' : ' - rebind') +
                            (only ? ' (' + only + ' only)' : ''))
           : esc(shownKey);
 
@@ -8016,7 +8017,8 @@ function noteRemapsSuspended() {
   // ⭐ This is where Safe Edit Mode gets advertised, because this is the moment
   // someone notices the cursor has stopped and wonders why. A permanent banner
   // would become furniture; this appears exactly when it answers a question.
-  box.innerHTML = '<strong>Remaps and cursor are paused here.</strong><br>' +
+  // ⓘ "Rebinds", the page's word for them since 2026-10-28.
+  box.innerHTML = '<strong>Rebinds and cursor are paused here.</strong><br>' +
     'Turn <strong>Safe Edit Mode</strong> off to keep them &mdash; your inputs ' +
     'then mirror in an active game.';
   document.getElementById('bubbles').appendChild(box);
