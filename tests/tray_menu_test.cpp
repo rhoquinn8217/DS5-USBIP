@@ -46,29 +46,36 @@ int run_tray_menu_tests()
                      std::string("tutorial_simple_seen = 1\n"));
         CTM_CHECK_EQ(tutorial_state::seen_line(tutorial_state::kQuickSeenKey, false),
                      std::string("tutorial_quick_seen = 0\n"));
-        CTM_CHECK_EQ(tutorial_state::json(false, false, tutorial_state::None),
-                     std::string(R"({"simple_seen":false,"quick_seen":false,"request":""})"));
-        CTM_CHECK_EQ(tutorial_state::json(true, false, tutorial_state::Simple),
-                     std::string(R"({"simple_seen":true,"quick_seen":false,"request":"simple"})"));
-        CTM_CHECK_EQ(tutorial_state::json(true, true, tutorial_state::Quick),
-                     std::string(R"({"simple_seen":true,"quick_seen":true,"request":"quick"})"));
+        CTM_CHECK_EQ(tutorial_state::seen_line(tutorial_state::kAdvancedSeenKey, true),
+                     std::string("tutorial_advanced_seen = 1\n"));
+        CTM_CHECK_EQ(tutorial_state::json(false, false, false, tutorial_state::None),
+                     std::string(R"({"simple_seen":false,"quick_seen":false,"advanced_seen":false,"request":""})"));
+        CTM_CHECK_EQ(tutorial_state::json(true, false, false, tutorial_state::Simple),
+                     std::string(R"({"simple_seen":true,"quick_seen":false,"advanced_seen":false,"request":"simple"})"));
+        CTM_CHECK_EQ(tutorial_state::json(true, true, false, tutorial_state::Quick),
+                     std::string(R"({"simple_seen":true,"quick_seen":true,"advanced_seen":false,"request":"quick"})"));
+        CTM_CHECK_EQ(tutorial_state::json(true, true, true, tutorial_state::Advanced),
+                     std::string(R"({"simple_seen":true,"quick_seen":true,"advanced_seen":true,"request":"advanced"})"));
         CTM_CHECK_EQ(tutorial_state::kind_of("simple"), int(tutorial_state::Simple));
         CTM_CHECK_EQ(tutorial_state::kind_of("quick"), int(tutorial_state::Quick));
-        CTM_CHECK_EQ(tutorial_state::kind_of("advanced"), int(tutorial_state::None));
+        CTM_CHECK_EQ(tutorial_state::kind_of("advanced"), int(tutorial_state::Advanced));
+        CTM_CHECK_EQ(tutorial_state::kind_of("expert"), int(tutorial_state::None));
         CTM_CHECK_EQ(narrow(tray_menu::kShowTutorial), std::string("Show tutorial"));
     }
 
     section("tutorial: the tray's list, each tour going to the layout it is named for");
     {
-        CTM_CHECK_EQ(tray_menu::kTutorialCount, 2);
+        CTM_CHECK_EQ(tray_menu::kTutorialCount, 3);
         CTM_CHECK_EQ(narrow(tray_menu::kTutorials[0].name), std::string("Simple mode"));
         CTM_CHECK_EQ(narrow(tray_menu::kTutorials[1].name), std::string("Quick mode"));
+        CTM_CHECK_EQ(narrow(tray_menu::kTutorials[2].name), std::string("Advanced mode"));
         for (int i = 0; i < tray_menu::kTutorialCount; ++i) {
             const tray_menu::Tutorial &t = tray_menu::kTutorials[i];
             CTM_CHECK(t.mode >= 0 && t.mode < tray_menu::kModeCount);
             CTM_CHECK(narrow(t.name).rfind(narrow(tray_menu::kModes[t.mode].name), 0) == 0);
             CTM_CHECK_EQ(std::string(tutorial_state::kind_name(t.kind)),
-                         t.mode == 1 ? std::string("simple") : std::string("quick"));
+                         t.mode == 0 ? std::string("advanced")
+                                     : t.mode == 1 ? std::string("simple") : std::string("quick"));
         }
     }
 

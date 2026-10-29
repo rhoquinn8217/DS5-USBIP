@@ -722,11 +722,11 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
         }
 
         // ⭐ THE TUTORIALS (rhoquinn8217, 2026-10-14): a GET says whether
-        // Simple's and Quick's have been seen and which the tray asked for,
-        // once a second while the page is in view, as Open on bridge is read.
-        // A POST of {"seen": "simple"} or {"seen": "quick"} keeps that one
-        // seen; {"taken": true} clears the tray's request once the page has
-        // it (tutorial_state.inl).
+        // Simple's, Quick's and Advanced's have been seen and which the tray
+        // asked for, once a second while the page is in view, as Open on
+        // bridge is read. A POST of {"seen": "simple"}, "quick" or "advanced"
+        // keeps that one seen; {"taken": true} clears the tray's request once
+        // the page has it (tutorial_state.inl).
         if (what == "tutorial") {
             if (req.method == "POST") {
                 RestJson json;
@@ -740,17 +740,19 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
                 const int kind = seen == json.strings.end() ? tutorial_state::None
                                                             : tutorial_state::kind_of(seen->second);
                 if (seen != json.strings.end() && kind == tutorial_state::None) {
-                    *out = rest_error_response(400, "seen is simple or quick");
+                    *out = rest_error_response(400, "seen is simple, quick or advanced");
                     return true;
                 }
                 if (seen == json.strings.end() && taken == json.bools.end()) {
-                    *out = rest_error_response(400, "say seen (simple or quick) or taken (true)");
+                    *out = rest_error_response(400, "say seen (simple, quick or advanced) or taken (true)");
                     return true;
                 }
                 if (kind != tutorial_state::None) {
                     ui_set_tutorial_seen(kind, true);
                     device_log::session_w() << L"settings page: the "
-                                            << (kind == tutorial_state::Quick ? L"Quick" : L"Simple")
+                                            << (kind == tutorial_state::Quick      ? L"Quick"
+                                                : kind == tutorial_state::Advanced ? L"Advanced"
+                                                                                   : L"Simple")
                                             << L" tutorial is seen now";
                 }
                 if (taken != json.bools.end() && taken->second) ui_tutorial_take();
@@ -760,6 +762,7 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
             }
             *out = rest_http_response(200, tutorial_state::json(ui_tutorial_seen(tutorial_state::Simple),
                                                                 ui_tutorial_seen(tutorial_state::Quick),
+                                                                ui_tutorial_seen(tutorial_state::Advanced),
                                                                 ui_tutorial_asked()));
             return true;
         }

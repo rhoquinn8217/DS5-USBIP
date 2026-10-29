@@ -165,17 +165,19 @@ inline constexpr int kModeCount = 3;
 // ⭐ THE LIST UNDER SHOW TUTORIAL (rhoquinn8217, 2026-10-26: *"put a list of
 // tutorials in the tray for now"*): each tours one layout, which the window
 // goes to as it starts. `mode` is its place in kModes, `kind` the page's name
-// for it (tutorial_state::Kind: 1 Simple, 2 Quick).
+// for it (tutorial_state::Kind: 1 Simple, 2 Quick, 3 Advanced). ⓘ Advanced's
+// since 2026-10-29, last, as the tours were made.
 struct Tutorial {
     const wchar_t *name;
     int mode;
     int kind;
 };
-inline constexpr Tutorial kTutorials[2] = {
-    { L"Simple mode", 1, 1 },
-    { L"Quick mode",  2, 2 },
+inline constexpr Tutorial kTutorials[3] = {
+    { L"Simple mode",   1, 1 },
+    { L"Quick mode",    2, 2 },
+    { L"Advanced mode", 0, 3 },
 };
-inline constexpr int kTutorialCount = 2;
+inline constexpr int kTutorialCount = 3;
 
 // Which of the three the window is in, or -1 when the listener has not been
 // told: it has just started for the first time and no window has opened yet.

@@ -156,8 +156,8 @@ void quick_switch_page_asked_view();
 /* ...and whether the window up now is the switch's own (config_move.inl):
  * the page asks as it opens, and starts no tutorial by itself in it. */
 bool ui_quick_view_on();
-/* The tutorials (tutorial_state.inl): whether Simple's and Quick's have been
- * seen, kept in window-state.txt, and the tray's request for one, by its
+/* The tutorials (tutorial_state.inl): whether Simple's, Quick's and Advanced's
+ * have been seen, kept in window-state.txt, and the tray's request for one, by its
  * tutorial_state::Kind. Defined below, after config_move.inl. */
 bool ui_tutorial_seen(int kind);
 void ui_set_tutorial_seen(int kind, bool seen);

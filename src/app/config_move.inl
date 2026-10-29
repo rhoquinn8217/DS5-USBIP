@@ -873,12 +873,13 @@ struct SavedView {
 inline std::mutex g_quickViewMutex;
 inline SavedView g_quickView;
 
-// ⭐ THE TUTORIALS (rhoquinn8217, 2026-10-14): whether Simple's and Quick's
-// have been seen, kept here with the rest; tutorial_state.inl says what it
-// means. The tray's request for one, which lives until the page takes it and
-// is not kept. And the last install's stamp this person's listener saw.
+// ⭐ THE TUTORIALS (rhoquinn8217, 2026-10-14): whether Simple's, Quick's and
+// Advanced's have been seen, kept here with the rest; tutorial_state.inl says
+// what it means. The tray's request for one, which lives until the page takes
+// it and is not kept. And the last install's stamp this person's listener saw.
 inline std::atomic_bool g_tutorialSimpleSeen{false};
 inline std::atomic_bool g_tutorialQuickSeen{false};
+inline std::atomic_bool g_tutorialAdvancedSeen{false};
 inline std::atomic_int  g_tutorialAsked{tutorial_state::None};
 inline std::mutex g_stampMutex;
 inline std::string g_installStamp;
@@ -913,7 +914,8 @@ inline void state_save()
     out << open_on_bridge::default_line() << open_on_bridge::line(g_openOnBridge.load());
     out << quick_switch::line(g_quickSwitch.load());
     out << tutorial_state::seen_line(tutorial_state::kSimpleSeenKey, g_tutorialSimpleSeen.load())
-        << tutorial_state::seen_line(tutorial_state::kQuickSeenKey, g_tutorialQuickSeen.load());
+        << tutorial_state::seen_line(tutorial_state::kQuickSeenKey, g_tutorialQuickSeen.load())
+        << tutorial_state::seen_line(tutorial_state::kAdvancedSeenKey, g_tutorialAdvancedSeen.load());
     {
         std::lock_guard<std::mutex> lock(g_stampMutex);
         if (!g_installStamp.empty()) {
@@ -1002,6 +1004,10 @@ inline void state_load()
             g_tutorialQuickSeen.store(tutorial_state::parse_seen(val));
             continue;
         }
+        if (key == tutorial_state::kAdvancedSeenKey) {
+            g_tutorialAdvancedSeen.store(tutorial_state::parse_seen(val));
+            continue;
+        }
         if (key == tutorial_state::kInstallStampKey) {
             std::lock_guard<std::mutex> lock(g_stampMutex);
             g_installStamp = val;
@@ -1068,11 +1074,12 @@ inline void state_load()
         << " " << g_posQuick.x << "," << g_posQuick.y
         << " open_on_bridge=" << (g_openOnBridge.load() ? 1 : 0)
         << " tutorial_simple_seen=" << (g_tutorialSimpleSeen.load() ? 1 : 0)
-        << " tutorial_quick_seen=" << (g_tutorialQuickSeen.load() ? 1 : 0));
+        << " tutorial_quick_seen=" << (g_tutorialQuickSeen.load() ? 1 : 0)
+        << " tutorial_advanced_seen=" << (g_tutorialAdvancedSeen.load() ? 1 : 0));
 }
 
 // ⭐ THE FIRST START AFTER AN INSTALL (tutorial_state.inl): the window opens
-// in Simple, and both tours start by themselves again. Run once, after
+// in Simple, and every tour starts by itself again. Run once, after
 // state_load, with the folder the exe is in. ⓘ Known, so the page takes
 // Simple from here rather than from its own memory of the last window.
 inline void install_check(const std::wstring &exeFolder)
@@ -1092,10 +1099,11 @@ inline void install_check(const std::wstring &exeFolder)
     g_known.store(true);
     g_tutorialSimpleSeen.store(false);
     g_tutorialQuickSeen.store(false);
+    g_tutorialAdvancedSeen.store(false);
     state_save();
     device_log::input(device_log::msg()
         << "ui/install: the first start after an install (" << stamp
-        << "): the window opens in Simple, and both tutorials will start by themselves again");
+        << "): the window opens in Simple, and every tutorial will start by itself again");
 }
 
 // The "Open on bridge" switch: read by the bridge, set by the tray and the
@@ -1203,14 +1211,20 @@ inline bool quick_view_on()
 }
 
 // Whether a tour has been seen: set by the page as it starts one, and kept at
-// once.
+// once. ⓘ Simple's flag answers for a kind that names none, as before.
+inline std::atomic_bool &tutorial_flag(int kind)
+{
+    return kind == tutorial_state::Quick      ? g_tutorialQuickSeen
+         : kind == tutorial_state::Advanced   ? g_tutorialAdvancedSeen
+                                              : g_tutorialSimpleSeen;
+}
 inline bool tutorial_seen(int kind)
 {
-    return kind == tutorial_state::Quick ? g_tutorialQuickSeen.load() : g_tutorialSimpleSeen.load();
+    return tutorial_flag(kind).load();
 }
 inline void set_tutorial_seen(int kind, bool seen)
 {
-    (kind == tutorial_state::Quick ? g_tutorialQuickSeen : g_tutorialSimpleSeen).store(seen);
+    tutorial_flag(kind).store(seen);
     state_save();
 }
 
