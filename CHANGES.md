@@ -169,8 +169,9 @@ carry it; upstream's own history is unchanged.
 | 2026-10-23 | Quick mode's tutorial, started from the tray's Show tutorial, which puts the Controller Configs window in Quick. Thirteen steps on three practice controllers, Dual, Nova and Pixel, and four practice configs: nothing done in the tour reaches a real controller or config, and the real ones come back when it ends. Its words and its Continue, Go back and End tutorial buttons are drawn by the listener in a window of their own beside the configs window, on the side each step asks for, never taking the keyboard; a controller's buttons in the words are drawn as the legends draw them, for the pad pressed last, and a keyboard's as its keys. Arrows float beside what a step points at and a feathered spotlight dims the rest. A step that asks for something greys Continue out and moves on once it is done, everything else is locked while the tour runs, and Go back closes any box or list a step opened. Simple's tour, built first, is left out until it is redone for Simple's current layout. The mode picker greys out the mode the window is in. Page 2.66.92 and 2.66.94 to 2.66.99. | `5e88dae`, `44fcbdb`, `26ae402`, `f7f2e24`, `4668418`, `621d35a`, `d71b9c1`, `1b9ecdb`, `2aff4a2`, `95ca91e`, merge `6ef30ac` |
 | 2026-10-27 | The quick config switch, for every controller, turned on by "Press the touchpad with two fingers to switch configs" on Overview's first card, which is now called Bridging Options. Two fingers pressing the touchpad open the Controller Configs window in Quick on that controller for as long as a finger stays on the touchpad; each swipe of a finger up or down, one thumb resting and the other swiping, steps it to the next config or the one before, shown on the wheel and linked as the window goes; and the window closes the moment the last finger lifts, or as soon as it has opened when the fingers lift at once. While it is open nothing of the touchpad reaches the game or the mouse, and afterwards the layout and the controller the shortcut and the tray open on are put back. With the window already up in Simple or Quick, the same swipe moves its wheel with no press, and the config's own swipe up and down and its two-finger scroll stand aside there. Two fingers swiped together step once. Auto link asks nothing: setting it, moving it from another config and removing it happen at once. Simple and Quick windows open straight at their size and place, with no larger window first. Page 2.66.93 and 2.66.100. | `a91aa36`, `2b6019e`, `4fabb9d`, `b053f4d`, `21bd91d`, `d9fe374`, `50e775e`, `be5a7d0`, `e8ba775`, `53917f0`, merge `ecbf18d` |
 | 2026-10-28 | The quick config switch holds the touchpad back: from two fingers pressing it until the last finger lifts, nothing of the touchpad reaches Windows or the game, the press that opens the Controller Configs window included, whatever config the controller reads or none; until then the press and the touches went out for the half second before the window had the front. A second press keeps the window, in the layout it had before, Simple or Advanced, at that layout's own size and place, on the controller that pressed, and gives the touchpad back to the config; the listener tells the window with Ctrl+Alt+Shift+V. The pad shortcut, two fingers resting and Options, is unchanged. Page 2.66.108. | `027874a`, `eab162d`, merge `7a31285` |
-| 2026-10-28 | The Controller Configs window draws a pad's button as its legend does wherever one is named: the rebind and rapid-fire rows read "✕ - rebind" where they read "(✕) | (A) — remap", the warnings under Cross and Circle draw their button, and so do the presets' previews and their words, where a button is written `{btn:N}` in `config_presets.inl`. The PlayStation shapes or the Xbox letters in circles, L1 R1 L2 R2 in a shoulder button's box, the d-pad's cross with one arm filled, in the set of the pad in hand, or of the controller on screen while a keyboard is in hand. "Rebind" replaces "remap" everywhere the window shows it, the listener's help words included. Page 2.66.112. | `2d32283`, `5fdcdbd`, `0599696`, merge `cccc386` |
+| 2026-10-28 | The Controller Configs window draws a pad's button as its legend does wherever one is named: the rebind and rapid-fire rows read "✕ - rebind" where they read "(✕) | (A) — remap", the warnings under Cross and Circle draw their button, and so do the presets' previews and their words, where a button is written `{btn:N}` in `config_presets.inl`. The PlayStation shapes or the Xbox letters in circles, L1 R1 L2 R2 in a shoulder button's box, the d-pad's cross with one arm filled, in the set of the pad in hand, or of the controller on screen while a keyboard is in hand. "Rebind" replaces "remap" everywhere the window shows it, the listener's help words included. And New's list of presets and a preset's title draw a button in its name the same way, a label writing it as `{btn:N}` too: "gyro-to-stick (on L2 for aiming)" and "gyro-to-mouse (on r3)" draw L2 and R3, and the line after New says it in words. Page 2.66.112 and 2.66.115. | `2d32283`, `5fdcdbd`, `0599696`, merge `cccc386`; `821b75a`, merge `baeac1c` |
 | 2026-10-28 | Simple mode's tour, and Quick's in step with it. Each starts from the tray's Show tutorial, which lists both, or by itself once, when its mode is on screen with a controller bridged; never in the window the quick config switch opens, and an install starts both afresh with the window in Simple. A tour walks the window on practice controllers, Dual, Nova and Pixel, so nothing real changes. Simple's twenty-four steps make a config from a pre-set and look over the pre-set's page a section a step, then go down the button column, Edit, Unlink, Auto link and its mark, Archive, then the window's position, its size and the mode list, Circle and Close, and the tips; Quick's fourteen share every step the two windows have, in the same words. The words stand in one box beside the window, drawn by the listener, and slide to each step beside what it lights and over the window wherever they cover nothing; they come back to the same place after Go back and hold still while the tips change. The legend's marks light beside the presses they name, and a pad the browser sees, unbridged, drives a tour as a bridged one does. L3 goes to Simple's next tip, H on a keyboard, its mark at the tip's right; the listener sends it only while Simple is in front. The pre-set page's Triggers keep L2's rows on the left and R2's on the right. Page 2.66.101 to 2.66.116. | `0fcbc98`, `3862670`, `ed88e17`, `15d76fd`, `f50a841`, `74a9069`, `7804308`, `157ffe9`, `d60e48a`, `39f46ec`, `d84e6b8`, `fb72cc9`, `06bb5d1`, merge `c0a8a04` |
+| 2026-10-29 | The quick config switch opens Quick as the two-finger press comes back up, within four seconds and with a finger still on the touchpad, where it opened as the press went in: two fingers pressed and held about four seconds are the TV's release gesture, and the window came up over it. A press held that long opens nothing, the touchpad held back until the last finger lifts. A window already there and not in front now closes before Quick is set, so its place and size are kept in its own layout: kept in Quick's, they had made every Quick window after it open that size, its words very large. Page 2.66.117, and 2.66.118 for the trunk's page with it. | `c87dd18`, `0fb7d22`, merge `c7c2ed5` |
 
 ## Files changed
 
@@ -254,8 +255,8 @@ ENet library, removed with the ENet transport).
  src/app/overlay_window.inl                    |  2472 ++++
  src/app/paired_tv.inl                         |   495 +
  src/app/protocol_level.inl                    |    77 +
- src/app/quick_switch.inl                      |   296 +
- src/app/quick_switch_session.inl              |   362 +
+ src/app/quick_switch.inl                      |   345 +
+ src/app/quick_switch_session.inl              |   424 +
  src/app/quit_request.inl                      |    28 +
  src/app/rest.inl                              |   885 ++
  src/app/rest_config.inl                       |  1509 +++
@@ -300,7 +301,7 @@ ENet library, removed with the ENet transport).
  src/backend/bridge_enet.inl                   |   800 --
  src/backend/bt.inl                            |    24 +-
  src/capture/README.md                         |    14 +
- src/config/config_presets.inl                 |   497 +
+ src/config/config_presets.inl                 |   498 +
  src/config/config_store.inl                   |   856 ++
  src/config/config_watcher.inl                 |   171 +
  src/config/device_config.inl                  |   342 +
@@ -345,7 +346,7 @@ ENet library, removed with the ENet transport).
  tests/bridge_handshake_test.cpp               |   631 +
  tests/button_layout_test.cpp                  |  1189 ++
  tests/capped_log_test.cpp                     |   140 +
- tests/config_store_test.cpp                   |   991 ++
+ tests/config_store_test.cpp                   |  1006 ++
  tests/control_caller_test.cpp                 |    73 +
  tests/device_capabilities_test.cpp            |    75 +
  tests/device_config_cache_test.cpp            |   148 +
@@ -376,7 +377,7 @@ ENet library, removed with the ENet transport).
  tests/polling_limits_test.cpp                 |   122 +
  tests/product_version_test.cpp                |    45 +
  tests/protocol_level_test.cpp                 |   101 +
- tests/quick_switch_test.cpp                   |   301 +
+ tests/quick_switch_test.cpp                   |   343 +
  tests/quit_request_test.cpp                   |    69 +
  tests/rebind_test.cpp                         |   752 ++
  tests/rest_parser_test.cpp                    |   252 +
@@ -404,9 +405,9 @@ ENet library, removed with the ENet transport).
  tests/window_move_test.cpp                    |   136 +
  tests/window_open_rule_test.cpp               |    43 +
  tests/window_size_rule_test.cpp               |   129 +
- tools/controller-config-test-client.html      | 14990 ++++++++++++++++++++++++
+ tools/controller-config-test-client.html      | 15035 ++++++++++++++++++++++++
  tools/create-desktop-shortcut.bat             |    46 +
  tools/create-desktop-shortcut.ps1             |   148 +
  tools/osk-mockups.py                          |   103 +
- 228 files changed, 72183 insertions(+), 1568 deletions(-)
+ 228 files changed, 72397 insertions(+), 1568 deletions(-)
 ```
