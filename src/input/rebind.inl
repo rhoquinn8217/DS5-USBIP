@@ -309,16 +309,21 @@ inline const GateBinding kConfigModeKeys[] = {
     // gate_claims leaves it to the config in Advanced, and it is the
     // virtual keyboard's size while a name is being typed.
     { kBtnR3,        "KeyL",  CTM_GATE_MODS },   // R3: the compact views' polling limit
+    // ⭐ L3 GOES TO SIMPLE'S NEXT TIP (rhoquinn8217, 2026-10-28: "L3 in simple
+    // mode cycles through hints"): only while Simple is in front, the one
+    // layout with tips (gate_claims). The virtual keyboard has no use for it.
+    { kBtnL3,        "KeyH",  CTM_GATE_MODS },   // L3: Simple's next tip
 };
 
 // ⓘ Whether the page has this button: every one in the table, but R3
-// only while the window is in Simple or Quick; in Advanced it does what
-// the config binds it to, as it did before.
+// only while the window is in Simple or Quick, and L3 only in Simple; in
+// Advanced they do what the config binds them to, as they did before.
 inline bool gate_claims(int standardIndex)
 {
-    if (standardIndex != kBtnR3) return true;
-    bool compact = false;
-    return config_move::view_get(&compact, nullptr, nullptr) && compact;
+    if (standardIndex != kBtnR3 && standardIndex != kBtnL3) return true;
+    bool compact = false, quick = false;
+    if (!config_move::view_get(&compact, &quick, nullptr) || !compact) return false;
+    return standardIndex == kBtnR3 || !quick;
 }
 
 inline void apply(const void *deviceKey,

@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.114 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.116 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,15 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.116 L3 goes to Simple's next tip, H on a keyboard, its mark at
+            the tip's right (rhoquinn8217: "L3 in simple mode cycles
+            through hints. Put the L3 button symbol at the right of the
+            hint."), and the tour's tip step says so; the pre-set page's
+            Triggers keep the left trigger's rows in the left column and
+            the right trigger's in the right ("keep Left trigger rebinds
+            on the left column and right trigger rebinds on the right");
+            and Edit's step in their words. (2.66.115 is taken on another
+            branch.)
     2.66.114 From their run of setup 83, in both tours where they share
             a step: step 1 drops "nothing you do here changes your real
             ones" and says only the DualSense, DualSense Edge and
@@ -2143,6 +2152,13 @@
                        font-size:calc(2.3 * var(--vh)); color:#c8c9ce; text-align:center; line-height:1.4;
     max-width:80vw; }
   #compactBox .cinfo b { color:#e8e8ea; }
+  /* ⭐ L3'S MARK AT THE TIP'S RIGHT (rhoquinn8217, 2026-10-28: "Put the L3
+     button symbol at the right of the hint."): the words and the mark as one
+     centred line, the mark beside them, centred on them whether they take one
+     line or two. */
+  #compactBox .cinfo .ctipline { display:inline-flex; align-items:center; gap:0.55em;
+    max-width:100%; vertical-align:top; }
+  #compactBox .cinfo .ctip { min-width:0; }
   /* ⭐ The footer's two corners: Configurator bottom-left, Close bottom-right,
      away from the actions under the selector (rhoquinn8217, 2026-09-09). */
   /* ⛔⛔ THE MODE PICKER IS SIZED WITH THE FOOTER'S BUTTONS, NOT WITH THE
@@ -3070,7 +3086,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.66.114</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.66.116</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -4466,6 +4482,9 @@ var PAD_LEGEND_PS = {
   // ⭐ R3 opens Quick's polling limit (2.66.87), RS on an Xbox pad and L
   // on a keyboard, its mark where the limit's arrow was.
   rate: 'R3',
+  // ⭐ L3 goes to Simple's next tip (2.66.116), LS on an Xbox pad and H on a
+  // keyboard, its mark at the tip's right.
+  tip: 'L3',
   // ⭐ The d-pad is the same shape on every pad, so both tables carry the
   // same glyph. It lives here rather than in the strings, so a family that
   // ever needs a different one has somewhere to put it.
@@ -4480,7 +4499,7 @@ var PAD_LEGEND_XBOX = {
   // on an older pad. The glyphs say the same thing without needing either
   // generation's word for it, and they sit at the width of the PlayStation
   // set beside them instead of putting two English words in a row of symbols.
-  resize: '\u29c9', position: '\u2630', shoulder: 'LB/RB', rate: 'RS',
+  resize: '\u29c9', position: '\u2630', shoulder: 'LB/RB', rate: 'RS', tip: 'LS',
   dpad: '\u271c'
 };
 
@@ -5192,7 +5211,7 @@ var KEY_LEGEND = {
   // 2026-10-15: "U and A", over Space and L). Space stays on/off.
   unlink: 'U', autolink: 'A', updown: '\u21c5',
   select: 'Enter', close: 'Esc', toggle: 'Space',
-  resize: 'R', position: 'P', shoulder: 'Q/E', rate: 'L',
+  resize: 'R', position: 'P', shoulder: 'Q/E', rate: 'L', tip: 'H',
   dpad: '\u2725'
 };
 
@@ -5336,8 +5355,18 @@ var HINT_EVERY_MS = 30000;
 function hintAdvance() {
   if (!COMPACT || QUICK) return;
   HINT_AT = (HINT_AT + 1) % FOOTER_HINTS.length;
-  var el = document.querySelector('#compactBox .cinfo');
+  // ⓘ The words only: L3's mark beside them stays (2.66.116).
+  var el = document.querySelector('#compactBox .cinfo .ctip');
   if (el) el.innerHTML = hintHtml(HINT_AT);
+}
+
+// ⭐ L3 GOES TO THE NEXT TIP, H on a keyboard, as a click does (rhoquinn8217,
+// 2026-10-28: *"L3 in simple mode cycles through hints."*). Simple only, and
+// the clock starts again, so the tip asked for stays its whole time.
+function tipNextByButton() {
+  if (!COMPACT || QUICK) return;
+  hintAdvance();
+  hintStart();
 }
 
 // ⓘ The TIMER's path, which is the one that must hold back.
@@ -5619,6 +5648,7 @@ function presetInfoRows(settings) {
     var sect = sectionOf(s.key);
     var sub = '';
     if (BUTTON_SECTIONS.indexOf(sect) >= 0) { sub = sect; sect = 'Buttons'; }
+    else if (sect === 'Triggers') sub = triggerSideOf(s.key);
     (groups[sect] = groups[sect] || []).push(
       [presetRowLabel(s.key), presetRowValue(s.key, s.value), sub]);
   });
@@ -5641,6 +5671,14 @@ function presetInfoRows(settings) {
   return groups;
 }
 
+// ⓘ Which trigger a Triggers row is about, for its column: 'L' or 'R', or ''
+// for one about both.
+function triggerSideOf(key) {
+  if (/^(rebind|turbo)_6$/.test(key) || key.indexOf('left_trigger') === 0) return 'L';
+  if (/^(rebind|turbo)_7$/.test(key) || key.indexOf('right_trigger') === 0) return 'R';
+  return '';
+}
+
 function presetTable(title, rows) {
   if (!rows.length) return '';
   var table = function (list) {
@@ -5652,6 +5690,15 @@ function presetTable(title, rows) {
     return t + '</table>';
   };
   var html = '<h4>' + esc(title) + '</h4>';
+  // ⭐⭐ THE TRIGGERS BY SIDE (rhoquinn8217, 2026-10-28: *"keep Left trigger
+  // rebinds on the left column and right trigger rebinds on the right"*): L2's
+  // rows in the left column and R2's in the right, in the order the preset
+  // gives them, however many each has; one about both goes on the left.
+  if (title === 'Triggers' && rows.some(function (r) { return r[2] === 'L' || r[2] === 'R'; })) {
+    return html + '<div class="ptwo">' +
+           table(rows.filter(function (r) { return r[2] !== 'R'; })) +
+           table(rows.filter(function (r) { return r[2] === 'R'; })) + '</div>';
+  }
   // ⭐ Two columns; the first takes the odd one, and a single row stays a
   // single row. ⛔ Three was tried on 2026-09-10 and looked worse -- the answer
   // to a preset that runs off the bottom is fewer rows, not narrower ones.
@@ -8893,7 +8940,10 @@ var CONFIG_MODE_KEYS = {
   KeyK: function () { quickSwitchStep(-1); },
   // ⭐ ITS SECOND PRESS (2.66.108): the window stays, in the layout it had
   // before the switch showed it Quick.
-  KeyV: function () { quickSwitchKeep(); }
+  KeyV: function () { quickSwitchKeep(); },
+  // ⭐ L3: Simple's next tip (2.66.116). The listener sends it only while
+  // Simple is in front.
+  KeyH: function () { tipNextByButton(); }
   // ⛔ NO KeyC. Create resizes the window now (rhoquinn8217, 2026-09-20) and
   // the listener reads it from the raw report, so it no longer sends a key --
   // see rebind.inl. It used to cycle compact and full, then after T-233 only
@@ -9852,6 +9902,8 @@ var PLAIN_KEYS = {
   // ⭐ L OPENS QUICK'S POLLING LIMIT, as R3 does on a pad (2.66.87): L for
   // limit, its first letter, as U and A are theirs.
   KeyL:       function () { gpRate(); },
+  // ⭐ H GOES TO THE NEXT TIP, as L3 does on a pad (2.66.116).
+  KeyH:       function () { tipNextByButton(); },
 
   // ⭐⭐ Q AND E DID NOT WORK FROM A KEYBOARD, AND THE REASON WAS ONE LINE
   // (rhoquinn8217, 2026-09-24: *"I should mention that Q and E currently don't
@@ -11241,7 +11293,8 @@ function paintCompact() {
             '<div class="cinfo" title="Click for the next tip" ' +
             'onmouseenter="HINT_HELD = true" onmouseleave="HINT_HELD = false" ' +
             'onmousedown="hintPressed(event)" onmouseup="hintReleased(event)">' +
-            hintHtml(HINT_AT) + '</div>' +
+            '<span class="ctipline"><span class="ctip">' + hintHtml(HINT_AT) + '</span>' +
+            keyCap(LG.tip) + '</span></div>' +
             '</div>' + modeGroupHtml() +
             '<button class="cclose" onclick="closeWindow()">Close</button></div>';
   }
@@ -11629,6 +11682,7 @@ function gpPoll() {
   if (edge(2)) gpSquare();           // square: unlink on the selector, else managed
   if (edge(3)) gpTriangle();         // triangle: auto link on the selector
   if (edge(11)) gpRate();            // R3: Quick's polling limit
+  if (edge(10)) tipNextByButton();   // L3: Simple's next tip
 
   // ⛔ pressed(), NOT edge(). edge() WRITES GP_PREV as it reads, so calling it
   // here consumed the press and everything below saw nothing -- cross stopped
@@ -12949,10 +13003,27 @@ function selfTest() {
        infoLit.join(' / '));
   }
 
+  // The pre-set page's Triggers keep the left trigger's rows in the left
+  // column and the right trigger's in the right, whatever order the preset
+  // lists them in (2.66.116).
+  {
+    var trigBox = document.createElement('div');
+    trigBox.innerHTML = presetTable('Triggers', presetInfoRows([
+      { key: 'rebind_7', value: 'MouseLeft' }, { key: 'right_trigger_effect', value: 'click' },
+      { key: 'rebind_6', value: 'MouseRight' }, { key: 'left_trigger_effect', value: 'click' }]).Triggers);
+    var trigCols = [].slice.call(trigBox.querySelectorAll('.ptwo > table')).map(function (t) {
+      return [].slice.call(t.rows).map(function (r) { return r.cells[1].textContent; }).join(',');
+    });
+    var trigWant = [presetRowValue('rebind_6', 'MouseRight'), presetRowValue('left_trigger_effect', 'click')].join(',') +
+                   ' | ' + [presetRowValue('rebind_7', 'MouseLeft'), presetRowValue('right_trigger_effect', 'click')].join(',');
+    ok('the pre-set page keeps the left trigger\'s rows on the left and the right trigger\'s on the right',
+       trigCols.join(' | ') === trigWant, trigCols.join(' | '));
+  }
+
   // A pad the browser sees is taken by a tour as the gate's keystrokes for
   // its buttons (2.66.109): each a key the page's own gate map answers.
   ok('the tutorial takes a pad the browser sees as a bridged one\'s keystrokes',
-     TUT_PAD_KEYS.length === 11 && TUT_PAD_KEYS.every(function (bk) {
+     TUT_PAD_KEYS.length === 12 && TUT_PAD_KEYS.every(function (bk) {
        return typeof CONFIG_MODE_KEYS[bk[1]] === 'function';
      }) && TUT_PAD_KEYS[0][1] === 'Enter' && TUT_PAD_KEYS[1][1] === 'KeyZ',
      JSON.stringify(TUT_PAD_KEYS));
@@ -13916,8 +13987,10 @@ var TUT_SIMPLE = [
   // instructing to press the Archive button"*): Edit, shown and locked.
   { side: 'right', lit: function () { return tutQ('.csbtns > button:nth-child(2)'); },
     words: function () {
-      return tutHl('Edit') + ' opens the selected config in Advanced Mode, where every setting can be ' +
-             'changed.';
+      // ⓘ Their words (rhoquinn8217, 2026-10-28: *"Edit brings you to Advance
+      // Mode where you can customize your this config."*), the mode as the
+      // picker names it.
+      return tutHl('Edit') + ' brings you to Advanced Mode, where you can customize this config.';
     } },
   // 13 (*"direct to press the button on the page but note the same can be
   // done with a controller button"*): Square does it on the wheel, and its
@@ -13995,15 +14068,18 @@ var TUT_SIMPLE = [
   { side: 'right', lit: function () { return tutQ('.cbar > button.cclose'); }, words: tutWordsClose },
   // 23 (*"Need a step to show the hint and how to click it to see the next
   // one"*, and the last before the end since 2026-10-28): a click is the
-  // way, and a controller has none, so Continue stays. ⭐ The words and the
+  // way, or L3, and Continue stays. ⭐ The words and the
   // arrow go by the tip's ROW, which keeps its size, not by the tip, which
   // is as wide as its words (rhoquinn8217, 2026-10-28: *"when cycling through
   // hints, the shouldn't move around for no reason"*): each tip's width was a
   // new place for the words, at times across the window.
+  // ⭐ And L3 does it too, H on a keyboard (rhoquinn8217, 2026-10-28: *"L3 in
+  // simple mode cycles through hints."*): its press goes through to the page.
   { side: 'left', free: true, lit: function () { return tutQ('.cinfo'); }, anchorBox: tutTipRow,
+    keys: function (code, gated, plain) { return (gated || plain) && code === 'KeyH'; },
     words: function () {
-      return 'This line is a tip, and a new one comes every 30 seconds. Click it to see the next ' +
-             'one, then choose ' + tutHl('Continue') + '.';
+      return 'This line is a tip, and a new one comes every 30 seconds. Click it or press ' +
+             tutKey('tip') + ' to see the next one, then choose ' + tutHl('Continue') + '.';
     } },
   // 24
   { lit: function () { return []; }, act: 'end', words: tutWordsEnd }
@@ -14516,7 +14592,7 @@ window.addEventListener('keydown', function (ev) {
 // (tutTakeKey), and on to the page's action for it when the step lets it
 // through. ⓘ The d-pad repeats while held, as a held key does.
 var TUT_PAD_KEYS = [[0, 'Enter'], [1, 'KeyZ'], [2, 'KeyX'], [3, 'KeyY'], [4, 'KeyQ'], [5, 'KeyE'],
-                    [11, 'KeyL'], [12, 'KeyW'], [13, 'KeyS'], [14, 'KeyA'], [15, 'KeyD']];
+                    [10, 'KeyH'], [11, 'KeyL'], [12, 'KeyW'], [13, 'KeyS'], [14, 'KeyA'], [15, 'KeyD']];
 var TUT_PAD_REPEAT_AT = 0;
 function tutPadPoll(edge, pressed, now) {
   TUT_PAD_KEYS.forEach(function (bk) {
