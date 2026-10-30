@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.119 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.120 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,19 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.120 Advanced's tour from rhoquinn8217's look at its list, thirty
+             steps: Rename done rather than shown ("use and instruct step
+             for renaming of the custom config"), the name row the
+             page's own while it is up, Square in its box opening the
+             keyboard, and Copy shown apart; a setting's box ticked and
+             its value chosen in steps of their own ("separate steps for
+             enabling a setting/rebind and for selecting a rebind/setting
+             value"), each value a step to try ("change the rebind value
+             settings to a try step"), for the bottom face button's
+             rebind and its rapid fire; and the Editor opened with its
+             list of configs open ("Step to show any config can be
+             selected in the Editor mode."). Go back gives the config
+             its old name, and puts back the tab a step first left.
     2.66.119 Advanced mode's tour (rhoquinn8217: "Advance Mode tutorial,
              mock up the steps and try to be consistent with simple and
              quick modes ... we will need to include steps for setting a
@@ -3127,7 +3140,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.66.119</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.66.120</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -7975,7 +7988,7 @@ function gpCollect() {
   // pad reaches its buttons and, on a step that asks for it, the one thing
   // lit. Nothing else.
   // ⓘ Not while the page's own question is up: it is modal over the tour too.
-  if (TUT && !CONFIRM_CB) { tutCollect(); return; }
+  if (TUT && !tutPageModal()) { tutCollect(); return; }
   var scope = document.getElementById('pane-' + ACTIVE);
   var list = [];
   // ⛔ The device header lives in the sticky block, NOT in the pane -- moving it
@@ -11592,9 +11605,9 @@ function gpPoll() {
   }
 
   // ⭐ WHILE A TOUR RUNS, ITS RULE TAKES THE PAD (tutPadPoll), as it takes
-  // a bridged pad's keystrokes. ⓘ The page's question, while it is up, keeps
-  // the pad as below.
-  if (TUT && !CONFIRM_CB) {
+  // a bridged pad's keystrokes. ⓘ The page's question, or its name row, while
+  // it is up, keeps the pad as below (tutPageModal).
+  if (TUT && !tutPageModal()) {
     tutPadPoll(edge, pressed, now);
     requestAnimationFrame(gpPoll);
     return;
@@ -12972,11 +12985,11 @@ function selfTest() {
        tutAutoKindFor('simple', null, bridged) === '', '');
   }
 
-  // Advanced's tour (2.66.119): twenty-seven steps with words, the last
-  // ending it; a custom config made on a practice controller keeps the
-  // settings written to it, an empty one as none, in what Go back puts
-  // back, and goes with them when archived; and it starts by itself in
-  // Advanced, once.
+  // Advanced's tour (2.66.119): thirty steps with words (twenty-seven until
+  // 2.66.120), the last ending it; a custom config made on a practice
+  // controller keeps the settings written to it, an empty one as none, in
+  // what Go back puts back, is renamed with them, a taken name refused, and
+  // goes with them when archived; and it starts by itself in Advanced, once.
   {
     var keepMockA = TUT_MOCK, keepTutA = TUT;
     TUT = { kind: 'advanced', made: '' };
@@ -12991,19 +13004,31 @@ function selfTest() {
     var advKept = TUT.made === 'ds5' && TUT_MOCK.links.tutorial_1 === 'ds5' &&
                   advRead.rebind_0 === 'Space' && !('turbo_0' in advRead) &&
                   advSnap.ds5.turbo_0 === '100' && tutAdvSetting('rebind_0') === 'Space';
-    tutMockCall('POST', '/api/v1/configs/ds5/archive', {});
-    var advGone = TUT_MOCK.configs.indexOf('ds5') < 0 && !TUT_MOCK.settings.ds5 &&
+    var takenCall = tutMockCall('POST', '/api/v1/configs/ds5/rename', { name: 'Touchpad-To-Mouse' });
+    if (takenCall && takenCall.catch) takenCall.catch(function () {});
+    var advTaken = TUT.made === 'ds5' && TUT_MOCK.configs.indexOf('ds5') >= 0 ? 'refused'
+                 : 'renamed onto a taken name';
+    var advSnapName = JSON.parse(tutSnapshot()).made;
+    tutMockCall('POST', '/api/v1/configs/ds5/rename', { name: 'my-ds5' });
+    var advRenamed = TUT.made === 'my-ds5' && TUT_MOCK.configs.indexOf('ds5') < 0 &&
+                     TUT_MOCK.configs.indexOf('my-ds5') >= 0 && TUT_MOCK.links.tutorial_1 === 'my-ds5' &&
+                     tutMockConfig('my-ds5').settings.rebind_0 === 'Space' && !TUT_MOCK.settings.ds5 &&
+                     advSnapName === 'ds5';
+    tutMockCall('POST', '/api/v1/configs/my-ds5/archive', {});
+    var advGone = TUT_MOCK.configs.indexOf('my-ds5') < 0 && !TUT_MOCK.settings['my-ds5'] &&
                   TUT_MOCK.links.tutorial_1 === '';
     var advWords = TUT_ADVANCED.map(function (st) { return st.words(); });
     TUT = keepTutA;
     TUT_MOCK = keepMockA;
-    ok('the tutorial: Advanced has twenty-seven steps, each with words, the last ending it',
-       TUT_ADVANCED.length === 27 && TUT_ADVANCED[26].act === 'end' &&
+    ok('the tutorial: Advanced has thirty steps, each with words, the last ending it',
+       TUT_ADVANCED.length === 30 && TUT_ADVANCED[29].act === 'end' &&
        advWords.every(function (w) { return !!w && w.indexOf('undefined') < 0; }),
        advWords.join(' / '));
-    ok('the tutorial: Advanced makes a custom practice config that keeps its settings, and archives it',
+    ok('the tutorial: Advanced makes a custom practice config that keeps its settings, renames it ' +
+       'with them, and archives it',
        advStart === 'stick-to-mouse,gyro-to-mouse-L2-aiming,gyro-to-stick-L2-aiming,touchpad-to-mouse' &&
-       advKept && advGone, advStart + ' ' + JSON.stringify(advRead));
+       advKept && advRenamed && advGone && advTaken === 'refused',
+       advStart + ' ' + JSON.stringify(advRead) + ' ' + advTaken);
     var seenAll = { simple: true, quick: true, advanced: false };
     ok('the tutorial: Advanced\'s starts by itself in Advanced, unseen, with a controller bridged',
        tutAutoKindFor('advanced', seenAll, [{ supports_config: true }]) === 'advanced' &&
@@ -13026,8 +13051,8 @@ function selfTest() {
       return /^Press [^:]*: /.test(w) ? w.replace(/^Press [^:]*: /, '').split('.')[0] : w;
     };
     var advKind = function (st) { return String(st.act || '') + !!st.free + !!st.stay; };
-    var advPairs = [[4, 1], [9, 11], [11, 13], [12, 14], [13, 15], [14, 16], [23, 19], [24, 20],
-                    [25, 21], [26, 22], [27, 24]];
+    var advPairs = [[4, 1], [9, 11], [12, 13], [13, 14], [14, 15], [15, 16], [26, 19], [27, 20],
+                    [28, 21], [29, 22], [30, 24]];
     var advUnlike = advPairs.filter(function (n) {
       var a = TUT_ADVANCED[n[0] - 1], b = TUT_SIMPLE[n[1] - 1];
       return advSame(a) !== advSame(b) || advKind(a) !== advKind(b);
@@ -13036,6 +13061,13 @@ function selfTest() {
     TUT_MOCK = keepAdv[1];
     ok('the tutorial: the steps Advanced shares with Simple say the same words, and wait the same way',
        advUnlike.length === 0, advUnlike.join(', ') || 'all alike');
+    var advShape = [10, 11, 18, 19, 20, 21, 24].map(function (n) {
+      var st = TUT_ADVANCED[n - 1];
+      return n + ':' + (st.act === true ? 'act' : st.free ? 'free' : 'look');
+    }).join(' ');
+    ok('the tutorial: Advanced renames its config, ticks a box and tries its value in steps of their ' +
+       'own, and shows the Editor\'s list',
+       advShape === '10:act 11:look 18:act 19:free 20:act 21:free 24:look', advShape);
   }
 
   // The wheel's rows keep the auto link mark in a span of its own, for the
@@ -13252,7 +13284,7 @@ function selfTest() {
 // Quick's (2026-10-23, fourteen steps), Simple's (2026-10-26, twenty-four,
 // *"Based on how we did the quick mode tutorial"*), the steps both have
 // lined up since 2026-10-27 (ONE LIST FOR BOTH TOURS, below), and Advanced's
-// (2026-10-29, twenty-seven, *"try to be consistent with simple and quick
+// (2026-10-29, thirty, *"try to be consistent with simple and quick
 // modes"*), in the same words where it has the same steps.
 //
 // ⭐⭐ WHEN ONE STARTS (rhoquinn8217, 2026-10-26): from the tray's list of
@@ -13418,7 +13450,7 @@ function tutAutoOf(ordinal) {
 function tutSnapshot() {
   var m = TUT_MOCK;
   return JSON.stringify({ configs: m.configs, links: m.links, limits: m.limits, auto: m.auto,
-                         settings: m.settings });
+                         settings: m.settings, made: (TUT && TUT.made) || '' });
 }
 function tutRestore(snap) {
   if (!TUT_MOCK || !snap) return;
@@ -13428,6 +13460,9 @@ function tutRestore(snap) {
   TUT_MOCK.limits = s.limits;
   TUT_MOCK.auto = s.auto;
   TUT_MOCK.settings = s.settings || {};
+  // ⓘ And the tour's name for the config it made, renamed or not made yet,
+  // and no box counted as ticked: the rows are drawn from what is put back.
+  if (TUT) { TUT.made = s.made || ''; TUT.ticked = {}; }
   tutRefresh();
 }
 
@@ -13524,6 +13559,22 @@ function tutMockCall(method, path, body) {
         if (body[k] === '' || body[k] === null || body[k] === undefined) delete kept[k];
         else kept[k] = String(body[k]);
       });
+    }
+    // ⓘ Renamed (Advanced's Rename): the same config under the new name, its
+    // links, auto links and settings with it, and the tour's name for the one
+    // it made. A name taken, or none, is refused, as the listener refuses it.
+    if (method === 'POST' && hit[2] === 'rename') {
+      var to = String((body && body.name) || '').trim();
+      if (!to || to === name || m.configs.some(function (c) { return c.toLowerCase() === to.toLowerCase(); })) {
+        return Promise.reject(new Error('a config named ' + to + ' already exists'));
+      }
+      m.configs = m.configs.map(function (c) { return c === name ? to : c; });
+      Object.keys(m.links).forEach(function (o) { if (m.links[o] === name) m.links[o] = to; });
+      Object.keys(m.was || {}).forEach(function (o) { if (m.was[o] === name) m.was[o] = to; });
+      if (m.auto[name]) { m.auto[to] = m.auto[name]; delete m.auto[name]; }
+      if (m.settings[name]) { m.settings[to] = m.settings[name]; delete m.settings[name]; }
+      if (TUT && TUT.made === name) TUT.made = to;
+      return done({ ok: true });
     }
     // ⓘ Archived, as the listener does it: gone from the list, and every
     // controller that read it reads no config.
@@ -13636,6 +13687,11 @@ function tutQ() {
   }
   return out;
 }
+
+// ⓘ The page's own box, while it is up: its question (Archive's, the box
+// after a config is made) or its name row (Advanced's Rename, 2.66.120). It
+// keeps the keys, the pad and the halo, as with no tour, and the mouse.
+function tutPageModal() { return !!CONFIRM_CB || !!RENAMING; }
 
 // The page's own question, while it is up: Archive's, with OK and Cancel, or
 // the box after a config is made. ⓘ Auto link asks nothing since 2.66.100.
@@ -14291,6 +14347,17 @@ function tutAdvButton(fn) { return document.querySelector('#stickyHead button[on
 function tutAdvRow(key) { return tutById('row-dv-' + tutAdvOrd() + '-' + key); }
 function tutAdvValue(key) { return tutById('dv-' + tutAdvOrd() + '-' + key); }
 function tutAdvBox(key) { return tutById('mg-dv-' + tutAdvOrd() + '-' + key); }
+// ⓘ Ticked by a person, as the box's change says (below): a box can still
+// show the tick Go back has just taken away, until its row is drawn again.
+function tutAdvTicked(key) {
+  var b = tutAdvBox(key);
+  return !!b && b.checked && !!(TUT && TUT.ticked && TUT.ticked[b.id]);
+}
+document.addEventListener('change', function (ev) {
+  var t = ev.target;
+  if (!TUT || !t || !t.id || t.id.indexOf('mg-dv-') !== 0) return;
+  (TUT.ticked = TUT.ticked || {})[t.id] = !!t.checked;
+}, true);
 // ⓘ One mark of the legend at the window's foot, drawn while a controller
 // drives the page; a keyboard's legend is a line of words, with none.
 function tutAdvLegend(n) { return document.querySelector('#gphint .lgi:nth-child(' + n + ')'); }
@@ -14305,6 +14372,24 @@ function tutAdvOverview() { if (ACTIVE !== 'overview') showTab('overview'); }
 function tutAdvDual() {
   var dual = TUT_MOCK.pads[0].ordinal;
   if (ACTIVE !== dual) showTab(dual);
+}
+// ⓘ The Editor, its list of configs open for the step to show them all, as
+// a press of Cross would open it; shut again as the step goes (tutCloseOpen).
+// Its row is drawn first when it is not there (a device list drawn since,
+// renderTabs, leaves it to the next config list), and a list the config poll
+// has drawn over (paintEditorHead) is opened again, four times a second.
+function tutAdvEditorList() {
+  if (ACTIVE !== 'editor') {
+    paintEditorHead();
+    showTab('editor');
+  }
+  var pick = tutById('editorPick');
+  if (GP_SELECTING && !GP_SELECTING.isConnected) GP_SELECTING = null;
+  if (!pick || GP_SELECTING) return;
+  GP_SELECTING = pick;
+  GP_SELECT_WAS = pick.selectedIndex;
+  pick.classList.add('gp-selecting');
+  pickerExpand(pick);
 }
 // The custom row in the list New opens, first in it, and custom's page, up
 // for Use this, or put up again for the step gone back to.
@@ -14331,20 +14416,61 @@ function tutFaceMark(index) {
 // buttons beside it.
 function tutOnList(what) { return ' ' + tutKey(what) + ' on the config list does the same.'; }
 
-// ⭐⭐ ADVANCED'S TWENTY-SEVEN (rhoquinn8217, 2026-10-29: *"Advance Mode
-// tutorial, mock up the steps and try to be consistent with simple and quick
-// modes. Original steps will be needed for the overview and we will need to
-// include steps for setting a custom rebind or a button feature."*, then, to
-// the list: *"Overview first, they Dual tab, then we can probably skip the
-// Editor or just briefly state allow you to work on a config with nothing
+// ⓘ A setting's box ticked, a step of its own (rhoquinn8217, 2026-10-29:
+// *"separate steps for enabling a setting/rebind and for selecting a
+// rebind/setting value"*): Square or Space acts on the row whatever the halo
+// was on (keyAim), and a click on the box does it too. Done once it is
+// ticked; Go back unticks it with the rest (tutRestore).
+function tutAdvTickStep(key, words) {
+  return { side: 'left', act: true, keyAim: function () { return tutAdvValue(key); },
+           tick: function () { tutAdvShowRow(key); },
+           lit: function () {
+             var row = tutAdvRow(key);
+             return [tutAdvBox(key), row && row.querySelector('.name')];
+           },
+           anchors: function () { return [tutAdvBox(key)]; },
+           hits: function () { return [tutAdvBox(key)]; },
+           keys: function (code, gated, plain) {
+             return (gated && code === 'KeyX') || (plain && code === 'Space');
+           },
+           words: words,
+           done: function () { return tutAdvTicked(key); } };
+}
+// ⓘ And its value, a step to try (*"change the rebind value settings to a try
+// step instead of an instruct step"*): its list, or its box being stepped,
+// the page's own while open, and the value box a stop from Continue.
+function tutAdvValueStep(key, words) {
+  return { side: 'left', free: true, focus: function () { return tutAdvValue(key); },
+           tick: function () { tutAdvShowRow(key); },
+           lit: function () { return [tutAdvRow(key)]; },
+           anchors: function () { return [tutAdvValue(key)]; },
+           hits: function () { return [tutAdvValue(key)]; },
+           keys: function (code, gated, plain) {
+             var box = tutAdvValue(key);
+             return !!GP_SELECTING || (!!box && (GP_EDITING === box || document.activeElement === box));
+           },
+           words: words };
+}
+
+// ⭐⭐ ADVANCED'S THIRTY (rhoquinn8217, 2026-10-29: *"Advance Mode tutorial,
+// mock up the steps and try to be consistent with simple and quick modes.
+// Original steps will be needed for the overview and we will need to include
+// steps for setting a custom rebind or a button feature."*, then, to the
+// list: *"Overview first, they Dual tab, then we can probably skip the Editor
+// or just briefly state allow you to work on a config with nothing
 // bridged"*). Overview's own two, its Connection card left out; L1 and R1
 // across the tabs; on Dual's tab the steps Simple's has, in its words, with
 // the config list where the wheel is, New with custom (*"custom"*) and Use
-// this, Rename and Copy, Safe Edit Mode, the sections, a setting's box, ✕
-// rebound to Space and given rapid fire at 100 (*"yes"*), and Archive Config;
-// the Editor in a line; then the window's position, its size, the mode list,
-// Circle and Close, as in the others. ⓘ Advanced's own legend has no mark for
-// a keyboard, and its window one place, the middle of the screen.
+// this, Safe Edit Mode, the sections, ✕ rebound and given rapid fire
+// (*"yes"*), and Archive Config; the Editor; then the window's position, its
+// size, the mode list, Circle and Close, as in the others. Twenty-seven until
+// their look at setup 89's list the same day: *"use and instruct step for
+// renaming of the custom config"*, Copy then shown on its own; *"separate
+// steps for enabling a setting/rebind and for selecting a rebind/setting
+// value"*, each value a step to try, which the box's own step no longer
+// needed explaining apart; and *"Step to show any config can be selected in
+// the Editor mode."* ⓘ Advanced's own legend has no mark for a keyboard, and
+// its window one place, the middle of the screen.
 var TUT_ADVANCED = [
   // 1: Overview's first card, its two switches the listener's own, locked.
   { side: 'left', enter: tutAdvOverview, lit: function () { return tutA('.ovcard.win'); },
@@ -14422,13 +14548,31 @@ var TUT_ADVANCED = [
       return tutHl(TUT.made || 'The new config') + ', the config you just made, is selected: ' + tutNick() +
              ' uses it now.';
     } },
-  // 10: Rename and Copy, shown and locked.
-  { side: 'left', lit: function () { return [tutAdvButton('renameConfig'), tutAdvButton('copyConfigFor')]; },
+  // 10: Rename, done (*"use and instruct step for renaming of the custom
+  // config"*). The name row is the page's own while it is up, with its keys
+  // and the pad (tutPageModal); Square in its box opens the listener's
+  // keyboard, the one place over this window it opens. Done when the config
+  // has another name; Go back gives it its old one (tutRestore).
+  { side: 'left', act: true,
+    focus: function () { return tutAdvButton('renameConfig'); },
+    enter: function () { if (!TUT.done[TUT.at]) TUT.renameFrom = TUT.made; },
+    lit: function () { return RENAMING ? tutA('#renameRow') : [tutAdvButton('renameConfig')]; },
+    anchors: function () { return RENAMING ? tutA('#renameRow') : [tutAdvButton('renameConfig')]; },
+    hits: function () { return [tutAdvButton('renameConfig')]; },
     words: function () {
-      return tutHl('Rename') + ' gives the selected config a new name, and ' + tutHl('Copy') + ' makes ' +
-             'your own copy of it, which ' + tutNick() + ' then uses.';
+      var how = padLegend() === KEY_LEGEND ? 'type a new name'
+              : 'press ' + tutKey('toggle') + ' in the name box for a keyboard, and type a new name';
+      return 'Press ' + tutHl('Rename') + ' and give ' + tutHl(TUT.renameFrom || TUT.made || 'it') +
+             ' a name of your own: ' + how + ', then choose ' + tutHl('Save') + '.';
+    },
+    done: function () { return !!TUT.made && TUT.made !== TUT.renameFrom && !RENAMING; } },
+  // 11: Copy, shown and locked.
+  { side: 'left', lit: function () { return [tutAdvButton('copyConfigFor')]; },
+    words: function () {
+      return tutHl('Copy') + ' makes your own copy of the selected config, which ' + tutNick() +
+             ' then uses.';
     } },
-  // 11: Unlink, the page's button; Square does it on the config list.
+  // 12: Unlink, the page's button; Square does it on the config list.
   { side: 'right', act: true, focus: function () { return tutAdvButton('unlinkConfirmed'); },
     keyAim: tutAdvPick,
     lit: function () { return [tutAdvButton('unlinkConfirmed')]; },
@@ -14438,10 +14582,10 @@ var TUT_ADVANCED = [
     enter: tutEnsureLinked,
     words: function () { return tutWordsUnlink(tutHl('Unlink'), tutOnList('unlink')); },
     done: tutUnlinkDone },
-  // 12: what the list shows now.
+  // 13: what the list shows now.
   { side: 'left', lit: function () { return [tutAdvPick()]; }, enter: tutEnsureUnlinked,
     words: tutWordsNoConfig },
-  // 13: Auto link; Triangle does it on the config list, and its mark in the
+  // 14: Auto link; Triangle does it on the config list, and its mark in the
   // legend is lit too, with no arrow, as in Simple's. ⓘ After Unlink, the
   // config made is selected again for it.
   { side: 'right', act: true, split: true, focus: function () { return tutAdvButton('autoLinkToggle'); },
@@ -14455,9 +14599,9 @@ var TUT_ADVANCED = [
     enter: tutEnsureLinked,
     words: function () { return tutWordsAutoLink(tutHl('Auto link'), tutOnList('autolink')); },
     done: tutAutoLinkDone },
-  // 14: the mark auto link leaves, after the name in the list.
+  // 15: the mark auto link leaves, after the name in the list.
   { side: 'left', lit: function () { return [tutAdvPick()]; }, words: tutWordsMark },
-  // 15: Safe Edit Mode, shown and locked, in its own tooltip's terms.
+  // 16: Safe Edit Mode, shown and locked, in its own tooltip's terms.
   { side: 'right', lit: function () { return tutA('#stickyHead .holdBtnCopy'); },
     words: function () {
       return tutHl('Safe Edit Mode: ON') + ' keeps editing safe: only the basic controls work, your ' +
@@ -14465,7 +14609,7 @@ var TUT_ADVANCED = [
              'Turned off, your rebinds and mouse modes work while you edit, and your inputs reach the ' +
              'game as well.';
     } },
-  // 16: the sections, to try, as the page's own strip.
+  // 17: the sections, to try, as the page's own strip.
   { side: 'left', free: true, lit: function () { return tutA('#sectBar'); },
     keys: function (code, gated, plain) {
       return (gated && (code === 'KeyA' || code === 'KeyD')) ||
@@ -14475,57 +14619,34 @@ var TUT_ADVANCED = [
       return 'The settings come in sections. Press ' + tutKey('leftright') + ' to switch between them. ' +
              'Try it, then choose ' + tutHl('Continue') + '.';
     } },
-  // 17: a setting's box, on ✕'s rebind, in Face buttons: ticked, the config
-  // sets it (settingValue); unticked, it is left to the game.
-  { side: 'left', tick: function () { tutAdvShowRow('rebind_0'); },
-    lit: function () {
-      var row = tutAdvRow('rebind_0');
-      return [tutAdvBox('rebind_0'), row && row.querySelector('.name')];
-    },
-    anchors: function () { return [tutAdvBox('rebind_0')]; },
-    words: function () {
-      return 'Each setting has a box. Ticked, this config sets it; unticked, the config leaves it alone ' +
-             'and the game controls it. ' + tutKey('toggle') + ' ticks or unticks the setting you are on.';
-    } },
-  // 18: ✕'s rebind, ticked and Space picked; the list is the page's own.
-  { side: 'left', act: true,
-    focus: function () { return tutAdvValue('rebind_0'); },
-    tick: function () { tutAdvShowRow('rebind_0'); },
-    lit: function () { return [tutAdvRow('rebind_0')]; },
-    anchors: function () { return [tutAdvBox('rebind_0'), tutAdvValue('rebind_0')]; },
-    hits: function () { return [tutAdvBox('rebind_0'), tutAdvValue('rebind_0')]; },
-    keys: function (code, gated, plain) {
-      return !!GP_SELECTING || (gated && code === 'KeyX') || (plain && code === 'Space');
-    },
-    words: function () {
-      return 'Tick ' + tutFaceMark(0) + ' - rebind, then open it and pick ' + tutHl('Space') + ': in your ' +
-             'games, ' + tutNick() + "'s " + tutFaceMark(0) + ' presses Space.';
-    },
-    done: function () { return tutAdvSetting('rebind_0') === 'Space'; } },
-  // 19: ✕'s rapid fire, ticked and set to 100: R1 steps a value by 100, E on
-  // a keyboard, and a keyboard can type it.
-  { side: 'left', act: true,
-    focus: function () { return tutAdvValue('turbo_0'); },
-    tick: function () { tutAdvShowRow('turbo_0'); },
-    lit: function () { return [tutAdvRow('turbo_0')]; },
-    anchors: function () { return [tutAdvBox('turbo_0'), tutAdvValue('turbo_0')]; },
-    hits: function () { return [tutAdvBox('turbo_0'), tutAdvValue('turbo_0')]; },
-    keys: function (code, gated, plain) {
-      var box = tutAdvValue('turbo_0');
-      if (box && (GP_EDITING === box || document.activeElement === box)) return true;
-      return (gated && code === 'KeyX') || (plain && code === 'Space');
-    },
-    words: function () {
-      var lg = padLegend();
-      var how = lg === KEY_LEGEND
-        ? 'press ' + tutHl('Enter') + ' on it, then ' + tutHl('E') + ' adds 100'
-        : 'press ' + tutKey('select') + ' on it, then ' +
-          tutMark(String(lg.shoulder || 'L1/R1').split('/')[1]) + ' adds 100';
-      return 'Tick ' + tutFaceMark(0) + ' - rapid fire, then set it to ' + tutHl('100') + ': ' + how +
-             '. Held, ' + tutNick() + "'s " + tutFaceMark(0) + ' then repeats every 100 milliseconds.';
-    },
-    done: function () { return tutAdvSetting('turbo_0') === '100'; } },
-  // 20: Archive Config, as Simple's Archive.
+  // 18: ✕'s rebind, in Face buttons, its box ticked: what a box is, said
+  // here (settingValue: an unticked row writes nothing).
+  tutAdvTickStep('rebind_0', function () {
+    return 'Each setting has a box: ticked, this config sets it; unticked, the game controls it. Tick ' +
+           tutFaceMark(0) + ' - rebind: press ' + tutKey('toggle') + ', or click its box.';
+  }),
+  // 19: what ✕ does, to try.
+  tutAdvValueStep('rebind_0', function () {
+    return tutFaceMark(0) + ' - rebind sets what ' + tutFaceMark(0) + ' does in your games: a key, a ' +
+           'mouse action or another button. Try it: open its list and pick one, then choose ' +
+           tutHl('Continue') + '.';
+  }),
+  // 20: ✕'s rapid fire, its box ticked the same way.
+  tutAdvTickStep('turbo_0', function () {
+    return 'Tick ' + tutFaceMark(0) + ' - rapid fire the same way: press ' + tutKey('toggle') +
+           ', or click its box.';
+  }),
+  // 21: how fast it repeats, to try: on a pad up and down step it by 1 and
+  // L1 and R1 by 100; a keyboard types it.
+  tutAdvValueStep('turbo_0', function () {
+    var how = padLegend() === KEY_LEGEND
+      ? 'press ' + tutHl('Enter') + ' on it and type a number'
+      : 'press ' + tutKey('select') + ' on it, then ' + tutKey('updown') + ' changes it by 1, and ' +
+        tutKey('shoulders') + ' by 100';
+    return tutFaceMark(0) + ' - rapid fire repeats ' + tutFaceMark(0) + ' while it is held, this many ' +
+           'milliseconds apart; 0 just holds it. Try it: ' + how + ', then choose ' + tutHl('Continue') + '.';
+  }),
+  // 22: Archive Config, as Simple's Archive.
   { side: 'right', act: true, split: true, focus: function () { return tutAdvButton('archive'); },
     lit: function () { return [tutAdvButton('archive')].concat(tutConfirmCard()); },
     anchors: function () { return [tutAdvButton('archive')]; },
@@ -14535,31 +14656,39 @@ var TUT_ADVANCED = [
              ', then choose ' + tutHl('OK') + ', and ' + tutNick() + ' has no config again.';
     },
     done: function () { return !!TUT.made && TUT_MOCK.configs.indexOf(TUT.made) < 0; } },
-  // 21: the Editor, in a line (*"just briefly state allow you to work on a
+  // 23: the Editor, in a line (*"just briefly state allow you to work on a
   // config with nothing bridged"*): its tab, shown and locked.
   { side: 'right', lit: function () { return tutA('#tabs button[data-tab="editor"]'); },
     words: function () {
       return 'The ' + tutHl('Editor') + ' tab lets you work on a config with nothing bridged.';
     } },
-  // 22: the window's position: a tap puts it back in the middle of the
+  // 24 (*"Step to show any config can be selected in the Editor mode."*): the
+  // Editor, its list open, every config in it.
+  { side: 'right', enter: tutAdvEditorList, tick: tutAdvEditorList,
+    lit: function () { return tutA('#editorPick'); },
+    words: function () {
+      return 'In the Editor, any config can be selected from this list, whether a controller uses it ' +
+             'or not.';
+    } },
+  // 25: the window's position: a tap puts it back in the middle of the
   // screen, Advanced's one place (config_move's snap_next), and a hold steers
   // it. Options reaches the listener from the pad's own report, and P passes.
   { side: 'below', free: true, lit: function () { return [tutAdvLegend(6)]; },
     words: function () { return tutWordsPosition(true); } },
-  // 23: its size, to try, the legend's and 🗗's, as in the others; 🗗 a press
+  // 26: its size, to try, the legend's and 🗗's, as in the others; 🗗 a press
   // of the d-pad from Continue.
   { side: 'below', free: true, split: true, focus: function () { return tutById('sizeBtn'); },
     lit: function () { return [tutAdvLegend(7), tutById('sizeBtn')]; },
     anchors: function () { return [tutById('sizeBtn')]; },
     hits: function () { return [tutById('sizeBtn')]; },
     words: tutWordsResize },
-  // 24: the mode list, opened and not used, as in the others.
+  // 27: the mode list, opened and not used, as in the others.
   { side: 'right', act: true, stay: true, noPick: true, focus: function () { return tutById('modePick'); },
     lit: function () { return [tutById('modePick')]; },
     pointer: function () { return GP_SELECTING !== tutById('modePick'); },
     words: function () { return tutWordsMode('ADVANCED MODE'); },
     done: function () { return GP_SELECTING === tutById('modePick'); } },
-  // 25: Circle, lit alone in the legend, as in the others; in Advanced it
+  // 28: Circle, lit alone in the legend, as in the others; in Advanced it
   // takes the pad into the footer. A keyboard's legend, Esc in its words, is
   // lit whole.
   { side: 'below', act: true,
@@ -14567,9 +14696,9 @@ var TUT_ADVANCED = [
     keys: tutCircleKeys, words: tutWordsCircle,
     done: function () { return !!FOOTER_MODE; },
     undo: function () { if (FOOTER_MODE) setFooterMode(false); } },
-  // 26: where Circle took you, and what Close does, Close itself locked.
+  // 29: where Circle took you, and what Close does, Close itself locked.
   { side: 'right', lit: function () { return [tutById('closeBtn')]; }, words: tutWordsClose },
-  // 27
+  // 30
   { lit: function () { return []; }, act: 'end', words: tutWordsEnd }
 ];
 
@@ -14581,9 +14710,9 @@ var TUT_CARDS = {
             words: 'A short tour with practice controllers: make a config from a pre-set, and ' +
                    'manage the ones you have. Nothing in it changes your real ones.' },
   advanced: { title: 'Advanced mode tutorial',
-              words: 'A short tour with practice controllers: make a config, rebind a button in it ' +
-                     'and give it rapid fire, and manage your configs. Nothing in it changes your ' +
-                     'real ones.' }
+              words: 'A short tour with practice controllers: make a config and name it, rebind a ' +
+                     'button in it and give it rapid fire, and manage your configs. Nothing in it ' +
+                     'changes your real ones.' }
 };
 
 function tutSteps() {
@@ -14830,6 +14959,7 @@ function tutCanContinue(s) {
 // pre-set boxes close.
 function tutCloseOpen() {
   if (CONFIRM_CB) confirmNo();
+  if (RENAMING) cancelRename();
   tutEditEnd();
   if (GP_SELECTING) gpSelectEnd(false);
   if (PRESET_OPEN || PRESET_INFO_OPEN) presetCancel();
@@ -14857,16 +14987,16 @@ function tutShow(i, keep) {
   TUT.phase = 'step';
   TUT.at = i;
   TUT.shownAt = Date.now();
-  // ⓘ Advanced's section and scroll as a step first found them, for Go back
-  // to put back: what the window shows decides where the words stand, and
-  // the rows' steps leave Face buttons on screen.
-  if (TUT.kind === 'advanced') {
-    TUT.view = TUT.view || [];
-    if (!TUT.view[i]) TUT.view[i] = { sect: SECT_ACTIVE, y: window.scrollY || 0 };
-  }
   var s = steps[i];
   if (s.enter) s.enter();
   if (s.tick) s.tick();
+  // ⓘ Advanced's tab, section and scroll as a step first left them, for Go
+  // back to put back: what the window shows decides where the words stand,
+  // and later steps leave the Editor, or Face buttons, on screen.
+  if (TUT.kind === 'advanced') {
+    TUT.view = TUT.view || [];
+    if (!TUT.view[i]) TUT.view[i] = { tab: ACTIVE, sect: SECT_ACTIVE, y: window.scrollY || 0 };
+  }
   if (s.stay) TUT.done[i] = false;      // ⓘ asked for again each time it is reached
   if (s.act === true && !TUT.done[i]) TUT.mem[i] = tutSnapshot();
   // ⓘ Where the halo starts: on what a press acts on, End tutorial on the
@@ -14898,6 +15028,7 @@ function tutPrev() {
     else tutRestore(TUT.mem[back]);
   }
   var view = TUT.view && TUT.view[back];
+  if (view && view.tab && view.tab !== ACTIVE && TABS.indexOf(view.tab) >= 0) showTab(view.tab);
   if (view && view.sect && view.sect !== SECT_ACTIVE && sectBarButton(view.sect)) showSection(view.sect);
   if (view) window.scrollTo(0, view.y);
   tutShow(back);
@@ -14966,7 +15097,7 @@ function tutCollect() {
   // ⓘ The page's own question, while it is up, keeps the halo: it is modal
   // over the tour too (gpCollect). A step that comes up under it, as the box
   // after a config is made does, leaves it there.
-  if (CONFIRM_CB) { gpCollect(); tutSendWords(); return; }
+  if (tutPageModal()) { gpCollect(); tutSendWords(); return; }
   // ⓘ The keys are the tutorial's while it runs, so nothing on the page
   // needs real focus, and a box that took it showed the browser's white ring
   // on something the tour locks.
@@ -15074,7 +15205,7 @@ function tutTakeKey(code, gated, plain, repeat) {
 }
 
 window.addEventListener('keydown', function (ev) {
-  if (!TUT || CONFIRM_CB) return;
+  if (!TUT || tutPageModal()) return;
   var gated = ev.ctrlKey && ev.altKey && ev.shiftKey;
   var plain = !ev.ctrlKey && !ev.altKey && !ev.metaKey && !ev.shiftKey;
   if (tutTakeKey(ev.code, gated, plain, ev.repeat)) return;
@@ -15104,7 +15235,7 @@ function tutPadPoll(edge, pressed, now) {
     if (b >= 12) TUT_PAD_REPEAT_AT = now + (repeat ? 90 : 400);
     // ⓘ A press before this one may have ended the tour, or brought up
     // the page's question, which keeps the pad as gpPoll does.
-    if (!TUT || CONFIRM_CB) return;
+    if (!TUT || tutPageModal()) return;
     if (!tutTakeKey(code, true, false, repeat)) return;
     var fn = CONFIG_MODE_KEYS[code];
     if (fn) { noteInputSource('pad'); fn(); }
@@ -15118,7 +15249,8 @@ function tutAllows(t) {
   if (!TUT) return true;
   var root = tutById('tutRoot');
   if (root && t && root.contains(t)) return true;
-  var box = CONFIRM_CB ? document.getElementById('confirmBox') : null;
+  var box = CONFIRM_CB ? document.getElementById('confirmBox')
+          : RENAMING ? document.getElementById('renameRow') : null;
   if (box && t && box.contains(t)) return true;
   var s = tutStep();
   if (s && (s.act === true || s.free) && !TUT.busy && (!s.pointer || s.pointer())) {
@@ -15164,7 +15296,7 @@ function tutTick() {
   // ⓘ The halo is the tour's: a box of the page's, shutting, puts it back
   // where it was as the box opened (restoreOpener), and the tour puts it
   // back on what the step wants.
-  if (!CONFIRM_CB && !GP_SELECTING && TUT.focus && GP_FOCUS[GP_INDEX] !== TUT.focus) {
+  if (!tutPageModal() && !GP_SELECTING && TUT.focus && GP_FOCUS[GP_INDEX] !== TUT.focus) {
     var want = GP_FOCUS.indexOf(TUT.focus);
     if (want >= 0) { GP_INDEX = want; gpPaint(); tutSendWords(); }
   }
