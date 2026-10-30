@@ -33,6 +33,7 @@ struct Button {
     std::string id;           // what a click hands back: "next", "prev", "end", ...
     std::wstring label;
     std::string kind;         // "go", "off" or "plain" (tutorial_bubble_rule::parse_buttons)
+    std::wstring mark;        // the pad's button for it, "*R2", or a key's name; "" for none
 };
 
 // What a step shows, as the page last sent it.
@@ -55,11 +56,28 @@ struct Content {
     tbr::Box target;
     std::vector<tbr::Box> obstacles;
     int clear = 0;
+    // ⭐ LARGER, for the card that ends a tour (rhoquinn8217, 2026-10-29: "Add
+    // Congratulation bubble with larger text with confetti drop animation
+    // after last step"); the confetti is the page's. ⓘ A size since
+    // 2026-10-30 (card_size): 3 Advanced's, 2 Simple's, 1 Quick's, 0 none.
+    int big = 0;
 };
 
 inline std::mutex g_mutex;
 inline Content g_content;
 inline std::string g_press;
+// ⭐ WHETHER THE WORDS ARE STILL ON THEIR WAY (rhoquinn8217, 2026-10-29: "when
+// the bubble move to it's next spot remove the darkening completely then fade
+// in the darkening with the feather highlighted area"): each set of words the
+// page sends is counted, and the window's thread marks the count it has
+// placed once they stand still there, slid or not. The page fades its dim
+// back in when the two agree (moving()).
+inline std::atomic<unsigned> g_posted{ 0 };
+inline std::atomic<unsigned> g_settled{ 0 };
+// ⓘ Whether a tour is up: its words sent to be shown, from the opening card
+// to its end (up()).
+inline std::atomic_bool g_up{ false };
+inline unsigned g_placing = 0;   // the window thread's alone: the count it is placing
 inline std::atomic<HWND> g_hwnd{ nullptr };
 inline std::atomic_bool g_running{ false };
 inline const wchar_t *const kClassName = L"DS5USBIP_TutorialWords";
@@ -93,12 +111,35 @@ inline std::wstring wide(const std::string &utf8)
 
 inline int px(int v, UINT dpi) { return MulDiv(v, static_cast<int>(dpi), 96); }
 
+// ⭐ THE CARD THAT ENDS A TOUR, IN THREE SIZES (rhoquinn8217, 2026-10-30:
+// "smaller congradulation windows for simple and even smaller for quick mode
+// tutorials."): Advanced's as 2026-10-29 made it, Simple's smaller and
+// Quick's smaller again, as their windows are. Its type, the room around its
+// words and between them and Done, how wide its words run, and the least the
+// card is, at 96 dpi.
+struct CardSize {
+    int title, text, button, mark, pad, maxWidth, innerGap, minW, minH;
+};
+inline int card_of(int big) { return big < 0 ? 0 : big > 3 ? 3 : big; }
+inline const CardSize &card_size(int big)
+{
+    static const CardSize sizes[4] = {
+        { 18, 16, 15, 17, 12, 380, 22, 0, 0 },          // ⓘ no card: the words' own sizes
+        { 26, 16, 15, 17, 14, 360, 12, 340, 146 },      // Quick's
+        { 42, 22, 19, 21, 24, 480, 18, 520, 240 },      // Simple's
+        { 52, 26, 22, 24, 28, 560, 22, 680, 320 },      // Advanced's
+    };
+    return sizes[card_of(big)];
+}
+
 // ⭐ SMALL ON PURPOSE (*"The description boxes seen to take a lot of
 // space"*): ordinary desktop sizes, scaled for the display, where the page's
 // bubble used the window's own large type.
 struct Fonts {
     UINT dpi = 0;
     HFONT text = nullptr, lit = nullptr, count = nullptr, button = nullptr, title = nullptr;
+    // ⓘ The congratulations card's, a set for each size (Content::big).
+    HFONT bigText[4] = {}, bigLit[4] = {}, bigButton[4] = {}, bigTitle[4] = {};
 };
 
 inline HFONT make_font(int sizePx, int weight, UINT dpi)
@@ -114,12 +155,42 @@ inline void fonts_for(Fonts *f, UINT dpi)
     for (HFONT h : { f->text, f->lit, f->count, f->button, f->title }) {
         if (h != nullptr) DeleteObject(h);
     }
+    for (int k = 1; k <= 3; ++k) {
+        for (HFONT h : { f->bigText[k], f->bigLit[k], f->bigButton[k], f->bigTitle[k] }) {
+            if (h != nullptr) DeleteObject(h);
+        }
+    }
     f->dpi = dpi;
     f->text = make_font(16, FW_NORMAL, dpi);
     f->lit = make_font(16, FW_SEMIBOLD, dpi);
     f->count = make_font(12, FW_NORMAL, dpi);
     f->button = make_font(15, FW_SEMIBOLD, dpi);
     f->title = make_font(18, FW_SEMIBOLD, dpi);
+    for (int k = 1; k <= 3; ++k) {
+        const CardSize &z = card_size(k);
+        f->bigText[k] = make_font(z.text, FW_NORMAL, dpi);
+        f->bigLit[k] = make_font(z.text, FW_SEMIBOLD, dpi);
+        f->bigButton[k] = make_font(z.button, FW_SEMIBOLD, dpi);
+        f->bigTitle[k] = make_font(z.title, FW_BOLD, dpi);
+    }
+}
+
+// ⓘ The words', the title's and the buttons' type, larger on the card that
+// ends a tour, as large as its size.
+inline HFONT words_font(const Fonts *f, const Content &c, bool lit)
+{
+    const int k = card_of(c.big);
+    return k ? (lit ? f->bigLit[k] : f->bigText[k]) : (lit ? f->lit : f->text);
+}
+inline HFONT title_font(const Fonts *f, const Content &c)
+{
+    const int k = card_of(c.big);
+    return k ? f->bigTitle[k] : f->title;
+}
+inline HFONT button_font(const Fonts *f, const Content &c)
+{
+    const int k = card_of(c.big);
+    return k ? f->bigButton[k] : f->button;
 }
 
 // Everything a paint and a click need, in the words window's own pixels.
@@ -136,6 +207,10 @@ struct Layout {
     std::vector<tbr::Token> toks;
     std::vector<int> widths;
     std::vector<std::vector<size_t>> lines;
+    // ⓘ The card that ends a tour: its words and buttons in the middle of it,
+    // from this height down.
+    bool centred = false;
+    int contentTop = 0;
 };
 
 inline SIZE measure(HDC dc, HFONT font, const std::wstring &text)
@@ -167,6 +242,21 @@ inline bool gdiplus_up()
 inline int mark_w(const std::wstring &glyph, int h)
 {
     return glyph == kDpad ? h : ctm_overlay::mark_width(glyph.c_str(), h);
+}
+
+// ⭐ THE BUTTON THAT PRESSES IT, in it, before its name (2026-10-29: "add R2
+// symbol in the "Continue" button, L2 to the "Go Back" button and "Circle" to
+// the "End Tutorial" button"): the pad's, drawn as the legends draw it, or a
+// keyboard's key, its name in a key's outline. Its height, and the width it
+// and the gap after it take.
+inline int button_mark_h(const Content &c, UINT dpi) { return px(card_size(c.big).mark, dpi); }
+inline int button_mark_w(HDC dc, const Fonts *f, const Button &b, int h, UINT dpi)
+{
+    if (b.mark.empty()) return 0;
+    const int gap = px(7, dpi);
+    if (b.mark.size() > 1 && b.mark[0] == L'*') return mark_w(b.mark.substr(1), h) + gap;
+    const SIZE s = measure(dc, f->count, b.mark);
+    return s.cx + 2 * px(5, dpi) + gap;
 }
 
 inline void draw_glyph_mark(HDC dc, int x, int y, int h, const std::wstring &glyph, COLORREF colour)
@@ -211,11 +301,13 @@ inline Layout compute_layout(HDC dc, Fonts *fonts, const Content &c, UINT dpi,
     Layout L;
     L.content = c;
     L.dpi = dpi;
-    L.pad = px(12, dpi);
+    const int card = card_of(c.big);
+    const CardSize &z = card_size(card);
+    L.pad = px(z.pad, dpi);
     L.round = px(10, dpi);
     L.litPad = px(5, dpi);
     L.hasArrow = c.arrow;
-    const int maxWidth = px(380, dpi);
+    const int maxWidth = px(z.maxWidth, dpi);
     const int between = px(8, dpi);
     const int btnPadX = px(14, dpi), btnPadY = px(6, dpi);
     const int arrow = c.arrow ? px(12, dpi) : 0, gap = px(10, dpi);
@@ -223,23 +315,23 @@ inline Layout compute_layout(HDC dc, Fonts *fonts, const Content &c, UINT dpi,
     L.toks = tbr::tokens(tbr::parse(c.words));
     // ⓘ A button's mark at the page's 1.1 of the words' size, with a little
     // room either side.
-    L.markH = px(18, dpi);
+    L.markH = px(card ? z.mark : 18, dpi);
     for (const tbr::Token &t : L.toks) {
         if (t.mark) {
             L.widths.push_back(mark_w(t.text, L.markH) + 2 * px(2, dpi));
             continue;
         }
-        const SIZE s = measure(dc, t.lit ? fonts->lit : fonts->text, t.text);
+        const SIZE s = measure(dc, words_font(fonts, c, t.lit), t.text);
         L.widths.push_back(s.cx + (t.lit ? 2 * L.litPad : 0));
     }
     L.lines = tbr::lines(L.toks, L.widths, maxWidth);
     TEXTMETRICW tm{};
-    SelectObject(dc, fonts->text);
+    SelectObject(dc, words_font(fonts, c, false));
     GetTextMetricsW(dc, &tm);
     L.lineH = tm.tmHeight + px(6, dpi);
     int textW = 0;
     if (!c.title.empty()) {
-        const SIZE s = measure(dc, fonts->title, c.title);
+        const SIZE s = measure(dc, title_font(fonts, c), c.title);
         L.titleH = s.cy + px(4, dpi);
         textW = s.cx;
     }
@@ -253,21 +345,37 @@ inline Layout compute_layout(HDC dc, Fonts *fonts, const Content &c, UINT dpi,
         for (const size_t i : line) w += L.widths[i];
         if (w > textW) textW = w;
     }
-    const int boxW = textW + 2 * L.pad;
-    const int boxH = L.pad + L.titleH + L.countH + static_cast<int>(L.lines.size()) * L.lineH + L.pad;
+    int boxW = textW + 2 * L.pad;
+    int boxH = L.pad + L.titleH + L.countH + static_cast<int>(L.lines.size()) * L.lineH + L.pad;
+    const int textH = L.titleH + L.countH + static_cast<int>(L.lines.size()) * L.lineH;
 
     // ⓘ The buttons in the page's order, as wide as their names, one height.
     std::vector<int> btnW;
     int rowW = 0, btnH = 0;
+    const int btnMarkH = button_mark_h(c, dpi);
     for (const Button &b : c.buttons) {
-        const SIZE s = measure(dc, fonts->button, b.label);
-        btnW.push_back(s.cx + 2 * btnPadX);
+        const SIZE s = measure(dc, button_font(fonts, c), b.label);
+        btnW.push_back(button_mark_w(dc, fonts, b, btnMarkH, dpi) + s.cx + 2 * btnPadX);
         if (rowW > 0) rowW += between;
         rowW += btnW.back();
         if (s.cy + 2 * btnPadY > btnH) btnH = s.cy + 2 * btnPadY;
     }
-    int stackW = boxW > rowW ? boxW : rowW;
-    const int stackH = boxH + (c.buttons.empty() ? 0 : between + btnH);
+    // ⭐ THE CARD THAT ENDS A TOUR, LARGER AND CENTRED (rhoquinn8217,
+    // 2026-10-29: "Make the Congraduation step box bigger, horizontallly an
+    // vertically centered."): its buttons inside it, under its words, the
+    // lot in the middle of a card at least its size's least (Advanced's 680
+    // by 320, Simple's 520 by 240, Quick's 340 by 146), and the card over
+    // the window's middle (tbr::place_at, Center).
+    const int innerGap = px(z.innerGap, dpi);
+    const int innerH = textH + (c.buttons.empty() ? 0 : innerGap + btnH);
+    if (card) {
+        L.centred = true;
+        const int wide = (textW > rowW ? textW : rowW) + 2 * L.pad;
+        boxW = wide > px(z.minW, dpi) ? wide : px(z.minW, dpi);
+        boxH = innerH + 2 * L.pad > px(z.minH, dpi) ? innerH + 2 * L.pad : px(z.minH, dpi);
+    }
+    int stackW = card ? boxW : (boxW > rowW ? boxW : rowW);
+    const int stackH = card ? boxH : boxH + (c.buttons.empty() ? 0 : between + btnH);
 
     const tbr::Box win{ frame.left, frame.top, frame.right, frame.bottom };
     const tbr::Box area{ work.left, work.top, work.right, work.bottom };
@@ -323,6 +431,16 @@ inline Layout compute_layout(HDC dc, Fonts *fonts, const Content &c, UINT dpi,
     const int offX = L.place.side == tbr::Side::Right ? arrow : 0;
     const int offY = L.place.side == tbr::Side::Below ? arrow : 0;
     L.box = { offX + stackW - wordsW, offY, offX + stackW, offY + boxH };
+    if (L.centred) {
+        L.contentTop = L.box.top + (boxH - innerH) / 2;
+        const int inTop = L.contentTop + textH + innerGap;
+        int bx = L.box.left + (boxW - rowW) / 2;
+        for (size_t i = 0; i < c.buttons.size(); ++i) {
+            L.btns.push_back({ bx, inTop, bx + btnW[i], inTop + btnH });
+            bx += btnW[i] + between;
+        }
+        return L;
+    }
     const int rowTop = offY + boxH + between;
     // [Continue] [Go back] [End tutorial], in rhoquinn8217's order, at the
     // box's right.
@@ -380,7 +498,7 @@ inline HRGN make_region(const Layout &L)
     return rgn;
 }
 
-inline void paint_button(HDC dc, HFONT font, const RECT &r, const wchar_t *label,
+inline void paint_button(HDC dc, const Fonts *fonts, const Content &c, const Button &b, const RECT &r,
                          COLORREF fill, COLORREF edge, COLORREF ink, bool halo, UINT dpi)
 {
     if (halo) {
@@ -398,10 +516,37 @@ inline void paint_button(HDC dc, HFONT font, const RECT &r, const wchar_t *label
     SelectObject(dc, oldBrush);
     DeleteObject(pen);
     DeleteObject(brush);
-    SelectObject(dc, font);
+    HFONT font = button_font(fonts, c);
     SetTextColor(dc, ink);
-    RECT t = r;
-    DrawTextW(dc, label, -1, &t, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+    if (b.mark.empty()) {
+        SelectObject(dc, font);
+        RECT t = r;
+        DrawTextW(dc, b.label.c_str(), -1, &t, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+        return;
+    }
+    // ⓘ The mark, then the name, as one in the middle of the button.
+    const int h = button_mark_h(c, dpi);
+    const int mw = button_mark_w(dc, fonts, b, h, dpi);
+    const SIZE ls = measure(dc, font, b.label);
+    int x = r.left + (r.right - r.left - (mw + ls.cx)) / 2;
+    const int mid = (r.top + r.bottom) / 2;
+    if (b.mark.size() > 1 && b.mark[0] == L'*') {
+        draw_glyph_mark(dc, x, mid - h / 2, h, b.mark.substr(1), ink);
+    } else {
+        const SIZE ks = measure(dc, fonts->count, b.mark);
+        const int kw = ks.cx + 2 * px(5, dpi);
+        HPEN keyPen = CreatePen(PS_SOLID, px(1, dpi) < 1 ? 1 : px(1, dpi), ink);
+        HGDIOBJ oldKeyPen = SelectObject(dc, keyPen);
+        HGDIOBJ oldKeyBrush = SelectObject(dc, GetStockObject(HOLLOW_BRUSH));
+        RoundRect(dc, x, mid - h / 2, x + kw, mid + h / 2, px(5, dpi), px(5, dpi));
+        SelectObject(dc, oldKeyPen);
+        SelectObject(dc, oldKeyBrush);
+        DeleteObject(keyPen);
+        SelectObject(dc, fonts->count);
+        TextOutW(dc, x + px(5, dpi), mid - ks.cy / 2, b.mark.c_str(), static_cast<int>(b.mark.size()));
+    }
+    SelectObject(dc, font);
+    TextOutW(dc, x + mw, mid - ls.cy / 2, b.label.c_str(), static_cast<int>(b.label.size()));
 }
 
 inline void paint(HDC dc, Fonts *fonts, const Layout &L, int width, int height, COLORREF back)
@@ -422,12 +567,14 @@ inline void paint(HDC dc, Fonts *fonts, const Layout &L, int width, int height, 
 
     // The title or the count, then the lines, a lit name amber in an amber
     // outline.
-    int y = L.box.top + L.pad;
+    int y = L.centred ? L.contentTop : L.box.top + L.pad;
+    const int boxWidth = L.box.right - L.box.left;
     if (!L.content.title.empty()) {
-        SelectObject(dc, fonts->title);
-        SetTextColor(dc, kText);
-        TextOutW(dc, L.box.left + L.pad, y, L.content.title.c_str(),
-                 static_cast<int>(L.content.title.size()));
+        SelectObject(dc, title_font(fonts, L.content));
+        SetTextColor(dc, L.content.big ? kAmber : kText);
+        const int tx = L.centred ? L.box.left + (boxWidth - measure(dc, title_font(fonts, L.content), L.content.title).cx) / 2
+                                 : L.box.left + L.pad;
+        TextOutW(dc, tx, y, L.content.title.c_str(), static_cast<int>(L.content.title.size()));
         y += L.titleH;
     }
     if (!L.content.count.empty()) {
@@ -440,9 +587,14 @@ inline void paint(HDC dc, Fonts *fonts, const Layout &L, int width, int height, 
     HGDIOBJ hollow = GetStockObject(HOLLOW_BRUSH);
     for (const auto &line : L.lines) {
         int x = L.box.left + L.pad;
+        if (L.centred) {
+            int lineW = 0;
+            for (const size_t i : line) lineW += L.widths[i];
+            x = L.box.left + (boxWidth - lineW) / 2;
+        }
         for (const size_t i : line) {
             const tbr::Token &t = L.toks[i];
-            SelectObject(dc, t.lit ? fonts->lit : fonts->text);
+            SelectObject(dc, words_font(fonts, L.content, t.lit));
             TEXTMETRICW tm{};
             GetTextMetricsW(dc, &tm);
             const int ty = y + (L.lineH - tm.tmHeight) / 2;
@@ -480,11 +632,11 @@ inline void paint(HDC dc, Fonts *fonts, const Layout &L, int width, int height, 
         const Button &b = L.content.buttons[i];
         const bool halo = L.content.focus == b.id;
         if (b.kind == "go") {
-            paint_button(dc, fonts->button, L.btns[i], b.label.c_str(), kGo, kGo, kGoText, halo, dpi);
+            paint_button(dc, fonts, L.content, b, L.btns[i], kGo, kGo, kGoText, halo, dpi);
         } else if (b.kind == "off") {
-            paint_button(dc, fonts->button, L.btns[i], b.label.c_str(), kOff, kOffEdge, kOffText, false, dpi);
+            paint_button(dc, fonts, L.content, b, L.btns[i], kOff, kOffEdge, kOffText, false, dpi);
         } else {
-            paint_button(dc, fonts->button, L.btns[i], b.label.c_str(), kBtn, kBtnEdge, kText, halo, dpi);
+            paint_button(dc, fonts, L.content, b, L.btns[i], kBtn, kBtnEdge, kText, halo, dpi);
         }
     }
 }
@@ -627,6 +779,7 @@ inline void refresh(HWND hwnd)
     {
         std::lock_guard<std::mutex> lock(g_mutex);
         c = g_content;
+        g_placing = g_posted.load();
     }
     const HWND win = c.show ? configs_window() : nullptr;
     if (win == nullptr || IsIconic(win) || GetForegroundWindow() != win) {
@@ -790,6 +943,9 @@ inline void thread_main()
     bool quit = false;
     while (!quit) {
         if (!g_sliding) {
+            // ⓘ At rest: the words last placed stand where they go, or are
+            // hidden, which is as still.
+            g_settled.store(g_placing);
             if (GetMessageW(&m, nullptr, 0, 0) <= 0) break;
             TranslateMessage(&m);
             DispatchMessageW(&m);
@@ -815,14 +971,17 @@ inline void thread_main()
 inline Content content_of(const std::string &title, const std::string &count, const std::string &words,
                           const std::string &buttons, const std::string &focus, bool arrow, int ax, int ay,
                           const std::string &side, const std::string &anchors, const std::string &target,
-                          const std::string &obstacles, int clear)
+                          const std::string &obstacles, int clear, int big = 0)
 {
     Content c;
     c.show = true;
+    c.big = big;
     c.title = wide(title);
     c.count = wide(count);
     c.words = wide(words);
-    for (const tbr::ButtonSpec &b : tbr::parse_buttons(buttons)) c.buttons.push_back({ b.id, wide(b.label), b.kind });
+    for (const tbr::ButtonSpec &b : tbr::parse_buttons(buttons)) {
+        c.buttons.push_back({ b.id, wide(b.label), b.kind, wide(b.mark) });
+    }
     c.focus = focus;
     c.arrow = arrow;
     c.ax = ax;
@@ -842,6 +1001,8 @@ inline void update(const Content &c)
     {
         std::lock_guard<std::mutex> lock(g_mutex);
         g_content = c;
+        g_up.store(c.show);
+        if (c.show) g_posted.fetch_add(1);
         // ⓘ A press left over from words no longer shown must not move the next tutorial.
         if (!c.show) g_press.clear();
     }
@@ -866,6 +1027,20 @@ inline std::string side()
     return g_side;
 }
 
+// Whether a tour is up: the page's words are to be shown, whether or not the
+// configs window is in front for them now.
+inline bool up()
+{
+    return g_up.load();
+}
+
+// Whether the words the page sent last are not yet standing where they go:
+// not placed yet, or sliding there.
+inline bool moving()
+{
+    return g_settled.load() != g_posted.load();
+}
+
 // A click on a button, handed over once: its id, or "".
 inline std::string take_press()
 {
@@ -875,7 +1050,8 @@ inline std::string take_press()
     return p;
 }
 
-// ⓘ `DS5-USBIP tutorial-words-picture <file.bmp> [dpi] [start|corners|left|beside|marks]`:
+// ⓘ `DS5-USBIP tutorial-words-picture <file.bmp> [dpi] [start|corners|left|beside|marks|keys|congrats|
+// congrats-simple|congrats-quick]`:
 // the words as Quick's step that asks for a press shows them (or the card the
 // tour opens with; or the step with two arrows, at L1 and R1 in the panel's
 // corners; or a step that asks for the window's left side; or every button's
@@ -886,7 +1062,7 @@ inline std::string take_press()
 inline int picture_mode(int argc, wchar_t **argv)
 {
     if (argc < 3) {
-        std::wcout << L"usage: DS5-USBIP tutorial-words-picture <file.bmp> [dpi] [start|corners|left|beside|marks]"
+        std::wcout << L"usage: DS5-USBIP tutorial-words-picture <file.bmp> [dpi] [start|corners|left|beside|marks|keys|congrats|congrats-simple|congrats-quick]"
                    << std::endl;
         return 2;
     }
@@ -937,6 +1113,26 @@ inline int picture_mode(int argc, wchar_t **argv)
         c.focus = "next";
         c.ax = 500;
         c.ay = 420;
+    } else if (sample == L"keys") {
+        // ⓘ The step below as a keyboard has it: each button's key in it.
+        c.count = L"4 of 13";
+        c.words = L"Press [[Y]] to auto link the config in the middle: Dual will pick it by itself every "
+                  L"time it is bridged.";
+        c.buttons = { { "next", L"Continue", "go", L"PgDn" }, { "prev", L"Go back", "plain", L"PgUp" },
+                      { "end", L"End tutorial", "plain", L"Esc" } };
+        c.ax = 500;
+        c.ay = 420;
+    } else if (sample == L"congrats" || sample == L"congrats-simple" || sample == L"congrats-quick") {
+        // ⓘ The card that ends a tour, larger, over the window's middle, in
+        // the size of the tour's mode: Advanced's, Simple's or Quick's.
+        const bool simple = sample == L"congrats-simple", quick = sample == L"congrats-quick";
+        c.title = L"Congratulations!";
+        c.words = std::wstring(L"You've finished the ") + (simple ? L"Simple" : quick ? L"Quick" : L"Advanced") +
+                  L" mode tutorial.";
+        c.buttons = { { "done", L"Done", "go", L"*R2" } };
+        c.arrow = false;
+        c.big = simple ? 2 : quick ? 1 : 3;
+        c.prefer = tbr::Prefer::Center;
     } else if (start) {
         c.title = L"Quick mode tutorial";
         c.words = L"A short tour with practice controllers: nothing in it changes your real ones.";
@@ -948,9 +1144,8 @@ inline int picture_mode(int argc, wchar_t **argv)
         c.count = L"4 of 13";
         c.words = L"Press [[*\u25b3]] to auto link the config in the middle, then choose [[OK]]: Dual "
                   L"will pick it by itself every time it is bridged.";
-        c.buttons = { { "next", L"Continue", "off" }, { "prev", L"Go back", "plain" },
-                      { "end", L"End tutorial", "plain" } };
-        c.focus = "prev";
+        c.buttons = { { "next", L"Continue", "off", L"*R2" }, { "prev", L"Go back", "plain", L"*L2" },
+                      { "end", L"End tutorial", "plain", L"*\u25cb" } };
         c.ax = 500;
         c.ay = 420;
     }
@@ -1083,7 +1278,8 @@ inline int replay_mode(int argc, wchar_t **argv)
         }
         const Content c = content_of(text("title"), text("count"), text("words"), text("buttons"), text("focus"),
                                      flag("arrow"), number("ax", 500), number("ay", 500), text("side"),
-                                     text("anchors"), text("target"), text("obstacles"), number("clear", 0));
+                                     text("anchors"), text("target"), text("obstacles"), number("clear", 0),
+                                     flag("big") ? 3 : number("big", 0));
         const bool keep = shown && still_for(placed, c, place);
         const Standing standing{ here, placed.side };
         const Layout L = compute_layout(mem, &fonts, c, dpi, frame, work, client, keep ? &standing : nullptr);

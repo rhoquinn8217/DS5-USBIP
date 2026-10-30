@@ -182,6 +182,18 @@ int run_tutorial_bubble_rule_tests()
         CTM_CHECK(b[2].id == "end" && b[2].label == "End tutorial" && b[2].kind == "go");
     }
 
+    // ⭐ A button carries the pad's button for it (2026-10-29: "add R2 symbol
+    // in the "Continue" button, L2 to the "Go Back" button and "Circle" to the
+    // "End Tutorial" button"), or a key's name; one with none still reads.
+    section("tutorial buttons: the button or key that presses each, when it has one");
+    {
+        const auto b = tbr::parse_buttons("next:Continue:go:*R2|prev:Go back:plain:PgUp|end:End tutorial:plain");
+        CTM_CHECK_EQ(b.size(), size_t(3));
+        CTM_CHECK(b[0].id == "next" && b[0].kind == "go" && b[0].mark == "*R2");
+        CTM_CHECK(b[1].label == "Go back" && b[1].kind == "plain" && b[1].mark == "PgUp");
+        CTM_CHECK(b[2].kind == "plain" && b[2].mark.empty());
+    }
+
     section("tutorial buttons: an unknown look is plain, and a broken item is left out");
     {
         const auto b = tbr::parse_buttons("skip:Skip:shiny|:No id:go|noname::go|half:Half|begin:Begin tutorial:go");

@@ -49,10 +49,16 @@ inline std::vector<Piece> parse(const std::wstring &words)
 // `kind` is how a button looks and whether a click counts: "go" lit blue,
 // "off" greyed out and deaf, anything else plain. ⓘ An item without an id or
 // a label is left out.
+// ⭐ AND THE PAD'S BUTTON FOR IT, drawn in it (rhoquinn8217, 2026-10-29: "add
+// R2 symbol in the "Continue" button, L2 to the "Go Back" button and "Circle"
+// to the "End Tutorial" button"): a fourth field, "id:Label:kind:mark", the
+// mark the legends draw as `*glyph` (R2, L2, a circle; RT, LT, B), or a
+// keyboard's key as its name (PgDn, PgUp, Esc).
 struct ButtonSpec {
     std::string id;
     std::string label;   // UTF-8, as the page sent it
     std::string kind;    // "go", "off" or "plain"
+    std::string mark;    // "*R2", "PgDn", or "" for none
 };
 
 inline std::vector<ButtonSpec> parse_buttons(const std::string &spec)
@@ -66,9 +72,11 @@ inline std::vector<ButtonSpec> parse_buttons(const std::string &spec)
         const size_t a = item.find(':');
         const size_t b = a == std::string::npos ? std::string::npos : item.find(':', a + 1);
         if (a != std::string::npos && b != std::string::npos && a > 0 && b > a + 1) {
-            std::string kind = item.substr(b + 1);
+            const size_t c = item.find(':', b + 1);
+            std::string kind = c == std::string::npos ? item.substr(b + 1) : item.substr(b + 1, c - b - 1);
             if (kind != "go" && kind != "off") kind = "plain";
-            out.push_back({ item.substr(0, a), item.substr(a + 1, b - a - 1), kind });
+            out.push_back({ item.substr(0, a), item.substr(a + 1, b - a - 1), kind,
+                            c == std::string::npos ? std::string() : item.substr(c + 1) });
         }
         at = end + 1;
     }

@@ -1534,7 +1534,7 @@ static int run_agent(uint16_t port)
         // path means -- reading it earlier would resolve somewhere else.
         config_move::state_load();
         // ⓘ And the first start after an install puts the window in Simple
-        // and lets both tutorials start again (tutorial_state.inl).
+        // and lets every tutorial start again (tutorial_state.inl).
         config_move::install_check(module_directory());
     }
 

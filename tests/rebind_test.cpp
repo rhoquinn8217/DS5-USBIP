@@ -175,6 +175,10 @@ void ctm_osk_toggle(const std::string &, int, int) { ++g_oskToggles; }
 bool g_windowInFront = false;
 bool ctm_ui_has_foreground() { return g_windowInFront; }
 
+// ⓘ Whether a tour is up: L2 and R2 are the page's only then (gate_claims).
+bool g_tourUp = false;
+bool ui_tutorial_words_up() { return g_tourUp; }
+
 // ⓘ Counted from the thread the chord starts, so atomic. A check can make the
 // window slow to open, as a browser starting cold is.
 std::atomic<int> g_windowsAsked{0};
@@ -233,6 +237,7 @@ using ctm_rebind::kBtnFaceRight;
 using ctm_rebind::kBtnFaceLeft;
 using ctm_rebind::kBtnFaceUp;
 using ctm_rebind::kBtnL1;
+using ctm_rebind::kBtnL2;
 using ctm_rebind::kBtnR2;
 using ctm_rebind::kBtnStart;
 using ctm_rebind::kBtnDpadUp;
@@ -591,6 +596,33 @@ int run_rebind_tests()
         ctm_rebind_set_editing_field(false);
         g_compactView = false;
         g_quickView = false;
+    }
+
+    section("config mode: L2 and R2 type Ctrl+Shift+Alt+G and F only while a tour is up, and click otherwise");
+    {
+        // ⓘ A tour's Go back and Continue (2026-10-29); the rest of the time a
+        // preset's clicks over the window, R2 the left button, are the
+        // config's. A click held as the tour began is let go.
+        reset();
+        ctm_rebind_set_config_mode(true);
+        g_windowInFront = true;
+        g_strings["ds5.rebind_7"] = "MouseLeft";
+        g_tourUp = false;
+        send(kPadA, pressing({kBtnR2}));
+        CTM_CHECK(keys_are(kPadA, {}));
+        CTM_CHECK_EQ(static_cast<int>(mouse_of(kPadA)), 0x01);
+        g_tourUp = true;
+        const std::vector<uint8_t> out = send(kPadA, pressing({kBtnR2}));
+        CTM_CHECK(keys_are(kPadA, {0x09}));            // F
+        CTM_CHECK_EQ(static_cast<int>(mods_of(kPadA)), 0x07);
+        CTM_CHECK_EQ(static_cast<int>(mouse_of(kPadA)), 0);
+        CTM_CHECK(out == at_rest());
+        send(kPadA, pressing({kBtnL2}));
+        CTM_CHECK(keys_are(kPadA, {0x0a}));            // G
+        g_tourUp = false;
+        send(kPadA, pressing({kBtnR2}));
+        CTM_CHECK(keys_are(kPadA, {}));
+        CTM_CHECK_EQ(static_cast<int>(mouse_of(kPadA)), 0x01);
     }
 
     section("config mode: with the window behind, the pad works as it does in a game");
