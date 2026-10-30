@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.123 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.124 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,20 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.124 From rhoquinn8217's run of setup 92, in every tour: R2, L2
+             and Circle drawn on Continue, Go back and End tutorial, RT, LT
+             and B for an Xbox pad, PgDn, PgUp and Esc for a keyboard, and
+             those the buttons' only keys ("Don't let the user navigate to
+             these buttons with the keyboard or controller. They need to use
+             the buttons labeled."), End tutorial without Circle on Circle's
+             step; the listener gives a pad's L2 and R2 to the page while a
+             tour is up. A congratulations card in larger type with
+             confetti falling after the last step ("Add Congratulation
+             bubble with larger text with confetti drop animation after last
+             step."). In Advanced's, step 24 asks for a press on rapid fire's
+             box ("instructs to click enter or x on the value box") and moves
+             on with it being changed, and step 25 is the change, to try
+             ("try changing it's value by typing or with arrows").
     2.66.123 From rhoquinn8217's run of setup 91, Advanced's tour at
              thirty-five steps: the sections lit with the list of the one
              shown ("highlight the section headers and the entire rebind
@@ -3024,6 +3038,19 @@
      with it; tutFadeTick says when. */
   #tutDim, #tutArrows { transition:opacity 0.35s ease-in-out; }
   #tutRoot.tutFade #tutDim, #tutRoot.tutFade #tutArrows { opacity:0; transition:opacity 0.2s ease-out; }
+  /* ⭐ CONFETTI AT THE END (rhoquinn8217, 2026-10-29: "Add Congratulation
+     bubble with larger text with confetti drop animation after last step."):
+     pieces falling from above the window to below it, drifting and turning,
+     each its own pace (tutConfetti). */
+  #tutConfetti { position:absolute; inset:0; overflow:hidden; pointer-events:none; }
+  #tutConfetti i { position:absolute; top:-4vh; width:1.2vh; height:2vh; border-radius:0.2vh;
+                   animation-name:tutConfettiFall; animation-timing-function:cubic-bezier(.3,.05,.6,1);
+                   animation-fill-mode:both; }
+  #tutConfetti i.round { width:1.4vh; height:1.4vh; border-radius:50%; }
+  @keyframes tutConfettiFall {
+    from { transform:translate(0, 0) rotate(0deg); }
+    to { transform:translate(var(--drift), 112vh) rotate(var(--spin)); }
+  }
   /* ⭐ THE ARROWS (2026-10-23): over the dim, beside what they point at,
      moving toward it and away again and again (tutPlaceArrows). --a is
      half the width, --len how far an arrow stands out, --bob how far it
@@ -3212,7 +3239,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.66.123</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.66.124</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -4619,6 +4646,9 @@ var PAD_LEGEND_PS = {
   // ⭐ R3 opens Quick's polling limit (2.66.87), RS on an Xbox pad and L
   // on a keyboard, its mark where the limit's arrow was.
   rate: 'R3',
+  // ⭐ R2 and L2 are a tour's Continue and Go back (2.66.124), RT and LT on
+  // an Xbox pad and PgDn and PgUp on a keyboard, drawn on those buttons.
+  next: 'R2', prev: 'L2',
   // ⭐ L3 goes to Simple's next tip (2.66.116), LS on an Xbox pad and H on a
   // keyboard, its mark at the tip's right.
   tip: 'L3',
@@ -4637,6 +4667,7 @@ var PAD_LEGEND_XBOX = {
   // generation's word for it, and they sit at the width of the PlayStation
   // set beside them instead of putting two English words in a row of symbols.
   resize: '\u29c9', position: '\u2630', shoulder: 'LB/RB', rate: 'RS', tip: 'LS',
+  next: 'RT', prev: 'LT',
   dpad: '\u271c'
 };
 
@@ -5367,6 +5398,7 @@ var KEY_LEGEND = {
   unlink: 'U', autolink: 'A', updown: '\u21c5',
   select: 'Enter', close: 'Esc', toggle: 'Space',
   resize: 'R', position: 'P', shoulder: 'Q/E', rate: 'L', tip: 'H',
+  next: 'PgDn', prev: 'PgUp',
   dpad: '\u2725'
 };
 
@@ -13167,9 +13199,9 @@ function selfTest() {
       return n + ':' + (st.act === true ? 'act' : st.free ? 'free' : 'look');
     }).join(' ');
     ok('the tutorial: Advanced renames its config, ticks a box, opens a list and picks from it, and ' +
-       'shows a value box and changes it, each in steps of their own',
+       'has a value box pressed and then changed, each in steps of their own',
        advShape === '1:look 2:look 7:act 8:free 12:act 13:look 19:free 20:act 21:act 22:free 23:act ' +
-                     '24:look 25:free 28:act 29:free', advShape);
+                     '24:act 25:free 28:act 29:free', advShape);
   }
 
   // The tour opens a list for a step that wants it open, opens it again when
@@ -13204,6 +13236,42 @@ function selfTest() {
     GP_SELECT_WAS = keepList[2];
     ok('the tutorial opens a list for its step, again when the page draws over it, and not once shut',
        listOpened && listShut && listAgain, [listOpened, listShut, listAgain].join(','));
+  }
+
+  // Continue, Go back and End tutorial carry the buttons that press them, and
+  // only those press them (2.66.124): R2, L2 and Circle on a PlayStation pad,
+  // PgDn, PgUp and Esc on a keyboard; End tutorial without Circle on Circle's
+  // own step, Go back none on the first; and the card that ends a tour says
+  // which one.
+  {
+    var keepBar = [TUT, INPUT_LAST, LAST_PRESS_KIND];
+    TUT = { kind: 'advanced', phase: 'step', at: 4, done: [] };
+    INPUT_LAST = 'pad';
+    LAST_PRESS_KIND = 'ds5_usb';
+    var barRead = TUT_ADVANCED[4];
+    var barPad = tutStepButtons(barRead);
+    var barCircle = tutStepButtons(TUT_ADVANCED.filter(function (st) { return st.keys === tutCircleKeys; })[0]);
+    INPUT_LAST = 'keyboard';
+    var barKeys = tutStepButtons(barRead);
+    TUT.at = 0;
+    var barFirst = tutStepButtons(TUT_ADVANCED[0]);
+    var barDone = tutWordsCongrats();
+    TUT = keepBar[0];
+    INPUT_LAST = keepBar[1];
+    LAST_PRESS_KIND = keepBar[2];
+    ok('the tutorial: Continue, Go back and End tutorial carry R2, L2 and Circle, or PgDn, PgUp and Esc',
+       barPad === 'next:Continue:go:*R2|prev:Go back:plain:*L2|end:End tutorial:plain:*' + PAD_LEGEND_PS.close &&
+       barKeys === 'next:Continue:go:PgDn|prev:Go back:plain:PgUp|end:End tutorial:plain:Esc' &&
+       /[|]end:End tutorial:plain$/.test(barCircle) && barFirst.indexOf('prev:') < 0,
+       barPad + ' / ' + barKeys + ' / ' + barCircle);
+    ok('the tutorial: R2, L2 and Circle, or PgDn, PgUp and Esc, are the only keys of those three',
+       tutBarKey('KeyF', true, false) === 'next' && tutBarKey('KeyG', true, false) === 'prev' &&
+       tutBarKey('KeyZ', true, false) === 'end' && tutBarKey('PageDown', false, true) === 'next' &&
+       tutBarKey('PageUp', false, true) === 'prev' && tutBarKey('Escape', false, true) === 'end' &&
+       tutBarKey('Enter', true, false) === '' && tutBarKey('ArrowDown', false, true) === '' &&
+       tutBarKey('KeyF', false, true) === '', '');
+    ok('the tutorial: the card after the last step says which tour was finished',
+       barDone === "You've finished the Advanced mode tutorial.", barDone);
   }
 
   // Advanced is drawn half as large again, and Simple and Quick as before
@@ -13388,11 +13456,14 @@ function selfTest() {
   }
 
   // A pad the browser sees is taken by a tour as the gate's keystrokes for
-  // its buttons (2.66.109): each a key the page's own gate map answers.
+  // its buttons (2.66.109): each a key the page's own gate map answers, or,
+  // for L2 and R2, the tour's Go back and Continue (2.66.124).
   ok('the tutorial takes a pad the browser sees as a bridged one\'s keystrokes',
-     TUT_PAD_KEYS.length === 12 && TUT_PAD_KEYS.every(function (bk) {
-       return typeof CONFIG_MODE_KEYS[bk[1]] === 'function';
-     }) && TUT_PAD_KEYS[0][1] === 'Enter' && TUT_PAD_KEYS[1][1] === 'KeyZ',
+     TUT_PAD_KEYS.length === 14 && TUT_PAD_KEYS.every(function (bk) {
+       return typeof CONFIG_MODE_KEYS[bk[1]] === 'function' || tutBarKey(bk[1], true, false) !== '';
+     }) && TUT_PAD_KEYS[0][1] === 'Enter' && TUT_PAD_KEYS[1][1] === 'KeyZ' &&
+     tutBarKey(TUT_PAD_KEYS.filter(function (bk) { return bk[0] === 7; })[0][1], true, false) === 'next' &&
+     tutBarKey(TUT_PAD_KEYS.filter(function (bk) { return bk[0] === 6; })[0][1], true, false) === 'prev',
      JSON.stringify(TUT_PAD_KEYS));
 
   // A step's words wait for its own place (2.66.105): sent with the last
@@ -14964,18 +15035,27 @@ var TUT_ADVANCED = [
   // and another step to type or use arrows to increase/decrease"*): how fast
   // it repeats, its box shown, then changed, to try: on a pad up and down step
   // it by 1 and L1 and R1 by 100; a keyboard types it.
-  { side: 'left', tick: function () { tutAdvShowRow('turbo_0'); },
+  // ⓘ And since setup 92: 24 asks for the press on the box (*"step 24
+  // instructs to click enter or x on the value box"*), done once it is being
+  // changed, and moves on with it so; 25 is the change, to try (*"step 25 try
+  // changing it's value by typing or with arrows"*).
+  { side: 'left', act: true, focus: function () { return tutAdvValue('turbo_0'); },
+    tick: function () { tutAdvShowRow('turbo_0'); },
     lit: function () { return [tutAdvValue('turbo_0')]; },
+    hits: function () { return [tutAdvValue('turbo_0')]; },
     words: function () {
       return 'This box sets how fast ' + tutFaceMark(0) + ' repeats while it is held: this many ' +
-             'milliseconds apart; 0 just holds it.';
+             'milliseconds apart; 0 just holds it. Press ' + tutKey('select') + ' on it, or click it.';
+    },
+    done: function () {
+      var b = tutAdvValue('turbo_0');
+      return !!b && (GP_EDITING === b || document.activeElement === b);
     } },
   tutAdvValueStep('turbo_0', function () {
     var how = padLegend() === KEY_LEGEND
-      ? 'press ' + tutHl('Enter') + ' on it and type a number'
-      : 'press ' + tutKey('select') + ' on it, then ' + tutKey('updown') + ' changes it by 1, and ' +
-        tutKey('shoulders') + ' by 100';
-    return 'Change it: ' + how + '. Try it, then choose ' + tutHl('Continue') + '.';
+      ? 'type a number, or press ' + tutKey('updown')
+      : 'press ' + tutKey('updown') + ' to change it by 1, or ' + tutKey('shoulders') + ' by 100';
+    return 'Try changing its value: ' + how + '. Then choose ' + tutHl('Continue') + '.';
   }, true),
   // 26: Archive Config, as Simple's Archive.
   { side: 'right', act: true, split: true, focus: function () { return tutAdvButton('archive'); },
@@ -15187,6 +15267,77 @@ function tutBegin(kind) {
   requestAnimationFrame(tutFrame);
 }
 
+// ⭐ EACH BUTTON WITH THE BUTTON THAT PRESSES IT (rhoquinn8217, 2026-10-29:
+// *"add R2 symbol in the "Continue" button, L2 to the "Go Back" button and
+// "Circle" to the "End Tutorial" button(with the exception of the bubble for
+// the "to close" legend bubble. Don't let the user navigate to these buttons
+// with the keyboard or controller. They need to use the buttons labeled."*):
+// R2, L2 and Circle on a PlayStation pad, RT, LT and B on an Xbox pad, PgDn,
+// PgUp and Esc on a keyboard (the legends' `next`, `prev` and `close`), each
+// the button's only way from either (tutBarKey); End tutorial without Circle
+// where Circle is the step's own, on Circle's step.
+function tutBarMark(what) {
+  var lg = padLegend();
+  var g = String(lg[what] || '');
+  return !g ? '' : lg === KEY_LEGEND ? g : '*' + g;
+}
+function tutStepButtons(s) {
+  var btns = ['next:Continue:' + (tutCanContinue(s) ? 'go' : 'off') + ':' + tutBarMark('next')];
+  if (TUT.at > 0) btns.push('prev:Go back:plain:' + tutBarMark('prev'));
+  btns.push('end:End tutorial:' + (s.act === 'end' ? 'go' : 'plain') +
+            (s.keys === tutCircleKeys ? '' : ':' + tutBarMark('close')));
+  return btns.join('|');
+}
+// Which of the three a press is: 'next' for R2 or PgDn, 'prev' for L2 or
+// PgUp, 'end' for Circle or Esc; '' for any other. ⓘ A pad's triggers reach
+// the page as the gate's G and F only while a tour is up (rebind.inl).
+function tutBarKey(code, gated, plain) {
+  if (gated) return code === 'KeyF' ? 'next' : code === 'KeyG' ? 'prev' : code === 'KeyZ' ? 'end' : '';
+  if (plain) return code === 'PageDown' ? 'next' : code === 'PageUp' ? 'prev' : code === 'Escape' ? 'end' : '';
+  return '';
+}
+
+// ⭐ CONGRATULATIONS, AND CONFETTI (rhoquinn8217, 2026-10-29: *"Add
+// Congratulation bubble with larger text with confetti drop animation after
+// last step."*): End tutorial on the last step puts up a card in larger type
+// over the window's middle (the words window's `big`), the dim goes, and
+// confetti falls over the window; Done, R2, Circle or Cross ends the tour.
+function tutCongrats() {
+  tutCloseOpen();
+  TUT.phase = 'done';
+  TUT.focus = null;
+  TUT_FADE = null;
+  var root = tutById('tutRoot');
+  if (root) root.classList.add('tutFade');
+  tutConfetti();
+  tutRender();
+}
+function tutWordsCongrats() {
+  var card = TUT_CARDS[TUT.kind];
+  return "You've finished the " + (card ? card.title : 'tutorial') + '.';
+}
+// ⓘ Pieces falling from above the window to below it, each its own colour,
+// drift, turn and pace (#tutConfetti's style); they go with the tour.
+function tutConfetti() {
+  var root = tutById('tutRoot');
+  if (!root || tutById('tutConfetti')) return;
+  var host = document.createElement('div');
+  host.id = 'tutConfetti';
+  var colours = ['#f0b429', '#6c8cff', '#7fd18c', '#ff6b6b', '#c084fc', '#4fd1c5', '#ffffff'];
+  for (var i = 0; i < 110; i++) {
+    var p = document.createElement('i');
+    if (i % 3 === 0) p.className = 'round';
+    p.style.left = (Math.random() * 100).toFixed(2) + '%';
+    p.style.background = colours[i % colours.length];
+    p.style.animationDelay = (Math.random() * 1.6).toFixed(2) + 's';
+    p.style.animationDuration = (2.8 + Math.random() * 2.2).toFixed(2) + 's';
+    p.style.setProperty('--drift', ((Math.random() - 0.5) * 24).toFixed(1) + 'vw');
+    p.style.setProperty('--spin', ((Math.random() < 0.5 ? -1 : 1) * (360 + Math.random() * 900)).toFixed(0) + 'deg');
+    host.appendChild(p);
+  }
+  root.appendChild(host);
+}
+
 // ⭐ HALF DARK IN ADVANCED (rhoquinn8217, 2026-10-29: *"The feather affect on
 // the advance window not as effective as it is in simple and quick mode since
 // the window has a lot more elements on the page. The effect darkens
@@ -15254,6 +15405,9 @@ function tutSendWords() {
       body = { title: 'End the tutorial?', count: '',
                words: "You're on step " + (TUT.at + 1) + ' of ' + steps.length + '.',
                buttons: 'endyes:End tutorial:plain|keep:Keep going:go', arrow: false };
+    } else if (TUT.phase === 'done') {
+      body = { title: 'Congratulations!', count: '', words: tutWordsCongrats(),
+               buttons: 'done:Done:go:' + tutBarMark('next'), arrow: false, side: 'center', big: true };
     } else {
       // ⭐ NOT BEFORE THIS STEP'S OWN PLACE IS WORKED OUT (rhoquinn8217,
       // 2026-10-27: *"Sometimes window is positioned in a different spot then
@@ -15263,12 +15417,9 @@ function tutSendWords() {
       // and kept them there. tutLayout sends them as soon as it has it.
       if (TUT_ANCHOR_STEP !== 'step:' + TUT.at) return;
       var s = steps[TUT.at];
-      var btns = ['next:Continue:' + (tutCanContinue(s) ? 'go' : 'off')];
-      if (TUT.at > 0) btns.push('prev:Go back:plain');
-      btns.push('end:End tutorial:' + (s.act === 'end' ? 'go' : 'plain'));
       // ⓘ No arrow of their own: the page's float beside what is lit.
       body = { title: '', count: (TUT.at + 1) + ' of ' + steps.length, words: s.words(),
-               buttons: btns.join('|'), arrow: false,
+               buttons: tutStepButtons(s), arrow: false,
                side: s.act === 'end' ? 'center' : (s.side || '') };
     }
     body.show = true;
@@ -15313,6 +15464,7 @@ function tutPollPress() {
     else if (phase === 'step' && p === 'next') tutNext();
     else if (phase === 'step' && p === 'prev') tutPrev();
     else if (phase === 'step' && p === 'end') tutEndPressed();
+    else if (phase === 'done' && p === 'done') tutFinish();
   }).catch(function () {});
 }
 
@@ -15326,6 +15478,8 @@ function tutRender() {
     // last step"*). Keep going is where the halo starts, so a stray press
     // keeps the tutorial.
     TUT.focus = tutById('tutKeep');
+  } else if (TUT.phase === 'done') {
+    TUT.focus = null;
   } else {
     // ⓘ The stand-ins: the pad reaches Continue only while it can be
     // pressed, and Go back only after the first step.
@@ -15372,7 +15526,6 @@ function tutShow(i, keep) {
   if (!TUT) return;
   var steps = tutSteps();
   if (i < 0 || i >= steps.length) return;
-  tutEditEnd();
   if (!keep) tutCloseOpen();
   tutBoxLocks(false);
   var changed = TUT.phase !== 'step' || TUT.at !== i;
@@ -15392,11 +15545,10 @@ function tutShow(i, keep) {
   }
   if (s.stay) TUT.done[i] = false;      // ⓘ asked for again each time it is reached
   if (s.act === true && !TUT.done[i]) TUT.mem[i] = tutSnapshot();
-  // ⓘ Where the halo starts: on what a press acts on, End tutorial on the
-  // last step and on a press that acts on nothing on screen, Continue on the
-  // rest. A step to try starts on Continue, its button a press away.
-  TUT.focus = (s.act === true ? tutFocusTarget(s) : null) ||
-              (s.act ? tutById('tutEnd') : tutById('tutNext'));
+  // ⓘ Where the halo starts: on what a press acts on, or what a step to try
+  // has to try; on nothing on a step to read. ⭐ Never on Continue, Go back or
+  // End tutorial (2.66.124): their own buttons press them (tutBarKey).
+  TUT.focus = tutFocusTarget(s) || null;
   tutRender();
   // ⓘ Its place at once, and with it the words (tutSendWords waits for it).
   tutLayout(s);
@@ -15430,7 +15582,7 @@ function tutPrev() {
 function tutEndPressed() {
   if (!TUT || TUT.busy || TUT.phase !== 'step') return;
   var s = tutStep();
-  if (s && s.act === 'end') { tutFinish(); return; }
+  if (s && s.act === 'end') { tutCongrats(); return; }
   tutCloseOpen();
   TUT.phase = 'ask';
   tutFadeStart();
@@ -15443,7 +15595,6 @@ function tutEndPressed() {
 function tutKeepGoing() {
   if (!TUT || TUT.phase !== 'ask') return;
   tutShow(TUT.at, true);
-  TUT.focus = tutById('tutEnd');
   tutCollect();
 }
 
@@ -15481,10 +15632,9 @@ function tutFocusables() {
   // Circle's in Simple. Not pressed from here: only a step's `focus` is.
   var rest = s && s.rest && TUT.done[TUT.at] ? tutEl(s.rest) : null;
   if (rest) list.push(rest);
-  ['tutNext', 'tutPrev', 'tutEnd'].forEach(function (id) {
-    var b = tutById(id);
-    if (b && !b.disabled) list.push(b);
-  });
+  // ⭐ NOT CONTINUE, GO BACK OR END TUTORIAL (2.66.124): *"Don't let the user
+  // navigate to these buttons with the keyboard or controller. They need to
+  // use the buttons labeled."* (tutBarKey).
   return list;
 }
 
@@ -15551,6 +15701,25 @@ function tutBack() {
 // 2026-10-28 a pad the browser sees (tutPadPoll), all by this one rule.
 function tutTakeKey(code, gated, plain, repeat) {
   if (plain && (code === 'KeyP' || code === 'KeyR')) return true;
+  var bar = tutBarKey(code, gated, plain);
+  // ⓘ The card that ends a tour: Done's own button, or Circle or Cross.
+  if (TUT.phase === 'done') {
+    if (!repeat && (bar || code === 'Enter')) {
+      noteInputSource(gated ? 'pad' : 'keyboard');
+      tutFinish();
+    }
+    return false;
+  }
+  // ⭐ R2 CONTINUES AND L2 GOES BACK, whatever else the step lets through
+  // (tutStepButtons): a list open or a box being stepped shuts as the step goes.
+  if (TUT.phase === 'step' && (bar === 'next' || bar === 'prev')) {
+    if (!repeat && !TUT.busy) {
+      noteInputSource(gated ? 'pad' : 'keyboard');
+      if (bar === 'next') tutNext();
+      else tutPrev();
+    }
+    return false;
+  }
   var s = tutStep();
   var target = !TUT.busy ? tutFocusTarget(s) : null;
   if (s && s.keys && !TUT.busy && (s.act === true || s.free) && s.keys(code, gated, plain)) {
@@ -15572,6 +15741,17 @@ function tutTakeKey(code, gated, plain, repeat) {
     }
     if (s.pressed) s.pressed(code);
     return true;
+  }
+  // ⭐ CIRCLE ENDS, after the step's own keys (above): on Circle's step it is
+  // the step's, and while a list is open or a box being stepped it shuts it,
+  // as with no tour.
+  if (TUT.phase === 'step' && bar === 'end') {
+    if (GP_SELECTING || GP_EDITING) return true;
+    if (!repeat && !TUT.busy) {
+      noteInputSource(gated ? 'pad' : 'keyboard');
+      tutEndPressed();
+    }
+    return false;
   }
   // ⓘ Cross on what a step acts on is the page's: R3's limit opens on it.
   // Not on a list the step only opens: there it would pick.
@@ -15618,6 +15798,7 @@ window.addEventListener('keydown', function (ev) {
 // (tutTakeKey), and on to the page's action for it when the step lets it
 // through. ⓘ The d-pad repeats while held, as a held key does.
 var TUT_PAD_KEYS = [[0, 'Enter'], [1, 'KeyZ'], [2, 'KeyX'], [3, 'KeyY'], [4, 'KeyQ'], [5, 'KeyE'],
+                    [6, 'KeyG'], [7, 'KeyF'],
                     [10, 'KeyH'], [11, 'KeyL'], [12, 'KeyW'], [13, 'KeyS'], [14, 'KeyA'], [15, 'KeyD']];
 var TUT_PAD_REPEAT_AT = 0;
 function tutPadPoll(edge, pressed, now) {
@@ -15698,7 +15879,7 @@ function tutTick() {
   // ⓘ A list R3 opened and left shut: the halo leaves the limit again.
   var kt = tutKeyTarget(s);
   if (kt && !GP_SELECTING && GP_FOCUS.indexOf(kt) >= 0) {
-    TUT.focus = tutById('tutEnd');
+    TUT.focus = null;
     tutCollect();
   }
   if (s && s.act === true && !TUT.busy && !TUT.done[TUT.at] && s.done && s.done()) {
@@ -15706,7 +15887,7 @@ function tutTick() {
     if (s.stay) {
       // ⓘ Done and staying: Continue lights, and the halo goes to it, or
       // stays where the step leaves it (`rest`).
-      TUT.focus = (s.rest && tutEl(s.rest)) || tutById('tutNext');
+      TUT.focus = (s.rest && tutEl(s.rest)) || null;
       tutRender();
     } else {
       tutShow(TUT.at + 1, true);

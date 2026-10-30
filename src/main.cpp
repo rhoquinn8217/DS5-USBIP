@@ -171,11 +171,12 @@ void ui_tutorial_take();
 void ui_tutorial_words_show(const std::string &title, const std::string &count, const std::string &words,
                             const std::string &buttons, const std::string &focus, bool arrow,
                             int ax, int ay, const std::string &side, const std::string &anchors,
-                            const std::string &target, const std::string &obstacles, int clear);
+                            const std::string &target, const std::string &obstacles, int clear, bool big);
 void ui_tutorial_words_hide();
 std::string ui_tutorial_words_take_press();
 std::string ui_tutorial_words_side();
 bool ui_tutorial_words_moving();
+bool ui_tutorial_words_up();
 /* Where the window stands right now, kept for the next one. Called on the way
  * out, while it still exists. */
 void ui_view_remember_pos();
@@ -483,10 +484,10 @@ void ui_tutorial_take()
 void ui_tutorial_words_show(const std::string &title, const std::string &count, const std::string &words,
                             const std::string &buttons, const std::string &focus, bool arrow,
                             int ax, int ay, const std::string &side, const std::string &anchors,
-                            const std::string &target, const std::string &obstacles, int clear)
+                            const std::string &target, const std::string &obstacles, int clear, bool big)
 {
     tutorial_bubble::update(tutorial_bubble::content_of(title, count, words, buttons, focus, arrow, ax, ay, side,
-                                                        anchors, target, obstacles, clear));
+                                                        anchors, target, obstacles, clear, big));
 }
 void ui_tutorial_words_hide()
 {
@@ -503,6 +504,10 @@ std::string ui_tutorial_words_side()
 bool ui_tutorial_words_moving()
 {
     return tutorial_bubble::moving();
+}
+bool ui_tutorial_words_up()
+{
+    return tutorial_bubble::up();
 }
 void ui_view_remember_pos()
 {
@@ -587,6 +592,9 @@ void ctm_chord_show_ui(const std::string &ordinal)
     }
 
     ctm_rebind_set_config_mode(true);
+    // ⓘ A new window's page has no tour up yet: the words of one the old window
+    // had go with it, and L2 and R2 are the config's again (gate_claims).
+    ui_tutorial_words_hide();
     device_log::input_w() << L"ui: launching a new window";
     ctm_open_ui::open_new(g_rest_port);
     // ⭐ Focus is not visibility. A borderless game paints over a focused

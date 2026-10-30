@@ -663,6 +663,12 @@ inline void on_ds5_input(const void *deviceKey,
     bool wantsKeys = false;
     // ⓘ Which side's on-screen keyboard to toggle, outside the lock.
     int oskToggle[2] = { -1, -1 };
+    // ⭐ NOTHING FROM A TRIGGER A TOUR HAS (2026-10-29): while the settings
+    // window has the pad and a tour is up, R2 is its Continue and L2 its Go
+    // back (rebind.inl, gate_claims), and a click at the pointer would land as
+    // well. R2 first, as `held` below.
+    const bool tourHasBoth = ctm_rebind_config_mode_effective() && ui_tutorial_words_up();
+    const bool tourHas[2] = { tourHasBoth, tourHasBoth };
 
     {
         std::lock_guard<std::mutex> lock(g_mutex);
@@ -683,6 +689,7 @@ inline void on_ds5_input(const void *deviceKey,
         uint32_t padButtons = 0;
         for (int s = 0; s < 2; ++s) {
             const auto &h = held[s];
+            if (tourHas[s]) continue;
             // ⭐ An on-screen keyboard opens ONCE A PRESS, on the way down, as a
             // button bound to one does in the rebinder: held, it would open and
             // close at report rate.

@@ -313,6 +313,12 @@ inline const GateBinding kConfigModeKeys[] = {
     // mode cycles through hints"): only while Simple is in front, the one
     // layout with tips (gate_claims). The virtual keyboard has no use for it.
     { kBtnL3,        "KeyH",  CTM_GATE_MODS },   // L3: Simple's next tip
+    // ⭐ L2 AND R2 REACH THE PAGE WHILE A TOUR IS UP (rhoquinn8217, 2026-10-29:
+    // "add R2 symbol in the "Continue" button, L2 to the "Go Back" button"):
+    // its Go back and Continue. Only then (gate_claims): otherwise they are the
+    // config's, clicks over the window included.
+    { kBtnL2,        "KeyG",  CTM_GATE_MODS },   // L2: a tour's Go back
+    { kBtnR2,        "KeyF",  CTM_GATE_MODS },   // R2: a tour's Continue
 };
 
 // ⓘ Whether the page has this button: every one in the table, but R3
@@ -320,6 +326,13 @@ inline const GateBinding kConfigModeKeys[] = {
 // Advanced they do what the config binds them to, as they did before.
 inline bool gate_claims(int standardIndex)
 {
+    // ⭐ L2 AND R2 ONLY WHILE A TOUR IS UP (2026-10-29): its Go back and
+    // Continue then. ⛔ Claimed always, they lost the presets' clicks over the
+    // window, R2 the left button and L2 the right (config_presets.inl), which
+    // are meant to work there: claimed buttons are skipped below before the
+    // mouse is (rhoquinn8217, 2026-09-03: gating clicks "left the pad unable to
+    // click on the very page it was driving").
+    if (standardIndex == kBtnL2 || standardIndex == kBtnR2) return ::ui_tutorial_words_up();
     if (standardIndex != kBtnR3 && standardIndex != kBtnL3) return true;
     bool compact = false, quick = false;
     if (!config_move::view_get(&compact, &quick, nullptr) || !compact) return false;
@@ -822,7 +835,19 @@ inline void apply(const void *deviceKey,
             for (const GateBinding &g : kConfigModeKeys) {
                 if (g.standardIndex == i && gate_claims(i)) { claimed = true; break; }
             }
-            if (claimed) continue;
+            if (claimed) {
+                // ⓘ A trigger a tour has (gate_claims) that the config binds to
+                // the mouse still has the mouse told it is up, or a click held as
+                // the tour began would stay down (mouse_held.inl).
+                if (i == kBtnL2 || i == kBtnR2) {
+                    char ckn[32];
+                    snprintf(ckn, sizeof(ckn), "rebind_%d", i);
+                    if (mouse_action_for(device_config_str(gateSection.c_str(), ckn)) != kMouseNone) {
+                        gateAnyMouse = true;
+                    }
+                }
+                continue;
+            }
 
             // ⛔⛔ A TRIGGER HANDED TO THE GESTURE IS NOT FIRED HERE EITHER.
             //
