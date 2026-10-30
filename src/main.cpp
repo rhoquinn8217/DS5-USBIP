@@ -175,6 +175,7 @@ void ui_tutorial_words_show(const std::string &title, const std::string &count, 
 void ui_tutorial_words_hide();
 std::string ui_tutorial_words_take_press();
 std::string ui_tutorial_words_side();
+bool ui_tutorial_words_moving();
 /* Where the window stands right now, kept for the next one. Called on the way
  * out, while it still exists. */
 void ui_view_remember_pos();
@@ -498,6 +499,10 @@ std::string ui_tutorial_words_take_press()
 std::string ui_tutorial_words_side()
 {
     return tutorial_bubble::side();
+}
+bool ui_tutorial_words_moving()
+{
+    return tutorial_bubble::moving();
 }
 void ui_view_remember_pos()
 {

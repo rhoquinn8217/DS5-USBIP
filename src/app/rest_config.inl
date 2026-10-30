@@ -782,7 +782,9 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
         // the view), for the words to stand beside the one and off the other,
         // with "clear" left for the page's arrow. A GET of tutorial-press
         // hands over a click on one of the buttons, by its id, once, for the
-        // page to act on, and says which side of what is lit the words stand.
+        // page to act on, and says which side of what is lit the words stand
+        // and whether they are still on their way there ("moving"), for the
+        // page's dim to fade back in once they arrive.
         if (what == "tutorial-bubble") {
             if (req.method != "POST") {
                 *out = rest_error_response(405, "method not allowed", "Allow: POST, OPTIONS\r\n");
@@ -823,7 +825,9 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
                 return true;
             }
             *out = rest_http_response(200, std::string(R"({"press":")") + ui_tutorial_words_take_press() +
-                                           R"(","side":")" + ui_tutorial_words_side() + R"("})");
+                                           R"(","side":")" + ui_tutorial_words_side() +
+                                           R"(","moving":)" + (ui_tutorial_words_moving() ? "true" : "false") +
+                                           "}");
             return true;
         }
 

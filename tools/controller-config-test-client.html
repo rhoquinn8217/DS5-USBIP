@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.120 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.121 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,18 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.121 From rhoquinn8217's look at Advanced's tour on setup 90: a
+             step for each of Bridging Options' boxes ("Step for each of the
+             two check boxes in the overview."), thirty-one steps;
+             Advanced's text and controls half as large again ("Text size in
+             advance mode is too small. Typical screen size is 55 inches at
+             4k watching from 5 feet away."), the window opening at what was
+             its large size, 0.68 x 0.73, and 0.90 x 0.94 its large; the
+             tour's dim at half in Advanced ("a small highlighted area in a
+             large black box"; shown 50% and 35%, "50%"); and in every
+             tour the dim fading out as a step goes and back in once the
+             words stand beside the next ("remove the darkening completely
+             then fade in the darkening with the feather highlighted area").
     2.66.120 Advanced's tour from rhoquinn8217's look at its list, thirty
              steps: Rename done rather than shown ("use and instruct step
              for renaming of the custom config"), the name row the
@@ -1610,6 +1622,22 @@
   body { margin:0; padding:0 20px calc(64px + var(--noticeH, 0px));
          min-height:100vh; background:#15161a; color:#e8e8ea;
          font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+  /* ⭐⭐ ADVANCED, FOR A TELEVISION ACROSS THE ROOM (rhoquinn8217, 2026-10-29:
+     "Text size in advance mode is too small. Typical screen size is 55 inches
+     at 4k watching from 5 feet away."): its text and controls half as large
+     again, everything on it with them, as the browser's own zoom would draw
+     it; shown, and "yes". The window opens larger to hold it (kSizes in
+     config_move.inl). Simple and Quick are sized by their windows (--vh) and
+     keep their sizes.
+     ⛔ A zoomed page is measured in what is seen and drawn in its own units:
+     getBoundingClientRect, innerHeight and the window's scroll give what is
+     seen, while a px written back, a box's own scroll and vh are multiplied
+     again. So 100vh is divided back here, the tour's layer, drawn from what
+     is seen, undoes the zoom, and what the script writes from a measure is
+     divided by advZoom(). */
+  :root { --advZoom:1.5; }
+  body:not(.compact) { zoom:var(--advZoom); min-height:calc(100vh / var(--advZoom)); }
+  body:not(.compact) #tutRoot { zoom:calc(1 / var(--advZoom)); }
   h1 { font-size:17px; margin:0 0 2px; font-weight:600; }
   h2 { font-size:14px; margin:22px 0 8px; color:#b9bbc4; font-weight:600;
        border-bottom:1px solid #2c2e36; padding-bottom:6px; }
@@ -2966,6 +2994,13 @@
      click may reach. */
   #tutRoot { position:fixed; inset:0; z-index:1000; pointer-events:none; }
   #tutDim { position:absolute; inset:0; width:100%; height:100%; }
+  /* ⭐ AND BETWEEN STEPS IT FADES (rhoquinn8217, 2026-10-29: "when the the
+     bubble move to it's next spot remove the darkening completely then fade
+     in the darkening with the feather highlighted area"): out quickly with
+     what the step lit, in more slowly with what the next lights, the arrows
+     with it; tutFadeTick says when. */
+  #tutDim, #tutArrows { transition:opacity 0.35s ease-in-out; }
+  #tutRoot.tutFade #tutDim, #tutRoot.tutFade #tutArrows { opacity:0; transition:opacity 0.2s ease-out; }
   /* ⭐ THE ARROWS (2026-10-23): over the dim, beside what they point at,
      moving toward it and away again and again (tutPlaceArrows). --a is
      half the width, --len how far an arrow stands out, --bob how far it
@@ -3140,7 +3175,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.66.120</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.66.121</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -3542,9 +3577,11 @@ function callListener(method, path, body, quiet) {
 // configs window to be the small size"*): 0.4334 x 0.622, the size the
 // window was set to by hand, and 0.68 x 0.73 is the large now. The listener's
 // kSizes (config_move.inl) and open_ui.inl hold the same numbers.
+// ⭐ LARGER SINCE 2026-10-29, WITH ITS TEXT (--advZoom): 0.68 x 0.73, and 0.90
+// x 0.94 the large.
 function wantSize() {
-  return { w: Math.round(screen.availWidth * 0.4334),
-           h: Math.round(screen.availHeight * 0.622) };
+  return { w: Math.round(screen.availWidth * 0.68),
+           h: Math.round(screen.availHeight * 0.73) };
 }
 function fitWindow() {
   var w = wantSize().w;
@@ -3841,13 +3878,22 @@ function stepHeader(dir) {
 // back to the section heading would fight the scrolling you are doing.
 // ⭐ The top of the settings block, wherever that is: the top of the page on a
 // controller tab, the top of the editor on Overview.
+// ⓘ The zoom Advanced is drawn at (--advZoom), and 1 in Simple and Quick: a
+// measure is in what is seen, and a length the script writes back is
+// multiplied by it again.
+function advZoom() {
+  if (!document.body || document.body.classList.contains('compact')) return 1;
+  var z = parseFloat(getComputedStyle(document.body).zoom);
+  return z > 0 ? z : 1;
+}
+
 function scrollSettingsToTop() {
   var pane = activePane();
   var host = pane && pane.querySelector('.cols');
   if (!host) return false;
   var head = parseInt(getComputedStyle(document.documentElement)
                         .getPropertyValue('--stickH'), 10) || 0;
-  var top = host.getBoundingClientRect().top + window.scrollY - head - 12;
+  var top = host.getBoundingClientRect().top + window.scrollY - (head + 12) * advZoom();
   window.scrollTo({ top: top < 0 ? 0 : top });
   return true;
 }
@@ -3869,7 +3915,7 @@ function scrollSectionIntoView(el) {
   if (!host) return false;
   var head = parseInt(getComputedStyle(document.documentElement)
                         .getPropertyValue('--stickH'), 10) || 0;
-  var top = host.getBoundingClientRect().top + window.scrollY - head - 12;
+  var top = host.getBoundingClientRect().top + window.scrollY - (head + 12) * advZoom();
   window.scrollTo({ top: top < 0 ? 0 : top });
   return true;
 }
@@ -8508,21 +8554,24 @@ function pickerExpand(el) {
   // ⓘ Measured from `rect`, captured at the top of this function while the
   // box was still closed, so it is the collapsed footprint and not the open
   // one.
+  // ⓘ Measured in what is seen, written in the page's own units: Advanced's
+  // zoom undone (advZoom).
+  var pz = advZoom();
   if (!el._pickerSlot) {
     var slot = document.createElement('span');
     slot.className = 'pickerslot';
     slot.setAttribute('aria-hidden', 'true');
     slot.style.cssText = 'flex:0 0 auto;display:inline-block;pointer-events:none;' +
-                         'width:' + Math.round(rect.width) + 'px;' +
-                         'height:' + Math.round(rect.height) + 'px;';
+                         'width:' + Math.round(rect.width / pz) + 'px;' +
+                         'height:' + Math.round(rect.height / pz) + 'px;';
     el.parentNode.insertBefore(slot, el);
     el._pickerSlot = slot;
   }
 
   el.style.position = 'fixed';
-  el.style.top = top + 'px';
-  el.style.left = left + 'px';
-  el.style.width = w + 'px';
+  el.style.top = (top / pz) + 'px';
+  el.style.left = (left / pz) + 'px';
+  el.style.width = (w / pz) + 'px';
   // ⛔ Without this the 58vw cap wins and the width above does nothing. An
   // inline style beats a stylesheet rule, and that rule carries no !important.
   el.style.maxWidth = 'none';
@@ -8549,7 +8598,8 @@ function pickerExpand(el) {
     }
     var want = (el.selectedIndex - Math.floor((rows - 1) / 2)) * pitch;
     var most = (el.options.length - rows) * pitch;
-    el.scrollTop = Math.round(Math.max(0, Math.min(want, most)));
+    // ⓘ A box's own scroll is in its own units, the pitch in what is seen.
+    el.scrollTop = Math.round(Math.max(0, Math.min(want, most)) / advZoom());
   }
   // ⚠️ Above the sticky header (z-index 40 there) and below the modal
   // overlays (99), which must still cover it.
@@ -12985,8 +13035,9 @@ function selfTest() {
        tutAutoKindFor('simple', null, bridged) === '', '');
   }
 
-  // Advanced's tour (2.66.119): thirty steps with words (twenty-seven until
-  // 2.66.120), the last ending it; a custom config made on a practice
+  // Advanced's tour (2.66.119): thirty-one steps with words (twenty-seven
+  // until 2.66.120, thirty until 2.66.121), the last ending it, the first two
+  // Bridging Options' boxes, each with its help; a custom config made on a practice
   // controller keeps the settings written to it, an empty one as none, in
   // what Go back puts back, is renamed with them, a taken name refused, and
   // goes with them when archived; and it starts by itself in Advanced, once.
@@ -13020,10 +13071,17 @@ function selfTest() {
     var advWords = TUT_ADVANCED.map(function (st) { return st.words(); });
     TUT = keepTutA;
     TUT_MOCK = keepMockA;
-    ok('the tutorial: Advanced has thirty steps, each with words, the last ending it',
-       TUT_ADVANCED.length === 30 && TUT_ADVANCED[29].act === 'end' &&
+    ok('the tutorial: Advanced has thirty-one steps, each with words, the last ending it',
+       TUT_ADVANCED.length === 31 && TUT_ADVANCED[30].act === 'end' &&
        advWords.every(function (w) { return !!w && w.indexOf('undefined') < 0; }),
        advWords.join(' / '));
+    var boxSteps = ['openOnBridge', 'quickSwitch'].map(function (id, n) {
+      var lit = TUT_ADVANCED[n].lit(), at = TUT_ADVANCED[n].anchors();
+      return lit.length === 2 && lit[0].contains(tutById(id)) && lit[1].classList.contains('ovhelp') &&
+             at.length === 1 && at[0] === tutById(id);
+    });
+    ok('the tutorial: Advanced shows each of Bridging Options\' boxes in a step of its own, with its help',
+       boxSteps[0] && boxSteps[1], boxSteps.join(','));
     ok('the tutorial: Advanced makes a custom practice config that keeps its settings, renames it ' +
        'with them, and archives it',
        advStart === 'stick-to-mouse,gyro-to-mouse-L2-aiming,gyro-to-stick-L2-aiming,touchpad-to-mouse' &&
@@ -13051,8 +13109,8 @@ function selfTest() {
       return /^Press [^:]*: /.test(w) ? w.replace(/^Press [^:]*: /, '').split('.')[0] : w;
     };
     var advKind = function (st) { return String(st.act || '') + !!st.free + !!st.stay; };
-    var advPairs = [[4, 1], [9, 11], [12, 13], [13, 14], [14, 15], [15, 16], [26, 19], [27, 20],
-                    [28, 21], [29, 22], [30, 24]];
+    var advPairs = [[5, 1], [10, 11], [13, 13], [14, 14], [15, 15], [16, 16], [27, 19], [28, 20],
+                    [29, 21], [30, 22], [31, 24]];
     var advUnlike = advPairs.filter(function (n) {
       var a = TUT_ADVANCED[n[0] - 1], b = TUT_SIMPLE[n[1] - 1];
       return advSame(a) !== advSame(b) || advKind(a) !== advKind(b);
@@ -13061,13 +13119,77 @@ function selfTest() {
     TUT_MOCK = keepAdv[1];
     ok('the tutorial: the steps Advanced shares with Simple say the same words, and wait the same way',
        advUnlike.length === 0, advUnlike.join(', ') || 'all alike');
-    var advShape = [10, 11, 18, 19, 20, 21, 24].map(function (n) {
+    var advShape = [1, 2, 11, 12, 19, 20, 21, 22, 25].map(function (n) {
       var st = TUT_ADVANCED[n - 1];
       return n + ':' + (st.act === true ? 'act' : st.free ? 'free' : 'look');
     }).join(' ');
     ok('the tutorial: Advanced renames its config, ticks a box and tries its value in steps of their ' +
        'own, and shows the Editor\'s list',
-       advShape === '10:act 11:look 18:act 19:free 20:act 21:free 24:look', advShape);
+       advShape === '1:look 2:look 11:act 12:look 19:act 20:free 21:act 22:free 25:look', advShape);
+  }
+
+  // Advanced is drawn half as large again, and Simple and Quick as before
+  // (2.66.121); the tour's layer undoes it, to draw from what is seen.
+  {
+    var wasCompact = document.body.classList.contains('compact');
+    document.body.classList.remove('compact');
+    var zAdv = advZoom();
+    var tutLayer = document.createElement('div');
+    tutLayer.id = 'tutRoot';
+    document.body.appendChild(tutLayer);
+    var zLayer = parseFloat(getComputedStyle(tutLayer).zoom);
+    document.body.removeChild(tutLayer);
+    document.body.classList.add('compact');
+    var zCompact = advZoom();
+    if (!wasCompact) document.body.classList.remove('compact');
+    ok('the page: Advanced is drawn half as large again, the tour\'s layer not, and Simple and Quick ' +
+       'as they were', zAdv === 1.5 && zCompact === 1 && Math.abs(zLayer * zAdv - 1) < 0.001,
+       zAdv + ' ' + zLayer + ' ' + zCompact);
+  }
+
+  // The tour's dim fades between steps (2.66.121): out as a step goes, the
+  // step before's opening left as it was meanwhile; then the new one cut; and
+  // back in once the listener says the words stand still, from a poll asked
+  // after it had them, or after TUT_FADE_MOST whatever it says.
+  {
+    var keepFade = [TUT, TUT_FADE, TUT_WORDS_POST, TUT_WORDS_REST, TUT_LAST_HOLES];
+    var fadeRoot = document.createElement('div');
+    fadeRoot.id = 'tutRoot';
+    fadeRoot.className = 'tutFade';
+    document.body.appendChild(fadeRoot);
+    var t0 = Date.now();
+    TUT = { kind: 'advanced', phase: 'step', at: 4 };
+    TUT_FADE = { phase: 'out', at: t0, step: 'step:4' };
+    var heldOut = tutFadeTick() === true && TUT_FADE.phase === 'out';
+    TUT_FADE.at = t0 - TUT_FADE_OUT;
+    TUT_LAST_HOLES = 'old';
+    var cut = tutFadeTick() === false && TUT_FADE && TUT_FADE.phase === 'wait' && TUT_LAST_HOLES === '';
+    TUT_WORDS_POST = { step: 'step:4', acked: t0 };
+    TUT_WORDS_REST = { asked: t0 - 1, moving: false };
+    tutFadeTick();
+    var heldForAsk = !!TUT_FADE && fadeRoot.classList.contains('tutFade');
+    TUT_WORDS_REST = { asked: t0 + 5, moving: true };
+    tutFadeTick();
+    var heldMoving = !!TUT_FADE;
+    TUT_WORDS_REST = { asked: t0 + 9, moving: false };
+    tutFadeTick();
+    var cameIn = TUT_FADE === null && !fadeRoot.classList.contains('tutFade');
+    fadeRoot.classList.add('tutFade');
+    TUT_FADE = { phase: 'wait', at: t0 - TUT_FADE_MOST, step: 'step:5' };
+    tutFadeTick();
+    var timedIn = TUT_FADE === null && !fadeRoot.classList.contains('tutFade');
+    document.body.removeChild(fadeRoot);
+    TUT = keepFade[0];
+    TUT_FADE = keepFade[1];
+    TUT_WORDS_POST = keepFade[2];
+    TUT_WORDS_REST = keepFade[3];
+    TUT_LAST_HOLES = keepFade[4];
+    ok('the tutorial: the dim fades out as a step goes and back in once the words stand still',
+       heldOut && cut && heldForAsk && heldMoving && cameIn && timedIn,
+       [heldOut, cut, heldForAsk, heldMoving, cameIn, timedIn].join(','));
+    ok('the tutorial: Advanced\'s dim is half dark, Simple\'s and Quick\'s as before',
+       tutDimShade('advanced') === '0.5' && tutDimShade('simple') === '0.72' && tutDimShade('quick') === '0.72',
+       '');
   }
 
   // The wheel's rows keep the auto link mark in a span of its own, for the
@@ -13372,6 +13494,21 @@ var TUT_OBST = { at: 0, step: '', text: '' };   // what is on the window, as las
 var TUT_HAS_LIT = false;     // whether the step points at anything
 var TUT_LAST_ARROWS = '';    // where the arrows were last put
 var TUT_PRESS_TIMER = null;
+// ⭐ THE DIM FADES BETWEEN STEPS (rhoquinn8217, 2026-10-29: *"Lets have fade
+// in highlight fade in and out affect between steps. So when the the bubble
+// move to it's next spot remove the darkening completely then fade in the
+// darkening with the feather highlighted area."*): as a step goes, the dim
+// and its arrows fade out with what it lit (TUT_FADE_OUT), the words on their
+// way meanwhile; gone, the next step's opening is cut unseen; and once the
+// words stand still beside it, as the listener says (tutorial-press's
+// "moving"), it all fades in. The fades themselves are the style's
+// (#tutRoot.tutFade). ⓘ Never held longer than TUT_FADE_MOST from the step's
+// start: words that are hidden, or a listener that does not say, do not keep
+// the window undimmed.
+var TUT_FADE = null;         // { phase: 'out' | 'wait', at, step } while it fades
+var TUT_FADE_OUT = 200, TUT_FADE_MOST = 1500;
+var TUT_WORDS_POST = { step: '', acked: 0 };       // the words last sent, and when the listener had them
+var TUT_WORDS_REST = { asked: 0, moving: true };   // the press poll's last answer, and when it was asked
 var TUT_TICK_TIMER = null;   // tutTick between frames
 var TUT_MOCK = null;         // the practice controllers and configs, while a tour runs
 var OPENED_BY_SWITCH = false;  // this window is the quick config switch's (restoreView)
@@ -14369,6 +14506,13 @@ function tutAdvSetting(key) {
 // ⓘ Overview for its steps, gone back to as well; Dual's tab from its first
 // step on, L1 and R1 having maybe left another.
 function tutAdvOverview() { if (ACTIVE !== 'overview') showTab('overview'); }
+// ⓘ One of Bridging Options' boxes, by its id: its label and the line of help
+// under it.
+function tutAdvSwitch(id) {
+  var box = tutById(id), label = box && box.closest('label');
+  var help = label && label.nextElementSibling;
+  return [label, help && help.classList.contains('ovhelp') ? help : null].filter(Boolean);
+}
 function tutAdvDual() {
   var dual = TUT_MOCK.pads[0].ordinal;
   if (ACTIVE !== dual) showTab(dual);
@@ -14392,9 +14536,15 @@ function tutAdvEditorList() {
   pickerExpand(pick);
 }
 // The custom row in the list New opens, first in it, and custom's page, up
-// for Use this, or put up again for the step gone back to.
+// for Use this, or put up again for the step gone back to: over the list, as
+// choosing it from the list leaves it, so the step looks the same, and its
+// words stand in the same place, either way (2.66.121).
 function tutCustomRow() { return document.querySelector('#presetList .prow:first-child button'); }
-function tutCustomUp() { if (PRESET_INFO_OPEN !== 'custom') openPresetInfo(tutAdvOrd(), ''); }
+function tutCustomUp() {
+  var ord = tutAdvOrd();
+  if (!PRESET_OPEN && PRESETS && PRESETS.length) openPresetPicker(ord, deviceByOrdinal(ord) || null);
+  if (PRESET_INFO_OPEN !== 'custom') openPresetInfo(ord, '');
+}
 // ⓘ Face buttons on screen, and the row in sight: the rows are drawn once the
 // config is read, a moment after the step begins or Go back puts it back.
 function tutAdvShowRow(key) {
@@ -14452,7 +14602,7 @@ function tutAdvValueStep(key, words) {
            words: words };
 }
 
-// ⭐⭐ ADVANCED'S THIRTY (rhoquinn8217, 2026-10-29: *"Advance Mode tutorial,
+// ⭐⭐ ADVANCED'S THIRTY-ONE (rhoquinn8217, 2026-10-29: *"Advance Mode tutorial,
 // mock up the steps and try to be consistent with simple and quick modes.
 // Original steps will be needed for the overview and we will need to include
 // steps for setting a custom rebind or a button feature."*, then, to the
@@ -14469,24 +14619,37 @@ function tutAdvValueStep(key, words) {
 // steps for enabling a setting/rebind and for selecting a rebind/setting
 // value"*, each value a step to try, which the box's own step no longer
 // needed explaining apart; and *"Step to show any config can be selected in
-// the Editor mode."* ⓘ Advanced's own legend has no mark for a keyboard, and
-// its window one place, the middle of the screen.
+// the Editor mode."* Thirty until their look at setup 90: *"Step for each of
+// the two check boxes in the overview."*, where one step showed the card.
+// ⓘ Advanced's own legend has no mark for a keyboard, and its window one
+// place, the middle of the screen.
 var TUT_ADVANCED = [
-  // 1: Overview's first card, its two switches the listener's own, locked.
-  { side: 'left', enter: tutAdvOverview, lit: function () { return tutA('.ovcard.win'); },
+  // 1 and 2 (rhoquinn8217, 2026-10-29: *"Step for each of the two check
+  // boxes in the overview."*): Bridging Options' two boxes, a step each, lit
+  // with the help under it, shown and locked: both are the listener's own.
+  { side: 'left', enter: tutAdvOverview, lit: function () { return tutAdvSwitch('openOnBridge'); },
+    anchors: function () { return tutA('#openOnBridge'); },
     words: function () {
-      return tutHl('Bridging Options') + ': the first box opens this window whenever a controller is ' +
-             'bridged, the same as Open on bridge in the tray menu. The second lets you switch configs ' +
-             'mid-game by pressing the touchpad with two fingers.';
+      return tutHl('Bridging Options') + ' apply to every controller. Ticked, ' +
+             tutHl('Open this window when a controller is bridged') + ' brings this window up whenever ' +
+             'a controller is bridged: the same switch as Open on bridge in the tray menu.';
     } },
-  // 2: the controllers bridged, a row each, and its heading.
+  { side: 'left', enter: tutAdvOverview, lit: function () { return tutAdvSwitch('quickSwitch'); },
+    anchors: function () { return tutA('#quickSwitch'); },
+    words: function () {
+      return 'Ticked, ' + tutHl('Press the touchpad with two fingers to switch configs') + ' switches ' +
+             'configs mid-game: press the touchpad with two fingers and Quick opens while a finger rests ' +
+             'on it. Swipe another finger up or down to change the config; lifting closes it, and ' +
+             'pressing again keeps it open.';
+    } },
+  // 3: the controllers bridged, a row each, and its heading.
   { side: 'left', enter: tutAdvOverview,
     lit: function () { var t = tutById('devices'); return t ? [t.previousElementSibling, t] : []; },
     words: function () {
       return tutHl('Devices') + ' lists every bridged controller: its nickname, its polling rate and ' +
              'limit, its serial, and the config it auto links to.';
     } },
-  // 3: the tabs, to try, and L1 and R1 in the legend lit with them, with no
+  // 4: the tabs, to try, and L1 and R1 in the legend lit with them, with no
   // arrow of their own, as in Simple's.
   { side: 'above', free: true, split: true,
     lit: function () { return tutA('#tabs').concat([tutAdvLegend(1)]); },
@@ -14497,16 +14660,16 @@ var TUT_ADVANCED = [
       return tutKey('shoulders') + " switch this window's tabs: Overview, one for each controller, and " +
              'the Editor. Try it, then choose ' + tutHl('Continue') + '.';
     } },
-  // 4: Dual, on its tab, in Simple's and Quick's words.
+  // 5: Dual, on its tab, in Simple's and Quick's words.
   { side: 'left', enter: tutAdvDual, lit: function () { return [tutAdvTab()]; }, words: tutWordsDual },
-  // 5: the polling limit, which the d-pad reaches here (R3 opens it in Simple
+  // 6: the polling limit, which the d-pad reaches here (R3 opens it in Simple
   // and Quick only): open, and 250 Hz picked. The list is the page's own.
   { side: 'left', act: true,
     focus: function () { return document.querySelector('#stickyHead .prate select'); },
     lit: function () { return tutA('#stickyHead .prate'); },
     keys: function () { return !!GP_SELECTING; },
     enter: tutRateEnter, words: function () { return tutWordsRate(''); }, done: tutRateDone },
-  // 6: the config list, to try, where Simple's and Quick's have the wheel.
+  // 7: the config list, to try, where Simple's and Quick's have the wheel.
   { side: 'left', free: true, focus: tutAdvPick, lit: function () { return [tutAdvPick()]; },
     keys: function () { return !!GP_SELECTING; },
     words: function () {
@@ -14514,7 +14677,7 @@ var TUT_ADVANCED = [
              " uses it the moment it's picked. Try it: open the list and pick another, then choose " +
              tutHl('Continue') + '.';
     } },
-  // 7: New, then custom from the list it opens, the rest locked: a config
+  // 8: New, then custom from the list it opens, the rest locked: a config
   // with nothing set, for its rebind to be the one there.
   { side: 'left', act: true,
     focus: function () { return PRESET_OPEN ? tutCustomRow() : tutAdvButton('newConfigFor'); },
@@ -14526,7 +14689,7 @@ var TUT_ADVANCED = [
              'set, to make your own.';
     },
     done: function () { return PRESET_INFO_OPEN === 'custom'; } },
-  // 8: Use this, which makes it and gives it to Dual with no box after.
+  // 9: Use this, which makes it and gives it to Dual with no box after.
   // ⓘ Gone back to, custom's page comes up again.
   { side: 'left', act: true,
     focus: function () { return tutById('presetInfoUse'); },
@@ -14542,13 +14705,13 @@ var TUT_ADVANCED = [
       return !!TUT.made && TUT_MOCK.configs.indexOf(TUT.made) >= 0 &&
              TUT_MOCK.links[tutAdvOrd()] === TUT.made;
     } },
-  // 9: the config made, selected in the list, in Simple's words.
+  // 10: the config made, selected in the list, in Simple's words.
   { side: 'left', lit: function () { return [tutAdvPick()]; },
     words: function () {
       return tutHl(TUT.made || 'The new config') + ', the config you just made, is selected: ' + tutNick() +
              ' uses it now.';
     } },
-  // 10: Rename, done (*"use and instruct step for renaming of the custom
+  // 11: Rename, done (*"use and instruct step for renaming of the custom
   // config"*). The name row is the page's own while it is up, with its keys
   // and the pad (tutPageModal); Square in its box opens the listener's
   // keyboard, the one place over this window it opens. Done when the config
@@ -14566,13 +14729,13 @@ var TUT_ADVANCED = [
              ' a name of your own: ' + how + ', then choose ' + tutHl('Save') + '.';
     },
     done: function () { return !!TUT.made && TUT.made !== TUT.renameFrom && !RENAMING; } },
-  // 11: Copy, shown and locked.
+  // 12: Copy, shown and locked.
   { side: 'left', lit: function () { return [tutAdvButton('copyConfigFor')]; },
     words: function () {
       return tutHl('Copy') + ' makes your own copy of the selected config, which ' + tutNick() +
              ' then uses.';
     } },
-  // 12: Unlink, the page's button; Square does it on the config list.
+  // 13: Unlink, the page's button; Square does it on the config list.
   { side: 'right', act: true, focus: function () { return tutAdvButton('unlinkConfirmed'); },
     keyAim: tutAdvPick,
     lit: function () { return [tutAdvButton('unlinkConfirmed')]; },
@@ -14582,10 +14745,10 @@ var TUT_ADVANCED = [
     enter: tutEnsureLinked,
     words: function () { return tutWordsUnlink(tutHl('Unlink'), tutOnList('unlink')); },
     done: tutUnlinkDone },
-  // 13: what the list shows now.
+  // 14: what the list shows now.
   { side: 'left', lit: function () { return [tutAdvPick()]; }, enter: tutEnsureUnlinked,
     words: tutWordsNoConfig },
-  // 14: Auto link; Triangle does it on the config list, and its mark in the
+  // 15: Auto link; Triangle does it on the config list, and its mark in the
   // legend is lit too, with no arrow, as in Simple's. ⓘ After Unlink, the
   // config made is selected again for it.
   { side: 'right', act: true, split: true, focus: function () { return tutAdvButton('autoLinkToggle'); },
@@ -14599,9 +14762,9 @@ var TUT_ADVANCED = [
     enter: tutEnsureLinked,
     words: function () { return tutWordsAutoLink(tutHl('Auto link'), tutOnList('autolink')); },
     done: tutAutoLinkDone },
-  // 15: the mark auto link leaves, after the name in the list.
+  // 16: the mark auto link leaves, after the name in the list.
   { side: 'left', lit: function () { return [tutAdvPick()]; }, words: tutWordsMark },
-  // 16: Safe Edit Mode, shown and locked, in its own tooltip's terms.
+  // 17: Safe Edit Mode, shown and locked, in its own tooltip's terms.
   { side: 'right', lit: function () { return tutA('#stickyHead .holdBtnCopy'); },
     words: function () {
       return tutHl('Safe Edit Mode: ON') + ' keeps editing safe: only the basic controls work, your ' +
@@ -14609,7 +14772,7 @@ var TUT_ADVANCED = [
              'Turned off, your rebinds and mouse modes work while you edit, and your inputs reach the ' +
              'game as well.';
     } },
-  // 17: the sections, to try, as the page's own strip.
+  // 18: the sections, to try, as the page's own strip.
   { side: 'left', free: true, lit: function () { return tutA('#sectBar'); },
     keys: function (code, gated, plain) {
       return (gated && (code === 'KeyA' || code === 'KeyD')) ||
@@ -14619,24 +14782,24 @@ var TUT_ADVANCED = [
       return 'The settings come in sections. Press ' + tutKey('leftright') + ' to switch between them. ' +
              'Try it, then choose ' + tutHl('Continue') + '.';
     } },
-  // 18: ✕'s rebind, in Face buttons, its box ticked: what a box is, said
+  // 19: ✕'s rebind, in Face buttons, its box ticked: what a box is, said
   // here (settingValue: an unticked row writes nothing).
   tutAdvTickStep('rebind_0', function () {
     return 'Each setting has a box: ticked, this config sets it; unticked, the game controls it. Tick ' +
            tutFaceMark(0) + ' - rebind: press ' + tutKey('toggle') + ', or click its box.';
   }),
-  // 19: what ✕ does, to try.
+  // 20: what ✕ does, to try.
   tutAdvValueStep('rebind_0', function () {
     return tutFaceMark(0) + ' - rebind sets what ' + tutFaceMark(0) + ' does in your games: a key, a ' +
            'mouse action or another button. Try it: open its list and pick one, then choose ' +
            tutHl('Continue') + '.';
   }),
-  // 20: ✕'s rapid fire, its box ticked the same way.
+  // 21: ✕'s rapid fire, its box ticked the same way.
   tutAdvTickStep('turbo_0', function () {
     return 'Tick ' + tutFaceMark(0) + ' - rapid fire the same way: press ' + tutKey('toggle') +
            ', or click its box.';
   }),
-  // 21: how fast it repeats, to try: on a pad up and down step it by 1 and
+  // 22: how fast it repeats, to try: on a pad up and down step it by 1 and
   // L1 and R1 by 100; a keyboard types it.
   tutAdvValueStep('turbo_0', function () {
     var how = padLegend() === KEY_LEGEND
@@ -14646,7 +14809,7 @@ var TUT_ADVANCED = [
     return tutFaceMark(0) + ' - rapid fire repeats ' + tutFaceMark(0) + ' while it is held, this many ' +
            'milliseconds apart; 0 just holds it. Try it: ' + how + ', then choose ' + tutHl('Continue') + '.';
   }),
-  // 22: Archive Config, as Simple's Archive.
+  // 23: Archive Config, as Simple's Archive.
   { side: 'right', act: true, split: true, focus: function () { return tutAdvButton('archive'); },
     lit: function () { return [tutAdvButton('archive')].concat(tutConfirmCard()); },
     anchors: function () { return [tutAdvButton('archive')]; },
@@ -14656,13 +14819,13 @@ var TUT_ADVANCED = [
              ', then choose ' + tutHl('OK') + ', and ' + tutNick() + ' has no config again.';
     },
     done: function () { return !!TUT.made && TUT_MOCK.configs.indexOf(TUT.made) < 0; } },
-  // 23: the Editor, in a line (*"just briefly state allow you to work on a
+  // 24: the Editor, in a line (*"just briefly state allow you to work on a
   // config with nothing bridged"*): its tab, shown and locked.
   { side: 'right', lit: function () { return tutA('#tabs button[data-tab="editor"]'); },
     words: function () {
       return 'The ' + tutHl('Editor') + ' tab lets you work on a config with nothing bridged.';
     } },
-  // 24 (*"Step to show any config can be selected in the Editor mode."*): the
+  // 25 (*"Step to show any config can be selected in the Editor mode."*): the
   // Editor, its list open, every config in it.
   { side: 'right', enter: tutAdvEditorList, tick: tutAdvEditorList,
     lit: function () { return tutA('#editorPick'); },
@@ -14670,25 +14833,25 @@ var TUT_ADVANCED = [
       return 'In the Editor, any config can be selected from this list, whether a controller uses it ' +
              'or not.';
     } },
-  // 25: the window's position: a tap puts it back in the middle of the
+  // 26: the window's position: a tap puts it back in the middle of the
   // screen, Advanced's one place (config_move's snap_next), and a hold steers
   // it. Options reaches the listener from the pad's own report, and P passes.
   { side: 'below', free: true, lit: function () { return [tutAdvLegend(6)]; },
     words: function () { return tutWordsPosition(true); } },
-  // 26: its size, to try, the legend's and 🗗's, as in the others; 🗗 a press
+  // 27: its size, to try, the legend's and 🗗's, as in the others; 🗗 a press
   // of the d-pad from Continue.
   { side: 'below', free: true, split: true, focus: function () { return tutById('sizeBtn'); },
     lit: function () { return [tutAdvLegend(7), tutById('sizeBtn')]; },
     anchors: function () { return [tutById('sizeBtn')]; },
     hits: function () { return [tutById('sizeBtn')]; },
     words: tutWordsResize },
-  // 27: the mode list, opened and not used, as in the others.
+  // 28: the mode list, opened and not used, as in the others.
   { side: 'right', act: true, stay: true, noPick: true, focus: function () { return tutById('modePick'); },
     lit: function () { return [tutById('modePick')]; },
     pointer: function () { return GP_SELECTING !== tutById('modePick'); },
     words: function () { return tutWordsMode('ADVANCED MODE'); },
     done: function () { return GP_SELECTING === tutById('modePick'); } },
-  // 28: Circle, lit alone in the legend, as in the others; in Advanced it
+  // 29: Circle, lit alone in the legend, as in the others; in Advanced it
   // takes the pad into the footer. A keyboard's legend, Esc in its words, is
   // lit whole.
   { side: 'below', act: true,
@@ -14696,9 +14859,9 @@ var TUT_ADVANCED = [
     keys: tutCircleKeys, words: tutWordsCircle,
     done: function () { return !!FOOTER_MODE; },
     undo: function () { if (FOOTER_MODE) setFooterMode(false); } },
-  // 29: where Circle took you, and what Close does, Close itself locked.
+  // 30: where Circle took you, and what Close does, Close itself locked.
   { side: 'right', lit: function () { return [tutById('closeBtn')]; }, words: tutWordsClose },
-  // 30
+  // 31
   { lit: function () { return []; }, act: 'end', words: tutWordsEnd }
 ];
 
@@ -14809,6 +14972,10 @@ function tutBegin(kind) {
   TUT_LAST_HOLES = '';
   TUT_LAST_ARROWS = '';
   TUT_ANCHOR_STEP = '';
+  // ⓘ The dim fades in as the opening card comes up, as on every step after.
+  TUT_FADE = { phase: 'wait', at: Date.now(), step: 'intro:0' };
+  TUT_WORDS_POST = { step: '', acked: 0 };
+  TUT_WORDS_REST = { asked: 0, moving: true };
   // ⭐ SEEN AS IT STARTS: completed, skipped, ended early or the window
   // closed on it, it does not start by itself again.
   if (TUT_SEEN) TUT_SEEN[kind] = true;
@@ -14816,6 +14983,7 @@ function tutBegin(kind) {
   tutMockOn(kind);
   var root = document.createElement('div');
   root.id = 'tutRoot';
+  root.className = 'tutFade';
   // ⓘ The dim is a mask: white keeps it, the black holes let the window
   // through, and the blur on the holes is the feather.
   root.innerHTML =
@@ -14825,8 +14993,8 @@ function tutBegin(kind) {
       '<mask id="tutMask" maskUnits="userSpaceOnUse" x="0" y="0" width="100%" height="100%">' +
         '<rect x="0" y="0" width="100%" height="100%" fill="white"/>' +
         '<g id="tutHoles" filter="url(#tutBlur)"></g></mask></defs>' +
-      '<rect x="0" y="0" width="100%" height="100%" fill="#000" fill-opacity="0.72" ' +
-        'mask="url(#tutMask)"/></svg>' +
+      '<rect x="0" y="0" width="100%" height="100%" fill="#000" fill-opacity="' + tutDimShade(kind) +
+        '" mask="url(#tutMask)"/></svg>' +
     '<div id="tutArrows"></div>' +
     // ⓘ Stand-ins for the buttons the listener draws, for the halo to rest on.
     '<div id="tutProxies">' +
@@ -14846,6 +15014,48 @@ function tutBegin(kind) {
   TUT_TICK_TIMER = setInterval(tutTick, 250);
   tutRender();
   requestAnimationFrame(tutFrame);
+}
+
+// ⭐ HALF DARK IN ADVANCED (rhoquinn8217, 2026-10-29: *"The feather affect on
+// the advance window not as effective as it is in simple and quick mode since
+// the window has a lot more elements on the page. The effect darkens
+// everything around it so much that a user just sees a small highlighted area
+// in a large black box."*, then, shown 50% and 35%, *"50%"*): its page reads
+// through the dim; Simple's and Quick's keep theirs.
+function tutDimShade(kind) { return kind === 'advanced' ? '0.5' : '0.72'; }
+
+// The dim, out as a step goes: from where the step before left it, the words
+// moving meanwhile (tutFadeTick).
+function tutFadeStart() {
+  var root = tutById('tutRoot');
+  if (!TUT || !root) return;
+  TUT_FADE = { phase: 'out', at: Date.now(), step: TUT.phase + ':' + TUT.at };
+  root.classList.add('tutFade');
+}
+
+// Each layout: true while the step before's opening fades out with it, for it
+// to be left as it was; once gone, a layout that cuts the new one, unseen; and
+// then, the words standing still beside it, back in. ⓘ The listener's word is
+// taken only from a poll asked after it had this step's words.
+function tutFadeTick() {
+  if (!TUT_FADE) return false;
+  var now = Date.now();
+  if (TUT_FADE.phase === 'out') {
+    if (now - TUT_FADE.at < TUT_FADE_OUT) return true;
+    TUT_FADE.phase = 'wait';
+    TUT_LAST_HOLES = '';
+    TUT_LAST_ARROWS = '';
+    return false;
+  }
+  var post = TUT_WORDS_POST;
+  var arrived = post.step === TUT_FADE.step && post.acked > 0 &&
+                TUT_WORDS_REST.asked >= post.acked && !TUT_WORDS_REST.moving;
+  if (arrived || now - TUT_FADE.at >= TUT_FADE_MOST) {
+    TUT_FADE = null;
+    var root = tutById('tutRoot');
+    if (root) root.classList.remove('tutFade');
+  }
+  return false;
 }
 
 // ⭐ THE WORDS, SENT TO THE LISTENER, which draws them beside the window
@@ -14905,14 +15115,24 @@ function tutSendWords() {
   var key = JSON.stringify(body);
   if (key === TUT_WORDS_SENT) return;
   TUT_WORDS_SENT = key;
-  call('POST', '/api/v1/ui/tutorial-bubble', body, true).catch(function () {});
+  // ⓘ For the dim to come back once they stand still (tutFadeTick).
+  var post = TUT_WORDS_POST = { step: TUT ? TUT.phase + ':' + TUT.at : '', acked: 0 };
+  call('POST', '/api/v1/ui/tutorial-bubble', body, true)
+    .then(function () { post.acked = Date.now(); })
+    .catch(function () {});
 }
 
 // A click on the words' buttons, by its id, for the phase that showed it.
 function tutPollPress() {
   if (!TUT) return;
+  var asked = Date.now();
   call('GET', '/api/v1/ui/tutorial-press', undefined, true).then(function (d) {
-    if (TUT && d) TUT_WORDS_SIDE = d.side || '';
+    if (TUT && d) {
+      TUT_WORDS_SIDE = d.side || '';
+      // ⓘ Whether the words are still on their way; a listener that does not
+      // say is taken as still.
+      TUT_WORDS_REST = { asked: asked, moving: d.moving === true };
+    }
     if (!TUT || !d || !d.press) return;
     var phase = TUT.phase, p = d.press;
     if (phase === 'intro' && p === 'begin') tutShow(0);
@@ -14984,9 +15204,11 @@ function tutShow(i, keep) {
   tutEditEnd();
   if (!keep) tutCloseOpen();
   tutBoxLocks(false);
+  var changed = TUT.phase !== 'step' || TUT.at !== i;
   TUT.phase = 'step';
   TUT.at = i;
   TUT.shownAt = Date.now();
+  if (changed) tutFadeStart();
   var s = steps[i];
   if (s.enter) s.enter();
   if (s.tick) s.tick();
@@ -15040,6 +15262,7 @@ function tutEndPressed() {
   if (s && s.act === 'end') { tutFinish(); return; }
   tutCloseOpen();
   TUT.phase = 'ask';
+  tutFadeStart();
   tutRender();
 }
 
@@ -15060,6 +15283,7 @@ function tutFinish() {
   tutCloseOpen();
   var saved = TUT.saved, kind = TUT.kind;
   TUT = null;
+  TUT_FADE = null;
   if (TUT_PRESS_TIMER) { clearInterval(TUT_PRESS_TIMER); TUT_PRESS_TIMER = null; }
   if (TUT_TICK_TIMER) { clearInterval(TUT_TICK_TIMER); TUT_TICK_TIMER = null; }
   tutSendWords();     // no tour now: the listener takes the words away
@@ -15382,7 +15606,15 @@ function tutDrawn() {
   var configs = tutMockConfigs([]).map(function (c) {
     return c.name + '|' + (c.auto_link || []).join(',');
   }).join(';');
-  return DEVICE_SIG === deviceSignature(tutMockDevices()) && CONFIG_SIG === configs;
+  if (DEVICE_SIG !== deviceSignature(tutMockDevices()) || CONFIG_SIG !== configs) return false;
+  // ⓘ And in Advanced, the practice controller's settings, drawn a moment
+  // after its tab (renderConfigEditor): rows for a config, none for none.
+  if (TUT && TUT.kind === 'advanced' && tutMockPad(ACTIVE)) {
+    var host = tutById('dev-settings-' + ACTIVE);
+    if (!!TUT_MOCK.links[ACTIVE] !== !!host) return false;
+    if (host && !host.querySelector('[id^="row-dv-"]')) return false;
+  }
+  return true;
 }
 
 // ⭐ THE WORDS HOLD STILL WHILE WHAT THEY STAND BY MOVES (rhoquinn8217,
@@ -15446,7 +15678,12 @@ function tutSettleAnchor(want) {
 // wheel's rows past its edges. ⓘ Looked at a few times a second, not every
 // frame.
 function tutObstacles() {
-  var step = TUT.phase + ':' + TUT.at, now = Date.now();
+  // ⓘ Looked at again as soon as the page draws its lists or a pane anew, not
+  // a moment later (2.66.121): the first look after Go back saw the step
+  // after's, and the words, placed beside it, kept that place.
+  var pane = activePane();
+  var step = TUT.phase + ':' + TUT.at + '|' + DEVICE_SIG + '|' + CONFIG_SIG + '|' +
+             (pane ? pane.getElementsByTagName('*').length : 0), now = Date.now();
   if (step === TUT_OBST.step && now - TUT_OBST.at < 300) return TUT_OBST.text;
   var vw = window.innerWidth, vh = window.innerHeight, pad = 4, seen = {}, out = [];
   var none = function (c) { return c === 'transparent' || /^rgba\(\d+, \d+, \d+, 0\)$/.test(c); };
@@ -15557,6 +15794,8 @@ function tutLayout(s) {
   }
   tutSettleAnchor(want);
   tutSendWords();
+  // ⓘ The step before's opening and arrows, fading out, stay as they were.
+  if (tutFadeTick()) return;
   tutPlaceArrows(pointAt, s, pad, vw, vh);
   var html = holes.map(function (h) {
     return '<rect x="' + Math.round(h.left - pad) + '" y="' + Math.round(h.top - pad) +

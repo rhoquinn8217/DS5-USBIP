@@ -60,6 +60,15 @@ struct Content {
 inline std::mutex g_mutex;
 inline Content g_content;
 inline std::string g_press;
+// ⭐ WHETHER THE WORDS ARE STILL ON THEIR WAY (rhoquinn8217, 2026-10-29: "when
+// the bubble move to it's next spot remove the darkening completely then fade
+// in the darkening with the feather highlighted area"): each set of words the
+// page sends is counted, and the window's thread marks the count it has
+// placed once they stand still there, slid or not. The page fades its dim
+// back in when the two agree (moving()).
+inline std::atomic<unsigned> g_posted{ 0 };
+inline std::atomic<unsigned> g_settled{ 0 };
+inline unsigned g_placing = 0;   // the window thread's alone: the count it is placing
 inline std::atomic<HWND> g_hwnd{ nullptr };
 inline std::atomic_bool g_running{ false };
 inline const wchar_t *const kClassName = L"DS5USBIP_TutorialWords";
@@ -627,6 +636,7 @@ inline void refresh(HWND hwnd)
     {
         std::lock_guard<std::mutex> lock(g_mutex);
         c = g_content;
+        g_placing = g_posted.load();
     }
     const HWND win = c.show ? configs_window() : nullptr;
     if (win == nullptr || IsIconic(win) || GetForegroundWindow() != win) {
@@ -790,6 +800,9 @@ inline void thread_main()
     bool quit = false;
     while (!quit) {
         if (!g_sliding) {
+            // ⓘ At rest: the words last placed stand where they go, or are
+            // hidden, which is as still.
+            g_settled.store(g_placing);
             if (GetMessageW(&m, nullptr, 0, 0) <= 0) break;
             TranslateMessage(&m);
             DispatchMessageW(&m);
@@ -842,6 +855,7 @@ inline void update(const Content &c)
     {
         std::lock_guard<std::mutex> lock(g_mutex);
         g_content = c;
+        if (c.show) g_posted.fetch_add(1);
         // ⓘ A press left over from words no longer shown must not move the next tutorial.
         if (!c.show) g_press.clear();
     }
@@ -864,6 +878,13 @@ inline std::string side()
 {
     std::lock_guard<std::mutex> lock(g_mutex);
     return g_side;
+}
+
+// Whether the words the page sent last are not yet standing where they go:
+// not placed yet, or sliding there.
+inline bool moving()
+{
+    return g_settled.load() != g_posted.load();
 }
 
 // A click on a button, handed over once: its id, or "".

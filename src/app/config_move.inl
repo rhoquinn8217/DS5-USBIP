@@ -94,10 +94,22 @@ inline window_move::Movers g_movers;
 // ⓘ 0.90 x 0.94 went with it: two sizes still. A saved index keeps its slot,
 // so a window left at the small opens at the new small, and a dragged size of
 // 1664 x 1298 is that preset now, so the next close drops it.
+// ⭐⭐ AND BOTH LARGER SINCE 2026-10-29, WITH THE PAGE'S TEXT (rhoquinn8217:
+// "Text size in advance mode is too small. Typical screen size is 55 inches
+// at 4k watching from 5 feet away."): Advanced's text and controls are half
+// as large again (the page's --advZoom), which wrapped its config row and its
+// sections onto two lines at the small. Shown the larger size as the one it
+// opens at, and asked, *"yes"*. So:
+//
+//   small   0.68 x 0.73   what Advanced opens at, the large until then
+//   large   0.90 x 0.94   the large it had until 2026-10-09
+//
+// ⓘ A saved index keeps its slot again, so a window left at the small opens
+// at the new small.
 // ⛔ The opening size is written twice more, and the three move together:
 // the page's wantSize() and the browser window's size in open_ui.inl.
 struct SizeShare { double w; double h; };
-inline const SizeShare kSizes[2] = { { 0.4334, 0.622 }, { 0.68, 0.73 } };
+inline const SizeShare kSizes[2] = { { 0.68, 0.73 }, { 0.90, 0.94 } };
 inline std::atomic_int g_size{0};
 
 // ⭐ COMPACT HAS SIZES OF ITS OWN (rhoquinn8217, 2026-09-09): at 250% scaling on
