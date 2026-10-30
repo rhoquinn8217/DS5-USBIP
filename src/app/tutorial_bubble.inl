@@ -140,10 +140,10 @@ inline void fonts_for(Fonts *f, UINT dpi)
     f->count = make_font(12, FW_NORMAL, dpi);
     f->button = make_font(15, FW_SEMIBOLD, dpi);
     f->title = make_font(18, FW_SEMIBOLD, dpi);
-    f->bigText = make_font(22, FW_NORMAL, dpi);
-    f->bigLit = make_font(22, FW_SEMIBOLD, dpi);
-    f->bigButton = make_font(20, FW_SEMIBOLD, dpi);
-    f->bigTitle = make_font(40, FW_BOLD, dpi);
+    f->bigText = make_font(26, FW_NORMAL, dpi);
+    f->bigLit = make_font(26, FW_SEMIBOLD, dpi);
+    f->bigButton = make_font(22, FW_SEMIBOLD, dpi);
+    f->bigTitle = make_font(52, FW_BOLD, dpi);
 }
 
 // ⓘ The words', the title's and the buttons' type, larger on the card that
@@ -169,6 +169,10 @@ struct Layout {
     std::vector<tbr::Token> toks;
     std::vector<int> widths;
     std::vector<std::vector<size_t>> lines;
+    // ⓘ The card that ends a tour: its words and buttons in the middle of it,
+    // from this height down.
+    bool centred = false;
+    int contentTop = 0;
 };
 
 inline SIZE measure(HDC dc, HFONT font, const std::wstring &text)
@@ -207,7 +211,7 @@ inline int mark_w(const std::wstring &glyph, int h)
 // the "End Tutorial" button"): the pad's, drawn as the legends draw it, or a
 // keyboard's key, its name in a key's outline. Its height, and the width it
 // and the gap after it take.
-inline int button_mark_h(const Content &c, UINT dpi) { return px(c.big ? 21 : 17, dpi); }
+inline int button_mark_h(const Content &c, UINT dpi) { return px(c.big ? 24 : 17, dpi); }
 inline int button_mark_w(HDC dc, const Fonts *f, const Button &b, int h, UINT dpi)
 {
     if (b.mark.empty()) return 0;
@@ -259,7 +263,7 @@ inline Layout compute_layout(HDC dc, Fonts *fonts, const Content &c, UINT dpi,
     Layout L;
     L.content = c;
     L.dpi = dpi;
-    L.pad = px(c.big ? 20 : 12, dpi);
+    L.pad = px(c.big ? 28 : 12, dpi);
     L.round = px(10, dpi);
     L.litPad = px(5, dpi);
     L.hasArrow = c.arrow;
@@ -301,8 +305,9 @@ inline Layout compute_layout(HDC dc, Fonts *fonts, const Content &c, UINT dpi,
         for (const size_t i : line) w += L.widths[i];
         if (w > textW) textW = w;
     }
-    const int boxW = textW + 2 * L.pad;
-    const int boxH = L.pad + L.titleH + L.countH + static_cast<int>(L.lines.size()) * L.lineH + L.pad;
+    int boxW = textW + 2 * L.pad;
+    int boxH = L.pad + L.titleH + L.countH + static_cast<int>(L.lines.size()) * L.lineH + L.pad;
+    const int textH = L.titleH + L.countH + static_cast<int>(L.lines.size()) * L.lineH;
 
     // ⓘ The buttons in the page's order, as wide as their names, one height.
     std::vector<int> btnW;
@@ -315,8 +320,21 @@ inline Layout compute_layout(HDC dc, Fonts *fonts, const Content &c, UINT dpi,
         rowW += btnW.back();
         if (s.cy + 2 * btnPadY > btnH) btnH = s.cy + 2 * btnPadY;
     }
-    int stackW = boxW > rowW ? boxW : rowW;
-    const int stackH = boxH + (c.buttons.empty() ? 0 : between + btnH);
+    // ⭐ THE CARD THAT ENDS A TOUR, LARGER AND CENTRED (rhoquinn8217,
+    // 2026-10-29: "Make the Congraduation step box bigger, horizontallly an
+    // vertically centered."): its buttons inside it, under its words, the
+    // lot in the middle of a card at least 680 by 320, and the card over the
+    // window's middle (tbr::place_at, Center).
+    const int innerGap = px(22, dpi);
+    const int innerH = textH + (c.buttons.empty() ? 0 : innerGap + btnH);
+    if (c.big) {
+        L.centred = true;
+        const int wide = (textW > rowW ? textW : rowW) + 2 * L.pad;
+        boxW = wide > px(680, dpi) ? wide : px(680, dpi);
+        boxH = innerH + 2 * L.pad > px(320, dpi) ? innerH + 2 * L.pad : px(320, dpi);
+    }
+    int stackW = c.big ? boxW : (boxW > rowW ? boxW : rowW);
+    const int stackH = c.big ? boxH : boxH + (c.buttons.empty() ? 0 : between + btnH);
 
     const tbr::Box win{ frame.left, frame.top, frame.right, frame.bottom };
     const tbr::Box area{ work.left, work.top, work.right, work.bottom };
@@ -372,6 +390,16 @@ inline Layout compute_layout(HDC dc, Fonts *fonts, const Content &c, UINT dpi,
     const int offX = L.place.side == tbr::Side::Right ? arrow : 0;
     const int offY = L.place.side == tbr::Side::Below ? arrow : 0;
     L.box = { offX + stackW - wordsW, offY, offX + stackW, offY + boxH };
+    if (L.centred) {
+        L.contentTop = L.box.top + (boxH - innerH) / 2;
+        const int inTop = L.contentTop + textH + innerGap;
+        int bx = L.box.left + (boxW - rowW) / 2;
+        for (size_t i = 0; i < c.buttons.size(); ++i) {
+            L.btns.push_back({ bx, inTop, bx + btnW[i], inTop + btnH });
+            bx += btnW[i] + between;
+        }
+        return L;
+    }
     const int rowTop = offY + boxH + between;
     // [Continue] [Go back] [End tutorial], in rhoquinn8217's order, at the
     // box's right.
@@ -498,12 +526,14 @@ inline void paint(HDC dc, Fonts *fonts, const Layout &L, int width, int height, 
 
     // The title or the count, then the lines, a lit name amber in an amber
     // outline.
-    int y = L.box.top + L.pad;
+    int y = L.centred ? L.contentTop : L.box.top + L.pad;
+    const int boxWidth = L.box.right - L.box.left;
     if (!L.content.title.empty()) {
         SelectObject(dc, title_font(fonts, L.content));
         SetTextColor(dc, L.content.big ? kAmber : kText);
-        TextOutW(dc, L.box.left + L.pad, y, L.content.title.c_str(),
-                 static_cast<int>(L.content.title.size()));
+        const int tx = L.centred ? L.box.left + (boxWidth - measure(dc, title_font(fonts, L.content), L.content.title).cx) / 2
+                                 : L.box.left + L.pad;
+        TextOutW(dc, tx, y, L.content.title.c_str(), static_cast<int>(L.content.title.size()));
         y += L.titleH;
     }
     if (!L.content.count.empty()) {
@@ -516,6 +546,11 @@ inline void paint(HDC dc, Fonts *fonts, const Layout &L, int width, int height, 
     HGDIOBJ hollow = GetStockObject(HOLLOW_BRUSH);
     for (const auto &line : L.lines) {
         int x = L.box.left + L.pad;
+        if (L.centred) {
+            int lineW = 0;
+            for (const size_t i : line) lineW += L.widths[i];
+            x = L.box.left + (boxWidth - lineW) / 2;
+        }
         for (const size_t i : line) {
             const tbr::Token &t = L.toks[i];
             SelectObject(dc, words_font(fonts, L.content, t.lit));

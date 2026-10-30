@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.124 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.125 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,18 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.125 From rhoquinn8217's run of setup 93: Enter in the name box
+             sets the name ("enter when trying in the rename box resets the
+             name. It should set the name."). The box keeps its Enter, which
+             went on to the page's own keys as well: in a tour, whose
+             practice config is renamed at once, the row had shut by then,
+             and the Enter pressed Rename again, on the old name. A name is
+             saved once a row, and the practice configs refuse a change to
+             one they do not have rather than pass it to the listener. The
+             last step's button reads Finish tutorial ("On the last step,
+             change the "End tutorial" button label to "Finish
+             tutorial""), and the congratulations card is larger, in the
+             window's middle both ways, after every tour.
     2.66.124 From rhoquinn8217's run of setup 92, in every tour: R2, L2
              and Circle drawn on Continue, Go back and End tutorial, RT, LT
              and B for an Xbox pad, PgDn, PgUp and Esc for a keyboard, and
@@ -3239,7 +3251,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.66.124</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.66.125</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -7838,7 +7850,15 @@ function openNameRow(mode, name, ordinal) {
 }
 
 function renameKey(ev) {
-  if (ev.key === 'Enter') { ev.preventDefault(); commitNameRow(); return; }
+  // ⛔⛔ ENTER STAYS HERE (rhoquinn8217, 2026-10-29: *"enter when trying in the
+  // rename box resets the name. It should set the name."*). It went on to the
+  // page's own keys, which leave a box being typed into alone -- but a rename
+  // answered at once, as a tour's practice config is, has shut the row by
+  // then, and the Enter pressed the button the halo had gone back to: Rename,
+  // whose row opened again on the old name. A copy shuts its row before it
+  // asks, so it did the same everywhere. Escape stays here below for the same
+  // reason.
+  if (ev.key === 'Enter') { ev.preventDefault(); ev.stopPropagation(); commitNameRow(); return; }
   if (ev.key !== 'Escape') return;
   // ⭐ ESCAPE LEAVES THE BOX, IT DOES NOT CANCEL (rhoquinn8217, 2026-09-01).
   //
@@ -7891,6 +7911,10 @@ function cancelRename() {
 function commitNameRow() {
   var box = document.getElementById('renameTo');
   if (!box) return;
+  // ⓘ Once a row: Cross on Save is also the box's Enter while the box has
+  // focus, and the second rename would ask for the name the first has just
+  // given up. Off again if the rename is refused.
+  if (box.dataset.saving) return;
   var next = box.value.trim();
   var source = NAME_SOURCE, ordinal = NAME_ORDINAL, mode = NAME_MODE;
   if (!next) { cancelRename(); return; }
@@ -7905,6 +7929,7 @@ function commitNameRow() {
   }
 
   if (next === source) { cancelRename(); return; }
+  box.dataset.saving = '1';
   call('POST', '/api/v1/configs/' + encodeURIComponent(source) + '/rename', { name: next })
     .then(function() {
       setConn('renamed to ' + next, 'good');
@@ -7912,7 +7937,7 @@ function commitNameRow() {
       loadConfigs();
       loadDevices();
       if (OV_CONFIG === source) openConfig(next);
-    }).catch(function(){ cancelRename(); });
+    }).catch(function(){ delete box.dataset.saving; cancelRename(); });
 }
 
 // ⛔ ASK FIRST. Archive and Remove auto link are one click each, sit next to
@@ -13143,6 +13168,16 @@ function selfTest() {
     tutMockCall('POST', '/api/v1/configs/my-ds5/archive', {});
     var advGone = TUT_MOCK.configs.indexOf('my-ds5') < 0 && !TUT_MOCK.settings['my-ds5'] &&
                   TUT_MOCK.links.tutorial_1 === '';
+    // ⓘ A config it does not have, asked to change, is refused by the stand-in
+    // and never reaches the listener (2.66.125); and its own name in other
+    // capitals is not a name taken.
+    var goneCall = tutMockCall('POST', '/api/v1/configs/my-ds5/rename', { name: 'again' });
+    if (goneCall && goneCall.catch) goneCall.catch(function () {});
+    var advGoneRefused = !!goneCall && typeof goneCall.then === 'function' &&
+                         TUT_MOCK.configs.indexOf('again') < 0;
+    tutMockCall('POST', '/api/v1/configs/touchpad-to-mouse/rename', { name: 'Touchpad-To-Mouse' });
+    var advCase = TUT_MOCK.configs.indexOf('Touchpad-To-Mouse') >= 0 &&
+                  TUT_MOCK.configs.indexOf('touchpad-to-mouse') < 0;
     var advWords = TUT_ADVANCED.map(function (st) { return st.words(); });
     TUT = keepTutA;
     TUT_MOCK = keepMockA;
@@ -13162,6 +13197,9 @@ function selfTest() {
        advStart === 'stick-to-mouse,gyro-to-mouse-L2-aiming,gyro-to-stick-L2-aiming,touchpad-to-mouse' &&
        advKept && advRenamed && advGone && advTaken === 'refused',
        advStart + ' ' + JSON.stringify(advRead) + ' ' + advTaken);
+    ok('the tutorial: the practice configs refuse a change to one they do not have, never passing it ' +
+       'to the listener, and let one take its own name in other capitals',
+       advGoneRefused && advCase, advGoneRefused + ',' + advCase);
     var seenAll = { simple: true, quick: true, advanced: false };
     ok('the tutorial: Advanced\'s starts by itself in Advanced, unseen, with a controller bridged',
        tutAutoKindFor('advanced', seenAll, [{ supports_config: true }]) === 'advanced' &&
@@ -13256,6 +13294,10 @@ function selfTest() {
     TUT.at = 0;
     var barFirst = tutStepButtons(TUT_ADVANCED[0]);
     var barDone = tutWordsCongrats();
+    TUT.at = 34;
+    INPUT_LAST = 'pad';
+    var barLast = tutStepButtons(TUT_ADVANCED[34]);
+    var barLastWords = tutWordsEnd();
     TUT = keepBar[0];
     INPUT_LAST = keepBar[1];
     LAST_PRESS_KIND = keepBar[2];
@@ -13272,6 +13314,31 @@ function selfTest() {
        tutBarKey('KeyF', false, true) === '', '');
     ok('the tutorial: the card after the last step says which tour was finished',
        barDone === "You've finished the Advanced mode tutorial.", barDone);
+    ok('the tutorial: the last step\'s button reads Finish tutorial, and its words say so',
+       /[|]end:Finish tutorial:go:[*]/.test(barLast) && barLastWords.indexOf(tutHl('Finish tutorial')) >= 0 &&
+       barLastWords.indexOf('End tutorial') < 0, barLast);
+  }
+
+  // ⭐ The name box keeps its Enter (2.66.125): the page's own keys never see
+  // it, so a rename answered at once, its row shut before the key had gone
+  // round, cannot press the Rename button under it and open the row again on
+  // the old name. ⓘ The page's key handlers stand still meanwhile (STOPPED),
+  // and with no name row open the Enter saves nothing.
+  {
+    var nameProbe = document.createElement('input');
+    nameProbe.setAttribute('onkeydown', 'renameKey(event)');
+    document.body.appendChild(nameProbe);
+    var nameReached = false;
+    var nameSpy = function () { nameReached = true; };
+    var keepStopped = STOPPED;
+    STOPPED = true;
+    document.addEventListener('keydown', nameSpy);
+    nameProbe.dispatchEvent(new KeyboardEvent('keydown',
+      { key: 'Enter', code: 'Enter', bubbles: true, cancelable: true }));
+    document.removeEventListener('keydown', nameSpy);
+    STOPPED = keepStopped;
+    nameProbe.parentNode.removeChild(nameProbe);
+    ok('the name box keeps its Enter: the page\'s own keys never see it', !nameReached, '');
   }
 
   // Advanced is drawn half as large again, and Simple and Quick as before
@@ -13855,7 +13922,10 @@ function tutMockCall(method, path, body) {
     // it made. A name taken, or none, is refused, as the listener refuses it.
     if (method === 'POST' && hit[2] === 'rename') {
       var to = String((body && body.name) || '').trim();
-      if (!to || to === name || m.configs.some(function (c) { return c.toLowerCase() === to.toLowerCase(); })) {
+      // ⓘ Its own name in other capitals is not taken (2.66.125).
+      if (!to || to === name || m.configs.some(function (c) {
+        return c !== name && c.toLowerCase() === to.toLowerCase();
+      })) {
         return Promise.reject(new Error('a config named ' + to + ' already exists'));
       }
       m.configs = m.configs.map(function (c) { return c === name ? to : c; });
@@ -13878,6 +13948,13 @@ function tutMockCall(method, path, body) {
       return done({ archived_to: 'archive/' + name });
     }
     return done({ ok: true });
+  }
+  // ⛔ A CONFIG THE TOUR DOES NOT HAVE, ASKED TO CHANGE WHILE IT RUNS, IS
+  // REFUSED HERE (2.66.125): a practice one renamed or archived a moment ago,
+  // a second press on Save, and not the listener's business, which may have a
+  // real one of that name.
+  if (hit && method !== 'GET') {
+    return Promise.reject(new Error('no practice config named ' + decodeURIComponent(hit[1])));
   }
   return null;
 }
@@ -14174,7 +14251,7 @@ function tutWordsEnd() {
     ? 'To bring this window back, even mid-game, rest two fingers on the touchpad and press ' +
       tutMark(PAD_LEGEND_PS.position) + '. The tray icon opens it too.'
     : "To bring this window back, even mid-game, use DS5-USBIP's icon in the tray.";
-  return back + ' Choose ' + tutHl('End tutorial') + ' to finish.';
+  return back + ' Choose ' + tutHl('Finish tutorial') + '.';
 }
 
 // ⓘ Auto link and Unlink act on the config the controller uses: one is
@@ -15284,7 +15361,9 @@ function tutBarMark(what) {
 function tutStepButtons(s) {
   var btns = ['next:Continue:' + (tutCanContinue(s) ? 'go' : 'off') + ':' + tutBarMark('next')];
   if (TUT.at > 0) btns.push('prev:Go back:plain:' + tutBarMark('prev'));
-  btns.push('end:End tutorial:' + (s.act === 'end' ? 'go' : 'plain') +
+  // ⓘ On the last step it finishes (rhoquinn8217, 2026-10-29: *"On the last
+  // step, change the "End tutorial" button label to "Finish tutorial""*).
+  btns.push('end:' + (s.act === 'end' ? 'Finish tutorial:go' : 'End tutorial:plain') +
             (s.keys === tutCircleKeys ? '' : ':' + tutBarMark('close')));
   return btns.join('|');
 }
