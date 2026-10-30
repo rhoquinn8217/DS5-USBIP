@@ -319,6 +319,17 @@ inline void raise_now(HWND hwnd)
     // so without this the window sat in front while the game still
     // owned input -- and the gate's keystrokes went to the game.
     focus_existing();
+    // ⭐⭐ AND MAKE THE BROWSER LOOK AGAIN (rhoquinn8217, 2026-10-29: "when I open
+    // the config window it was all black", "moving it fixed it"). A browser
+    // draws nothing in a window it judges covered, and a window opened behind
+    // another is judged so from its first moment: the page calls itself hidden.
+    // ⛔ Neither of the above wakes it. Measured on a VM, 2026-10-30: opened
+    // under a window with the front, 10 of 10 stayed black, raised and in front,
+    // for as long as they were watched, and the page said hidden until the
+    // window was moved. Raising again and taking the front again did nothing.
+    // ➡️ A frame change wakes it as a move does, with nothing moved.
+    SetWindowPos(hwnd, nullptr, 0, 0, 0, 0,
+                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
 }
 
 // The program a window belongs to, by its exe's name, for the log. "?" when
