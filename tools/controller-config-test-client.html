@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.125 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.126 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,15 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.126 From rhoquinn8217's run of setup 94, in every tour: the last
+             step's Continue is Finish tutorial, which puts up the card,
+             and End tutorial is there as on every step, ending the tour
+             at once ("On the last step, "Continue" should be replaced
+             with "Finish tutorial", "Go back" stays the same, and "End
+             Tutorial" should be enabled."). The card is smaller after
+             Simple's tour and smaller again after Quick's ("smaller
+             congradulation windows for simple and even smaller for quick
+             mode tutorials.").
     2.66.125 From rhoquinn8217's run of setup 93: Enter in the name box
              sets the name ("enter when trying in the rename box resets the
              name. It should set the name."). The box keeps its Enter, which
@@ -3251,7 +3260,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.66.125</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.66.126</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -13314,9 +13323,35 @@ function selfTest() {
        tutBarKey('KeyF', false, true) === '', '');
     ok('the tutorial: the card after the last step says which tour was finished',
        barDone === "You've finished the Advanced mode tutorial.", barDone);
-    ok('the tutorial: the last step\'s button reads Finish tutorial, and its words say so',
-       /[|]end:Finish tutorial:go:[*]/.test(barLast) && barLastWords.indexOf(tutHl('Finish tutorial')) >= 0 &&
-       barLastWords.indexOf('End tutorial') < 0, barLast);
+    ok('the tutorial: on the last step Continue reads Finish tutorial, Go back and End tutorial as ' +
+       'on every step, and its words say to choose Finish tutorial',
+       barLast === 'next:Finish tutorial:go:*R2|prev:Go back:plain:*L2|end:End tutorial:plain:*' +
+                   PAD_LEGEND_PS.close &&
+       barLastWords.indexOf(tutHl('Finish tutorial')) >= 0 && barLastWords.indexOf('End tutorial') < 0,
+       barLast);
+  }
+
+  // ⭐ On every tour's last step, Finish tutorial (R2) puts up the card and End
+  // tutorial (Circle) ends the tour at once, asking nothing; the card is
+  // Advanced's largest and Quick's smallest (2.66.126).
+  {
+    var keepLast = [TUT, tutCongrats, tutFinish];
+    var lastWent = [];
+    tutCongrats = function () { lastWent.push('card'); };
+    tutFinish = function () { lastWent.push('end'); };
+    [['advanced', TUT_ADVANCED], ['simple', TUT_SIMPLE], ['quick', TUT_QUICK]].forEach(function (k) {
+      TUT = { kind: k[0], phase: 'step', at: k[1].length - 1, done: [], busy: false };
+      tutNext();
+      tutEndPressed();
+    });
+    TUT = keepLast[0];
+    tutCongrats = keepLast[1];
+    tutFinish = keepLast[2];
+    ok('the tutorial: on every tour\'s last step Finish tutorial puts up the card and End tutorial ends ' +
+       'it at once, the card Advanced\'s largest and Quick\'s smallest',
+       lastWent.join(',') === 'card,end,card,end,card,end' &&
+       tutCardSize('advanced') === 3 && tutCardSize('simple') === 2 && tutCardSize('quick') === 1,
+       lastWent.join(','));
   }
 
   // ⭐ The name box keeps its Enter (2.66.125): the page's own keys never see
@@ -15359,12 +15394,15 @@ function tutBarMark(what) {
   return !g ? '' : lg === KEY_LEGEND ? g : '*' + g;
 }
 function tutStepButtons(s) {
-  var btns = ['next:Continue:' + (tutCanContinue(s) ? 'go' : 'off') + ':' + tutBarMark('next')];
+  // ⭐ THE LAST STEP'S CONTINUE IS FINISH TUTORIAL (rhoquinn8217, 2026-10-30:
+  // *"On the last step, "Continue" should be replaced with "Finish
+  // tutorial", "Go back" stays the same, and "End Tutorial" should be
+  // enabled."*): R2 finishes, with the card (tutNext), and End tutorial is
+  // as on every step, ending the tour at once there (tutEndPressed).
+  var btns = [s.act === 'end' ? 'next:Finish tutorial:go:' + tutBarMark('next')
+              : 'next:Continue:' + (tutCanContinue(s) ? 'go' : 'off') + ':' + tutBarMark('next')];
   if (TUT.at > 0) btns.push('prev:Go back:plain:' + tutBarMark('prev'));
-  // ⓘ On the last step it finishes (rhoquinn8217, 2026-10-29: *"On the last
-  // step, change the "End tutorial" button label to "Finish tutorial""*).
-  btns.push('end:' + (s.act === 'end' ? 'Finish tutorial:go' : 'End tutorial:plain') +
-            (s.keys === tutCircleKeys ? '' : ':' + tutBarMark('close')));
+  btns.push('end:End tutorial:plain' + (s.keys === tutCircleKeys ? '' : ':' + tutBarMark('close')));
   return btns.join('|');
 }
 // Which of the three a press is: 'next' for R2 or PgDn, 'prev' for L2 or
@@ -15378,8 +15416,8 @@ function tutBarKey(code, gated, plain) {
 
 // ⭐ CONGRATULATIONS, AND CONFETTI (rhoquinn8217, 2026-10-29: *"Add
 // Congratulation bubble with larger text with confetti drop animation after
-// last step."*): End tutorial on the last step puts up a card in larger type
-// over the window's middle (the words window's `big`), the dim goes, and
+// last step."*): Finish tutorial on the last step puts up a card in larger
+// type over the window's middle (the words window's `big`), the dim goes, and
 // confetti falls over the window; Done, R2, Circle or Cross ends the tour.
 function tutCongrats() {
   tutCloseOpen();
@@ -15391,6 +15429,11 @@ function tutCongrats() {
   tutConfetti();
   tutRender();
 }
+// ⓘ The card's size in the words window: Advanced's 3, as 2026-10-29 made
+// it, Simple's 2 and Quick's 1 (rhoquinn8217, 2026-10-30: *"smaller
+// congradulation windows for simple and even smaller for quick mode
+// tutorials."*).
+function tutCardSize(kind) { return kind === 'advanced' ? 3 : kind === 'simple' ? 2 : 1; }
 function tutWordsCongrats() {
   var card = TUT_CARDS[TUT.kind];
   return "You've finished the " + (card ? card.title : 'tutorial') + '.';
@@ -15486,7 +15529,8 @@ function tutSendWords() {
                buttons: 'endyes:End tutorial:plain|keep:Keep going:go', arrow: false };
     } else if (TUT.phase === 'done') {
       body = { title: 'Congratulations!', count: '', words: tutWordsCongrats(),
-               buttons: 'done:Done:go:' + tutBarMark('next'), arrow: false, side: 'center', big: true };
+               buttons: 'done:Done:go:' + tutBarMark('next'), arrow: false, side: 'center',
+               big: tutCardSize(TUT.kind) };
     } else {
       // ⭐ NOT BEFORE THIS STEP'S OWN PLACE IS WORKED OUT (rhoquinn8217,
       // 2026-10-27: *"Sometimes window is positioned in a different spot then
@@ -15635,7 +15679,10 @@ function tutShow(i, keep) {
 
 function tutNext() {
   var s = tutStep();
-  if (!s || !tutCanContinue(s) || TUT.busy) return;
+  if (!s || TUT.busy) return;
+  // ⓘ The last step's is Finish tutorial (2.66.126): the card.
+  if (s.act === 'end') { tutCongrats(); return; }
+  if (!tutCanContinue(s)) return;
   // ⓘ What the step shows stays up for the next where it says so
   // (`keepOpen`): the pre-set's page, from its sections to Use this.
   tutShow(TUT.at + 1, !!s.keepOpen);
@@ -15661,7 +15708,9 @@ function tutPrev() {
 function tutEndPressed() {
   if (!TUT || TUT.busy || TUT.phase !== 'step') return;
   var s = tutStep();
-  if (s && s.act === 'end') { tutCongrats(); return; }
+  // ⓘ On the last step it ends the tour at once, asking nothing, as before
+  // the card: the card is Finish tutorial's (2.66.126).
+  if (s && s.act === 'end') { tutFinish(); return; }
   tutCloseOpen();
   TUT.phase = 'ask';
   tutFadeStart();

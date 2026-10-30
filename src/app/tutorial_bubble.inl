@@ -58,8 +58,9 @@ struct Content {
     int clear = 0;
     // ⭐ LARGER, for the card that ends a tour (rhoquinn8217, 2026-10-29: "Add
     // Congratulation bubble with larger text with confetti drop animation
-    // after last step"); the confetti is the page's.
-    bool big = false;
+    // after last step"); the confetti is the page's. ⓘ A size since
+    // 2026-10-30 (card_size): 3 Advanced's, 2 Simple's, 1 Quick's, 0 none.
+    int big = 0;
 };
 
 inline std::mutex g_mutex;
@@ -110,14 +111,35 @@ inline std::wstring wide(const std::string &utf8)
 
 inline int px(int v, UINT dpi) { return MulDiv(v, static_cast<int>(dpi), 96); }
 
+// ⭐ THE CARD THAT ENDS A TOUR, IN THREE SIZES (rhoquinn8217, 2026-10-30:
+// "smaller congradulation windows for simple and even smaller for quick mode
+// tutorials."): Advanced's as 2026-10-29 made it, Simple's smaller and
+// Quick's smaller again, as their windows are. Its type, the room around its
+// words and between them and Done, how wide its words run, and the least the
+// card is, at 96 dpi.
+struct CardSize {
+    int title, text, button, mark, pad, maxWidth, innerGap, minW, minH;
+};
+inline int card_of(int big) { return big < 0 ? 0 : big > 3 ? 3 : big; }
+inline const CardSize &card_size(int big)
+{
+    static const CardSize sizes[4] = {
+        { 18, 16, 15, 17, 12, 380, 22, 0, 0 },          // ⓘ no card: the words' own sizes
+        { 26, 16, 15, 17, 14, 360, 12, 340, 146 },      // Quick's
+        { 42, 22, 19, 21, 24, 480, 18, 520, 240 },      // Simple's
+        { 52, 26, 22, 24, 28, 560, 22, 680, 320 },      // Advanced's
+    };
+    return sizes[card_of(big)];
+}
+
 // ⭐ SMALL ON PURPOSE (*"The description boxes seen to take a lot of
 // space"*): ordinary desktop sizes, scaled for the display, where the page's
 // bubble used the window's own large type.
 struct Fonts {
     UINT dpi = 0;
     HFONT text = nullptr, lit = nullptr, count = nullptr, button = nullptr, title = nullptr;
-    // ⓘ The congratulations card's (Content::big).
-    HFONT bigText = nullptr, bigLit = nullptr, bigButton = nullptr, bigTitle = nullptr;
+    // ⓘ The congratulations card's, a set for each size (Content::big).
+    HFONT bigText[4] = {}, bigLit[4] = {}, bigButton[4] = {}, bigTitle[4] = {};
 };
 
 inline HFONT make_font(int sizePx, int weight, UINT dpi)
@@ -130,9 +152,13 @@ inline HFONT make_font(int sizePx, int weight, UINT dpi)
 inline void fonts_for(Fonts *f, UINT dpi)
 {
     if (f->dpi == dpi && f->text != nullptr) return;
-    for (HFONT h : { f->text, f->lit, f->count, f->button, f->title, f->bigText, f->bigLit, f->bigButton,
-                     f->bigTitle }) {
+    for (HFONT h : { f->text, f->lit, f->count, f->button, f->title }) {
         if (h != nullptr) DeleteObject(h);
+    }
+    for (int k = 1; k <= 3; ++k) {
+        for (HFONT h : { f->bigText[k], f->bigLit[k], f->bigButton[k], f->bigTitle[k] }) {
+            if (h != nullptr) DeleteObject(h);
+        }
     }
     f->dpi = dpi;
     f->text = make_font(16, FW_NORMAL, dpi);
@@ -140,20 +166,32 @@ inline void fonts_for(Fonts *f, UINT dpi)
     f->count = make_font(12, FW_NORMAL, dpi);
     f->button = make_font(15, FW_SEMIBOLD, dpi);
     f->title = make_font(18, FW_SEMIBOLD, dpi);
-    f->bigText = make_font(26, FW_NORMAL, dpi);
-    f->bigLit = make_font(26, FW_SEMIBOLD, dpi);
-    f->bigButton = make_font(22, FW_SEMIBOLD, dpi);
-    f->bigTitle = make_font(52, FW_BOLD, dpi);
+    for (int k = 1; k <= 3; ++k) {
+        const CardSize &z = card_size(k);
+        f->bigText[k] = make_font(z.text, FW_NORMAL, dpi);
+        f->bigLit[k] = make_font(z.text, FW_SEMIBOLD, dpi);
+        f->bigButton[k] = make_font(z.button, FW_SEMIBOLD, dpi);
+        f->bigTitle[k] = make_font(z.title, FW_BOLD, dpi);
+    }
 }
 
 // ⓘ The words', the title's and the buttons' type, larger on the card that
-// ends a tour.
+// ends a tour, as large as its size.
 inline HFONT words_font(const Fonts *f, const Content &c, bool lit)
 {
-    return c.big ? (lit ? f->bigLit : f->bigText) : (lit ? f->lit : f->text);
+    const int k = card_of(c.big);
+    return k ? (lit ? f->bigLit[k] : f->bigText[k]) : (lit ? f->lit : f->text);
 }
-inline HFONT title_font(const Fonts *f, const Content &c) { return c.big ? f->bigTitle : f->title; }
-inline HFONT button_font(const Fonts *f, const Content &c) { return c.big ? f->bigButton : f->button; }
+inline HFONT title_font(const Fonts *f, const Content &c)
+{
+    const int k = card_of(c.big);
+    return k ? f->bigTitle[k] : f->title;
+}
+inline HFONT button_font(const Fonts *f, const Content &c)
+{
+    const int k = card_of(c.big);
+    return k ? f->bigButton[k] : f->button;
+}
 
 // Everything a paint and a click need, in the words window's own pixels.
 struct Layout {
@@ -211,7 +249,7 @@ inline int mark_w(const std::wstring &glyph, int h)
 // the "End Tutorial" button"): the pad's, drawn as the legends draw it, or a
 // keyboard's key, its name in a key's outline. Its height, and the width it
 // and the gap after it take.
-inline int button_mark_h(const Content &c, UINT dpi) { return px(c.big ? 24 : 17, dpi); }
+inline int button_mark_h(const Content &c, UINT dpi) { return px(card_size(c.big).mark, dpi); }
 inline int button_mark_w(HDC dc, const Fonts *f, const Button &b, int h, UINT dpi)
 {
     if (b.mark.empty()) return 0;
@@ -263,11 +301,13 @@ inline Layout compute_layout(HDC dc, Fonts *fonts, const Content &c, UINT dpi,
     Layout L;
     L.content = c;
     L.dpi = dpi;
-    L.pad = px(c.big ? 28 : 12, dpi);
+    const int card = card_of(c.big);
+    const CardSize &z = card_size(card);
+    L.pad = px(z.pad, dpi);
     L.round = px(10, dpi);
     L.litPad = px(5, dpi);
     L.hasArrow = c.arrow;
-    const int maxWidth = px(c.big ? 560 : 380, dpi);
+    const int maxWidth = px(z.maxWidth, dpi);
     const int between = px(8, dpi);
     const int btnPadX = px(14, dpi), btnPadY = px(6, dpi);
     const int arrow = c.arrow ? px(12, dpi) : 0, gap = px(10, dpi);
@@ -275,7 +315,7 @@ inline Layout compute_layout(HDC dc, Fonts *fonts, const Content &c, UINT dpi,
     L.toks = tbr::tokens(tbr::parse(c.words));
     // ⓘ A button's mark at the page's 1.1 of the words' size, with a little
     // room either side.
-    L.markH = px(c.big ? 24 : 18, dpi);
+    L.markH = px(card ? z.mark : 18, dpi);
     for (const tbr::Token &t : L.toks) {
         if (t.mark) {
             L.widths.push_back(mark_w(t.text, L.markH) + 2 * px(2, dpi));
@@ -323,18 +363,19 @@ inline Layout compute_layout(HDC dc, Fonts *fonts, const Content &c, UINT dpi,
     // ⭐ THE CARD THAT ENDS A TOUR, LARGER AND CENTRED (rhoquinn8217,
     // 2026-10-29: "Make the Congraduation step box bigger, horizontallly an
     // vertically centered."): its buttons inside it, under its words, the
-    // lot in the middle of a card at least 680 by 320, and the card over the
-    // window's middle (tbr::place_at, Center).
-    const int innerGap = px(22, dpi);
+    // lot in the middle of a card at least its size's least (Advanced's 680
+    // by 320, Simple's 520 by 240, Quick's 340 by 146), and the card over
+    // the window's middle (tbr::place_at, Center).
+    const int innerGap = px(z.innerGap, dpi);
     const int innerH = textH + (c.buttons.empty() ? 0 : innerGap + btnH);
-    if (c.big) {
+    if (card) {
         L.centred = true;
         const int wide = (textW > rowW ? textW : rowW) + 2 * L.pad;
-        boxW = wide > px(680, dpi) ? wide : px(680, dpi);
-        boxH = innerH + 2 * L.pad > px(320, dpi) ? innerH + 2 * L.pad : px(320, dpi);
+        boxW = wide > px(z.minW, dpi) ? wide : px(z.minW, dpi);
+        boxH = innerH + 2 * L.pad > px(z.minH, dpi) ? innerH + 2 * L.pad : px(z.minH, dpi);
     }
-    int stackW = c.big ? boxW : (boxW > rowW ? boxW : rowW);
-    const int stackH = c.big ? boxH : boxH + (c.buttons.empty() ? 0 : between + btnH);
+    int stackW = card ? boxW : (boxW > rowW ? boxW : rowW);
+    const int stackH = card ? boxH : boxH + (c.buttons.empty() ? 0 : between + btnH);
 
     const tbr::Box win{ frame.left, frame.top, frame.right, frame.bottom };
     const tbr::Box area{ work.left, work.top, work.right, work.bottom };
@@ -930,7 +971,7 @@ inline void thread_main()
 inline Content content_of(const std::string &title, const std::string &count, const std::string &words,
                           const std::string &buttons, const std::string &focus, bool arrow, int ax, int ay,
                           const std::string &side, const std::string &anchors, const std::string &target,
-                          const std::string &obstacles, int clear, bool big = false)
+                          const std::string &obstacles, int clear, int big = 0)
 {
     Content c;
     c.show = true;
@@ -1009,7 +1050,8 @@ inline std::string take_press()
     return p;
 }
 
-// ⓘ `DS5-USBIP tutorial-words-picture <file.bmp> [dpi] [start|corners|left|beside|marks|keys|congrats]`:
+// ⓘ `DS5-USBIP tutorial-words-picture <file.bmp> [dpi] [start|corners|left|beside|marks|keys|congrats|
+// congrats-simple|congrats-quick]`:
 // the words as Quick's step that asks for a press shows them (or the card the
 // tour opens with; or the step with two arrows, at L1 and R1 in the panel's
 // corners; or a step that asks for the window's left side; or every button's
@@ -1020,7 +1062,7 @@ inline std::string take_press()
 inline int picture_mode(int argc, wchar_t **argv)
 {
     if (argc < 3) {
-        std::wcout << L"usage: DS5-USBIP tutorial-words-picture <file.bmp> [dpi] [start|corners|left|beside|marks|keys|congrats]"
+        std::wcout << L"usage: DS5-USBIP tutorial-words-picture <file.bmp> [dpi] [start|corners|left|beside|marks|keys|congrats|congrats-simple|congrats-quick]"
                    << std::endl;
         return 2;
     }
@@ -1080,13 +1122,16 @@ inline int picture_mode(int argc, wchar_t **argv)
                       { "end", L"End tutorial", "plain", L"Esc" } };
         c.ax = 500;
         c.ay = 420;
-    } else if (sample == L"congrats") {
-        // ⓘ The card that ends a tour, larger, over the window's middle.
+    } else if (sample == L"congrats" || sample == L"congrats-simple" || sample == L"congrats-quick") {
+        // ⓘ The card that ends a tour, larger, over the window's middle, in
+        // the size of the tour's mode: Advanced's, Simple's or Quick's.
+        const bool simple = sample == L"congrats-simple", quick = sample == L"congrats-quick";
         c.title = L"Congratulations!";
-        c.words = L"You've finished the Advanced mode tutorial.";
+        c.words = std::wstring(L"You've finished the ") + (simple ? L"Simple" : quick ? L"Quick" : L"Advanced") +
+                  L" mode tutorial.";
         c.buttons = { { "done", L"Done", "go", L"*R2" } };
         c.arrow = false;
-        c.big = true;
+        c.big = simple ? 2 : quick ? 1 : 3;
         c.prefer = tbr::Prefer::Center;
     } else if (start) {
         c.title = L"Quick mode tutorial";
@@ -1233,7 +1278,8 @@ inline int replay_mode(int argc, wchar_t **argv)
         }
         const Content c = content_of(text("title"), text("count"), text("words"), text("buttons"), text("focus"),
                                      flag("arrow"), number("ax", 500), number("ay", 500), text("side"),
-                                     text("anchors"), text("target"), text("obstacles"), number("clear", 0));
+                                     text("anchors"), text("target"), text("obstacles"), number("clear", 0),
+                                     flag("big") ? 3 : number("big", 0));
         const bool keep = shown && still_for(placed, c, place);
         const Standing standing{ here, placed.side };
         const Layout L = compute_layout(mem, &fonts, c, dpi, frame, work, client, keep ? &standing : nullptr);

@@ -812,7 +812,9 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
                 ui_tutorial_words_show(text("title"), text("count"), text("words"), text("buttons"),
                                        text("focus"), flag("arrow"), number("ax", 500), number("ay", 500),
                                        text("side"), text("anchors"), text("target"),
-                                       text("obstacles"), number("clear", 0), flag("big"));
+                                       text("obstacles"), number("clear", 0),
+                                       // ⓘ The card's size, 1 to 3; true, as before, the largest.
+                                       flag("big") ? 3 : number("big", 0));
             } else {
                 ui_tutorial_words_hide();
             }
