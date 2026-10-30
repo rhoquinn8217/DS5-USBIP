@@ -172,6 +172,7 @@ carry it; upstream's own history is unchanged.
 | 2026-10-28 | The Controller Configs window draws a pad's button as its legend does wherever one is named: the rebind and rapid-fire rows read "✕ - rebind" where they read "(✕) | (A) — remap", the warnings under Cross and Circle draw their button, and so do the presets' previews and their words, where a button is written `{btn:N}` in `config_presets.inl`. The PlayStation shapes or the Xbox letters in circles, L1 R1 L2 R2 in a shoulder button's box, the d-pad's cross with one arm filled, in the set of the pad in hand, or of the controller on screen while a keyboard is in hand. "Rebind" replaces "remap" everywhere the window shows it, the listener's help words included. And New's list of presets and a preset's title draw a button in its name the same way, a label writing it as `{btn:N}` too: "gyro-to-stick (on L2 for aiming)" and "gyro-to-mouse (on r3)" draw L2 and R3, and the line after New says it in words. Page 2.66.112 and 2.66.115. | `2d32283`, `5fdcdbd`, `0599696`, merge `cccc386`; `821b75a`, merge `baeac1c` |
 | 2026-10-28 | Simple mode's tour, and Quick's in step with it. Each starts from the tray's Show tutorial, which lists both, or by itself once, when its mode is on screen with a controller bridged; never in the window the quick config switch opens, and an install starts both afresh with the window in Simple. A tour walks the window on practice controllers, Dual, Nova and Pixel, so nothing real changes. Simple's twenty-four steps make a config from a pre-set and look over the pre-set's page a section a step, then go down the button column, Edit, Unlink, Auto link and its mark, Archive, then the window's position, its size and the mode list, Circle and Close, and the tips; Quick's fourteen share every step the two windows have, in the same words. The words stand in one box beside the window, drawn by the listener, and slide to each step beside what it lights and over the window wherever they cover nothing; they come back to the same place after Go back and hold still while the tips change. The legend's marks light beside the presses they name, and a pad the browser sees, unbridged, drives a tour as a bridged one does. L3 goes to Simple's next tip, H on a keyboard, its mark at the tip's right; the listener sends it only while Simple is in front. The pre-set page's Triggers keep L2's rows on the left and R2's on the right. Page 2.66.101 to 2.66.116. | `0fcbc98`, `3862670`, `ed88e17`, `15d76fd`, `f50a841`, `74a9069`, `7804308`, `157ffe9`, `d60e48a`, `39f46ec`, `d84e6b8`, `fb72cc9`, `06bb5d1`, merge `c0a8a04` |
 | 2026-10-29 | The quick config switch opens Quick as the two-finger press comes back up, within four seconds and with a finger still on the touchpad, where it opened as the press went in: two fingers pressed and held about four seconds are the TV's release gesture, and the window came up over it. A press held that long opens nothing, the touchpad held back until the last finger lifts. A window already there and not in front now closes before Quick is set, so its place and size are kept in its own layout: kept in Quick's, they had made every Quick window after it open that size, its words very large. Page 2.66.117, and 2.66.118 for the trunk's page with it. | `c87dd18`, `0fb7d22`, merge `c7c2ed5` |
+| 2026-10-30 | Advanced mode's tour. It starts from the tray's Show tutorial, which now lists Advanced too, or by itself once, when Advanced is on screen with a controller bridged, and walks the window on the practice controllers in thirty-five steps: Overview's two Bridging Options boxes, a step each; Dual's config list opened, then a config picked from it; a config made from a pre-set's custom page, renamed with the listener's keyboard, Copy shown, Unlink and auto link; its sections lit, a rebind picked from its list, rapid fire's box pressed and then changed; Archive Config; the Editor's list opened, then any config picked; the window's position, size and mode list, Circle and Close. Advanced draws its page half as large again, and larger as its window is wider, and its tour dims the page by half; in every tour the dim fades out while the words move and back in once they arrive. In every tour Continue, Go back and End tutorial carry R2, L2 and Circle, RT, LT and B on an Xbox pad and PgDn, PgUp and Esc on a keyboard, which are their only keys, and the listener gives L2 and R2 to the page only while a tour's words are up. The last step's Continue is Finish tutorial, which puts up a Congratulations card, in Advanced's, Simple's or Quick's size, with confetti falling over the window; End tutorial there ends the tour at once. Enter in a config's name box sets the name: the same Enter went on to the page's own keys, which, with the row already shut, pressed the button that had opened it again, Rename in a tour and Copy anywhere. The Editor no longer shows a config it has left when that config's answer comes late. Page 2.66.119 to 2.66.126. | `78f41ff`, `3149d00`, `b13c62b`, `829feab`, `b087a03`, `ff32bd2`, `232fb5f`, merge `2c1aec0` |
 
 ## Files changed
 
@@ -183,7 +184,7 @@ ENet library, removed with the ENet transport).
 ```
  .gitattributes                                |    48 +
  .gitignore                                    |    41 +-
- CHANGES.md                                    |   412 +
+ CHANGES.md                                    |   414 +
  LINK                                          |     0
  README.md                                     |   310 +-
  app/compatibility.manifest                    |    27 +
@@ -237,7 +238,7 @@ ENet library, removed with the ENet transport).
  src/app/agent_session_sweep.inl               |   333 +
  src/app/cli.inl                               |    66 +-
  src/app/common.inl                            |   166 +-
- src/app/config_move.inl                       |  1488 +++
+ src/app/config_move.inl                       |  1514 +++
  src/app/console_attach.inl                    |    82 +
  src/app/control_caller.inl                    |    48 +
  src/app/device_capabilities.inl               |    75 +
@@ -251,7 +252,7 @@ ENet library, removed with the ENet transport).
  src/app/old_devices.inl                       |   267 +
  src/app/old_devices_rule.inl                  |    91 +
  src/app/open_on_bridge.inl                    |    92 +
- src/app/open_ui.inl                           |   931 ++
+ src/app/open_ui.inl                           |   932 ++
  src/app/overlay_window.inl                    |  2472 ++++
  src/app/paired_tv.inl                         |   495 +
  src/app/protocol_level.inl                    |    77 +
@@ -259,7 +260,7 @@ ENet library, removed with the ENet transport).
  src/app/quick_switch_session.inl              |   424 +
  src/app/quit_request.inl                      |    28 +
  src/app/rest.inl                              |   885 ++
- src/app/rest_config.inl                       |  1509 +++
+ src/app/rest_config.inl                       |  1518 +++
  src/app/rest_config_sessions.inl              |   243 +
  src/app/rest_sessions.inl                     |    33 +
  src/app/rest_shared_section.inl               |    55 +
@@ -273,10 +274,10 @@ ENet library, removed with the ENet transport).
  src/app/taskbar_back.inl                      |   169 +
  src/app/taskbar_rule.inl                      |    64 +
  src/app/tray_icon.inl                         |   839 ++
- src/app/tray_menu.inl                         |   212 +
- src/app/tutorial_bubble.inl                   |  1109 ++
- src/app/tutorial_bubble_rule.inl              |   466 +
- src/app/tutorial_state.inl                    |    88 +
+ src/app/tray_menu.inl                         |   214 +
+ src/app/tutorial_bubble.inl                   |  1305 ++
+ src/app/tutorial_bubble_rule.inl              |   474 +
+ src/app/tutorial_state.inl                    |    91 +
  src/app/tv_sessions.inl                       |   162 +
  src/app/ui_page.inl                           |   140 +
  src/app/window_icon.inl                       |   242 +
@@ -288,7 +289,7 @@ ENet library, removed with the ENet transport).
  src/audio/audio_haptics.inl                   |   299 +
  src/audio/audio_haptics_dsp.inl               |   346 +
  src/audio/ds5_apply_settings.inl              |   316 +
- src/audio/ds5_output_overrides.inl            |   699 ++
+ src/audio/ds5_output_overrides.inl            |   699 +
  src/audio/iso_in_pacing.inl                   |   221 +
  src/audio/iso_in_test_tone.inl                |    95 +
  src/audio/mic_ring.inl                        |   202 +
@@ -323,14 +324,14 @@ ENet library, removed with the ENet transport).
  src/input/mouse_held.inl                      |    99 +
  src/input/osk.inl                             |   228 +
  src/input/pad_press.inl                       |   116 +
- src/input/rebind.inl                          |  1367 +++
+ src/input/rebind.inl                          |  1392 ++
  src/input/stick_mouse.inl                     |   474 +
  src/input/touch_mouse.inl                     |  1707 +++
- src/input/trigger_click.inl                   |   857 ++
+ src/input/trigger_click.inl                   |   864 ++
  src/input/trigger_effect.inl                  |   637 +
  src/log/capped_log.inl                        |   117 +
  src/log/device_log.inl                        |   233 +
- src/main.cpp                                  |  1060 +-
+ src/main.cpp                                  |  1073 +-
  src/map/runtime.cpp                           |    90 +-
  src/usbdisplay/README.md                      |    13 +
  src/usbip/device.inl                          |  1068 +-
@@ -379,7 +380,7 @@ ENet library, removed with the ENet transport).
  tests/protocol_level_test.cpp                 |   101 +
  tests/quick_switch_test.cpp                   |   343 +
  tests/quit_request_test.cpp                   |    69 +
- tests/rebind_test.cpp                         |   752 ++
+ tests/rebind_test.cpp                         |   784 ++
  tests/rest_parser_test.cpp                    |   252 +
  tests/rest_shared_section_test.cpp            |    79 +
  tests/rumble_floor_test.cpp                   |    87 +
@@ -392,22 +393,22 @@ ENet library, removed with the ENet transport).
  tests/taskbar_rule_test.cpp                   |    46 +
  tests/tests_main.cpp                          |   193 +
  tests/touch_mouse_test.cpp                    |  2591 ++++
- tests/tray_menu_test.cpp                      |   272 +
- tests/trigger_click_test.cpp                  |   901 ++
+ tests/tray_menu_test.cpp                      |   279 +
+ tests/trigger_click_test.cpp                  |   928 ++
  tests/trigger_effect_test.cpp                 |   529 +
- tests/tutorial_bubble_rule_test.cpp           |   360 +
+ tests/tutorial_bubble_rule_test.cpp           |   372 +
  tests/tv_sessions_test.cpp                    |   191 +
  tests/units.h                                 |    54 +
  tests/usb_descriptors_test.cpp                |   213 +
  tests/usbip_limits_test.cpp                   |    73 +
- tests/usbip_server_test.cpp                   |   687 ++
+ tests/usbip_server_test.cpp                   |   687 +
  tests/window_icon_rule_test.cpp               |   108 +
  tests/window_move_test.cpp                    |   136 +
  tests/window_open_rule_test.cpp               |    43 +
  tests/window_size_rule_test.cpp               |   129 +
- tools/controller-config-test-client.html      | 15035 ++++++++++++++++++++++++
+ tools/controller-config-test-client.html      | 16344 ++++++++++++++++++++++++
  tools/create-desktop-shortcut.bat             |    46 +
  tools/create-desktop-shortcut.ps1             |   148 +
  tools/osk-mockups.py                          |   103 +
- 228 files changed, 72397 insertions(+), 1568 deletions(-)
+ 228 files changed, 74076 insertions(+), 1568 deletions(-)
 ```
