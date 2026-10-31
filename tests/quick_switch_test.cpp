@@ -36,6 +36,17 @@ int run_quick_switch_tests()
         CTM_CHECK(line(false) == "quick_config_switch = 0\n");
     }
 
+    section("quick switch: on out of the box, and on once for an older install");
+    {
+        CTM_CHECK(kDefault);
+        CTM_CHECK(default_line() == "quick_config_switch_default = on\n");
+        CTM_CHECK(loaded(false, false, false));   // no file, or no line
+        CTM_CHECK(loaded(true, false, false));    // "off" from before the change: dropped
+        CTM_CHECK(!loaded(true, false, true));    // turned off since: kept
+        CTM_CHECK(loaded(true, true, true));
+        CTM_CHECK(loaded(false, false, true));
+    }
+
     section("quick switch: two fingers pressing arm it, once per press");
     {
         Press p;
