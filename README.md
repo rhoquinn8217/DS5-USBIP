@@ -42,7 +42,7 @@ those, or a [DS5Dongle](https://github.com/awalol/DS5Dongle) to stay wireless.
 | **DualSense** | Your controller |
 | **Windows** | Your host machine's operating system |
 | **Moonlight-compatible host** | Streaming software on that Windows machine:<br>[Sunshine](https://github.com/LizardByte/Sunshine), [Apollo](https://github.com/ClassicOldSong/Apollo), [Vibepollo](https://github.com/Nonary/Vibepollo), [Vibeshine](https://github.com/Nonary/vibeshine), etc. |
-| **[rhoquinn8217/aurora-tv](https://github.com/rhoquinn8217/aurora-tv/releases)** | Install the ipk on your webOS TV |
+| **[rhoquinn8217/aurora-tv](https://github.com/rhoquinn8217/aurora-tv/releases)** | Download the `.ipk` from the [releases page](https://github.com/rhoquinn8217/aurora-tv/releases) and install it on your webOS TV/monitor. |
 
 **Set up DS5-USBIP**
 
@@ -57,48 +57,35 @@ those, or a [DS5Dongle](https://github.com/awalol/DS5Dongle) to stay wireless.
 
 1. Connect a DualSense to the television: via Bluetooth or USB port.
 2. Start rhoquinn8217/aurora-tv on the television.
-3. Turn on **Enable Device Bridging** in **Settings (⚙️) → USB Bridge**.<br>
-   *A DualSense is already ticked under **Auto Bridge** in the same panel.
-   Untick it there if you would rather bridge it by hand.*
-4. Start the stream to the host.
-5. The DualSense bridges itself, both at a stream's start and when it connects
-   during one.<br>
-   *Bridging by hand: press and hold the touchpad with two fingers for a
-   second.*
-6. DS5-USBIP will open showing that the DualSense is natively connected.<br>
-   *Optional (Recommended): Create and set a new "touchpad-to-mouse (DS5|DS4)"
-   pre-set and try it out.*
+3. Start the stream to the host.
+4. DualSense controllers will bridge automatically when the stream starts.<br>
+   *Note: Press and hold the DualSense touchpad with two fingers for 1 second to bridge, 4 seconds to release.*
+5. *Optional (Recommended): Open Controller Configs in the DS5-USBIP Windows
+   tray menu. Go through the tutorial then click "New" and create a
+   **touchpad-to-mouse (DS5|DS4)** pre-set.*
 
 **Start using the DualSense with gyro, touchpad, audio-based rumble and
 speaker audio (microphone on USB only).**
 
 *Note: DS5-USBIP can be set up, stopped and started through the same stream.*
 
-## Why this exists
+## DS5-USBIP's Controller Configs
 
-Before ciprianmisaila's ctm-bridge-webos/CTM-USBIP, a DualSense connected to a
-USB port on a webOS TV could already send its input to a PC through the
-streaming software, and Windows saw it as a device with gyro, touchpad and
-adaptive triggers.
-However, it is limited in that it does not support audio-based rumble, speaker
-audio or microphone.
+Controller Configs is DS5-USBIP's window on the host. It rebinds a
+controller's buttons, keeps pre-sets you can switch mid-game, and carries a
+virtual keyboard the controller types on.
 
-USB/IP allows devices to fully connect to a host over a network or the internet,
-providing the DualSense's audio features that the streaming software doesn't
-have. However, a USB/IP client has to reach out over the network or internet to
-the server that presents the device, but reaching out to a webOS TV is
-difficult, especially over the internet.
+Ways to open the Controller Configs window:
 
-DS5-USBIP resolves this issue by being a relay that runs on the host, waiting
-for a webOS TV to make the request to connect a DualSense to it. It then uses
-USB/IP to present the DualSense to the host as a native device, with gyro,
-touchpad, audio-based rumble and speaker audio as if connected
-directly to the PC.
-
-Being a relay also made the controller rebinder and Controller Configs cheap to
-add. Every report already passes through DS5-USBIP, so rebinding needed no new
-plumbing. Having it run on the Windows host machine meant custom controller
-rebindings could be stored and managed.
+- **Select "Open Controller Configs" in the tray icon menu.**
+- **Press the DualSense touchpad with two fingers and hold 1 finger on the
+  touchpad.**<br>
+  Lifting your finger closes the window. While you rest 1 finger on the
+  touchpad use another finger to swipe up/down to switch configs.
+- **Press the DualSense touchpad with two fingers twice.**<br>
+  Doing this makes the config window stay up after you lift both fingers off
+  the touchpad.
+- **Use the DS5-USBIP streaming overlay button in rhoquinn8217/aurora-tv.**
 
 ## What this fork adds
 
@@ -127,6 +114,38 @@ with only a controller.
 > not have this problem: microphone audio arrives on its own isochronous
 > endpoint rather than inside the report stream, so nothing reads it as button
 > presses.
+
+## Why this exists
+
+Before ciprianmisaila's ctm-bridge-webos/CTM-USBIP, a DualSense connected to a
+USB port on a webOS TV could already send its input to a PC through the
+streaming software, and Windows saw it as a device with gyro, touchpad and
+adaptive triggers.
+However, it is limited in that it does not support audio-based rumble, speaker
+audio or microphone.
+
+USB/IP allows devices to fully connect to a host over a network or the internet,
+providing the DualSense's audio features that the streaming software doesn't
+have. However, a USB/IP client has to reach out over the network or internet to
+the server that presents the device, but reaching out to a webOS TV is
+difficult, especially over the internet.
+
+DS5-USBIP resolves this issue by being a relay that runs on the host, waiting
+for a webOS TV to make the request to connect a DualSense to it. It then uses
+USB/IP to present the DualSense to the host as a native device, with gyro,
+touchpad, audio-based rumble and speaker audio as if connected
+directly to the PC.
+
+Being a relay also made the controller rebinder and Controller Configs cheap to
+add. Every report already passes through DS5-USBIP, so rebinding needed no new
+plumbing. Having it run on the Windows host machine meant custom controller
+rebindings could be stored and managed.
+
+## Reporting problems
+
+Report a bug in [Issues](https://github.com/rhoquinn8217/DS5-USBIP/issues), with
+the form there. Questions, setup help and ideas go to
+[Discussions](https://github.com/rhoquinn8217/DS5-USBIP/discussions).
 
 ## Clean-room
 
