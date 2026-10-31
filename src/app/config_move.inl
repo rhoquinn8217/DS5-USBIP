@@ -1118,9 +1118,9 @@ inline void install_check(const std::wstring &exeFolder)
         << "): the window opens in Simple, and every tutorial will start by itself again");
 }
 
-// The "Open on bridge" switch: read by the bridge, set by the tray and the
-// settings page, and written with the rest of the window's state at once, so
-// a restart keeps it.
+// The "Open on bridge" switch: read by the bridge, set by the settings page,
+// and written with the rest of the window's state at once, so a restart keeps
+// it.
 inline bool open_on_bridge() { return g_openOnBridge.load(); }
 inline void set_open_on_bridge(bool on)
 {
