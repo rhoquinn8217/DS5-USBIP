@@ -175,6 +175,7 @@ carry it; upstream's own history is unchanged.
 | 2026-10-30 | Advanced mode's tour. It starts from the tray's Show tutorial, which now lists Advanced too, or by itself once, when Advanced is on screen with a controller bridged, and walks the window on the practice controllers in thirty-five steps: Overview's two Bridging Options boxes, a step each; Dual's config list opened, then a config picked from it; a config made from a pre-set's custom page, renamed with the listener's keyboard, Copy shown, Unlink and auto link; its sections lit, a rebind picked from its list, rapid fire's box pressed and then changed; Archive Config; the Editor's list opened, then any config picked; the window's position, size and mode list, Circle and Close. Advanced draws its page half as large again, and larger as its window is wider, and its tour dims the page by half; in every tour the dim fades out while the words move and back in once they arrive. In every tour Continue, Go back and End tutorial carry R2, L2 and Circle, RT, LT and B on an Xbox pad and PgDn, PgUp and Esc on a keyboard, which are their only keys, and the listener gives L2 and R2 to the page only while a tour's words are up. The last step's Continue is Finish tutorial, which puts up a Congratulations card, in Advanced's, Simple's or Quick's size, with confetti falling over the window; End tutorial there ends the tour at once. Enter in a config's name box sets the name: the same Enter went on to the page's own keys, which, with the row already shut, pressed the button that had opened it again, Rename in a tour and Copy anywhere. The Editor no longer shows a config it has left when that config's answer comes late. Page 2.66.119 to 2.66.126. | `78f41ff`, `3149d00`, `b13c62b`, `829feab`, `b087a03`, `ff32bd2`, `232fb5f`, merge `2c1aec0` |
 | 2026-10-31 | The Controller Configs window draws when it opens behind another window. A browser draws nothing in a window it judges covered, and one opened behind another was judged so from its first moment: the raise brought it to the front, but neither the raise nor the front made the browser look again, so it stayed black, title bar and all, until someone moved it. Every raise now ends with a frame change, which wakes it with nothing moved. On a VM, under a window holding the front: 20 opens of 20 black at 100% scale and 3 of 6 at 125% before, none of 24 after. A PC at 150% went black under the same test neither before nor after, so the proof is the VM's. | `71bf7e5`, merge `629376e` |
 | 2026-10-31 | The tray menu: Show tutorial reads Start Tutorial, and Window Mode and Open on bridge are gone from it. Both stay in the Controller Configs window, in its Mode picker and on Advanced's Overview, and Start Tutorial's list still takes the window to the layout it tours. The line under Open on bridge's box and the words in the first step of Advanced's tour that pointed at the tray went with them, and so did the page's read of the box and the quick switch's each second, which was there only for a change made in the tray. Page 2.66.128. | `7af2305`, merge `0a05d33` |
+| 2026-10-31 | The quick config switch is on out of the box. It was off until it was ticked, so two of the four ways of opening the Controller Configs window -- the DualSense touchpad pressed with two fingers, and the same press with a finger left down -- did nothing on a fresh install. The default sits beside the key now, as Open on bridge's does, and every save writes `quick_config_switch_default = on` above the switch's line: a window-state.txt without that line was written while the default was off, so its `quick_config_switch = 0` said only that and is dropped once. An install that has the switch turned off since keeps it off, and a file that is gone gives the default. Page 2.66.129. | `1538eff`, merge `bc1c386` |
 
 ## Files changed
 
@@ -185,10 +186,13 @@ ENet library, removed with the ENet transport).
 
 ```
  .gitattributes                                |    48 +
+ .github/ISSUE_TEMPLATE/bug-report.yml         |   103 +
+ .github/ISSUE_TEMPLATE/config.yml             |     5 +
+ .github/ISSUE_TEMPLATE/feature-request.yml    |    22 +
  .gitignore                                    |    41 +-
- CHANGES.md                                    |   415 +
+ CHANGES.md                                    |   416 +
  LINK                                          |     0
- README.md                                     |   310 +-
+ README.md                                     |   329 +-
  app/compatibility.manifest                    |    27 +
  app/ctm-usbip-tests.vcxproj                   |   151 +
  app/ctm-usbip.ico                             |   Bin 156019 -> 30139 bytes
@@ -240,7 +244,7 @@ ENet library, removed with the ENet transport).
  src/app/agent_session_sweep.inl               |   333 +
  src/app/cli.inl                               |    66 +-
  src/app/common.inl                            |   166 +-
- src/app/config_move.inl                       |  1514 +++
+ src/app/config_move.inl                       |  1525 +++
  src/app/console_attach.inl                    |    82 +
  src/app/control_caller.inl                    |    48 +
  src/app/device_capabilities.inl               |    75 +
@@ -258,7 +262,7 @@ ENet library, removed with the ENet transport).
  src/app/overlay_window.inl                    |  2472 ++++
  src/app/paired_tv.inl                         |   495 +
  src/app/protocol_level.inl                    |    77 +
- src/app/quick_switch.inl                      |   345 +
+ src/app/quick_switch.inl                      |   373 +
  src/app/quick_switch_session.inl              |   424 +
  src/app/quit_request.inl                      |    28 +
  src/app/rest.inl                              |   885 ++
@@ -380,7 +384,7 @@ ENet library, removed with the ENet transport).
  tests/polling_limits_test.cpp                 |   122 +
  tests/product_version_test.cpp                |    45 +
  tests/protocol_level_test.cpp                 |   101 +
- tests/quick_switch_test.cpp                   |   343 +
+ tests/quick_switch_test.cpp                   |   354 +
  tests/quit_request_test.cpp                   |    69 +
  tests/rebind_test.cpp                         |   784 ++
  tests/rest_parser_test.cpp                    |   252 +
@@ -408,9 +412,9 @@ ENet library, removed with the ENet transport).
  tests/window_move_test.cpp                    |   136 +
  tests/window_open_rule_test.cpp               |    43 +
  tests/window_size_rule_test.cpp               |   129 +
- tools/controller-config-test-client.html      | 16348 ++++++++++++++++++++++++
+ tools/controller-config-test-client.html      | 16353 ++++++++++++++++++++++++
  tools/create-desktop-shortcut.bat             |    46 +
  tools/create-desktop-shortcut.ps1             |   148 +
  tools/osk-mockups.py                          |   103 +
- 228 files changed, 74019 insertions(+), 1568 deletions(-)
+ 231 files changed, 74224 insertions(+), 1568 deletions(-)
 ```
