@@ -174,6 +174,7 @@ carry it; upstream's own history is unchanged.
 | 2026-10-29 | The quick config switch opens Quick as the two-finger press comes back up, within four seconds and with a finger still on the touchpad, where it opened as the press went in: two fingers pressed and held about four seconds are the TV's release gesture, and the window came up over it. A press held that long opens nothing, the touchpad held back until the last finger lifts. A window already there and not in front now closes before Quick is set, so its place and size are kept in its own layout: kept in Quick's, they had made every Quick window after it open that size, its words very large. Page 2.66.117, and 2.66.118 for the trunk's page with it. | `c87dd18`, `0fb7d22`, merge `c7c2ed5` |
 | 2026-10-30 | Advanced mode's tour. It starts from the tray's Show tutorial, which now lists Advanced too, or by itself once, when Advanced is on screen with a controller bridged, and walks the window on the practice controllers in thirty-five steps: Overview's two Bridging Options boxes, a step each; Dual's config list opened, then a config picked from it; a config made from a pre-set's custom page, renamed with the listener's keyboard, Copy shown, Unlink and auto link; its sections lit, a rebind picked from its list, rapid fire's box pressed and then changed; Archive Config; the Editor's list opened, then any config picked; the window's position, size and mode list, Circle and Close. Advanced draws its page half as large again, and larger as its window is wider, and its tour dims the page by half; in every tour the dim fades out while the words move and back in once they arrive. In every tour Continue, Go back and End tutorial carry R2, L2 and Circle, RT, LT and B on an Xbox pad and PgDn, PgUp and Esc on a keyboard, which are their only keys, and the listener gives L2 and R2 to the page only while a tour's words are up. The last step's Continue is Finish tutorial, which puts up a Congratulations card, in Advanced's, Simple's or Quick's size, with confetti falling over the window; End tutorial there ends the tour at once. Enter in a config's name box sets the name: the same Enter went on to the page's own keys, which, with the row already shut, pressed the button that had opened it again, Rename in a tour and Copy anywhere. The Editor no longer shows a config it has left when that config's answer comes late. Page 2.66.119 to 2.66.126. | `78f41ff`, `3149d00`, `b13c62b`, `829feab`, `b087a03`, `ff32bd2`, `232fb5f`, merge `2c1aec0` |
 | 2026-10-31 | The Controller Configs window draws when it opens behind another window. A browser draws nothing in a window it judges covered, and one opened behind another was judged so from its first moment: the raise brought it to the front, but neither the raise nor the front made the browser look again, so it stayed black, title bar and all, until someone moved it. Every raise now ends with a frame change, which wakes it with nothing moved. On a VM, under a window holding the front: 20 opens of 20 black at 100% scale and 3 of 6 at 125% before, none of 24 after. A PC at 150% went black under the same test neither before nor after, so the proof is the VM's. | `71bf7e5`, merge `629376e` |
+| 2026-10-31 | The tray menu: Show tutorial reads Start Tutorial, and Window Mode and Open on bridge are gone from it. Both stay in the Controller Configs window, in its Mode picker and on Advanced's Overview, and Start Tutorial's list still takes the window to the layout it tours. The line under Open on bridge's box and the words in the first step of Advanced's tour that pointed at the tray went with them, and so did the page's read of the box and the quick switch's each second, which was there only for a change made in the tray. Page 2.66.128. | `7af2305`, merge `0a05d33` |
 
 ## Files changed
 
@@ -252,7 +253,7 @@ ENet library, removed with the ENet transport).
  src/app/nickname.inl                          |    90 +
  src/app/old_devices.inl                       |   267 +
  src/app/old_devices_rule.inl                  |    91 +
- src/app/open_on_bridge.inl                    |    92 +
+ src/app/open_on_bridge.inl                    |    93 +
  src/app/open_ui.inl                           |   943 ++
  src/app/overlay_window.inl                    |  2472 ++++
  src/app/paired_tv.inl                         |   495 +
@@ -274,8 +275,8 @@ ENet library, removed with the ENet transport).
  src/app/stream_start.inl                      |   159 +
  src/app/taskbar_back.inl                      |   169 +
  src/app/taskbar_rule.inl                      |    64 +
- src/app/tray_icon.inl                         |   839 ++
- src/app/tray_menu.inl                         |   214 +
+ src/app/tray_icon.inl                         |   808 ++
+ src/app/tray_menu.inl                         |   203 +
  src/app/tutorial_bubble.inl                   |  1305 ++
  src/app/tutorial_bubble_rule.inl              |   474 +
  src/app/tutorial_state.inl                    |    91 +
@@ -394,7 +395,7 @@ ENet library, removed with the ENet transport).
  tests/taskbar_rule_test.cpp                   |    46 +
  tests/tests_main.cpp                          |   193 +
  tests/touch_mouse_test.cpp                    |  2591 ++++
- tests/tray_menu_test.cpp                      |   279 +
+ tests/tray_menu_test.cpp                      |   247 +
  tests/trigger_click_test.cpp                  |   928 ++
  tests/trigger_effect_test.cpp                 |   529 +
  tests/tutorial_bubble_rule_test.cpp           |   372 +
@@ -407,9 +408,9 @@ ENet library, removed with the ENet transport).
  tests/window_move_test.cpp                    |   136 +
  tests/window_open_rule_test.cpp               |    43 +
  tests/window_size_rule_test.cpp               |   129 +
- tools/controller-config-test-client.html      | 16344 ++++++++++++++++++++++++
+ tools/controller-config-test-client.html      | 16348 ++++++++++++++++++++++++
  tools/create-desktop-shortcut.bat             |    46 +
  tools/create-desktop-shortcut.ps1             |   148 +
  tools/osk-mockups.py                          |   103 +
- 228 files changed, 74088 insertions(+), 1568 deletions(-)
+ 228 files changed, 74019 insertions(+), 1568 deletions(-)
 ```
