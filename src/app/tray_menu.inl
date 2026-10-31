@@ -1,6 +1,7 @@
 // The words on the tray icon's menu, and the order they come in.
 //
-// ⭐ WHAT THE MENU IS (rhoquinn8217, 2026-10-02, in their order):
+// ⭐ WHAT THE MENU IS (rhoquinn8217, 2026-10-02, in their order, with what has
+// come and gone since):
 //
 //     DS5-USBIP v0.2.0 (N)           a title, larger and bold, the running
 //                                    build after it; choosing it
@@ -10,9 +11,9 @@
 //     ----------------------------   the Controller Configs window on it
 //     Open Controller Configs
 //     Open Virtual Keyboard
+//     Open configs folder
 //     ----------------------------
-//     Window Mode                >   Advanced, Simple, Quick, with the
-//     ----------------------------   padlock on the one the window is in
+//     Start Tutorial             >   Simple, Quick and Advanced mode's tours
 //     Remove old controllers...      (2026-10-13, below)
 //     ----------------------------
 //     Quit
@@ -23,10 +24,13 @@
 // ⭐ THE WINDOW IS "CONTROLLER CONFIGS" (rhoquinn8217, 2026-10-03). "Config"
 // meant the window, the saved set a pad is linked to and the folder at once;
 // a config stays a config, and the window that holds them is named for them.
-// ⓘ And its layout is "Window Mode": the side menu was "Config Mode", the
-// two words that inside the listener name the state in which a pad drives
-// the page instead of the game. In code and in the log the layout is still
-// called the VIEW or the mode of the window.
+// ⓘ In code and in the log its layout is called the VIEW or the mode of the
+// window.
+//
+// ⭐ NO WINDOW MODE AND NO OPEN ON BRIDGE (rhoquinn8217, 2026-10-30: "remove
+// the "window mode" and "open on bridge option" from the tray icon menu").
+// Both stay in the window: its Mode picker, and Bridging Options on Advanced's
+// Overview.
 //
 // ⭐ DEVICES, NOT CONTROLLERS, AND NOT THEIR PARTS (rhoquinn8217, 2026-10-02:
 // *"Multiple devices with the same name should count as 1 device in the tray
@@ -59,26 +63,20 @@ inline const wchar_t *const kOpenConfig = L"Open Controller Configs";
 // ⭐ Where a person's configs are (rhoquinn8217, 2026-10-12): their own folder
 // now, not the program's, so the menu goes there.
 inline const wchar_t *const kOpenFolder = L"Open configs folder";
-inline const wchar_t *const kConfigMode = L"Window Mode";
-// ⓘ The settings page's switch says the same words.
-inline const wchar_t *const kOpenOnBridge = L"Open on bridge";
 inline const wchar_t *const kQuit = L"Quit";
 // ⭐ REMOVE OLD CONTROLLERS (rhoquinn8217, 2026-10-13: place B, a group of its
 // own above Quit). Windows keeps a record of every controller a bridge ever
 // plugged in, and this removes the ones not connected (old_devices.inl). The
 // three dots are the Windows convention for a line that asks something before
-// it acts: here Windows' own administrator prompt. ⓘ By code point, like the
-// padlock below.
+// it acts: here Windows' own administrator prompt. ⓘ By code point, so no
+// editor and no compiler setting can turn it into something else on the way to
+// the screen.
 inline const wchar_t *const kRemoveOld = L"Remove old controllers\u2026";
-// ⭐ SHOW TUTORIAL (rhoquinn8217, 2026-10-14: *"put it in the tray menu"*),
-// beside Remove old controllers: the Controller Configs window's tutorials,
-// listed under it (kTutorials), each of which starts by itself only once.
-inline const wchar_t *const kShowTutorial = L"Show tutorial";
-
-// ⓘ By code point, so no editor and no compiler setting can turn it into
-// something else on the way to the screen. It is the mark the settings page's
-// own Mode picker puts on the mode the window is in.
-inline const wchar_t *const kPadlock = L"\U0001F512";
+// ⭐ START TUTORIAL (rhoquinn8217, 2026-10-14: *"put it in the tray menu"*;
+// 2026-10-30: "change "Show tutorial" to "Start Tutorial""), beside Remove old
+// controllers: the Controller Configs window's tutorials, listed under it
+// (kTutorials), each of which starts by itself only once.
+inline const wchar_t *const kStartTutorial = L"Start Tutorial";
 
 // The line under the title. ⓘ It counts the lines the Devices list will show,
 // so the two cannot disagree.
@@ -162,7 +160,7 @@ inline constexpr Mode kModes[3] = {
 };
 inline constexpr int kModeCount = 3;
 
-// ⭐ THE LIST UNDER SHOW TUTORIAL (rhoquinn8217, 2026-10-26: *"put a list of
+// ⭐ THE LIST UNDER START TUTORIAL (rhoquinn8217, 2026-10-26: *"put a list of
 // tutorials in the tray for now"*): each tours one layout, which the window
 // goes to as it starts. `mode` is its place in kModes, `kind` the page's name
 // for it (tutorial_state::Kind: 1 Simple, 2 Quick, 3 Advanced). ⓘ Advanced's
@@ -188,22 +186,13 @@ inline int mode_index(bool known, bool compact, bool quick)
     return quick ? 2 : 1;
 }
 
-// A mode's line. The padlock goes on the one the window is in, as it does in
-// the page's own picker, and on no other.
-inline std::wstring mode_line(int index, int current)
-{
-    if (index < 0 || index >= kModeCount) return std::wstring();
-    std::wstring line = kModes[index].name;
-    if (index == current) { line += L" "; line += kPadlock; }
-    return line;
-}
-
-// ⭐ WHAT A PICK IN THE WINDOW MODE MENU DOES (rhoquinn8217, 2026-10-09: "if
+// ⭐ WHAT ASKING FOR A LAYOUT FROM THE MENU DOES (rhoquinn8217, 2026-10-09: "if
 // you select a window mode in the task bar that is already set, the window
-// should come in focus"). Another mode changes the layout. The mode the window
-// is already in brings an open window forward -- it did nothing at all -- and
-// with no window open still does nothing (their word, the same day: "leave it
-// as it is").
+// should come in focus", of the Window Mode list the menu had until
+// 2026-10-30; Start Tutorial's list asks the same way). Another mode changes
+// the layout. The mode the window is already in brings an open window forward
+// -- it did nothing at all -- and with no window open still does nothing (their
+// word, the same day: "leave it as it is").
 enum class ModePick { ChangeLayout, BringForward, Nothing };
 inline ModePick mode_pick(int picked, int current, bool windowOpen)
 {

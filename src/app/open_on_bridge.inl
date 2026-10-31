@@ -5,8 +5,9 @@
 // bearer input that "Open on bridge". Add a toggle button, "Open on bridge",
 // menu item that is checked or unchecked under "window mode menu" item"*.
 // Every bridge opened the window, on purpose: it confirms that the device
-// asked for has bridged (2026-09-15). Now it is a switch, and the tray menu
-// and the settings page both set it.
+// asked for has bridged (2026-09-15). Now it is a switch, which the settings
+// page sets; the tray menu had it as well until 2026-10-30 ("remove the "window
+// mode" and "open on bridge option" from the tray icon menu").
 //
 // ⭐⭐ OFF UNTIL IT IS TURNED ON, SINCE 2026-10-15 (rhoquinn8217, making a
 // DualSense's setup as seamless as possible: "DS5-USBIP controller configs
