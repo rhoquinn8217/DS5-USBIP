@@ -36,18 +36,16 @@ inline const UINT WM_CTM_TRAY = WM_APP + 20;
 inline const UINT kIdToggle   = 1;
 inline const UINT kIdSettings = 2;
 inline const UINT kIdQuit     = 3;
-inline const UINT kIdOpenOnBridge = 4;
 inline const UINT kIdOpenFolder = 5;
 inline const UINT kIdRemoveOld = 6;
 // ⓘ The title's line. Choosing it closes the menu and does nothing else.
 inline const UINT kIdHeader   = 10;
 // ⓘ One id for each line of the Controllers list, in the order it was read as
-// the menu opened, and one for each layout. More devices than this are not
-// listed; nobody has bridged a tenth as many.
+// the menu opened. More devices than this are not listed; nobody has bridged a
+// tenth as many.
 inline const UINT   kIdDeviceFirst = 100;
 inline const size_t kMaxListed     = 64;
-inline const UINT   kIdModeFirst   = 200;
-// ⓘ And one for each tutorial in Show tutorial's list.
+// ⓘ And one for each tutorial in Start Tutorial's list.
 inline const UINT   kIdTutorialFirst = 300;
 
 // ⭐⭐ THE ICON GOES NOW (rhoquinn8217, 2026-10-01: *"I want to run it in the
@@ -202,7 +200,7 @@ inline HBITMAP header_picture(const std::wstring &count, UINT dpi)
     LONG widest = titleLine > countSize.cx ? titleLine : countSize.cx;
     const std::wstring lines[] = {
         tray_menu::kDevices, tray_menu::kOpenConfig, tray_menu::keyboard_line(false),
-        tray_menu::keyboard_line(true), tray_menu::kConfigMode, tray_menu::kShowTutorial,
+        tray_menu::keyboard_line(true), tray_menu::kStartTutorial,
         tray_menu::kRemoveOld, tray_menu::kQuit };
     for (const std::wstring &line : lines) {
         SIZE lineSize = {};
@@ -281,8 +279,8 @@ inline HBITMAP header_picture(const std::wstring &count, UINT dpi)
 // round, Advanced's size would be filed as a size someone had dragged Quick
 // to, and Quick would then open as large as Advanced.
 //
-// ⓘ With no window open, none is opened. The padlock marks the layout the
-// window opens in, and that is what has been changed.
+// ⓘ With no window open, none is opened: the next one opens in that layout.
+// Start Tutorial opens one itself (start_tutorial).
 inline void change_layout(int index)
 {
     if (index < 0 || index >= tray_menu::kModeCount) return;
@@ -404,13 +402,12 @@ inline void remove_old_controllers()
     }
 }
 
-// ⭐ A tutorial from the menu's "Show tutorial" list (rhoquinn8217,
+// ⭐ A tutorial from the menu's "Start Tutorial" list (rhoquinn8217,
 // 2026-10-14, a list since 2026-10-26). The window goes to the layout it
-// tours, by the same change_layout its Window Mode line uses, and opens if it
-// was not open: asked for here, it is wanted. The page collects the request
-// within a second and starts the tour on its practice controllers, so nothing
-// needs to be bridged for it.
-inline void show_tutorial(const tray_menu::Tutorial &tour)
+// tours, by change_layout, and opens if it was not open: asked for here, it is
+// wanted. The page collects the request within a second and starts the tour on
+// its practice controllers, so nothing needs to be bridged for it.
+inline void start_tutorial(const tray_menu::Tutorial &tour)
 {
     ui_tutorial_ask(tour.kind);
     bool compact = false, quick = false;
@@ -421,7 +418,7 @@ inline void show_tutorial(const tray_menu::Tutorial &tour)
     const bool wasOpen = open.found != nullptr;
     change_layout(tour.mode);
     if (!wasOpen) ctm_chord_show_ui(ordinal);
-    device_log::session_w() << L"tray: Show tutorial, " << tour.name
+    device_log::session_w() << L"tray: Start Tutorial, " << tour.name
                             << (wasOpen ? L"" : L"; the config window is opening for it");
 }
 
@@ -486,32 +483,16 @@ inline void show_menu(HWND hwnd)
     AppendMenuW(menu, MF_STRING, kIdOpenFolder, tray_menu::kOpenFolder);
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
 
-    // ---- Window Mode: the window's layout, the padlock on the one it is in ---
-    bool compact = false, quick = false;
-    const bool known = ui_view_get(&compact, &quick, nullptr);
-    const int current = tray_menu::mode_index(known, compact, quick);
-    const HMENU modes = CreatePopupMenu();
-    for (int i = 0; i < tray_menu::kModeCount; ++i) {
-        AppendMenuW(modes, MF_STRING, kIdModeFirst + static_cast<UINT>(i),
-                    tray_menu::mode_line(i, current).c_str());
-    }
-    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(modes), tray_menu::kConfigMode);
-    // ⭐ OPEN ON BRIDGE, right under Window Mode (rhoquinn8217, 2026-10-09):
-    // ticked while a bridge brings the window up by itself. The settings page
-    // has the same switch on its Overview; the listener keeps it.
-    AppendMenuW(menu, MF_STRING | (ui_open_on_bridge() ? MF_CHECKED : MF_UNCHECKED),
-                kIdOpenOnBridge, tray_menu::kOpenOnBridge);
-    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     // ⭐ Remove old controllers, in a group of its own above Quit
     // (rhoquinn8217, 2026-10-13): a rarely used tidy-up that asks first.
-    // ⭐ Show tutorial above it (rhoquinn8217, 2026-10-14), the other thing
+    // ⭐ Start Tutorial above it (rhoquinn8217, 2026-10-14), the other thing
     // here that is wanted now and then rather than every day: a list of the
     // tutorials since 2026-10-26.
     const HMENU tours = CreatePopupMenu();
     for (int i = 0; i < tray_menu::kTutorialCount; ++i) {
         AppendMenuW(tours, MF_STRING, kIdTutorialFirst + static_cast<UINT>(i), tray_menu::kTutorials[i].name);
     }
-    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(tours), tray_menu::kShowTutorial);
+    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(tours), tray_menu::kStartTutorial);
     AppendMenuW(menu, MF_STRING, kIdRemoveOld, tray_menu::kRemoveOld);
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
 
@@ -541,13 +522,9 @@ inline void show_menu(HWND hwnd)
         ctm_chord_show_ui(d.ordinal);
         return;
     }
-    if (chosen >= kIdModeFirst && chosen < kIdModeFirst + static_cast<UINT>(tray_menu::kModeCount)) {
-        change_layout(static_cast<int>(chosen - kIdModeFirst));
-        return;
-    }
     if (chosen >= kIdTutorialFirst &&
         chosen < kIdTutorialFirst + static_cast<UINT>(tray_menu::kTutorialCount)) {
-        show_tutorial(tray_menu::kTutorials[chosen - kIdTutorialFirst]);
+        start_tutorial(tray_menu::kTutorials[chosen - kIdTutorialFirst]);
         return;
     }
 
@@ -558,14 +535,6 @@ inline void show_menu(HWND hwnd)
     case kIdToggle:
         toggle_keyboard();
         break;
-    case kIdOpenOnBridge: {
-        // ⓘ Flipped and kept at once; the settings page shows it the next time
-        // it is in front.
-        const bool on = !ui_open_on_bridge();
-        ui_set_open_on_bridge(on);
-        device_log::session_w() << L"tray: Open on bridge is " << (on ? L"on" : L"off") << L" now";
-        break;
-    }
     case kIdOpenFolder: {
         // ⓘ The working directory IS the person's folder (settle_home in
         // main.cpp): its configs folder when there is one yet, else the folder.
