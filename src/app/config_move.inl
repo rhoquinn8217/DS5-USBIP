@@ -866,8 +866,9 @@ inline const char *state_file() { return "window-state.txt"; }
 inline std::atomic_bool g_openOnBridge{open_on_bridge::kDefault};
 
 // ⭐ THE QUICK CONFIG SWITCH (rhoquinn8217, 2026-10-23), kept beside it;
-// quick_switch.inl says what it is. Off until it is turned on.
-inline std::atomic_bool g_quickSwitch{false};
+// quick_switch.inl says what it is. On until it is turned off, since
+// 2026-10-30.
+inline std::atomic_bool g_quickSwitch{quick_switch::kDefault};
 
 // ⭐ ITS WINDOW IS QUICK, FOR ITSELF ALONE (rhoquinn8217, 2026-10-23: "always
 // use quick view for quick config select button/gesture"). While the window
@@ -924,7 +925,7 @@ inline void state_save()
         << "size_simple = " << g_sizeCompact.load() << "\n"
         << "size_quick = " << g_sizeQuick.load() << "\n";
     out << open_on_bridge::default_line() << open_on_bridge::line(g_openOnBridge.load());
-    out << quick_switch::line(g_quickSwitch.load());
+    out << quick_switch::default_line() << quick_switch::line(g_quickSwitch.load());
     out << tutorial_state::seen_line(tutorial_state::kSimpleSeenKey, g_tutorialSimpleSeen.load())
         << tutorial_state::seen_line(tutorial_state::kQuickSeenKey, g_tutorialQuickSeen.load())
         << tutorial_state::seen_line(tutorial_state::kAdvancedSeenKey, g_tutorialAdvancedSeen.load());
@@ -978,6 +979,9 @@ inline void state_load()
     bool openSeen = false;
     bool openOn = false;
     bool openDefaultSeen = false;
+    bool quickSeen = false;
+    bool quickOn = false;
+    bool quickDefaultSeen = false;
     while (std::getline(f, line)) {
         if (line.empty() || line[0] == '#') continue;
         const size_t eq = line.find('=');
@@ -1005,7 +1009,12 @@ inline void state_load()
             continue;
         }
         if (key == quick_switch::kKey) {
-            g_quickSwitch.store(quick_switch::parse(val));
+            quickSeen = true;
+            quickOn = quick_switch::parse(val);
+            continue;
+        }
+        if (key == quick_switch::kDefaultKey) {
+            quickDefaultSeen = true;
             continue;
         }
         if (key == tutorial_state::kSimpleSeenKey) {
@@ -1068,6 +1077,7 @@ inline void state_load()
         else if (key == "size_quick") g_sizeQuick.store(n);
     }
     g_openOnBridge.store(open_on_bridge::loaded(openSeen, openOn, openDefaultSeen));
+    g_quickSwitch.store(quick_switch::loaded(quickSeen, quickOn, quickDefaultSeen));
     if (advancedRaw >= 0) {
         // ⭐ The small size went on 2026-10-02 (kSizes). An index saved under
         // three sizes is one too high under two -- medium was 1 and is 0 now
@@ -1085,6 +1095,7 @@ inline void state_load()
         << " posQuick=" << (g_posQuick.have ? 1 : 0)
         << " " << g_posQuick.x << "," << g_posQuick.y
         << " open_on_bridge=" << (g_openOnBridge.load() ? 1 : 0)
+        << " quick_config_switch=" << (g_quickSwitch.load() ? 1 : 0)
         << " tutorial_simple_seen=" << (g_tutorialSimpleSeen.load() ? 1 : 0)
         << " tutorial_quick_seen=" << (g_tutorialQuickSeen.load() ? 1 : 0)
         << " tutorial_advanced_seen=" << (g_tutorialAdvancedSeen.load() ? 1 : 0));

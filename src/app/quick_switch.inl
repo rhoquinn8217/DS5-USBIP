@@ -53,7 +53,12 @@
 // quick_switch_session.inl opens and closes the window and keeps the steps;
 // rebind.inl feeds it, and touch_mouse.inl stands aside for it.
 // ⓘ Kept in window-state.txt as "quick_config_switch = 1" or "= 0", beside
-// Open on bridge. Off until it is turned on, and with that file gone.
+// Open on bridge, under the line "quick_config_switch_default = on". On
+// until it is turned off, and with that file gone.
+// ⭐⭐ ON UNTIL IT IS TURNED OFF, SINCE 2026-10-30 (rhoquinn8217, on every
+// feature being on out of the box: *"flip the default"*). It was off before,
+// so two of the four ways of opening the window did nothing on a fresh
+// install. ⓘ For an existing install too, once: see loaded() below.
 #pragma once
 
 #include <string>
@@ -61,6 +66,14 @@
 namespace quick_switch {
 
 inline const char *const kKey = "quick_config_switch";
+
+// The switch's default: on (2026-10-30; off before).
+inline constexpr bool kDefault = true;
+
+// ⭐ The line every save writes since the default became on. A file without
+// it was written when the default was off, so its "quick_config_switch = 0"
+// said only that, and is dropped once (loaded() below).
+inline const char *const kDefaultKey = "quick_config_switch_default";
 
 // On only when the line says 1: junk in a hand-editable file is off.
 inline bool parse(const std::string &value)
@@ -71,6 +84,21 @@ inline bool parse(const std::string &value)
 inline std::string line(bool on)
 {
     return std::string(kKey) + " = " + (on ? "1" : "0") + "\n";
+}
+
+// The line that says the file was written since the default became on.
+inline std::string default_line()
+{
+    return std::string(kDefaultKey) + " = on\n";
+}
+
+// The switch a whole window-state.txt gives: its own line, but only in a file
+// that also has the default's line. Anything else is the default, on: a file
+// written before 2026-10-30 included, which is how an existing install is
+// turned on once.
+inline bool loaded(bool sawLine, bool lineOn, bool sawDefaultLine)
+{
+    return sawDefaultLine && sawLine ? lineOn : kDefault;
 }
 
 // ⭐ How far a finger goes up or down for a step: the two-finger swipe's own
