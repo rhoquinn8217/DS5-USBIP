@@ -191,7 +191,7 @@ ENet library, removed with the ENet transport).
  .github/ISSUE_TEMPLATE/config.yml             |     5 +
  .github/ISSUE_TEMPLATE/feature-request.yml    |    22 +
  .gitignore                                    |    41 +-
- CHANGES.md                                    |   416 +
+ CHANGES.md                                    |   421 +
  LINK                                          |     0
  README.md                                     |   329 +-
  app/compatibility.manifest                    |    27 +
@@ -245,7 +245,7 @@ ENet library, removed with the ENet transport).
  src/app/agent_session_sweep.inl               |   333 +
  src/app/cli.inl                               |    66 +-
  src/app/common.inl                            |   166 +-
- src/app/config_move.inl                       |  1525 +++
+ src/app/config_move.inl                       |  1549 +++
  src/app/console_attach.inl                    |    82 +
  src/app/control_caller.inl                    |    48 +
  src/app/device_capabilities.inl               |    75 +
@@ -413,9 +413,9 @@ ENet library, removed with the ENet transport).
  tests/window_move_test.cpp                    |   136 +
  tests/window_open_rule_test.cpp               |    43 +
  tests/window_size_rule_test.cpp               |   129 +
- tools/controller-config-test-client.html      | 16353 ++++++++++++++++++++++++
+ tools/controller-config-test-client.html      | 16371 ++++++++++++++++++++++++
  tools/create-desktop-shortcut.bat             |    46 +
  tools/create-desktop-shortcut.ps1             |   148 +
  tools/osk-mockups.py                          |   103 +
- 231 files changed, 74224 insertions(+), 1568 deletions(-)
+ 231 files changed, 74271 insertions(+), 1568 deletions(-)
 ```
