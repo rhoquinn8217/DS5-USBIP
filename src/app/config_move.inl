@@ -186,9 +186,23 @@ inline std::atomic_bool g_compact{false};
 // holds since (its configs larger, the choice set apart, the smaller text
 // larger), and large keeps 1.244 times its width and 1.288 its page's height.
 //
-//   medium  0.313 x 0.196   what the page opens Quick at
+//   medium  0.342 x 0.196   what the page opens Quick at
+//
+// ⭐ THE WIDTH IS WHAT HOLDS THE AUTO LINK MARK (rhoquinn8217, 2026-11-01).
+// The wheel row is one line, clipped with an ellipsis, and the 🗘 is the
+// LAST thing in it, so a name too long for the row takes the mark with it and
+// a person cannot see which config is auto linked.
+// ⓘ Measured on the page, not reckoned: at 0.313 the row is 403 px and
+// "gyro_to_mouse_L2_aiming_2", 25 characters, wants 460. It stops clipping at
+// 871 px of window, and 0.342 of a 2560 wide work area is 876.
+// ⚠️ IT IS SET FOR A NAME IN THE SHAPE PEOPLE USE, not for the worst
+// glyphs: 25 ms want 741 px, which would need a window half as wide again,
+// and Quick exists to be small over a game. A name that still will not fit
+// keeps its ellipsis, which is what should happen.
+// ⓘ Simple needed nothing: its row is half the window and already had the
+// room, which rhoquinn8217 confirmed from their own screen.
 //   large   0.390 x 0.246
-inline const SizeShare kQuickSizes[2] = { { 0.313, 0.196 }, { 0.390, 0.246 } };
+inline const SizeShare kQuickSizes[2] = { { 0.342, 0.196 }, { 0.390, 0.246 } };
 inline std::atomic_int  g_sizeQuick{0};
 inline std::atomic_bool g_quick{false};
 
