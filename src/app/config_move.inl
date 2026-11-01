@@ -201,8 +201,18 @@ inline std::atomic_bool g_compact{false};
 // keeps its ellipsis, which is what should happen.
 // ⓘ Simple needed nothing: its row is half the window and already had the
 // room, which rhoquinn8217 confirmed from their own screen.
-//   large   0.390 x 0.246
-inline const SizeShare kQuickSizes[2] = { { 0.342, 0.196 }, { 0.390, 0.246 } };
+//   large   0.429 x 0.246
+//
+// ⛔⛔ THE LARGE ONE GROWS WITH THE SMALL ONE, OR THE TEXT OUTRUNS THE
+// WHEEL (2026-11-01). Quick sizes its text from the window's HEIGHT
+// (--vh), so a large size taller than it is wide makes the names bigger
+// faster than the room for them. Widening the small one to 0.342 and leaving
+// the large at 0.390 did exactly that: 1.14 times the width against 1.255
+// times the height, and a 25 character name that fits the small size was
+// clipped at the large one. Measured: 500 px of row against 576 wanted.
+// ➡️ Keep the two widths in the same ratio as the two heights.
+// 0.342 x 1.255 is 0.429, which measures 585 against 585.
+inline const SizeShare kQuickSizes[2] = { { 0.342, 0.196 }, { 0.429, 0.246 } };
 inline std::atomic_int  g_sizeQuick{0};
 inline std::atomic_bool g_quick{false};
 
