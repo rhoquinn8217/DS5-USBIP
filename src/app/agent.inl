@@ -1316,7 +1316,7 @@ static void handle_agent_client(SOCKET client, const sockaddr_in &peer)
         // ⭐ With this listener's protocol level, and the oldest TV level it
         // works with: the TV refuses to bridge to a listener it is too new for
         // (protocol_level.inl).
-        send_text(client, protocol_level::status_reply());
+        send_text(client, protocol_level::status_reply(g_windows_locked.load()));
         return;
     }
 
@@ -1359,6 +1359,19 @@ static void handle_agent_client(SOCKET client, const sockaddr_in &peer)
                                     << protocol_level::tv_level(line) << ", and this listener needs "
                                     << protocol_level::kMinTv << " or newer";
             send_text(client, tooOld);
+            return;
+        }
+        // ⭐⭐ NOTHING BRIDGES WHILE WINDOWS IS LOCKED (rhoquinn8217, 2026-11-01).
+        // The configs window cannot open over the lock screen, so a config that
+        // took the buttons the PIN needs could not be changed. Unbridged, the
+        // controller is the stream's, with its own buttons, and types the PIN.
+        // ⓘ One already bridged when the lock comes reads no config until the
+        // unlock (lock_screen_rule.inl).
+        if (g_windows_locked.load()) {
+            char peerIp[INET_ADDRSTRLEN] = {};
+            inet_ntop(AF_INET, &peer.sin_addr, peerIp, sizeof(peerIp));
+            device_log::session_s() << "control: BRIDGE_START from " << peerIp << " refused: Windows is locked";
+            send_text(client, protocol_level::kWindowsLocked);
             return;
         }
         std::wstring error;
