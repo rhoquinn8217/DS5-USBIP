@@ -1,0 +1,22 @@
+name: Feature Request
+description: Suggest a new feature or an improvement
+labels:
+  - enhancement
+body:
+  - type: textarea
+    attributes:
+      label: Description
+      description: The feature or change you would like.
+      placeholder: "Example: a setting to bridge only the DualSense's touchpad"
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Why
+      description: What it would let you do that you cannot do now.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Anything else
+      description: Optional. Your Windows version, your controller, screenshots.

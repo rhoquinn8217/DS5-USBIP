@@ -20,6 +20,9 @@
 #include "ctm/product.h"
 
 #include <hidsdi.h>
+// ⓘ Named outright: WIN32_LEAN_AND_MEAN leaves it out, and usbip/fine_timer.inl
+// asks for a 1 ms timer while a controller has a rate limit.
+#include <timeapi.h>
 
 #include <algorithm>
 #include <array>
@@ -32,6 +35,11 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+// ⛔ A standard header must be named up here, never first inside the
+// namespace below: there it makes a std of its own, and std::wstring stops
+// being found (old_devices_rule.inl's <cwctype>, 2026-10-13).
+#include <cwchar>
+#include <cwctype>
 #include <deque>
 #include <filesystem>
 #include <fstream>
@@ -49,6 +57,11 @@
 #include <utility>
 #include <random>      // nickname.inl picks one from a pool
 #include <vector>
+
+// ⛔ Named out here, before the namespace below: pc_sound_capture.cpp is a
+// unit of its own, and a declaration first seen inside that namespace
+// would name a different function, which nothing defines.
+#include "audio/pc_sound_capture.h"
 
 #pragma comment(lib, "hid.lib")
 #pragma comment(lib, "ws2_32.lib")
@@ -83,6 +96,7 @@ static void mic_ring_reset(const CtmBackend *owner);
 #include "backend/bridge.inl"
 #include "audio/mic_ring.inl"
 #include "audio/audio_gain.inl"
+#include "audio/audio_haptics.inl"     // PC sound as haptics: which pads, and when; before usbip/device.inl
 #include "audio/pcm_amplitude_log.inl"  // needs monotonic_us from backend/bridge.inl; must precede its caller
 #include "audio/iso_in_test_tone.inl"
 // ⓘ And the same for the rebind hook itself: device.inl calls it on the input
@@ -115,10 +129,54 @@ void ui_view_set(bool compact, bool quick, bool restore);
  * asks for when it comes back. */
 void ui_view_note_ordinal(const std::string &ordinal);
 bool ui_view_get(bool *compact, bool *quick, std::string *ordinal);
+/* Where the window will go and how big it will be, in physical pixels, for
+ * the layout it will show, so the browser can be started there (open_ui.inl).
+ * False while no layout is known. */
+bool ui_opening_rect(int *x, int *y, int *w, int *h);
 /* The "Open on bridge" switch (open_on_bridge.inl), kept in window-state.txt.
  * Defined below, after config_move.inl. */
 bool ui_open_on_bridge();
 void ui_set_open_on_bridge(bool on);
+/* The quick config switch (quick_switch.inl), kept beside it. Defined below,
+ * after config_move.inl. */
+bool ui_quick_switch();
+void ui_set_quick_switch(bool on);
+/* ...and at work (quick_switch_session.inl, after rebind.inl, which feeds it
+ * every report of a pad with a touchpad and sends its keys): whether two
+ * fingers up and down are the switch's right now, so the config's own swipes
+ * and two-finger scroll stand aside (touch_mouse.inl), and a page asking which
+ * layout to show as it opens (rest_config.inl). */
+void quick_switch_report(const void *deviceKey, bool pressed,
+                         bool down0, int id0, float x0, float y0,
+                         bool down1, int id1, float x1, float y1);
+bool quick_switch_holds_touchpad(const void *deviceKey, int fingers, bool pressed);
+const char *quick_switch_key(const void *deviceKey);
+bool quick_switch_has_vertical_swipes();
+void quick_switch_page_asked_view();
+/* ...and whether the window up now is the switch's own (config_move.inl):
+ * the page asks as it opens, and starts no tutorial by itself in it. */
+bool ui_quick_view_on();
+/* The tutorials (tutorial_state.inl): whether Simple's, Quick's and Advanced's
+ * have been seen, kept in window-state.txt, and the tray's request for one, by its
+ * tutorial_state::Kind. Defined below, after config_move.inl. */
+bool ui_tutorial_seen(int kind);
+void ui_set_tutorial_seen(int kind, bool seen);
+void ui_tutorial_ask(int kind);
+int ui_tutorial_asked();
+void ui_tutorial_take();
+/* The tutorial's words, drawn beside the configs window rather than in it
+ * (tutorial_bubble.inl): shown with what a step says and the buttons under
+ * it, hidden, a click on one of those buttons handed over once, and the side
+ * of what is lit they stand on. Defined below, after tutorial_bubble.inl. */
+void ui_tutorial_words_show(const std::string &title, const std::string &count, const std::string &words,
+                            const std::string &buttons, const std::string &focus, bool arrow,
+                            int ax, int ay, const std::string &side, const std::string &anchors,
+                            const std::string &target, const std::string &obstacles, int clear, int big);
+void ui_tutorial_words_hide();
+std::string ui_tutorial_words_take_press();
+std::string ui_tutorial_words_side();
+bool ui_tutorial_words_moving();
+bool ui_tutorial_words_up();
 /* Where the window stands right now, kept for the next one. Called on the way
  * out, while it still exists. */
 void ui_view_remember_pos();
@@ -229,6 +287,13 @@ void ctm_osk_toggle(const std::string &section, int button, int program);
 #include "app/device_names.inl"  // what a device is listed by; pure; device.inl asks it for the link
 #include "usbip/fallback_serial.inl"   // the serial of a device the TV sent none for
 #include "usbip/submit_info.inl"    // what a submit reports back; pure
+#include "usbip/input_pace.inl"     // a controller's rate limit and its readout; pure
+#include "usbip/fine_timer.inl"     // a 1 ms timer while a rate limit holds reports back
+// ⓘ A controller's polling limit is its own, kept by its serial
+// (config/polling_limits.inl, after config_store, whose serial rule it follows).
+bool ctm_polling_limit_has_identity(const std::string &serial);
+std::string ctm_polling_limit_get(const std::string &serial);
+bool ctm_polling_limit_set(const std::string &serial, const std::string &value);
 #include "usbip/device.inl"
 #include "audio/iso_in_pacing.inl"
 #include "usbip/server.inl"
@@ -237,6 +302,7 @@ void ctm_osk_toggle(const std::string &section, int button, int program);
 #include "input/trigger_effect.inl"   // the settings report carries these; must precede it
 #include "audio/ds5_apply_settings.inl"
 #include "config/config_store.inl"   // per-controller config files; needs device_log + g_device_config
+#include "config/polling_limits.inl" // each controller's own polling limit, by its serial
 #include "config/config_presets.inl"  // what a new config can start from; needs nothing but strings
 #include "app/device_capabilities.inl" // what a pad can use, from its settings kind; pure
 #include "config/config_watcher.inl" // follows config_store: apply_change refreshes it too
@@ -244,6 +310,7 @@ void ctm_osk_toggle(const std::string &section, int button, int program);
 #include "app/ui_page_generated.inl"   // GENERATED by build.ps1 from the HTML
 #include "app/favicon_version.inl"     // the window's icon address, with the icon's fingerprint
 #include "app/ui_page.inl"             // serves it, disk first then embedded
+#include "app/tutorial_state.inl"      // whether the window's tutorial has been seen: rest_config.inl answers it, config_move.inl keeps it
 #include "app/rest_config.inl"
         // config routes; needs rest.inl's helpers, so it follows it
 // Forward declaration: agent.inl calls this when a DS5 session becomes ready to
@@ -261,7 +328,11 @@ void synthetic_devices_stop();
 // ⓘ And the same shape again (T-239): agent.inl reads the window's remembered
 // place the moment it has settled what a relative path means, and
 // config_move.inl is included well below because rebind.inl needs it there.
-namespace config_move { inline void state_load(); }
+// The install's check follows it there (tutorial_state.inl).
+namespace config_move {
+inline void state_load();
+inline void install_check(const std::wstring &exeFolder);
+}
 #include "input/gyro_calibration_fetch.inl"   // needs CtmBackend; agent.inl calls it
 #include "app/nickname.inl"      // controller nicknames; agent.inl assigns one per session
 #include "app/same_controller.inl"   // which older session a new bridge retires; agent.inl asks it
@@ -271,6 +342,7 @@ namespace config_move { inline void state_load(); }
 #include "app/tv_sessions.inl"       // which TV a bridge session belongs to, and its port; agent.inl asks it
 #include "app/protocol_level.inl"    // whether this listener and a TV app can work together; agent.inl answers with it
 #include "app/open_on_bridge.inl"      // whether a bridge opens the settings window; agent.inl and the tray ask it
+#include "app/quick_switch.inl"        // the quick config switch: its setting, its swipe, its keys; pure
 #include "app/agent.inl"
 #include "input/mouse_device.inl"      // needs g_agent_usbip_server, find_relative_asset, run_usbip_attach
 #include "input/keyboard_device.inl"   // same dependencies as the mouse above
@@ -319,6 +391,7 @@ static bool ctm_window_steering(const void *deviceKey) { return window_move::ste
 // helpers.
 #include "app/config_move.inl"      // Options moves the settings page; rebind.inl calls it
 #include "input/rebind.inl"
+#include "app/quick_switch_session.inl"   // the quick config switch at work; rebind.inl feeds it
 #include "input/touch_mouse.inl"   // touchpad cursor/scroll/taps; needs the mouse device and the gyro mailbox
 #include "input/trigger_click.inl" // the trigger as a mouse click; needs the mouse device and the gyro gate
 #include "input/stick_mouse.inl"   // stick cursor; needs the gyro gate and mailbox
@@ -334,12 +407,16 @@ static bool ctm_window_steering(const void *deviceKey) { return window_move::ste
 #include "app/quit_request.inl"    // how another program asks for Quit; pure
 #include "app/stream_commands.inl" // our entry in Vibepollo's stream commands; pure
 #include "app/stream_start.inl"    // start, stop and stream-commands, which Vibepollo and the installer run
+#include "app/old_devices_rule.inl" // which of Windows' old device records are ours; pure
+#include "app/old_devices.inl"     // ...listed and removed: old-devices, remove-old-devices
 #include "app/tray_icon.inl"       // the notification-area icon
 #include "app/window_icon_rule.inl" // the settings window's icon: which sizes, which window
 // ⛔ AFTER open_ui.inl, whose title marker says which window is ours.
 #include "app/window_icon.inl"     // ...and keeping them on a window the browser owns
 #include "app/taskbar_rule.inl"    // when the taskbar stays behind the configs window; pure
 #include "app/taskbar_back.inl"    // ...and telling the taskbar so, over a full-screen game
+#include "app/tutorial_bubble_rule.inl"  // where the tutorial's words go beside the configs window, and how they break
+#include "app/tutorial_bubble.inl"       // ...drawn there, in a window that never takes focus
 #include "app/rest_sessions.inl"
 #include "app/rest_config_sessions.inl"   // defines what rest_config.inl declares; needs agent.inl's sessions
 #include "app/service.inl"
@@ -360,6 +437,10 @@ bool ui_view_get(bool *compact, bool *quick, std::string *ordinal)
 {
     return config_move::view_get(compact, quick, ordinal);
 }
+bool ui_opening_rect(int *x, int *y, int *w, int *h)
+{
+    return config_move::opening_rect(x, y, w, h);
+}
 bool ui_open_on_bridge()
 {
     return config_move::open_on_bridge();
@@ -367,6 +448,66 @@ bool ui_open_on_bridge()
 void ui_set_open_on_bridge(bool on)
 {
     config_move::set_open_on_bridge(on);
+}
+bool ui_quick_switch()
+{
+    return config_move::quick_switch_on();
+}
+void ui_set_quick_switch(bool on)
+{
+    config_move::set_quick_switch(on);
+}
+bool ui_quick_view_on()
+{
+    return config_move::quick_view_on();
+}
+bool ui_tutorial_seen(int kind)
+{
+    return config_move::tutorial_seen(kind);
+}
+void ui_set_tutorial_seen(int kind, bool seen)
+{
+    config_move::set_tutorial_seen(kind, seen);
+}
+void ui_tutorial_ask(int kind)
+{
+    config_move::ask_tutorial(kind);
+}
+int ui_tutorial_asked()
+{
+    return config_move::tutorial_asked();
+}
+void ui_tutorial_take()
+{
+    config_move::take_tutorial();
+}
+void ui_tutorial_words_show(const std::string &title, const std::string &count, const std::string &words,
+                            const std::string &buttons, const std::string &focus, bool arrow,
+                            int ax, int ay, const std::string &side, const std::string &anchors,
+                            const std::string &target, const std::string &obstacles, int clear, int big)
+{
+    tutorial_bubble::update(tutorial_bubble::content_of(title, count, words, buttons, focus, arrow, ax, ay, side,
+                                                        anchors, target, obstacles, clear, big));
+}
+void ui_tutorial_words_hide()
+{
+    tutorial_bubble::hide();
+}
+std::string ui_tutorial_words_take_press()
+{
+    return tutorial_bubble::take_press();
+}
+std::string ui_tutorial_words_side()
+{
+    return tutorial_bubble::side();
+}
+bool ui_tutorial_words_moving()
+{
+    return tutorial_bubble::moving();
+}
+bool ui_tutorial_words_up()
+{
+    return tutorial_bubble::up();
 }
 void ui_view_remember_pos()
 {
@@ -451,6 +592,9 @@ void ctm_chord_show_ui(const std::string &ordinal)
     }
 
     ctm_rebind_set_config_mode(true);
+    // ⓘ A new window's page has no tour up yet: the words of one the old window
+    // had go with it, and L2 and R2 are the config's again (gate_claims).
+    ui_tutorial_words_hide();
     device_log::input_w() << L"ui: launching a new window";
     ctm_open_ui::open_new(g_rest_port);
     // ⭐ Focus is not visibility. A borderless game paints over a focused
@@ -733,6 +877,25 @@ int wmain(int argc, wchar_t **argv)
     if (mode == L"start") return stream_start::start();
     if (mode == L"stop") return stream_start::stop();
     if (mode == L"stream-commands") return stream_start::edit_commands(argc, argv);
+    // ⓘ What the PC plays and what would be felt (audio_haptics.inl). Not the
+    // listener: it plays nothing and opens no pad.
+    if (mode == L"audio-haptics-probe") return audio_haptics::probe_mode(argc > 2 ? _wtoi(argv[2]) : 10);
+    // ⭐ THE OLD CONTROLLERS WINDOWS KEEPS FROM PAST BRIDGES (2026-10-13):
+    // old_devices.inl. Not the listener either.
+    if (mode == L"old-devices") return old_devices::list_mode();
+    // ⓘ The tutorial's words drawn into a picture, to look at with no window
+    // and no page (tutorial_bubble.inl).
+    if (mode == L"tutorial-words-picture") return tutorial_bubble::picture_mode(argc, argv);
+    // ⓘ And what the page sent for them, placed one after another as the
+    // listener places them, to compare where a step's words stand.
+    if (mode == L"tutorial-words-replay") return tutorial_bubble::replay_mode(argc, argv);
+    if (mode == L"remove-old-devices") {
+        bool report = false;
+        for (int i = 2; i < argc; ++i) {
+            if (std::wstring(argv[i]) == L"--report") report = true;
+        }
+        return old_devices::remove_mode(report);
+    }
 
     if (mode == L"list-bt" || mode == L"list-hid") {
         // JSON device inventory for GUI front-ends (Ciprian's Bridge). The GUI

@@ -36,16 +36,17 @@ inline const UINT WM_CTM_TRAY = WM_APP + 20;
 inline const UINT kIdToggle   = 1;
 inline const UINT kIdSettings = 2;
 inline const UINT kIdQuit     = 3;
-inline const UINT kIdOpenOnBridge = 4;
 inline const UINT kIdOpenFolder = 5;
+inline const UINT kIdRemoveOld = 6;
 // ⓘ The title's line. Choosing it closes the menu and does nothing else.
 inline const UINT kIdHeader   = 10;
 // ⓘ One id for each line of the Controllers list, in the order it was read as
-// the menu opened, and one for each layout. More devices than this are not
-// listed; nobody has bridged a tenth as many.
+// the menu opened. More devices than this are not listed; nobody has bridged a
+// tenth as many.
 inline const UINT   kIdDeviceFirst = 100;
 inline const size_t kMaxListed     = 64;
-inline const UINT   kIdModeFirst   = 200;
+// ⓘ And one for each tutorial in Start Tutorial's list.
+inline const UINT   kIdTutorialFirst = 300;
 
 // ⭐⭐ THE ICON GOES NOW (rhoquinn8217, 2026-10-01: *"I want to run it in the
 // background and the tray icon to be the place where it is closed."*).
@@ -153,22 +154,37 @@ inline HBITMAP header_picture(const std::wstring &count, UINT dpi)
     LOGFONTW titleFace = countFace;
     titleFace.lfHeight = MulDiv(titleFace.lfHeight, 140, 100);
     titleFace.lfWeight = FW_BOLD;
+    // ⭐ The version after the title (tray_menu::kVersion): smaller than the
+    // menu's text, and drawn lighter below, so the name stays the title.
+    LOGFONTW versionFace = countFace;
+    versionFace.lfHeight = MulDiv(versionFace.lfHeight, 85, 100);
     const HFONT titleFont = CreateFontIndirectW(&titleFace);
     const HFONT countFont = CreateFontIndirectW(&countFace);
-    if (titleFont == nullptr || countFont == nullptr) {
+    const HFONT versionFont = CreateFontIndirectW(&versionFace);
+    if (titleFont == nullptr || countFont == nullptr || versionFont == nullptr) {
         if (titleFont != nullptr) DeleteObject(titleFont);
         if (countFont != nullptr) DeleteObject(countFont);
+        if (versionFont != nullptr) DeleteObject(versionFont);
         return nullptr;
     }
 
     const HDC screen = GetDC(nullptr);
     const HDC dc = CreateCompatibleDC(screen);
     const std::wstring title = tray_menu::kTitle;
-    SIZE titleSize = {}, countSize = {};
+    const std::wstring version = tray_menu::kVersion;
+    SIZE titleSize = {}, countSize = {}, versionSize = {};
+    TEXTMETRICW titleMetrics = {}, versionMetrics = {};
     HGDIOBJ oldFont = SelectObject(dc, titleFont);
     GetTextExtentPoint32W(dc, title.c_str(), static_cast<int>(title.size()), &titleSize);
+    GetTextMetricsW(dc, &titleMetrics);
     SelectObject(dc, countFont);
     GetTextExtentPoint32W(dc, count.c_str(), static_cast<int>(count.size()), &countSize);
+    SelectObject(dc, versionFont);
+    GetTextExtentPoint32W(dc, version.c_str(), static_cast<int>(version.size()), &versionSize);
+    GetTextMetricsW(dc, &versionMetrics);
+    // ⓘ The version sits a small gap after the name, on the name's baseline.
+    const int versionGap = MulDiv(6, dpi, 96);
+    const LONG titleLine = titleSize.cx + versionGap + versionSize.cx;
 
     // ⛔⛔ NEVER NARROWER THAN THE MENU'S WIDEST LINE, OR IT IS A BLACK BOX
     // (rhoquinn8217, 2026-10-02: *"the tray menu title is now a black box"*).
@@ -181,10 +197,11 @@ inline HBITMAP header_picture(const std::wstring &count, UINT dpi)
     // pointer's own highlight showing through.
     // ⓘ The lines are the main menu's, both of the keyboard's wordings among
     // them, measured in the menu's font, which is the count's.
-    LONG widest = titleSize.cx > countSize.cx ? titleSize.cx : countSize.cx;
+    LONG widest = titleLine > countSize.cx ? titleLine : countSize.cx;
     const std::wstring lines[] = {
         tray_menu::kDevices, tray_menu::kOpenConfig, tray_menu::keyboard_line(false),
-        tray_menu::keyboard_line(true), tray_menu::kConfigMode, tray_menu::kQuit };
+        tray_menu::keyboard_line(true), tray_menu::kStartTutorial,
+        tray_menu::kRemoveOld, tray_menu::kQuit };
     for (const std::wstring &line : lines) {
         SIZE lineSize = {};
         GetTextExtentPoint32W(dc, line.c_str(), static_cast<int>(line.size()), &lineSize);
@@ -215,6 +232,14 @@ inline HBITMAP header_picture(const std::wstring &count, UINT dpi)
         SetTextColor(dc, RGB(255, 255, 255));
         SelectObject(dc, titleFont);
         TextOutW(dc, 0, above, title.c_str(), static_cast<int>(title.size()));
+        // ⓘ Lighter by drawing it grey: the coverage below is the white's
+        // brightness, so this is the menu's ink at about 60%, in any theme.
+        SelectObject(dc, versionFont);
+        SetTextColor(dc, RGB(150, 150, 150));
+        TextOutW(dc, titleSize.cx + versionGap,
+                 above + titleMetrics.tmAscent - versionMetrics.tmAscent,
+                 version.c_str(), static_cast<int>(version.size()));
+        SetTextColor(dc, RGB(255, 255, 255));
         SelectObject(dc, countFont);
         TextOutW(dc, 0, above + titleSize.cy + between, count.c_str(), static_cast<int>(count.size()));
         GdiFlush();
@@ -238,6 +263,7 @@ inline HBITMAP header_picture(const std::wstring &count, UINT dpi)
     ReleaseDC(nullptr, screen);
     DeleteObject(titleFont);
     DeleteObject(countFont);
+    DeleteObject(versionFont);
     return picture;
 }
 
@@ -253,8 +279,8 @@ inline HBITMAP header_picture(const std::wstring &count, UINT dpi)
 // round, Advanced's size would be filed as a size someone had dragged Quick
 // to, and Quick would then open as large as Advanced.
 //
-// ⓘ With no window open, none is opened. The padlock marks the layout the
-// window opens in, and that is what has been changed.
+// ⓘ With no window open, none is opened: the next one opens in that layout.
+// Start Tutorial opens one itself (start_tutorial).
 inline void change_layout(int index)
 {
     if (index < 0 || index >= tray_menu::kModeCount) return;
@@ -348,6 +374,54 @@ inline void quit_as_the_menu_does(const wchar_t *who)
     remove_icon();
 }
 
+// ⭐ The menu's "Remove old controllers...": this program again, as an
+// administrator, through Windows' own prompt, which says how it went in a box
+// of its own (remove-old-devices --report, old_devices.inl). Declined, nothing
+// happens. ⓘ Only devices that are not connected are touched, so a bridge
+// that is up is safe through it.
+inline void remove_old_controllers()
+{
+    wchar_t self[MAX_PATH] = {};
+    const DWORD len = GetModuleFileNameW(nullptr, self, MAX_PATH);
+    if (len == 0 || len >= MAX_PATH) return;
+    SHELLEXECUTEINFOW run = {};
+    run.cbSize = sizeof run;
+    run.fMask = SEE_MASK_NOASYNC;
+    run.lpVerb = L"runas";
+    run.lpFile = self;
+    run.lpParameters = L"remove-old-devices --report";
+    run.nShow = SW_HIDE;
+    if (ShellExecuteExW(&run)) {
+        device_log::session_w() << L"tray: removing old controllers, as an administrator";
+    } else {
+        const DWORD error = GetLastError();
+        device_log::session_w() << L"tray: old controllers left as they were ("
+                                << (error == ERROR_CANCELLED ? std::wstring(L"Windows' prompt declined")
+                                                             : L"error " + std::to_wstring(error))
+                                << L")";
+    }
+}
+
+// ⭐ A tutorial from the menu's "Start Tutorial" list (rhoquinn8217,
+// 2026-10-14, a list since 2026-10-26). The window goes to the layout it
+// tours, by change_layout, and opens if it was not open: asked for here, it is
+// wanted. The page collects the request within a second and starts the tour on
+// its practice controllers, so nothing needs to be bridged for it.
+inline void start_tutorial(const tray_menu::Tutorial &tour)
+{
+    ui_tutorial_ask(tour.kind);
+    bool compact = false, quick = false;
+    std::string ordinal;
+    ui_view_get(&compact, &quick, &ordinal);
+    ctm_open_ui::FindState open;
+    EnumWindows(ctm_open_ui::find_window_proc, reinterpret_cast<LPARAM>(&open));
+    const bool wasOpen = open.found != nullptr;
+    change_layout(tour.mode);
+    if (!wasOpen) ctm_chord_show_ui(ordinal);
+    device_log::session_w() << L"tray: Start Tutorial, " << tour.name
+                            << (wasOpen ? L"" : L"; the config window is opening for it");
+}
+
 inline void show_menu(HWND hwnd)
 {
     HMENU menu = CreatePopupMenu();
@@ -378,7 +452,8 @@ inline void show_menu(HWND hwnd)
     } else {
         // ⓘ No picture to be had: the same two lines in the menu's own font.
         // Smaller than asked for, and still there.
-        AppendMenuW(menu, MF_STRING, kIdHeader, tray_menu::kTitle);
+        const std::wstring titleLine = std::wstring(tray_menu::kTitle) + L" " + tray_menu::kVersion;
+        AppendMenuW(menu, MF_STRING, kIdHeader, titleLine.c_str());
         AppendMenuW(menu, MF_STRING, kIdHeader, count.c_str());
     }
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
@@ -408,21 +483,17 @@ inline void show_menu(HWND hwnd)
     AppendMenuW(menu, MF_STRING, kIdOpenFolder, tray_menu::kOpenFolder);
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
 
-    // ---- Window Mode: the window's layout, the padlock on the one it is in ---
-    bool compact = false, quick = false;
-    const bool known = ui_view_get(&compact, &quick, nullptr);
-    const int current = tray_menu::mode_index(known, compact, quick);
-    const HMENU modes = CreatePopupMenu();
-    for (int i = 0; i < tray_menu::kModeCount; ++i) {
-        AppendMenuW(modes, MF_STRING, kIdModeFirst + static_cast<UINT>(i),
-                    tray_menu::mode_line(i, current).c_str());
+    // ⭐ Remove old controllers, in a group of its own above Quit
+    // (rhoquinn8217, 2026-10-13): a rarely used tidy-up that asks first.
+    // ⭐ Start Tutorial above it (rhoquinn8217, 2026-10-14), the other thing
+    // here that is wanted now and then rather than every day: a list of the
+    // tutorials since 2026-10-26.
+    const HMENU tours = CreatePopupMenu();
+    for (int i = 0; i < tray_menu::kTutorialCount; ++i) {
+        AppendMenuW(tours, MF_STRING, kIdTutorialFirst + static_cast<UINT>(i), tray_menu::kTutorials[i].name);
     }
-    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(modes), tray_menu::kConfigMode);
-    // ⭐ OPEN ON BRIDGE, right under Window Mode (rhoquinn8217, 2026-10-09):
-    // ticked while a bridge brings the window up by itself. The settings page
-    // has the same switch on its Overview; the listener keeps it.
-    AppendMenuW(menu, MF_STRING | (ui_open_on_bridge() ? MF_CHECKED : MF_UNCHECKED),
-                kIdOpenOnBridge, tray_menu::kOpenOnBridge);
+    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(tours), tray_menu::kStartTutorial);
+    AppendMenuW(menu, MF_STRING, kIdRemoveOld, tray_menu::kRemoveOld);
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
 
     // ⓘ "Quit", not "Exit" (rhoquinn8217, 2026-10-01). It ends the whole
@@ -439,7 +510,7 @@ inline void show_menu(HWND hwnd)
         menu, TPM_RIGHTBUTTON | TPM_RETURNCMD | TPM_NONOTIFY,
         pt.x, pt.y, 0, hwnd, nullptr));
     PostMessageW(hwnd, WM_NULL, 0, 0);
-    // ⓘ Takes the two side menus with it. The picture is ours to let go of.
+    // ⓘ Takes the side menus with it. The picture is ours to let go of.
     DestroyMenu(menu);
     if (header != nullptr) DeleteObject(header);
 
@@ -451,8 +522,9 @@ inline void show_menu(HWND hwnd)
         ctm_chord_show_ui(d.ordinal);
         return;
     }
-    if (chosen >= kIdModeFirst && chosen < kIdModeFirst + static_cast<UINT>(tray_menu::kModeCount)) {
-        change_layout(static_cast<int>(chosen - kIdModeFirst));
+    if (chosen >= kIdTutorialFirst &&
+        chosen < kIdTutorialFirst + static_cast<UINT>(tray_menu::kTutorialCount)) {
+        start_tutorial(tray_menu::kTutorials[chosen - kIdTutorialFirst]);
         return;
     }
 
@@ -463,14 +535,6 @@ inline void show_menu(HWND hwnd)
     case kIdToggle:
         toggle_keyboard();
         break;
-    case kIdOpenOnBridge: {
-        // ⓘ Flipped and kept at once; the settings page shows it the next time
-        // it is in front.
-        const bool on = !ui_open_on_bridge();
-        ui_set_open_on_bridge(on);
-        device_log::session_w() << L"tray: Open on bridge is " << (on ? L"on" : L"off") << L" now";
-        break;
-    }
     case kIdOpenFolder: {
         // ⓘ The working directory IS the person's folder (settle_home in
         // main.cpp): its configs folder when there is one yet, else the folder.
@@ -486,6 +550,9 @@ inline void show_menu(HWND hwnd)
     case kIdSettings:
         // ⓘ The same path the chord takes, with no controller in hand.
         ctm_chord_show_ui(std::string());
+        break;
+    case kIdRemoveOld:
+        remove_old_controllers();
         break;
     case kIdQuit:
         quit_as_the_menu_does(L"the tray menu");

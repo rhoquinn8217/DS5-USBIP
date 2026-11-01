@@ -161,6 +161,11 @@ Filename: "{app}\{#ExeName}"; Description: "Start {#AppName}"; Flags: nowait pos
 [UninstallRun]
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""{#AppName}"""; Flags: runhidden waituntilterminated; RunOnceId: "RemoveDS5USBIPFirewallRule"
 
+[UninstallDelete]
+; The install's stamp (CurStepChanged), written by code rather than listed in
+; [Files], so the uninstaller would not know to take it.
+Type: files; Name: "{app}\install-stamp.txt"
+
 [Code]
 { ======================================================================
   ALREADY INSTALLED: UPGRADE OR UNINSTALL (2026-10-12)
@@ -716,13 +721,39 @@ begin
   end;
 end;
 
-{ After the files are in: our stream commands put in Vibepollo's list when
-  the box is ticked, and taken out when it is not, so the box is the truth. }
+{ The old controllers Windows keeps from past bridges, removed: every bridge
+  left a device behind, its parts and its sound devices, hundreds on a PC that
+  bridges a lot (2026-10-13). The program decides what is ours, by the parent
+  Windows keeps for each (old_devices_rule.inl), and touches nothing that is
+  connected. Setup is an administrator already, so no question is asked. }
+procedure RemoveOldDevices(Exe: String);
+var
+  Code: Integer;
+begin
+  if not FileExists(Exe) then Exit;
+  if Exec(Exe, 'remove-old-devices', '', SW_HIDE, ewWaitUntilTerminated, Code) then
+    Log('remove-old-devices: exit ' + IntToStr(Code))
+  else
+    Log('remove-old-devices did not run: ' + SysErrorMessage(Code));
+end;
+
+{ After the files are in: the old controllers removed, then our stream
+  commands put in Vibepollo's list when the box is ticked, and taken out when
+  it is not, so the box is the truth. }
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   Code: Integer;
 begin
   if CurStep <> ssPostInstall then Exit;
+  { A stamp of this install beside the program, new each time setup runs, so
+    a reinstall of the same version counts too: the first start after it
+    opens the configs window in Simple, and its tutorials start by themselves
+    again (src/app/tutorial_state.inl). Written before "Start DS5-USBIP" on the
+    last page can run. }
+  SaveStringToFile(ExpandConstant('{app}\install-stamp.txt'),
+    GetDateTimeString('yyyy/mm/dd hh:nn:ss.zzz', '-', ':') + #13#10, False);
+  WizardForm.StatusLabel.Caption := 'Removing old controllers Windows kept from past bridges...';
+  RemoveOldDevices(ExpandConstant('{app}\{#ExeName}'));
   if not StreamHostFound() then Exit;
   if WizardIsTaskSelected('vibepollo') then
   begin
@@ -741,13 +772,14 @@ begin
   end;
 end;
 
-{ Uninstalling: ours taken out of Vibepollo's list while the program that
-  does it is still here. }
+{ Uninstalling: the old controllers removed, and ours taken out of
+  Vibepollo's list, while the program that does both is still here. }
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
   Code: Integer;
 begin
   if CurUninstallStep <> usUninstall then Exit;
+  RemoveOldDevices(ExpandConstant('{app}\{#ExeName}'));
   if not StreamHostFound() then Exit;
   Code := EditStreamCommands('remove');
   if Code = 10 then

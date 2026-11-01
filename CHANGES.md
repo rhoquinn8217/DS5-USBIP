@@ -156,6 +156,27 @@ carry it; upstream's own history is unchanged.
 | 2026-10-12 | The installer's already-installed page has a third choice while Vibepollo is set to start DS5-USBIP: stop that and change nothing else, the person's own Vibepollo commands kept, Vibepollo restarted after asking. Uninstalling takes the setting out too, as before. | `19dbd6b` |
 | 2026-10-12 | The Controller Configs window's Overview bar as a small form: the page's version on its own line at the top, in a box that cannot be edited; Open on bridge a checkbox, its words on the left and the box on the right, where it was a button that turned green; the boxes lined up. And the taskbar stays behind a game in borderless window mode while the Controller Configs window is in front of it: the window is marked full-screen for the taskbar (ITaskbarList2::MarkFullscreenWindow) while a full-screen window is just behind it, and ahead of time while one is in front, so the taskbar does not come up with it. | `6068db2` `7d9f622` `6dc83cd` `3a3e195` |
 | 2026-10-13 | A TV calling from the internet must prove it is paired with Apollo, or it is refused: `paired_tv_proof` is `on` by default, where it was `log` (checked and written down, nobody turned away) until the TVs at the remote site ran a build that sends the proof. `log` and `off` work as before, and any other value counts as `on`. A stop sent without a proof, as a TV sends it when a busy listener leaves its challenge unanswered, may still stop a bridge started from its own address, and nothing else. | `cfb96f7` `1b2c8f4` |
+| 2026-10-13 | The old controllers Windows keeps from past bridges, cleared and no longer piling up. Windows keeps a record of every device a bridge ever plugged in, with its parts and its sound devices: 477 records on the PC this was written on. `DS5-USBIP old-devices` lists them, read only; `remove-old-devices` removes them as an administrator, and with `--report` says how it went in a box; the installer runs it on every install, upgrade and uninstall; and the tray menu's "Remove old controllers…", in a group of its own above Quit, runs it through Windows' prompt. A record is ours only when the parent Windows keeps for it leads to usbip-win2's host controller, never by vendor and product: ViGEm's and VirtualHere's virtual controllers can sit on the same PC under Sony's ids. A device without a serial gets the vendor, the product and a slot, where it got a hash of its node on the TV, which follows plug order and made it a new device to Windows at every bridge. And the program names the Windows it is built for (Windows 10 and 11) in its manifest: without that, Windows' compatibility assistant took the administrator copy's short run and box for an old program failing a version check, and said "This program might not have run correctly". | `fc9e9e6`, `824dc0a`, `7e5602b`, merge `ca55300` |
+| 2026-10-14 | A polling rate readout and a rate limit for each controller. The Controller Configs window's device tables, in Advanced, show the reports a second Windows is getting from each device, and beside a controller's, a rate limit: Real time, 500, 250 or 125 Hz, kept in its linked config as `polling_rate`. Real time, the DS5Dongle's and its forks' name for it, passes every report on the moment it arrives; under a limit the newest report always goes, so nothing queues behind it. A keyboard or a mouse is never limited. Tested on a DualSense Edge through a DS5dongle: about 640 a second at Real time, every one reaching Windows, and 500, 250 and 125 held | `c0c80a6`, `81383ba`, merge `6cd5b9a` |
+| 2026-10-14 | The touchpad: lifting the finger no longer moves the cursor off the spot. A finger rolls as it leaves the pad and the cursor followed the roll, so the tap after it clicked beside the target. When the last finger lifts after pointing, the cursor goes back to where it was 60 ms before, if the finger was nearly still just before that; a flick keeps its place, and a press-and-drag drops where the finger stopped | `66ec88b`, merge `1766525` |
+| 2026-10-15 | Open on bridge is off until it is turned on, so a DualSense the TV bridges by itself opens no Controller Configs window; an existing install is turned off once, and a choice made after that is kept. | `9517637` |
+| 2026-10-15 | The touchpad: double tap and hold drags (`touchpad_double_tap_drag`). With it on, a single tap clicks 0.3 s late, held back so the next touch can still become the drag; a touch that lands in that time near the tap, rests 150 ms and then slides holds the tap's button until the last finger lifts; sliding sooner points, the tap's click sent first, so a window's X still closes; a second tap that lifts first is a double-click. Windows makes a double-click on the second press, which is why the click has to wait | `aed7dcf`, `37799cd`, `c79a85f`, `7d5e182`, merge `746cca9` |
+| 2026-10-15 | The tray menu's title shows the running build: DS5-USBIP, then v0.2.0 (N), smaller than the menu's text and lighter, on the title's baseline. It is the version the tooltip and the Controller Configs window's title show, from `product.h` | `1ba7db9`, merge `df5d61e` |
+| 2026-10-22 | The touchpad's two-finger swipes, up, down, left and right, each taking any remap a tap can take, and Win+Tab (Task View) in every remap list, for any button and every touchpad gesture. Up and down say they do nothing while `touchpad_scroll` is 2, two-finger scroll moving the same way; left and right work whatever it says. A swipe up saved as "win" shows as MetaLeft, the Win key it always pressed. | `a34b372`, `2c1c524`, `e94d288`, merge `8a65379` |
+| 2026-10-22 | The Controller Configs window's Simple and Quick layouts made for a pad and a television, and Advanced's Overview and config row redone (page 2.66.84 to 2.66.91). On the config selector, in every layout, Square unlinks and Triangle sets or removes the auto link. Quick's selector is a wheel that up and down step, Cross links at once, R3 opens the polling limit and a footer sits behind Circle. Simple's selector is a five-line wheel like Quick's, with the configs L1 and R1 go to in arrows either side of it, the polling rate and limit on the controller's name line, R3 opening the limit, a shorter window, and right from the wheel landing on Unlink. The polling limit is the controller's own, not its config's. Both open on the selector wheel however the window is opened, and a greyed button is reachable and says why in a bubble. The mode picker reads Advanced Mode, Simple Mode and Quick Mode. Advanced's Overview is two cards, This window and Connection, with a light for the connection and the access token behind an eye, and the page's and the program's versions on one line at the bottom; a controller's tab groups its config row, with Archive Config, an Auto link that is one button as in Simple, and Safe Edit Mode showing its new state as soon as the listener answers. The on-screen keyboard draws the pad's buttons as the window does. | `6a0a441`, `86698bb`, `7924363`, `3cf6c60`, `742ef3a`, `8e585bc`, `97f2b7e`, `8be0894`, `ec22f59`, `549c392`, `3f21ad0`, `b942ce3`, `f568a42`, `6dae612`, `64fd9af`, `8601897`, `0d60392`, `d90f37b`, `ae2a216`, `2888b1f`, `130bc15`, `0a9c451`, `164d1f4`, `e488247`, `61857e6`, `b91f576`, `c8775f0`, `c2cd29c`, `baf6a70`, `7ad4442`, `bf126d3`, `144e81a`, `eae2875`, `612deb7`, merge `db4fd18` |
+| 2026-10-22 | The Controller Configs window over a game and around the lock screen. Asked for while Windows is locked, it comes to the front once Windows is unlocked. A notification that takes the keyboard from it, small, in a corner, on top and not clicked, gives it back, at most three times in ten seconds, and the log names whatever took the front from it. Its browser draws with the processor (`--disable-gpu`): over a game holding the graphics card the window was slow while the cursor was not. | `6987e3e`, `43d2a75`, `df0f08b`, merge `c4fb311` |
+| 2026-10-22 | Every bridged controller reads no config while Windows is locked, so its buttons are Windows' own on the lock screen and can type a PIN, and no config can map them away from it. At the unlock each reads its auto link, or what it read before the lock; a config picked while locked is kept, and a controller bridged while locked waits for the unlock for its auto link. | `b4247db`, merge `c4fb311` |
+| 2026-10-23 | PC sound into DualSense haptics: the low part of what the PC plays, explosions, engines and bass, felt in a bridged DualSense's or Edge's two actuators, mixed into its own sound stream before it goes out on a cable or on Bluetooth; the sound itself is not touched. Four settings in a config's Audio section: `audio_haptics` (off until turned on), `audio_haptics_strength`, `audio_haptics_bass_hz` and `audio_haptics_mode`, where yield, the default, steps aside while a game sends its own haptics and comes back after, mix plays both and replace plays only the PC's sound. While it is on, the pad's sound stream keeps running whenever there is sound to feel. `DS5-USBIP audio-haptics-probe` prints what the PC plays and what a pad would feel of it, a line a second. And each pad's sound gains are read from its own section, on a cable and on Bluetooth, where every pad's were read from the DualSense's; `audio_gain` goes to 100, as it can only lower. | `3c48544`, `af30c82`, `5478046`, merge `0e868c4` |
+| 2026-10-23 | Quick mode's tutorial, started from the tray's Show tutorial, which puts the Controller Configs window in Quick. Thirteen steps on three practice controllers, Dual, Nova and Pixel, and four practice configs: nothing done in the tour reaches a real controller or config, and the real ones come back when it ends. Its words and its Continue, Go back and End tutorial buttons are drawn by the listener in a window of their own beside the configs window, on the side each step asks for, never taking the keyboard; a controller's buttons in the words are drawn as the legends draw them, for the pad pressed last, and a keyboard's as its keys. Arrows float beside what a step points at and a feathered spotlight dims the rest. A step that asks for something greys Continue out and moves on once it is done, everything else is locked while the tour runs, and Go back closes any box or list a step opened. Simple's tour, built first, is left out until it is redone for Simple's current layout. The mode picker greys out the mode the window is in. Page 2.66.92 and 2.66.94 to 2.66.99. | `5e88dae`, `44fcbdb`, `26ae402`, `f7f2e24`, `4668418`, `621d35a`, `d71b9c1`, `1b9ecdb`, `2aff4a2`, `95ca91e`, merge `6ef30ac` |
+| 2026-10-27 | The quick config switch, for every controller, turned on by "Press the touchpad with two fingers to switch configs" on Overview's first card, which is now called Bridging Options. Two fingers pressing the touchpad open the Controller Configs window in Quick on that controller for as long as a finger stays on the touchpad; each swipe of a finger up or down, one thumb resting and the other swiping, steps it to the next config or the one before, shown on the wheel and linked as the window goes; and the window closes the moment the last finger lifts, or as soon as it has opened when the fingers lift at once. While it is open nothing of the touchpad reaches the game or the mouse, and afterwards the layout and the controller the shortcut and the tray open on are put back. With the window already up in Simple or Quick, the same swipe moves its wheel with no press, and the config's own swipe up and down and its two-finger scroll stand aside there. Two fingers swiped together step once. Auto link asks nothing: setting it, moving it from another config and removing it happen at once. Simple and Quick windows open straight at their size and place, with no larger window first. Page 2.66.93 and 2.66.100. | `a91aa36`, `2b6019e`, `4fabb9d`, `b053f4d`, `21bd91d`, `d9fe374`, `50e775e`, `be5a7d0`, `e8ba775`, `53917f0`, merge `ecbf18d` |
+| 2026-10-28 | The quick config switch holds the touchpad back: from two fingers pressing it until the last finger lifts, nothing of the touchpad reaches Windows or the game, the press that opens the Controller Configs window included, whatever config the controller reads or none; until then the press and the touches went out for the half second before the window had the front. A second press keeps the window, in the layout it had before, Simple or Advanced, at that layout's own size and place, on the controller that pressed, and gives the touchpad back to the config; the listener tells the window with Ctrl+Alt+Shift+V. The pad shortcut, two fingers resting and Options, is unchanged. Page 2.66.108. | `027874a`, `eab162d`, merge `7a31285` |
+| 2026-10-28 | The Controller Configs window draws a pad's button as its legend does wherever one is named: the rebind and rapid-fire rows read "✕ - rebind" where they read "(✕) | (A) — remap", the warnings under Cross and Circle draw their button, and so do the presets' previews and their words, where a button is written `{btn:N}` in `config_presets.inl`. The PlayStation shapes or the Xbox letters in circles, L1 R1 L2 R2 in a shoulder button's box, the d-pad's cross with one arm filled, in the set of the pad in hand, or of the controller on screen while a keyboard is in hand. "Rebind" replaces "remap" everywhere the window shows it, the listener's help words included. And New's list of presets and a preset's title draw a button in its name the same way, a label writing it as `{btn:N}` too: "gyro-to-stick (on L2 for aiming)" and "gyro-to-mouse (on r3)" draw L2 and R3, and the line after New says it in words. Page 2.66.112 and 2.66.115. | `2d32283`, `5fdcdbd`, `0599696`, merge `cccc386`; `821b75a`, merge `baeac1c` |
+| 2026-10-28 | Simple mode's tour, and Quick's in step with it. Each starts from the tray's Show tutorial, which lists both, or by itself once, when its mode is on screen with a controller bridged; never in the window the quick config switch opens, and an install starts both afresh with the window in Simple. A tour walks the window on practice controllers, Dual, Nova and Pixel, so nothing real changes. Simple's twenty-four steps make a config from a pre-set and look over the pre-set's page a section a step, then go down the button column, Edit, Unlink, Auto link and its mark, Archive, then the window's position, its size and the mode list, Circle and Close, and the tips; Quick's fourteen share every step the two windows have, in the same words. The words stand in one box beside the window, drawn by the listener, and slide to each step beside what it lights and over the window wherever they cover nothing; they come back to the same place after Go back and hold still while the tips change. The legend's marks light beside the presses they name, and a pad the browser sees, unbridged, drives a tour as a bridged one does. L3 goes to Simple's next tip, H on a keyboard, its mark at the tip's right; the listener sends it only while Simple is in front. The pre-set page's Triggers keep L2's rows on the left and R2's on the right. Page 2.66.101 to 2.66.116. | `0fcbc98`, `3862670`, `ed88e17`, `15d76fd`, `f50a841`, `74a9069`, `7804308`, `157ffe9`, `d60e48a`, `39f46ec`, `d84e6b8`, `fb72cc9`, `06bb5d1`, merge `c0a8a04` |
+| 2026-10-29 | The quick config switch opens Quick as the two-finger press comes back up, within four seconds and with a finger still on the touchpad, where it opened as the press went in: two fingers pressed and held about four seconds are the TV's release gesture, and the window came up over it. A press held that long opens nothing, the touchpad held back until the last finger lifts. A window already there and not in front now closes before Quick is set, so its place and size are kept in its own layout: kept in Quick's, they had made every Quick window after it open that size, its words very large. Page 2.66.117, and 2.66.118 for the trunk's page with it. | `c87dd18`, `0fb7d22`, merge `c7c2ed5` |
+| 2026-10-30 | Advanced mode's tour. It starts from the tray's Show tutorial, which now lists Advanced too, or by itself once, when Advanced is on screen with a controller bridged, and walks the window on the practice controllers in thirty-five steps: Overview's two Bridging Options boxes, a step each; Dual's config list opened, then a config picked from it; a config made from a pre-set's custom page, renamed with the listener's keyboard, Copy shown, Unlink and auto link; its sections lit, a rebind picked from its list, rapid fire's box pressed and then changed; Archive Config; the Editor's list opened, then any config picked; the window's position, size and mode list, Circle and Close. Advanced draws its page half as large again, and larger as its window is wider, and its tour dims the page by half; in every tour the dim fades out while the words move and back in once they arrive. In every tour Continue, Go back and End tutorial carry R2, L2 and Circle, RT, LT and B on an Xbox pad and PgDn, PgUp and Esc on a keyboard, which are their only keys, and the listener gives L2 and R2 to the page only while a tour's words are up. The last step's Continue is Finish tutorial, which puts up a Congratulations card, in Advanced's, Simple's or Quick's size, with confetti falling over the window; End tutorial there ends the tour at once. Enter in a config's name box sets the name: the same Enter went on to the page's own keys, which, with the row already shut, pressed the button that had opened it again, Rename in a tour and Copy anywhere. The Editor no longer shows a config it has left when that config's answer comes late. Page 2.66.119 to 2.66.126. | `78f41ff`, `3149d00`, `b13c62b`, `829feab`, `b087a03`, `ff32bd2`, `232fb5f`, merge `2c1aec0` |
+| 2026-10-31 | The Controller Configs window draws when it opens behind another window. A browser draws nothing in a window it judges covered, and one opened behind another was judged so from its first moment: the raise brought it to the front, but neither the raise nor the front made the browser look again, so it stayed black, title bar and all, until someone moved it. Every raise now ends with a frame change, which wakes it with nothing moved. On a VM, under a window holding the front: 20 opens of 20 black at 100% scale and 3 of 6 at 125% before, none of 24 after. A PC at 150% went black under the same test neither before nor after, so the proof is the VM's. | `71bf7e5`, merge `629376e` |
+| 2026-10-31 | The tray menu: Show tutorial reads Start Tutorial, and Window Mode and Open on bridge are gone from it. Both stay in the Controller Configs window, in its Mode picker and on Advanced's Overview, and Start Tutorial's list still takes the window to the layout it tours. The line under Open on bridge's box and the words in the first step of Advanced's tour that pointed at the tray went with them, and so did the page's read of the box and the quick switch's each second, which was there only for a change made in the tray. Page 2.66.128. | `7af2305`, merge `0a05d33` |
+| 2026-10-31 | The quick config switch is on out of the box. It was off until it was ticked, so two of the four ways of opening the Controller Configs window -- the DualSense touchpad pressed with two fingers, and the same press with a finger left down -- did nothing on a fresh install. The default sits beside the key now, as Open on bridge's does, and every save writes `quick_config_switch_default = on` above the switch's line: a window-state.txt without that line was written while the default was off, so its `quick_config_switch = 0` said only that and is dropped once. An install that has the switch turned off since keeps it off, and a file that is gone gives the default. Page 2.66.129. | `1538eff`, merge `bc1c386` |
 
 ## Files changed
 
@@ -165,208 +186,236 @@ upstream's release FFmpeg binaries replacing the repo's debug ones, and the
 ENet library, removed with the ENet transport).
 
 ```
- .gitattributes                                |   48 +
- .gitignore                                    |   41 +-
- CHANGES.md                                    |  371 +
- LINK                                          |    0
- README.md                                     |  297 +-
- app/ctm-usbip-tests.vcxproj                   |  143 +
- app/ctm-usbip.ico                             |  Bin 156019 -> 30139 bytes
- app/ctm-usbip.rc                              |   26 +-
- app/ctm-usbip.vcxproj                         |   53 +-
- attic/README.md                               |   24 +
- attic/device-config-panel-edge.bat            |    9 +
- attic/device-config-panel-edge.ps1            |  327 +
- attic/device-config-panel.bat                 |    4 +
- attic/device-config-panel.ps1                 |  303 +
- attic/flydigi_apex4_identity.map              |   58 +
- attic/flydigi_apex4_usb.profile               |   24 +
- build-number.ps1                              |  169 +
- build-tests.ps1                               |   86 +
- build.ps1                                     |  110 +-
- device-config.md                              |  195 +
- docs/control_port.md                          |  121 +
- docs/images/ds5usbip-advanced-overview.png    |  Bin 0 -> 313356 bytes
- docs/images/ds5usbip-advanced-touchpad.png    |  Bin 0 -> 725906 bytes
- docs/images/ds5usbip-keyboard-sizes.png       |  Bin 0 -> 431047 bytes
- docs/images/ds5usbip-quick-in-game.jpg        |  Bin 0 -> 516960 bytes
- docs/images/ds5usbip-quick.png                |  Bin 0 -> 51252 bytes
- docs/images/ds5usbip-simple-dualsense.png     |  Bin 0 -> 341360 bytes
- docs/images/ds5usbip-simple-xbox.png          |  Bin 0 -> 283054 bytes
- docs/images/ds5usbip-tray-menu.png            |  Bin 0 -> 25374 bytes
- docs/rest_api.md                              |  218 +
- docs/steam_puck_knowledge.md                  |    5 +-
- include/ctm/build_number.h                    |   23 +
- include/ctm/map/runtime.h                     |   34 +
- include/ctm/product.h                         |   43 +
- include/ctm/protocol.h                        |   65 +-
- installer/build-ds5-installer.ps1             |  126 +
- installer/build-icon.ps1                      |  238 +
- installer/controller-path.txt                 |   68 +
- installer/ds5-usbip.iss                       |  755 ++
- installer/icon-source.png                     |  Bin 0 -> 100705 bytes
- installer/make-icon-ds5.ps1                   |  236 +
- installer/trace-silhouette.py                 |  368 +
- maps/ds4_usb_over_ds4_usb.map                 |   61 +
- maps/ds5_usb_over_ds5_usb.map                 |   61 +
- maps/virtual_keyboard.map                     |   46 +
- maps/virtual_mouse.map                        |   54 +
- maps/xbox_gip_usb_over_xbox_bt.map            |    5 +
- profiles/descriptors/ds5e_composite.profile   |   30 +
- profiles/descriptors/virtual_keyboard.profile |   74 +
- profiles/descriptors/virtual_mouse.profile    |   59 +
- release.ps1                                   |  266 +
- src/app/agent.inl                             | 1138 ++-
- src/app/agent_session_sweep.inl               |  333 +
- src/app/cli.inl                               |   61 +-
- src/app/common.inl                            |  166 +-
- src/app/config_move.inl                       | 1186 +++
- src/app/console_attach.inl                    |   82 +
- src/app/control_caller.inl                    |   48 +
- src/app/device_capabilities.inl               |   75 +
- src/app/device_names.inl                      |   93 +
- src/app/device_type.inl                       |   70 +
- src/app/favicon_version.inl                   |   58 +
- src/app/front_rule.inl                        |   89 +
- src/app/home_folder.inl                       |  130 +
- src/app/nickname.inl                          |   90 +
- src/app/open_on_bridge.inl                    |   62 +
- src/app/open_ui.inl                           |  709 ++
- src/app/overlay_window.inl                    | 2303 ++++++
- src/app/paired_tv.inl                         |  495 ++
- src/app/protocol_level.inl                    |   77 +
- src/app/quit_request.inl                      |   28 +
- src/app/rest.inl                              |  885 +++
- src/app/rest_config.inl                       | 1320 ++++
- src/app/rest_config_sessions.inl              |  205 +
- src/app/rest_sessions.inl                     |   33 +
- src/app/rest_shared_section.inl               |   55 +
- src/app/same_controller.inl                   |   38 +
- src/app/same_device.inl                       |   79 +
- src/app/service.inl                           |   27 +-
- src/app/start_report.inl                      |   37 +
- src/app/stop_wait.inl                         |   74 +
- src/app/stream_commands.inl                   |  233 +
- src/app/stream_start.inl                      |  159 +
- src/app/taskbar_back.inl                      |  169 +
- src/app/taskbar_rule.inl                      |   64 +
- src/app/tray_icon.inl                         |  741 ++
- src/app/tray_menu.inl                         |  175 +
- src/app/tv_sessions.inl                       |  162 +
- src/app/ui_page.inl                           |  140 +
- src/app/window_icon.inl                       |  242 +
- src/app/window_icon_rule.inl                  |   68 +
- src/app/window_move.inl                       |  250 +
- src/app/window_size_rule.inl                  |  101 +
- src/audio/audio_gain.inl                      |  178 +
- src/audio/ds5_apply_settings.inl              |  316 +
- src/audio/ds5_output_overrides.inl            |  699 ++
- src/audio/iso_in_pacing.inl                   |  221 +
- src/audio/iso_in_test_tone.inl                |   95 +
- src/audio/mic_ring.inl                        |  202 +
- src/audio/pcm_amplitude_log.inl               |  162 +
- src/audio/rumble_floor.inl                    |   58 +
- src/backend/backend.inl                       |   56 +
- src/backend/bridge.inl                        |  396 +-
- src/backend/bridge_enet.inl                   |  800 --
- src/backend/bt.inl                            |   24 +-
- src/capture/README.md                         |   14 +
- src/config/config_presets.inl                 |  493 ++
- src/config/config_store.inl                   |  856 +++
- src/config/config_watcher.inl                 |  170 +
- src/config/device_config.inl                  |  342 +
- src/input/battery.inl                         |  105 +
- src/input/binding_names.inl                   |  244 +
- src/input/button_layout.inl                   | 1130 +++
- src/input/chord_gate.inl                      |   66 +
- src/input/gyro_calibration.inl                |  168 +
- src/input/gyro_calibration_fetch.inl          |   99 +
- src/input/gyro_hold.inl                       |   48 +
- src/input/gyro_mouse.inl                      | 1190 +++
- src/input/held_edges.inl                      |   67 +
- src/input/key_pulse.inl                       |  106 +
- src/input/keyboard_device.inl                 |  397 +
- src/input/mic_report.inl                      |   41 +
- src/input/mouse_device.inl                    |  319 +
- src/input/mouse_exclusive.inl                 |  122 +
- src/input/mouse_held.inl                      |   99 +
- src/input/osk.inl                             |  228 +
- src/input/pad_press.inl                       |  116 +
- src/input/rebind.inl                          | 1309 ++++
- src/input/stick_mouse.inl                     |  474 ++
- src/input/touch_mouse.inl                     | 1346 ++++
- src/input/trigger_click.inl                   |  857 +++
- src/input/trigger_effect.inl                  |  637 ++
- src/log/capped_log.inl                        |  117 +
- src/log/device_log.inl                        |  233 +
- src/main.cpp                                  |  910 ++-
- src/map/runtime.cpp                           |   90 +-
- src/usbdisplay/README.md                      |   13 +
- src/usbip/device.inl                          |  800 +-
- src/usbip/fallback_serial.inl                 |   46 +
- src/usbip/server.inl                          |  254 +-
- src/usbip/submit_info.inl                     |   34 +
- src/usbip/submit_limits.inl                   |   54 +
- src/usbip/wire.inl                            |  103 +
- tests/binding_names_test.cpp                  |  200 +
- tests/bridge_handshake_test.cpp               |  631 ++
- tests/button_layout_test.cpp                  | 1189 +++
- tests/capped_log_test.cpp                     |  140 +
- tests/config_store_test.cpp                   |  991 +++
- tests/control_caller_test.cpp                 |   73 +
- tests/device_capabilities_test.cpp            |   75 +
- tests/device_config_cache_test.cpp            |  148 +
- tests/device_config_test.cpp                  |  521 ++
- tests/device_names_test.cpp                   |  110 +
- tests/device_type_test.cpp                    |   89 +
- tests/fallback_serial_test.cpp                |   59 +
- tests/front_rule_test.cpp                     |   69 +
- tests/gyro_mouse_test.cpp                     |  828 +++
- tests/harness.h                               |   55 +
- tests/held_edges_test.cpp                     |   84 +
- tests/home_folder_test.cpp                    |  178 +
- tests/host_audio_settings_test.cpp            |  125 +
- tests/iso_in_pacing_test.cpp                  |  118 +
- tests/key_pulse_test.cpp                      |  148 +
- tests/keyboard_device_test.cpp                |  170 +
- tests/map_defaults_test.cpp                   |  100 +
- tests/mic_report_test.cpp                     |   64 +
- tests/mic_ring_test.cpp                       |  181 +
- tests/mouse_held_test.cpp                     |  162 +
- tests/nickname_test.cpp                       |   98 +
- tests/osk_test.cpp                            |   81 +
- tests/pad_press_test.cpp                      |  117 +
- tests/paired_tv_test.cpp                      |  319 +
- tests/product_version_test.cpp                |   45 +
- tests/protocol_level_test.cpp                 |  101 +
- tests/quit_request_test.cpp                   |   69 +
- tests/rebind_test.cpp                         |  664 ++
- tests/rest_parser_test.cpp                    |  252 +
- tests/rest_shared_section_test.cpp            |   79 +
- tests/rumble_floor_test.cpp                   |   87 +
- tests/same_controller_test.cpp                |   49 +
- tests/same_device_test.cpp                    |   95 +
- tests/schema_json_test.cpp                    |  158 +
- tests/stick_mouse_test.cpp                    |  735 ++
- tests/stop_wait_test.cpp                      |   93 +
- tests/stream_commands_test.cpp                |  118 +
- tests/taskbar_rule_test.cpp                   |   46 +
- tests/tests_main.cpp                          |  177 +
- tests/touch_mouse_test.cpp                    | 1654 +++++
- tests/tray_menu_test.cpp                      |  208 +
- tests/trigger_click_test.cpp                  |  901 +++
- tests/trigger_effect_test.cpp                 |  529 ++
- tests/tv_sessions_test.cpp                    |  191 +
- tests/units.h                                 |   54 +
- tests/usb_descriptors_test.cpp                |  213 +
- tests/usbip_limits_test.cpp                   |   73 +
- tests/usbip_server_test.cpp                   |  687 ++
- tests/window_icon_rule_test.cpp               |  108 +
- tests/window_move_test.cpp                    |  136 +
- tests/window_size_rule_test.cpp               |  129 +
- tools/controller-config-test-client.html      | 9882 +++++++++++++++++++++++++
- tools/create-desktop-shortcut.bat             |   46 +
- tools/create-desktop-shortcut.ps1             |  148 +
- tools/osk-mockups.py                          |  103 +
- 203 files changed, 58096 insertions(+), 1555 deletions(-)
+ .gitattributes                                |    48 +
+ .github/ISSUE_TEMPLATE/bug-report.yml         |   103 +
+ .github/ISSUE_TEMPLATE/config.yml             |     5 +
+ .github/ISSUE_TEMPLATE/feature-request.yml    |    22 +
+ .gitignore                                    |    41 +-
+ CHANGES.md                                    |   416 +
+ LINK                                          |     0
+ README.md                                     |   329 +-
+ app/compatibility.manifest                    |    27 +
+ app/ctm-usbip-tests.vcxproj                   |   151 +
+ app/ctm-usbip.ico                             |   Bin 156019 -> 30139 bytes
+ app/ctm-usbip.rc                              |    26 +-
+ app/ctm-usbip.vcxproj                         |    63 +-
+ attic/README.md                               |    24 +
+ attic/device-config-panel-edge.bat            |     9 +
+ attic/device-config-panel-edge.ps1            |   327 +
+ attic/device-config-panel.bat                 |     4 +
+ attic/device-config-panel.ps1                 |   303 +
+ attic/flydigi_apex4_identity.map              |    58 +
+ attic/flydigi_apex4_usb.profile               |    24 +
+ build-number.ps1                              |   169 +
+ build-tests.ps1                               |    86 +
+ build.ps1                                     |   110 +-
+ device-config.md                              |   195 +
+ docs/control_port.md                          |   121 +
+ docs/images/ds5usbip-advanced-overview.png    |   Bin 0 -> 313356 bytes
+ docs/images/ds5usbip-advanced-touchpad.png    |   Bin 0 -> 725906 bytes
+ docs/images/ds5usbip-keyboard-sizes.png       |   Bin 0 -> 431047 bytes
+ docs/images/ds5usbip-quick-in-game.jpg        |   Bin 0 -> 516960 bytes
+ docs/images/ds5usbip-quick.png                |   Bin 0 -> 51252 bytes
+ docs/images/ds5usbip-simple-dualsense.png     |   Bin 0 -> 341360 bytes
+ docs/images/ds5usbip-simple-xbox.png          |   Bin 0 -> 283054 bytes
+ docs/images/ds5usbip-tray-menu.png            |   Bin 0 -> 25374 bytes
+ docs/rest_api.md                              |   218 +
+ docs/steam_puck_knowledge.md                  |     5 +-
+ include/ctm/build_number.h                    |    23 +
+ include/ctm/map/runtime.h                     |    34 +
+ include/ctm/product.h                         |    43 +
+ include/ctm/protocol.h                        |    65 +-
+ installer/build-ds5-installer.ps1             |   126 +
+ installer/build-icon.ps1                      |   238 +
+ installer/controller-path.txt                 |    68 +
+ installer/ds5-usbip.iss                       |   787 ++
+ installer/icon-source.png                     |   Bin 0 -> 100705 bytes
+ installer/make-icon-ds5.ps1                   |   236 +
+ installer/trace-silhouette.py                 |   368 +
+ maps/ds4_usb_over_ds4_usb.map                 |    61 +
+ maps/ds5_usb_over_ds5_usb.map                 |    61 +
+ maps/virtual_keyboard.map                     |    46 +
+ maps/virtual_mouse.map                        |    54 +
+ maps/xbox_gip_usb_over_xbox_bt.map            |     5 +
+ profiles/descriptors/ds5e_composite.profile   |    30 +
+ profiles/descriptors/virtual_keyboard.profile |    74 +
+ profiles/descriptors/virtual_mouse.profile    |    59 +
+ release.ps1                                   |   266 +
+ src/app/agent.inl                             |  1246 +-
+ src/app/agent_session_sweep.inl               |   333 +
+ src/app/cli.inl                               |    66 +-
+ src/app/common.inl                            |   166 +-
+ src/app/config_move.inl                       |  1525 +++
+ src/app/console_attach.inl                    |    82 +
+ src/app/control_caller.inl                    |    48 +
+ src/app/device_capabilities.inl               |    75 +
+ src/app/device_names.inl                      |    93 +
+ src/app/device_type.inl                       |    70 +
+ src/app/favicon_version.inl                   |    58 +
+ src/app/front_rule.inl                        |   123 +
+ src/app/home_folder.inl                       |   130 +
+ src/app/lock_screen_rule.inl                  |    28 +
+ src/app/nickname.inl                          |    90 +
+ src/app/old_devices.inl                       |   267 +
+ src/app/old_devices_rule.inl                  |    91 +
+ src/app/open_on_bridge.inl                    |    93 +
+ src/app/open_ui.inl                           |   943 ++
+ src/app/overlay_window.inl                    |  2472 ++++
+ src/app/paired_tv.inl                         |   495 +
+ src/app/protocol_level.inl                    |    77 +
+ src/app/quick_switch.inl                      |   373 +
+ src/app/quick_switch_session.inl              |   424 +
+ src/app/quit_request.inl                      |    28 +
+ src/app/rest.inl                              |   885 ++
+ src/app/rest_config.inl                       |  1518 +++
+ src/app/rest_config_sessions.inl              |   243 +
+ src/app/rest_sessions.inl                     |    33 +
+ src/app/rest_shared_section.inl               |    55 +
+ src/app/same_controller.inl                   |    38 +
+ src/app/same_device.inl                       |    79 +
+ src/app/service.inl                           |    27 +-
+ src/app/start_report.inl                      |    37 +
+ src/app/stop_wait.inl                         |    74 +
+ src/app/stream_commands.inl                   |   233 +
+ src/app/stream_start.inl                      |   159 +
+ src/app/taskbar_back.inl                      |   169 +
+ src/app/taskbar_rule.inl                      |    64 +
+ src/app/tray_icon.inl                         |   808 ++
+ src/app/tray_menu.inl                         |   203 +
+ src/app/tutorial_bubble.inl                   |  1305 ++
+ src/app/tutorial_bubble_rule.inl              |   474 +
+ src/app/tutorial_state.inl                    |    91 +
+ src/app/tv_sessions.inl                       |   162 +
+ src/app/ui_page.inl                           |   140 +
+ src/app/window_icon.inl                       |   242 +
+ src/app/window_icon_rule.inl                  |    68 +
+ src/app/window_move.inl                       |   250 +
+ src/app/window_open_rule.inl                  |    32 +
+ src/app/window_size_rule.inl                  |   101 +
+ src/audio/audio_gain.inl                      |   151 +
+ src/audio/audio_haptics.inl                   |   299 +
+ src/audio/audio_haptics_dsp.inl               |   346 +
+ src/audio/ds5_apply_settings.inl              |   316 +
+ src/audio/ds5_output_overrides.inl            |   699 +
+ src/audio/iso_in_pacing.inl                   |   221 +
+ src/audio/iso_in_test_tone.inl                |    95 +
+ src/audio/mic_ring.inl                        |   202 +
+ src/audio/pc_sound_capture.cpp                |   349 +
+ src/audio/pc_sound_capture.h                  |    52 +
+ src/audio/pcm_amplitude_log.inl               |   162 +
+ src/audio/rumble_floor.inl                    |    58 +
+ src/backend/backend.inl                       |    56 +
+ src/backend/bridge.inl                        |   396 +-
+ src/backend/bridge_enet.inl                   |   800 --
+ src/backend/bt.inl                            |    24 +-
+ src/capture/README.md                         |    14 +
+ src/config/config_presets.inl                 |   498 +
+ src/config/config_store.inl                   |   856 ++
+ src/config/config_watcher.inl                 |   171 +
+ src/config/device_config.inl                  |   342 +
+ src/config/polling_limits.inl                 |   150 +
+ src/input/battery.inl                         |   105 +
+ src/input/binding_names.inl                   |   250 +
+ src/input/button_layout.inl                   |  1151 ++
+ src/input/chord_gate.inl                      |    66 +
+ src/input/gyro_calibration.inl                |   168 +
+ src/input/gyro_calibration_fetch.inl          |    99 +
+ src/input/gyro_hold.inl                       |    48 +
+ src/input/gyro_mouse.inl                      |  1190 ++
+ src/input/held_edges.inl                      |    67 +
+ src/input/key_pulse.inl                       |   106 +
+ src/input/keyboard_device.inl                 |   397 +
+ src/input/mic_report.inl                      |    41 +
+ src/input/mouse_device.inl                    |   319 +
+ src/input/mouse_exclusive.inl                 |   138 +
+ src/input/mouse_held.inl                      |    99 +
+ src/input/osk.inl                             |   228 +
+ src/input/pad_press.inl                       |   116 +
+ src/input/rebind.inl                          |  1392 ++
+ src/input/stick_mouse.inl                     |   474 +
+ src/input/touch_mouse.inl                     |  1707 +++
+ src/input/trigger_click.inl                   |   864 ++
+ src/input/trigger_effect.inl                  |   637 +
+ src/log/capped_log.inl                        |   117 +
+ src/log/device_log.inl                        |   233 +
+ src/main.cpp                                  |  1073 +-
+ src/map/runtime.cpp                           |    90 +-
+ src/usbdisplay/README.md                      |    13 +
+ src/usbip/device.inl                          |  1068 +-
+ src/usbip/fallback_serial.inl                 |    81 +
+ src/usbip/fine_timer.inl                      |    54 +
+ src/usbip/input_pace.inl                      |   131 +
+ src/usbip/server.inl                          |   254 +-
+ src/usbip/submit_info.inl                     |    34 +
+ src/usbip/submit_limits.inl                   |    54 +
+ src/usbip/wire.inl                            |   103 +
+ tests/audio_haptics_dsp_test.cpp              |   250 +
+ tests/binding_names_test.cpp                  |   211 +
+ tests/bridge_handshake_test.cpp               |   631 +
+ tests/button_layout_test.cpp                  |  1189 ++
+ tests/capped_log_test.cpp                     |   140 +
+ tests/config_store_test.cpp                   |  1006 ++
+ tests/control_caller_test.cpp                 |    73 +
+ tests/device_capabilities_test.cpp            |    75 +
+ tests/device_config_cache_test.cpp            |   148 +
+ tests/device_config_test.cpp                  |   535 +
+ tests/device_names_test.cpp                   |   110 +
+ tests/device_type_test.cpp                    |    89 +
+ tests/fallback_serial_test.cpp                |    79 +
+ tests/front_rule_test.cpp                     |   108 +
+ tests/gyro_mouse_test.cpp                     |   828 ++
+ tests/harness.h                               |    55 +
+ tests/held_edges_test.cpp                     |    84 +
+ tests/home_folder_test.cpp                    |   178 +
+ tests/host_audio_settings_test.cpp            |   125 +
+ tests/input_pace_test.cpp                     |   184 +
+ tests/iso_in_pacing_test.cpp                  |   118 +
+ tests/key_pulse_test.cpp                      |   148 +
+ tests/keyboard_device_test.cpp                |   170 +
+ tests/lock_screen_rule_test.cpp               |    36 +
+ tests/map_defaults_test.cpp                   |   100 +
+ tests/mic_report_test.cpp                     |    64 +
+ tests/mic_ring_test.cpp                       |   181 +
+ tests/mouse_held_test.cpp                     |   162 +
+ tests/nickname_test.cpp                       |    98 +
+ tests/old_devices_rule_test.cpp               |   131 +
+ tests/osk_test.cpp                            |    81 +
+ tests/pad_press_test.cpp                      |   117 +
+ tests/paired_tv_test.cpp                      |   319 +
+ tests/polling_limits_test.cpp                 |   122 +
+ tests/product_version_test.cpp                |    45 +
+ tests/protocol_level_test.cpp                 |   101 +
+ tests/quick_switch_test.cpp                   |   354 +
+ tests/quit_request_test.cpp                   |    69 +
+ tests/rebind_test.cpp                         |   784 ++
+ tests/rest_parser_test.cpp                    |   252 +
+ tests/rest_shared_section_test.cpp            |    79 +
+ tests/rumble_floor_test.cpp                   |    87 +
+ tests/same_controller_test.cpp                |    49 +
+ tests/same_device_test.cpp                    |    95 +
+ tests/schema_json_test.cpp                    |   158 +
+ tests/stick_mouse_test.cpp                    |   735 ++
+ tests/stop_wait_test.cpp                      |    93 +
+ tests/stream_commands_test.cpp                |   118 +
+ tests/taskbar_rule_test.cpp                   |    46 +
+ tests/tests_main.cpp                          |   193 +
+ tests/touch_mouse_test.cpp                    |  2591 ++++
+ tests/tray_menu_test.cpp                      |   247 +
+ tests/trigger_click_test.cpp                  |   928 ++
+ tests/trigger_effect_test.cpp                 |   529 +
+ tests/tutorial_bubble_rule_test.cpp           |   372 +
+ tests/tv_sessions_test.cpp                    |   191 +
+ tests/units.h                                 |    54 +
+ tests/usb_descriptors_test.cpp                |   213 +
+ tests/usbip_limits_test.cpp                   |    73 +
+ tests/usbip_server_test.cpp                   |   687 +
+ tests/window_icon_rule_test.cpp               |   108 +
+ tests/window_move_test.cpp                    |   136 +
+ tests/window_open_rule_test.cpp               |    43 +
+ tests/window_size_rule_test.cpp               |   129 +
+ tools/controller-config-test-client.html      | 16353 ++++++++++++++++++++++++
+ tools/create-desktop-shortcut.bat             |    46 +
+ tools/create-desktop-shortcut.ps1             |   148 +
+ tools/osk-mockups.py                          |   103 +
+ 231 files changed, 74224 insertions(+), 1568 deletions(-)
 ```

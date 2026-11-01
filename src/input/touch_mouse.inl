@@ -3,6 +3,8 @@
 //   one finger   moves the cursor, laptop-trackpad style (relative -- lifting
 //                and repositioning does not jump)
 //   two fingers  scroll, emitted as wheel ticks
+//   two fingers slid up, down, left or right  whatever that direction's setting
+//                names; up and down only while two-finger scroll is off
 //   a quick tap  clicks: one finger = left, two fingers = right, the Apple
 //                trackpad convention; double-click is just tapping twice
 //
@@ -96,6 +98,20 @@ constexpr int kPressMaxBackUnits = 120;
 // After a put-back, check it again for this long, for movement that was
 // already on its way to Windows when it happened.
 constexpr long long kPutBackCheckMs = 40;
+// ⭐ A LIFT GOES BACK TO WHERE THE FINGER RESTED (rhoquinn8217, 2026-10-14:
+// "if you lift your finger, that movement makes the mouse jump away from the
+// spot you want to click"). A finger rolls as it leaves the pad, as it does
+// when it lands and when it presses, and the cursor followed the roll off the
+// spot it had been brought to -- so the tap that came next clicked beside it.
+// When the last finger lifts, the cursor goes back to where it was
+// kLiftRollMs before, if the finger was nearly still just before that
+// (kStillUnits in kLiftRestMs, which is what a finger aiming at something
+// does) and the roll covered no more than kLiftMaxBackUnits. A finger still
+// sliding when it lifted, a flick, keeps where it went.
+// ⓘ Starting values, to be read off the lift's log line.
+constexpr long long kLiftRollMs = 60;
+constexpr long long kLiftRestMs = 40;
+constexpr int kLiftMaxBackUnits = 120;
 
 // ⭐ AFTER A SCROLL, THE FINGER LEFT BEHIND POINTS AGAIN (rhoquinn8217,
 // 2026-09-30: lift one finger and carry on with the other, without lifting
@@ -145,6 +161,39 @@ constexpr long long kClickSettleMs = 30;
 // double-click time; "near" is a finger's roll, not a new target.
 constexpr long long kDoubleTapMs = 500;
 constexpr long kDoubleTapNearPx = 16;
+// ⭐ DOUBLE TAP AND HOLD DRAGS (rhoquinn8217, 2026-10-14: "i want to add a
+// drag functionality when double tapping set to a mouse click";
+// touchpad_double_tap_drag). A touch that lands within this long after a
+// one-finger tap that clicked, and near it, holds that tap's button down until
+// the last finger lifts: move to drag, lift to let go. 0.3 s rather than the
+// double tap's kDoubleTapMs, on their word: a touch made a moment after a tap
+// to point somewhere else drags instead, and a shorter wait leaves less room
+// for that.
+// ⛔⛔ THE FIRST TAP'S CLICK WAITS, WHILE THE SETTING IS ON (2026-10-14). It
+// clicked at once, and the hold pressed the button as the second touch
+// landed: Windows makes a double-click on the SECOND PRESS, not its release,
+// so every double tap and hold was a double-click before the finger moved
+// (rhoquinn8217: "it register that as a second tap as a double click even if
+// I haven't release the touchpad"). Touchpads that drag this way hold the
+// tap's click back for a moment (libinput documents about 180 ms), and so does
+// this: a single tap clicks kTapDragMs late. A touch that lands in that time,
+// near where the tap clicked, is ARMED: moving past kStillUnits or staying
+// down past kTapMaxMs makes it the hold, ONE press where the tap clicked and
+// the tap's click never sent; lifting first makes it a tap, and both clicks
+// go, the double-click it always was.
+constexpr long long kTapDragMs = 300;
+// ⭐⭐ AND THE HOLD IN "DOUBLE TAP AND HOLD" IS REAL (rhoquinn8217, 2026-10-15).
+// Any movement made the armed touch the drag, and two things a person does
+// all the time became drags they did not mean: tapping a window's X and
+// sliding away at once ("it registers that as a drag, the window doesn't
+// close and I create a rectangle selection": the finger slid 3 to 59 ms
+// after landing), and a quick second tap that rolled 19 to 35 units, past
+// kStillUnits, which as a drag that never moved was ONE click, no double.
+// ➡️ So the touch must rest inside kStillUnits for this long before it
+// slides to become the drag. Sliding sooner is pointing: the tap's click
+// goes first, where it was, and the cursor moves. A starting value, on their
+// "lets try it and see"; the log's line says when each touch slid.
+constexpr long long kTapDragHoldMs = 150;
 
 // ⭐ A FINGER LIFTED MID-STROKE IS PART OF THE SCROLL (2026-09-30). Between
 // strokes, the Edge reports the finger left behind sliding toward the other as
@@ -160,6 +209,21 @@ constexpr int kStrokeMovingUnits = 30;
 
 // Pad units of two-finger travel per wheel tick, at scroll speed 100.
 constexpr int kScrollUnitsPerTick = 60;
+
+// ⭐ A TWO-FINGER SWIPE (rhoquinn8217, 2026-10-20: "I want to add 2 finger
+// swipe up gesture added to the touchpad section", then 2026-10-21: "add two
+// finger swipe down, two finger swipe left , two finder swipe right"): the
+// fingers' midpoint this far from where both came down, along its stronger
+// direction. Up or down, about a quarter of a DualSense's pad, which is 1080
+// tall (a third of a DS4's 942); left or right, a quarter of either's 1920.
+constexpr int kSwipeVerticalUnits = 300;
+constexpr int kSwipeSidewaysUnits = 480;
+// The four, in the order their settings and their names are listed.
+enum SwipeDir { kSwipeUp = 0, kSwipeDown, kSwipeLeft, kSwipeRight, kSwipeDirs };
+inline const char *const kSwipeKeys[kSwipeDirs] = {
+    "touchpad_two_finger_swipe_up", "touchpad_two_finger_swipe_down",
+    "touchpad_two_finger_swipe_left", "touchpad_two_finger_swipe_right" };
+inline const char *const kSwipeNames[kSwipeDirs] = { "up", "down", "left", "right" };
 
 struct TouchPoint {
     bool down = false;
@@ -254,6 +318,13 @@ struct TouchState {
     float lastAvgY = 0.0f;
     float scrollCarry = 0.0f;
 
+    // ⭐ The two-finger swipe (kSwipeVerticalUnits): where the fingers' midpoint
+    // stood when both were down, and whether this touch has swiped already.
+    bool swipeTracking = false;
+    float swipeX0 = 0.0f;
+    float swipeY0 = 0.0f;
+    bool swipeDone = false;
+
     // Tap session: from first finger down to all fingers up. Movement is
     // judged from the AVERAGE of the active fingers, re-anchored whenever the
     // finger count changes -- otherwise the second finger of a two-finger tap
@@ -267,6 +338,16 @@ struct TouchState {
     // guess; a physical click is not. Three-finger drag is not available to us
     // at all -- the pad reports two touch points.
     bool dragging = false;
+    // ⭐ THE HOLD IS A DOUBLE TAP'S (kTapDragMs), NOT A PRESS'S: it lets go when
+    // the last finger lifts, whatever the press setting says, and the touch
+    // that made it adds no click at its lift -- its touch was the button's
+    // down and its lift the up, so a quick one is the double-click it was.
+    bool holdByTap = false;
+    bool sessionTapDrag = false;
+    // ⭐ The click waiting is a tap's, held back for kTapDragMs; and this touch
+    // landed in time to become the hold, and has not decided yet.
+    bool clickWaitsForDrag = false;
+    bool tapDragArmed = false;
     // ⭐ WHAT THE PRESS TOOK HOLD OF, kept so the letting go matches it. The
     // setting can change while the pad is still held in, and a key pressed
     // under the old value has to be the key that comes back up.
@@ -540,6 +621,17 @@ inline bool acts_now(const binding::Target &target)
     return !ctm_rebind_config_mode_effective();
 }
 
+// ⭐ WHAT A SWIPE UP DOES: anything a button's remap takes (rhoquinn8217,
+// 2026-10-20: "Let the two finger swipe up rebind option have all the rebind
+// options that face buttons have"), read by the reader the taps use. It had
+// two choices of its own for a day, win+tab and win: the first is a remap
+// name now, and "win" is still the Win key, MetaLeft in the list.
+inline binding::Target swipe_target(const std::string &value)
+{
+    if (ctm_rebind::code_is(value, "win")) return binding::parse("MetaLeft");
+    return binding::parse(value);
+}
+
 // A tap that is not a mouse button. ⓘ A mouse button is a click, and a click
 // has to land where the finger meant, so it has its own path below.
 // Returns what it did, for the log line.
@@ -628,6 +720,7 @@ inline void drop_hold(TouchState &st, const void *deviceKey)
 {
     if (!st.dragging) return;
     st.dragging = false;
+    st.holdByTap = false;
     hold_end(deviceKey, st.holdTarget);
     st.holdTarget = binding::Target();
 }
@@ -725,6 +818,54 @@ inline void put_back_for_press(TouchState &st, long long nowMs, const TouchPoint
     }
 }
 
+// ⭐ THE LAST FINGER HAS LIFTED: back to where it rested before it rolled off
+// the pad (kLiftRollMs). The line says how far the finger moved in the 25, 50,
+// 100 and 200 ms before it lifted, which is how the numbers get set from a
+// real hand.
+inline void put_back_for_lift(TouchState &st, long long nowMs)
+{
+    if (st.sampleCount == 0) return;
+    // ⓘ Where the finger was last seen: the pad reports no position once it
+    // has gone.
+    const TouchState::Sample &last =
+        st.samples[(st.sampleNext + TouchState::kSamples - 1) % TouchState::kSamples];
+    TouchPoint end;
+    end.x = last.fx;
+    end.y = last.fy;
+    const auto moved = [&](long long ago) {
+        const TouchState::Sample *b = sample_before(st, nowMs, ago);
+        return b == nullptr ? std::string("-") : std::to_string(travel_from(b->fx, b->fy, end));
+    };
+    const TouchState::Sample *roll = sample_before(st, nowMs, kLiftRollMs);
+    const TouchState::Sample *rest = sample_before(st, nowMs, kLiftRollMs + kLiftRestMs);
+    // ⓘ A touch too short to have a moment of rest before its roll has
+    // nothing to go back to.
+    const bool longEnough = roll != nullptr && rest != nullptr &&
+                            nowMs - rest->t >= kLiftRollMs + kLiftRestMs;
+    TouchPoint rolledFrom;
+    if (roll != nullptr) {
+        rolledFrom.x = roll->fx;
+        rolledFrom.y = roll->fy;
+    }
+    const bool rested = longEnough && travel_from(rest->fx, rest->fy, rolledFrom) <= kStillUnits;
+    const int rolled = roll != nullptr ? travel_from(roll->fx, roll->fy, end) : 0;
+    long cx = 0;
+    long cy = 0;
+    const bool haveNow = ctm_gyro_mouse::cursor_read(&cx, &cy);
+    const bool goBack = rested && rolled <= kLiftMaxBackUnits && haveNow &&
+                        (roll->cx != cx || roll->cy != cy);
+    device_log::input(device_log::msg()
+        << "[touch] lift finger_moved 25ms=" << moved(25) << " 50ms=" << moved(50)
+        << " 100ms=" << moved(100) << " 200ms=" << moved(200)
+        << " rested=" << (rested ? "yes" : (longEnough ? "no" : "short"))
+        << " cursor_back="
+        << (goBack ? std::to_string(cx - roll->cx) + "," + std::to_string(cy - roll->cy) + "px"
+                   : std::string(rested && rolled > kLiftMaxBackUnits ? "none (moving)" : "none")));
+    if (goBack) {
+        put_back(st, roll->cx, roll->cy, nowMs, "lift");
+    }
+}
+
 // ⭐ A SECOND FINGER HAS COME DOWN, so the cursor goes back to where it
 // belongs, and the line says what the pad did as it came:
 //   early in a touch      where the first finger landed (kSecondFingerMs):
@@ -778,6 +919,8 @@ inline void fire_click(TouchState &st)
     ctm_mouse_device::add_click(st.clickMask);
     ctm_gyro_mouse_ensure_mouse_started();
     st.clickMask = 0;
+    st.clickWaitsForDrag = false;
+    st.tapDragArmed = false;
 }
 
 // ---- The finger left behind -------------------------------------------------
@@ -861,9 +1004,18 @@ inline void step(const void *deviceKey, const std::string &section,
     //
     // ⓘ An older config saying "true" meant two fingers, and still does.
     const std::string scrollRaw = device_config_str(section.c_str(), "touchpad_scroll");
+    // ⭐ THE QUICK CONFIG SWITCH (quick_switch.inl). While its window is open
+    // the touchpad is its own (below). And while the configs window is in front
+    // in Simple or Quick, two fingers on the pad moving up or down only move
+    // the wheel (rhoquinn8217, 2026-10-23: "When simple and quick mode are in
+    // focus, two finger swipe up or down is disabled and only control the
+    // wheel"; one thumb resting and the other swiping since 2026-10-26): the
+    // config's own swipe up and down stand aside, and so does two-finger
+    // scroll, whose wheel ticks would step the wheel again.
+    const bool switchHasSwipes = quick_switch_has_vertical_swipes();
     const int scrollFingers =
-        (scrollRaw == "1")                          ? 1 :
-        (scrollRaw == "2" || scrollRaw == "true")   ? 2 : 0;
+        (scrollRaw == "1")                                               ? 1 :
+        ((scrollRaw == "2" || scrollRaw == "true") && !switchHasSwipes)  ? 2 : 0;
     const bool scrollOn = scrollFingers > 0;
     // ⭐⭐ THE TOUCHPAD'S GESTURES ARE REMAPPABLE (T-242, 2026-09-20).
     // rhoquinn8217: *"touchpad_one_finger_tap - can be remapped to anything /
@@ -893,13 +1045,39 @@ inline void step(const void *deviceKey, const std::string &section,
     }
     const bool tapsOn = !oneTap.empty() || !twoTap.empty();
     const bool dragOn = !dragTo.empty();
+    // ⭐ DOUBLE TAP AND HOLD (kTapDragMs). ⓘ Only with the cursor on: the tap it
+    // follows is the one-finger tap that clicks, and a drag needs a pointer.
+    const bool tapDragOn =
+        cursorOn && device_config_bool(section.c_str(), "touchpad_double_tap_drag", false);
+    // ⭐ THE TWO-FINGER SWIPES (kSwipeVerticalUnits), UP AND DOWN ONLY WHILE
+    // TWO-FINGER SCROLL IS OFF (rhoquinn8217, 2026-10-20, for up, chosen over
+    // telling a quick flick from a scroll and over the swipe taking scroll-up's
+    // place): the same two fingers moving up or down would scroll as well.
+    // ⓘ Left and right whatever the scroll does, which reads up and down
+    // alone; and one-finger scroll uses one finger.
+    // ⓘ Nor while the quick config switch has them, in Simple or Quick in
+    // front (above). They act otherwise, the switch on or off
+    // (rhoquinn8217, 2026-10-23: "Config's own two-finger swipe up and down
+    // should still work").
+    std::string swipeRaw[kSwipeDirs];
+    binding::Target swipeTarget[kSwipeDirs];
+    bool swipeWants[kSwipeDirs] = {};
+    bool swipeOn = false;
+    for (int d = 0; d < kSwipeDirs; ++d) {
+        swipeRaw[d] = device_config_str(section.c_str(), kSwipeKeys[d]);
+        swipeTarget[d] = swipe_target(swipeRaw[d]);
+        const bool vertical = d == kSwipeUp || d == kSwipeDown;
+        swipeWants[d] = swipeTarget[d].kind != binding::kNone &&
+                        !(vertical && (scrollFingers == 2 || switchHasSwipes));
+        if (swipeWants[d]) swipeOn = true;
+    }
 
     std::lock_guard<std::mutex> lock(g_touchMutex);
     TouchState &st = g_touch[deviceKey];
 
     // ⭐ Everything off: keep no state, so turning a feature on later starts
     // clean rather than against a stale anchor.
-    if (!cursorOn && !scrollOn && !tapsOn && !dragOn) {
+    if (!cursorOn && !scrollOn && !tapsOn && !dragOn && !swipeOn) {
         drop_hold(st, deviceKey);
         if (st.clickMask != 0) fire_click(st);   // a tap already made
         st = TouchState();
@@ -936,6 +1114,19 @@ inline void step(const void *deviceKey, const std::string &section,
     const int fingers = (p1.down ? 1 : 0) + (p2.down ? 1 : 0);
     const TouchPoint &only = p1.down ? p1 : p2;   // meaningful when fingers == 1
 
+    // ⭐ THE QUICK CONFIG SWITCH HAS THE TOUCHPAD (quick_switch_session.inl):
+    // from two fingers pressing it in to the last finger lifting, nothing of
+    // it acts (rhoquinn8217, 2026-10-23: "Disable all touch pad rebinds
+    // during this time including touch-pad to mouse"). The cursor, the
+    // scroll, the taps, the swipes and the press stand down as for a shut
+    // gate, and the next touch starts afresh.
+    if (quick_switch_holds_touchpad(deviceKey, fingers, ctm_rebind::touch_pressed(lay, data, len))) {
+        drop_hold(st, deviceKey);
+        if (st.clickMask != 0) fire_click(st);   // a tap already made
+        st = TouchState();
+        return;
+    }
+
     // ⭐ A PUT-BACK IS CHECKED AGAIN FOR A MOMENT, for movement that was already
     // on its way to Windows when it happened. ⓘ Nothing of this touch moves the
     // cursor meanwhile: a tap has lifted, a scroll moves nothing, and a press
@@ -946,13 +1137,27 @@ inline void step(const void *deviceKey, const std::string &section,
     }
 
     // ⭐ A CLICK THAT WAITED FOR ITS PUT-BACK (kClickSettleMs) goes now, or at
-    // once if a new touch begins first.
-    if (st.clickMask != 0 && (nowMs >= st.clickAtMs || (fingers > 0 && !st.sessionActive))) {
+    // once if a new touch begins first. ⭐ A TAP'S CLICK HELD BACK FOR A DOUBLE
+    // TAP'S HOLD (kTapDragMs) goes when its time is up; a touch beginning is the
+    // session start's to judge, and a touch armed to become the hold decides it.
+    if (st.clickMask != 0 && !st.tapDragArmed &&
+        (nowMs >= st.clickAtMs || (fingers > 0 && !st.sessionActive && !st.clickWaitsForDrag))) {
         fire_click(st);
     }
 
     // The recent path, for a press to go back along.
     if (cursorOn && fingers > 0) remember(st, nowMs, only);
+
+    // ⭐ THE LAST FINGER HAS JUST LIFTED, AFTER POINTING: its roll is undone
+    // (kLiftRollMs) before anything acts on where the cursor is -- a drag
+    // drops there, just below. ⓘ Not after a tap, which puts the cursor back
+    // to where it landed itself, and not after a scroll unless the finger left
+    // behind went on to point.
+    if (cursorOn && fingers == 0 && st.sessionActive && st.movedCursor &&
+        (st.sessionMaxFingers < 2 || st.tailLive) &&
+        !(tapsOn && !st.sessionMoved && nowMs - st.sessionStart <= kTapMaxMs)) {
+        put_back_for_lift(st, nowMs);
+    }
 
     // ---- Drag ---------------------------------------------------------------
     // Read before the tap and cursor paths so a drag survives whatever they
@@ -961,7 +1166,11 @@ inline void step(const void *deviceKey, const std::string &section,
     // drag, and a key or a pad button is that key or button kept down, for the
     // same length of time -- from the press until no finger is left.
     const binding::Target dragTarget = binding::parse(dragTo);
-    if (dragOn && dragTarget.kind != binding::kNone) {
+    if (st.dragging && st.holdByTap) {
+        // ⭐ A DOUBLE TAP'S HOLD lets go when the last finger lifts, or at once
+        // if the setting goes off under it.
+        if (fingers == 0 || !tapDragOn) drop_hold(st, deviceKey);
+    } else if (dragOn && dragTarget.kind != binding::kNone) {
         const bool padPressed = ctm_rebind::touch_pressed(lay, data, len);
         const bool anyFinger = fingers > 0;
 
@@ -1030,6 +1239,24 @@ inline void step(const void *deviceKey, const std::string &section,
             st.strokeHold = false;
             st.scrollSampleCount = 0;
             st.scrollSampleNext = 0;
+            st.sessionTapDrag = false;
+            st.tapDragArmed = false;
+            // ⭐ DOUBLE TAP AND HOLD (kTapDragMs): a tap's click is waiting for
+            // this. A touch that lands in time, near where the tap clicked, is
+            // ARMED and decides as it goes (below); any other touch lets the
+            // click go now. The cursor stays still for the first kStillUnits,
+            // as for any touch that could be a tap, so the grab does not twitch.
+            if (st.clickMask != 0 && st.clickWaitsForDrag) {
+                const auto apart = [](long a, long b) { return a > b ? a - b : b - a; };
+                if (tapDragOn && fingers == 1 && !st.dragging &&
+                    nowMs - st.lastTapMs <= kTapDragMs && st.homeValid &&
+                    apart(st.homeX, st.lastTapX) <= kDoubleTapNearPx &&
+                    apart(st.homeY, st.lastTapY) <= kDoubleTapNearPx) {
+                    st.tapDragArmed = true;
+                } else {
+                    fire_click(st);
+                }
+            }
         } else if (fingers > 0) {
             // ⭐ A SECOND FINGER SOON AFTER THE FIRST is a scroll that started
             // late: the cursor goes back to where the first finger landed, and
@@ -1059,7 +1286,16 @@ inline void step(const void *deviceKey, const std::string &section,
         } else if (st.sessionActive) {
             measure_clock(st, lay, data, len, nowMs, false, kind);
             const long long heldMs = nowMs - st.sessionStart;
-            if (tapsOn && !st.sessionMoved && heldMs <= kTapMaxMs) {
+            // ⭐ AN ARMED TOUCH THAT LIFTED BEFORE BECOMING THE HOLD WAS A TAP:
+            // the first tap's held-back click goes now, and this tap's click
+            // follows on the same spot, just below -- a double-click.
+            bool clickedJustNow = false;
+            if (st.tapDragArmed) {
+                fire_click(st);
+                clickedJustNow = true;
+            }
+            // ⓘ Not a double tap's hold: its lift was the button's up already.
+            if (tapsOn && !st.sessionMoved && heldMs <= kTapMaxMs && !st.sessionTapDrag) {
                 // ⓘ Whichever of the two this tap was. A double click is still
                 // simply two taps, with no special case -- that has not changed.
                 // ⚠️ A finger count with no action set does NOTHING, rather than
@@ -1099,11 +1335,38 @@ inline void step(const void *deviceKey, const std::string &section,
                     }
                     const bool place = why != nullptr &&
                                        (st.movedCursor || !haveNow || cx != tx || cy != ty);
-                    if (place) {
-                        put_back(st, tx, ty, nowMs, why);
+                    if (tapDragOn && !secondTap) {
+                        // ⭐ HELD BACK FOR A DOUBLE TAP'S HOLD (kTapDragMs): the
+                        // next touch may still turn this click into its press.
+                        // ⓘ And where it is to land, put back or not: sending it
+                        // puts the cursor back there first (fire_click), and a
+                        // tap that moved nothing has no put-back of its own.
+                        if (place) {
+                            put_back(st, tx, ty, nowMs, why);
+                        } else {
+                            st.placeX = tx;
+                            st.placeY = ty;
+                        }
+                        st.clickMask = static_cast<uint8_t>(st.clickMask | mask);
+                        st.clickAtMs = nowMs + kTapDragMs;
+                        st.clickWaitsForDrag = true;
+                    } else if (place || clickedJustNow) {
+                        // ⛔⛔ AND NEVER IN THE SAME MOMENT AS A CLICK JUST SENT
+                        // (rhoquinn8217, 2026-10-15: "I need to triple click
+                        // icons in the desktop to perform a double click"). The
+                        // virtual mouse sends one click at a time, and clicks
+                        // asked for at once merge into ONE: a quick double tap's
+                        // held-back click and its own went out together, and
+                        // Windows saw a single click. This one waits its turn.
+                        if (place) {
+                            put_back(st, tx, ty, nowMs, why);
+                        } else {
+                            st.placeX = tx;
+                            st.placeY = ty;
+                        }
                         st.clickMask = static_cast<uint8_t>(st.clickMask | mask);
                         st.clickAtMs = nowMs + kClickSettleMs;
-                        if (st.checkUntil < st.clickAtMs + 10) st.checkUntil = st.clickAtMs + 10;
+                        if (place && st.checkUntil < st.clickAtMs + 10) st.checkUntil = st.clickAtMs + 10;
                     } else {
                         ctm_mouse_device::add_click(mask);
                         ctm_gyro_mouse_ensure_mouse_started();
@@ -1141,6 +1404,102 @@ inline void step(const void *deviceKey, const std::string &section,
             st.sampleCount = 0;
             st.sampleNext = 0;
         }
+    }
+
+    // ⭐ AN ARMED TOUCH DECIDES AS IT SLIDES (kTapDragMs, kTapDragHoldMs). Having
+    // rested inside kStillUnits for kTapDragHoldMs, sliding makes it the hold:
+    // the tap's click is never sent, and the button goes down once, here, where
+    // the tap clicked and before this report moves the cursor, until the last
+    // finger lifts. Sliding sooner is pointing: the tap's click goes now, where
+    // it was, and the cursor follows. A second finger, or the setting gone,
+    // makes it something else, and the click goes. Lifting first: see the lift.
+    if (st.tapDragArmed && (fingers >= 2 || !tapDragOn)) {
+        fire_click(st);
+    } else if (st.tapDragArmed && fingers == 1 &&
+               travel_from(st.stillX0, st.stillY0, only) > kStillUnits &&
+               nowMs - st.sessionStart < kTapDragHoldMs) {
+        device_log::input(device_log::msg()
+            << "[touch] double tap and hold: slid " << (nowMs - st.sessionStart)
+            << "ms into the touch, before the hold: pointing, the tap's click sent");
+        fire_click(st);
+        st.mTap = "slid";
+    } else if (st.tapDragArmed && fingers == 1 &&
+               travel_from(st.stillX0, st.stillY0, only) > kStillUnits) {
+        binding::Target held;
+        held.kind = binding::kMouseButton;
+        held.mouseMask = st.clickMask;
+        st.clickMask = 0;
+        st.clickWaitsForDrag = false;
+        st.tapDragArmed = false;
+        st.dragging = true;
+        st.holdByTap = true;
+        st.holdTarget = held;
+        st.sessionTapDrag = true;
+        hold_begin(deviceKey, section, held);
+        st.mTap = "hold";
+        device_log::input(device_log::msg()
+            << "[touch] double tap and hold: button 0x" << std::hex
+            << static_cast<int>(held.mouseMask) << std::dec << " held, "
+            << (nowMs - st.lastTapMs) << "ms after the tap, "
+            << (nowMs - st.sessionStart) << "ms into the touch");
+    }
+
+    // ---- Two fingers: swipe ------------------------------------------------
+    // ⭐ Once per touch, the moment the fingers' midpoint has come far enough
+    // from where both were down along its stronger direction (kSwipeVerticalUnits
+    // up or down, kSwipeSidewaysUnits left or right): that direction's setting
+    // acts, a key down and up by the keyboard's own clock as a tap's is, a pad
+    // button pressed for a moment, a mouse button clicked where the cursor is,
+    // and nothing but the mouse while the pad drives the configs window
+    // (acts_now). ⓘ The first direction met decides the touch, set or not, so
+    // a scroll that wanders never turns into a sideways swipe. Measured afresh
+    // when two fingers come down again in the same touch, but it acts once
+    // until every finger has lifted.
+    if (swipeOn && fingers == 2) {
+        const float mx = (static_cast<float>(p1.x) + static_cast<float>(p2.x)) / 2.0f;
+        const float my = (static_cast<float>(p1.y) + static_cast<float>(p2.y)) / 2.0f;
+        if (!st.swipeTracking) {
+            st.swipeTracking = true;
+            st.swipeX0 = mx;
+            st.swipeY0 = my;
+        } else if (!st.swipeDone) {
+            const float dx = mx - st.swipeX0;
+            const float dy = my - st.swipeY0;   // the pad's y grows downward
+            const float ax = dx < 0 ? -dx : dx;
+            const float ay = dy < 0 ? -dy : dy;
+            int dir = -1;
+            if (ay >= ax && ay >= static_cast<float>(kSwipeVerticalUnits)) {
+                dir = dy < 0 ? kSwipeUp : kSwipeDown;
+            } else if (ax > ay && ax >= static_cast<float>(kSwipeSidewaysUnits)) {
+                dir = dx < 0 ? kSwipeLeft : kSwipeRight;
+            }
+            if (dir >= 0) {
+                st.swipeDone = true;
+                st.sessionMoved = true;   // a swipe is not a tap
+                const binding::Target &target = swipeTarget[dir];
+                const bool acts = swipeWants[dir] && acts_now(target);
+                if (acts && target.kind == binding::kMouseButton) {
+                    // ⓘ A click, where the cursor is: a swipe has no spot
+                    // of its own for it to land on.
+                    ctm_mouse_device::add_click(target.mouseMask);
+                    ctm_gyro_mouse_ensure_mouse_started();
+                    st.mTap = "click";
+                } else if (acts) {
+                    st.mTap = tap_other(deviceKey, section, target, nowMs);
+                }
+                device_log::input(device_log::msg()
+                    << "[touch] two-finger swipe " << kSwipeNames[dir] << ": "
+                    << (swipeRaw[dir].empty() ? std::string("(nothing set)") : swipeRaw[dir])
+                    << (acts ? " done, " :
+                        !swipeWants[dir] ? " not done: not set, two-finger scroll is on, or the quick config switch has it, " :
+                                          " not done, the pad is driving the configs window, ")
+                    << static_cast<int>(dx) << " across and " << static_cast<int>(dy)
+                    << " down, " << (nowMs - st.sessionStart) << "ms into the touch");
+            }
+        }
+    } else {
+        st.swipeTracking = false;
+        if (fingers == 0) st.swipeDone = false;
     }
 
     // ---- One finger: cursor -------------------------------------------------
@@ -1219,7 +1578,9 @@ inline void step(const void *deviceKey, const std::string &section,
             if (st.pressStill && travel_from(st.pressX0, st.pressY0, only) > kStillUnits) {
                 st.pressStill = false;
             }
-            const bool still = st.pressStill ||
+            // ⓘ And an armed touch, until it has decided (kTapDragHoldMs): a
+            // drag's press has to land where the tap clicked.
+            const bool still = st.pressStill || st.tapDragArmed ||
                                (tapsOn && !st.cursorLive && (nowMs - st.sessionStart) <= kTapMaxMs);
             const int step = travel_from(st.lastX, st.lastY, only);
             if (still) {

@@ -49,10 +49,22 @@ struct RestDeviceView {
     bool hasRumbleGains = true; // the three gains, patched only into a DualSense report
     bool hasTouchpad = true;
     bool hasGyro = true;
+    // ⭐ THE POLLING RATE (usbip/input_pace.inl): the reports a second Windows
+    // is getting now, and arriving from the TV, which differ only under a
+    // limit; whether a limit can apply at all, a controller's and never a
+    // keyboard's or a mouse's; and the limit its settings set, as written and
+    // as applied.
+    int inputRateHz = 0;
+    int arrivalRateHz = 0;
+    bool takesRateLimit = false;
+    std::string pollingRate;    // the controller's own limit; "" for Real time
+    int rateLimitHz = 0;        // 0 is none
 };
 static std::vector<RestDeviceView> rest_collect_devices();
 static bool rest_link_device(const std::string &ordinal, const std::string &configName,
                              std::string *error);
+static bool rest_set_polling_rate(const std::string &ordinal, const std::string &value,
+                                  std::string *error);
 static bool rest_find_device(const std::string &ordinal, RestDeviceView *out);
 
 // The name the shared section answers to in the API. Reserved, so a real config
@@ -95,6 +107,12 @@ static std::string rest_device_json(const RestDeviceView &d)
     out += ",\"has_rumble_gains\":" + std::string(d.hasRumbleGains ? "true" : "false");
     out += ",\"has_touchpad\":" + std::string(d.hasTouchpad ? "true" : "false");
     out += ",\"has_gyro\":" + std::string(d.hasGyro ? "true" : "false");
+    // ⭐ The polling rate column, Advanced only on the page.
+    out += ",\"input_rate_hz\":" + std::to_string(d.inputRateHz);
+    out += ",\"arrival_rate_hz\":" + std::to_string(d.arrivalRateHz);
+    out += ",\"takes_rate_limit\":" + std::string(d.takesRateLimit ? "true" : "false");
+    out += ",\"polling_rate\":\"" + rest_json_escape(d.pollingRate) + "\"";
+    out += ",\"rate_limit_hz\":" + std::to_string(d.rateLimitHz);
     out += ",\"supports_config\":" +
            std::string(config_store::kind_supports_config(d.kind) ? "true" : "false") + "}";
     return out;
@@ -339,35 +357,35 @@ static std::string rest_keys_json()
     // can contain anything except that exact delimiter.
     const std::string settings = R"CTMKEYS({"keys":[
 {"key":"rebind_debug","type":"bool","default":false,"help":"Logs what each bound button is doing, twice a second: whether it was seen as pressed, and the raw button bytes. For working out why a rebind does nothing."},
-{"key":"rebind_0","type":"string","name":"(✕) | (A)","default":"","help":"Remap button to keyboard key or mouse action"},
+{"key":"rebind_0","type":"string","name":"(✕) | (A)","default":"","help":"Rebind button to keyboard key or mouse action"},
 {"key":"turbo_0","type":"int","min":0,"max":1000,"name":"(✕) | (A)","default":0,"help":"Set milliseconds between rapid fire presses, 0 means held down"},
-{"key":"rebind_1","type":"string","name":"(○) | (B)","default":"","help":"Remap button to keyboard key or mouse action"},
+{"key":"rebind_1","type":"string","name":"(○) | (B)","default":"","help":"Rebind button to keyboard key or mouse action"},
 {"key":"turbo_1","type":"int","min":0,"max":1000,"name":"(○) | (B)","default":0,"help":"Set milliseconds between rapid fire presses, 0 means held down"},
-{"key":"rebind_2","type":"string","name":"(□) | (X)","default":"","help":"Remap button to keyboard key or mouse action"},
+{"key":"rebind_2","type":"string","name":"(□) | (X)","default":"","help":"Rebind button to keyboard key or mouse action"},
 {"key":"turbo_2","type":"int","min":0,"max":1000,"name":"(□) | (X)","default":0,"help":"Set milliseconds between rapid fire presses, 0 means held down"},
-{"key":"rebind_3","type":"string","name":"(△) | (Y)","default":"","help":"Remap button to keyboard key or mouse action"},
+{"key":"rebind_3","type":"string","name":"(△) | (Y)","default":"","help":"Rebind button to keyboard key or mouse action"},
 {"key":"turbo_3","type":"int","min":0,"max":1000,"name":"(△) | (Y)","default":0,"help":"Set milliseconds between rapid fire presses, 0 means held down"},
-{"key":"rebind_4","type":"string","name":"(L1) | (LB)","default":"","help":"Remap button to keyboard key or mouse action"},
+{"key":"rebind_4","type":"string","name":"(L1) | (LB)","default":"","help":"Rebind button to keyboard key or mouse action"},
 {"key":"turbo_4","type":"int","min":0,"max":1000,"name":"(L1) | (LB)","default":0,"help":"Set milliseconds between rapid fire presses, 0 means held down"},
-{"key":"rebind_5","type":"string","name":"(R1) | (RB)","default":"","help":"Remap button to keyboard key or mouse action"},
+{"key":"rebind_5","type":"string","name":"(R1) | (RB)","default":"","help":"Rebind button to keyboard key or mouse action"},
 {"key":"turbo_5","type":"int","min":0,"max":1000,"name":"(R1) | (RB)","default":0,"help":"Set milliseconds between rapid fire presses, 0 means held down"},
-{"key":"rebind_8","type":"string","name":"(Create) | (Select)","default":"","help":"Remap button to keyboard key or mouse action"},
+{"key":"rebind_8","type":"string","name":"(Create) | (Select)","default":"","help":"Rebind button to keyboard key or mouse action"},
 {"key":"turbo_8","type":"int","min":0,"max":1000,"name":"(Create) | (Select)","default":0,"help":"Set milliseconds between rapid fire presses, 0 means held down"},
-{"key":"rebind_9","type":"string","name":"(Options) | (Start)","default":"","help":"Remap button to keyboard key or mouse action"},
+{"key":"rebind_9","type":"string","name":"(Options) | (Start)","default":"","help":"Rebind button to keyboard key or mouse action"},
 {"key":"turbo_9","type":"int","min":0,"max":1000,"name":"(Options) | (Start)","default":0,"help":"Set milliseconds between rapid fire presses, 0 means held down"},
-{"key":"rebind_10","type":"string","name":"(L3)","default":"","help":"Remap button to keyboard key or mouse action"},
+{"key":"rebind_10","type":"string","name":"(L3)","default":"","help":"Rebind button to keyboard key or mouse action"},
 {"key":"turbo_10","type":"int","min":0,"max":1000,"name":"(L3)","default":0,"help":"Set milliseconds between rapid fire presses, 0 means held down"},
-{"key":"rebind_11","type":"string","name":"(R3)","default":"","help":"Remap button to keyboard key or mouse action"},
+{"key":"rebind_11","type":"string","name":"(R3)","default":"","help":"Rebind button to keyboard key or mouse action"},
 {"key":"turbo_11","type":"int","min":0,"max":1000,"name":"(R3)","default":0,"help":"Set milliseconds between rapid fire presses, 0 means held down"},
-{"key":"rebind_12","type":"string","name":"(↑)","default":"","help":"Remap button to keyboard key or mouse action"},
+{"key":"rebind_12","type":"string","name":"(↑)","default":"","help":"Rebind button to keyboard key or mouse action"},
 {"key":"turbo_12","type":"int","min":0,"max":1000,"name":"(↑)","default":0,"help":"Set milliseconds between rapid fire presses, 0 means held down"},
-{"key":"rebind_13","type":"string","name":"(↓)","default":"","help":"Remap button to keyboard key or mouse action"},
+{"key":"rebind_13","type":"string","name":"(↓)","default":"","help":"Rebind button to keyboard key or mouse action"},
 {"key":"turbo_13","type":"int","min":0,"max":1000,"name":"(↓)","default":0,"help":"Set milliseconds between rapid fire presses, 0 means held down"},
-{"key":"rebind_14","type":"string","name":"(←)","default":"","help":"Remap button to keyboard key or mouse action"},
+{"key":"rebind_14","type":"string","name":"(←)","default":"","help":"Rebind button to keyboard key or mouse action"},
 {"key":"turbo_14","type":"int","min":0,"max":1000,"name":"(←)","default":0,"help":"Set milliseconds between rapid fire presses, 0 means held down"},
-{"key":"rebind_15","type":"string","name":"(→)","default":"","help":"Remap button to keyboard key or mouse action"},
+{"key":"rebind_15","type":"string","name":"(→)","default":"","help":"Rebind button to keyboard key or mouse action"},
 {"key":"turbo_15","type":"int","min":0,"max":1000,"name":"(→)","default":0,"help":"Set milliseconds between rapid fire presses, 0 means held down"},
-{"key":"rebind_16","type":"string","name":"(PS) | (Home)","default":"","help":"Remap button to keyboard key or mouse action"},
+{"key":"rebind_16","type":"string","name":"(PS) | (Home)","default":"","help":"Rebind button to keyboard key or mouse action"},
 {"key":"turbo_16","type":"int","min":0,"max":1000,"name":"(PS) | (Home)","default":0,"help":"Set milliseconds between rapid fire presses, 0 means held down"},
 )CTMKEYS";
     // The button rebinds and turbos are the bulk of the list, so they are
@@ -401,9 +419,14 @@ static std::string rest_keys_json()
 {"key":"touchpad_scroll","type":"choice","choices":["0","1","2"],"default":"0","help":"How many fingers scroll. 0 is off. 1 is one finger, which is what controller makers do -- and on a DualSense/DualShock4 a pointer finger reaches the pad without either thumb leaving a stick. 2 is two fingers, the laptop way, and the only option when one finger is already moving the cursor. An older config saying true means 2."},
 {"key":"touchpad_scroll_speed","type":"int","min":1,"max":400,"default":100,"help":"Scroll speed, percent."},
 {"key":"touchpad_scroll_natural","type":"bool","default":false,"help":"Scroll direction. Off: fingers down scrolls the page down, the classic wheel. On: content follows your fingers, the phone convention."},
-{"key":"touchpad_one_finger_tap","type":"string","default":"","name":"One finger tap","help":"What a quick ONE finger tap does. Takes the same values a button remap does: a mouse action, a keyboard key, a button on the pad, or an on-screen keyboard. A mouse button is a click, and a double click is simply two taps. A key or a pad button is pressed for a moment and let go. Blank means the one finger tap does nothing."},
+{"key":"touchpad_one_finger_tap","type":"string","default":"","name":"One finger tap","help":"What a quick ONE finger tap does. Takes the same values a button rebind does: a mouse action, a keyboard key, a button on the pad, or an on-screen keyboard. A mouse button is a click, and a double click is simply two taps. A key or a pad button is pressed for a moment and let go. Blank means the one finger tap does nothing."},
 {"key":"touchpad_two_finger_tap","type":"string","default":"","name":"Two finger tap","help":"What a quick TWO finger tap does, in the same values. Blank means it does nothing, which is why this is a key of its own rather than part of the one finger tap."},
 {"key":"touchpad_press_touch_drag","type":"string","default":"","name":"Press and drag","help":"What is HELD while the pad is pressed in, in the same values. Press the pad in with a finger on it and this goes down; it comes back up when no finger is left on the pad, NOT when the click is released. With a mouse button that is a drag you can keep going after letting go of the click, which trackpads call drag lock. A key or a pad button is held for the same length of time, and an on-screen keyboard is toggled once. Blank turns it off."},
+{"key":"touchpad_double_tap_drag","type":"bool","default":false,"name":"Double tap and hold","help":"Tap, then touch again within 0.3 seconds and keep your finger down: the button a one-finger tap clicks goes down, moving drags, and lifting lets go. A quick second tap is still a double-click. Works when the one-finger tap is set to a mouse button."},
+{"key":"touchpad_two_finger_swipe_up","type":"string","default":"","name":"Two finger swipe up","help":"What sliding two fingers up the touchpad does, in the same values a button rebind takes: a key or a pair such as Win+Tab, which opens Task View, a mouse action, a button on the pad, or an on-screen keyboard. Blank does nothing. It acts once per touch, as soon as the fingers have slid about a quarter of the way up; a key or a pad button is pressed for a moment and let go, and like a tap's, not while the pad is driving this window. Two-finger scroll moves the same way, so this does nothing while touchpad_scroll is 2."},
+{"key":"touchpad_two_finger_swipe_down","type":"string","default":"","name":"Two finger swipe down","help":"What sliding two fingers down the touchpad does, in the same values a button rebind takes: a key or a pair such as Win+Tab, a mouse action, a button on the pad, or an on-screen keyboard. Blank does nothing. It acts once per touch, as soon as the fingers have slid about a quarter of the way down; a key or a pad button is pressed for a moment and let go, and like a tap's, not while the pad is driving this window. Two-finger scroll moves the same way, so this does nothing while touchpad_scroll is 2."},
+{"key":"touchpad_two_finger_swipe_left","type":"string","default":"","name":"Two finger swipe left","help":"What sliding two fingers left across the touchpad does, in the same values a button rebind takes: a key or a pair such as Win+Tab, a mouse action, a button on the pad, or an on-screen keyboard. Blank does nothing. It acts once per touch, as soon as the fingers have slid about a quarter of the way across; a key or a pad button is pressed for a moment and let go, and like a tap's, not while the pad is driving this window. Two-finger scroll reads only up and down, so this works whatever touchpad_scroll says."},
+{"key":"touchpad_two_finger_swipe_right","type":"string","default":"","name":"Two finger swipe right","help":"What sliding two fingers right across the touchpad does, in the same values a button rebind takes: a key or a pair such as Win+Tab, a mouse action, a button on the pad, or an on-screen keyboard. Blank does nothing. It acts once per touch, as soon as the fingers have slid about a quarter of the way across; a key or a pad button is pressed for a moment and let go, and like a tap's, not while the pad is driving this window. Two-finger scroll reads only up and down, so this works whatever touchpad_scroll says."},
 {"key":"touchpad_click_drag","type":"bool","default":false,"help":"SUPERSEDED by touchpad_press_touch_drag, and read only when that key is blank, so a config written before the split keeps its drag. Click the touchpad in with a finger on it to grab, move to drag, then LIFT THE FINGER to drop -- the click itself can be released straight away. Trackpads call this drag lock; three-finger drag is not possible here because the pad reports only two touches."},
 {"key":"touchpad_tap_click","type":"bool","default":false,"help":"SUPERSEDED by touchpad_one_finger_tap and touchpad_two_finger_tap, and read only when both are blank. ON meant exactly those two set to MouseLeft and MouseRight. A quick tap clicks: one finger is left click, two fingers is right click. Double-click is just tapping twice. Turn off if taps misfire in your grip."},
 {"key":"gyro_no_passthrough","type":"bool","default":false,"help":"Turn this on together with the gyro-to-mouse setting below, so tilting the pad moves only the cursor and nothing else can read the gyro. Leave it off and, in a game that responds to gyro, you get both at once -- the game reacting to the tilt AND the cursor moving."},
@@ -413,9 +436,9 @@ static std::string rest_keys_json()
     // documented. Two literals joined at the end cost nothing and the break
     // can move wherever is convenient -- it is not a section boundary.
     const std::string pointers2 = R"CTMKEYS(
-{"key":"rebind_7","type":"string","name":"(R2) | (RT)","default":"","help":"Remap button to keyboard key or mouse action"},
+{"key":"rebind_7","type":"string","name":"(R2) | (RT)","default":"","help":"Rebind button to keyboard key or mouse action"},
 {"key":"turbo_7","type":"int","min":0,"max":1000,"name":"(R2) | (RT)","default":0,"help":"Set milliseconds between rapid fire presses, 0 means held down"},
-{"key":"right_trigger_steady_cursor_pull","type":"choice","choices":["off","immediate","before_press","after_press"],"default":"off","name":"RIGHT trigger steadies the cursor","help":"Hold the cursor still while you work the right trigger, so a click lands where you were pointing. \"immediate\" locks it the moment the trigger moves. \"before_press\" locks it just short of the press instead, leaving the early part of the pull free to aim with — for a trigger that is also the gyro gate. \"after_press\" never locks during the pull and holds it only once the click has fired, for as long as the double-click wait, so a second click lands in the same place. \"off\" makes it an ordinary button, and the (R2) remap fires on the pad's own bit rather than at a chosen depth."},
+{"key":"right_trigger_steady_cursor_pull","type":"choice","choices":["off","immediate","before_press","after_press"],"default":"off","name":"RIGHT trigger steadies the cursor","help":"Hold the cursor still while you work the right trigger, so a click lands where you were pointing. \"immediate\" locks it the moment the trigger moves. \"before_press\" locks it just short of the press instead, leaving the early part of the pull free to aim with — for a trigger that is also the gyro gate. \"after_press\" never locks during the pull and holds it only once the click has fired, for as long as the double-click wait, so a second click lands in the same place. \"off\" makes it an ordinary button, and the (R2) rebind fires on the pad's own bit rather than at a chosen depth."},
 {"key":"right_trigger_press_at","type":"int","min":10,"max":100,"default":90,"name":"RIGHT trigger presses at","help":"How far the right trigger travels before it presses, as a percent. Only used when it steadies the cursor, and ignored when its effect is \"click\" or \"wall\", which report their own point."},
 {"key":"right_trigger_double_click_ms","type":"int","min":0,"max":1000,"default":200,"name":"RIGHT trigger: cursor waits for a second click","help":"After a right trigger click, how long the cursor stays still in case a second one follows, in milliseconds. Longer makes double-clicking easier and makes the cursor feel slower to respond. 0 frees it the moment the trigger is released."},
 {"key":"right_trigger_drag_after_ms","type":"int","min":0,"max":2000,"default":600,"name":"RIGHT trigger: hold becomes a drag after","help":"How long a right trigger press is held before it becomes a drag, in milliseconds. 0 turns dragging off for this trigger, which is what a trigger doubling as the gyro gate wants — holding it is its resting state, so the timer would measure nothing."},
@@ -423,9 +446,9 @@ static std::string rest_keys_json()
 {"key":"right_trigger_effect_at","type":"int","min":0,"max":100,"default":90,"name":"RIGHT trigger feel sits at","help":"Where the right effect sits, as a percent. Blank follows the point the trigger sends at. A \"click\" break can only land between 40 and 90."},
 {"key":"right_trigger_effect_strength","type":"int","min":1,"max":7,"default":5,"name":"RIGHT trigger feel strength","help":"How hard the right effect pushes back, 1 to 7. A \"notch\" needs 5 or more before its bump can be felt."},
 {"key":"right_trigger_snap_force","type":"int","min":1,"max":7,"default":3,"name":"RIGHT trigger snap force","help":"How hard \"snap\" pushes the right trigger back to rest. Nothing else uses it."},
-{"key":"rebind_6","type":"string","name":"(L2) | (LT)","default":"","help":"Remap button to keyboard key or mouse action"},
+{"key":"rebind_6","type":"string","name":"(L2) | (LT)","default":"","help":"Rebind button to keyboard key or mouse action"},
 {"key":"turbo_6","type":"int","min":0,"max":1000,"name":"(L2) | (LT)","default":0,"help":"Set milliseconds between rapid fire presses, 0 means held down"},
-{"key":"left_trigger_steady_cursor_pull","type":"choice","choices":["off","immediate","before_press","after_press"],"default":"off","name":"LEFT trigger steadies the cursor","help":"Hold the cursor still while you work the left trigger, so a click lands where you were pointing. \"immediate\" locks it the moment the trigger moves. \"before_press\" locks it just short of the press instead, leaving the early part of the pull free to aim with — for a trigger that is also the gyro gate. \"after_press\" never locks during the pull and holds it only once the click has fired, for as long as the double-click wait, so a second click lands in the same place. \"off\" makes it an ordinary button, and the (L2) remap fires on the pad's own bit rather than at a chosen depth."},
+{"key":"left_trigger_steady_cursor_pull","type":"choice","choices":["off","immediate","before_press","after_press"],"default":"off","name":"LEFT trigger steadies the cursor","help":"Hold the cursor still while you work the left trigger, so a click lands where you were pointing. \"immediate\" locks it the moment the trigger moves. \"before_press\" locks it just short of the press instead, leaving the early part of the pull free to aim with — for a trigger that is also the gyro gate. \"after_press\" never locks during the pull and holds it only once the click has fired, for as long as the double-click wait, so a second click lands in the same place. \"off\" makes it an ordinary button, and the (L2) rebind fires on the pad's own bit rather than at a chosen depth."},
 {"key":"left_trigger_press_at","type":"int","min":10,"max":100,"default":90,"name":"LEFT trigger presses at","help":"How far the left trigger travels before it presses, as a percent. Only used when it steadies the cursor, and ignored when its effect is \"click\" or \"wall\", which report their own point."},
 {"key":"left_trigger_double_click_ms","type":"int","min":0,"max":1000,"default":200,"name":"LEFT trigger: cursor waits for a second click","help":"After a left trigger click, how long the cursor stays still in case a second one follows, in milliseconds. Longer makes double-clicking easier and makes the cursor feel slower to respond. 0 frees it the moment the trigger is released."},
 {"key":"left_trigger_drag_after_ms","type":"int","min":0,"max":2000,"default":600,"name":"LEFT trigger: hold becomes a drag after","help":"How long a left trigger press is held before it becomes a drag, in milliseconds. 0 turns dragging off for this trigger, which is what a trigger doubling as the gyro gate wants — holding it is its resting state, so the timer would measure nothing."},
@@ -460,13 +483,17 @@ static std::string rest_keys_json()
 {"key":"audio_output","type":"choice","choices":["auto","headset","headset_mono","speaker","both","off"],"default":"auto","help":"Where controller audio goes. The mode also decides which volume keys apply."},
 {"key":"speaker_volume","type":"int","min":0,"max":100,"default":100,"help":"Controller speaker level. 100 is maximum."},
 {"key":"headset_volume","type":"int","min":0,"max":100,"default":100,"help":"Controller headset jack level. 100 is maximum."},
-{"key":"audio_gain","type":"int","min":0,"max":500,"default":100,"help":"Scales audio passing through. 100 is unchanged, not maximum."},
+{"key":"audio_gain","type":"int","min":0,"max":100,"default":100,"help":"Scales audio passing through. 100 is unchanged, not maximum, and it can only lower: louder would clip."},
 {"key":"audio_latency_ms","type":"int","min":0,"max":255,"default":60,"help":"Controller speaker jitter buffer, Bluetooth only. Below 20 is unusable; 20-60 trades responsiveness for reliability. Absent leaves the TV to decide."},
 {"key":"force_echo_cancel","type":"bool","default":false,"help":"Off makes the controller mute its own speaker as feedback protection."},
 {"key":"master_rumble_gain","type":"int","min":0,"max":500,"default":100,"help":"Scales all rumble. 100 is unchanged."},
 {"key":"rumble_gain_heavy","type":"int","min":0,"max":500,"default":100,"help":"Heavy weight only. Multiplies with master."},
 {"key":"rumble_gain_soft","type":"int","min":0,"max":500,"default":100,"help":"Soft weight only. Multiplies with master."},
-{"key":"rumble_floor","type":"int","min":0,"max":100,"default":12,"help":"Weakest motor value the game can actually feel, as a percentage. Below its start-up threshold a motor does not spin, so a faint cue becomes silence; this lifts it back. 0 turns the floor off. It never makes a resting pad buzz."}
+{"key":"rumble_floor","type":"int","min":0,"max":100,"default":12,"help":"Weakest motor value the game can actually feel, as a percentage. Below its start-up threshold a motor does not spin, so a faint cue becomes silence; this lifts it back. 0 turns the floor off. It never makes a resting pad buzz."},
+{"key":"audio_haptics","type":"bool","default":false,"name":"PC sound as vibration","help":"Turns the low part of what the PC plays into vibration in the controller: explosions, engines, bass. While it is on, the controller's sound stream keeps running whenever there is sound to feel."},
+{"key":"audio_haptics_strength","type":"int","min":0,"max":200,"default":100,"name":"PC sound vibration strength","help":"How strong. 100 is the normal strength, 0 is none."},
+{"key":"audio_haptics_bass_hz","type":"int","min":40,"max":300,"default":150,"name":"PC sound vibration bass","help":"The highest pitch that becomes vibration. Lower feels only the deepest booms; higher lets in more of the music."},
+{"key":"audio_haptics_mode","type":"choice","choices":["yield","mix","replace"],"default":"yield","name":"When the game vibrates too","help":"yield steps aside while the game sends its own haptics and comes back after; mix plays both; replace plays only the PC's sound."}
 ])CTMKEYS";
     const std::string names = R"CTMKEYS(,
 "key_names":[
@@ -486,6 +513,7 @@ static std::string rest_keys_json()
 "F13","F14","F15","F16","F17","F18","F19","F20","F21","F22","F23","F24",
 "ControlLeft","ShiftLeft","AltLeft","MetaLeft",
 "ControlRight","ShiftRight","AltRight","MetaRight",
+"Win+Tab",
 "MouseLeft","MouseRight","MouseMiddle","MouseWheelUp","MouseWheelDown",
 "KeyboardDS5_USBIP","KeyboardSteam","KeyboardWindows",
 "button_cross","button_circle","button_square","button_triangle",
@@ -546,11 +574,15 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
     }
 
     // POST /api/v1/devices/{ordinal}/link   {"config":"name"} or {} to unlink
+    // POST /api/v1/devices/{ordinal}/polling_rate   {"polling_rate":"250"}: the
+    //   controller's own limit, "real_time" or nothing for none
     static const char kDevPrefix[] = "/api/v1/devices/";
     if (req.path.compare(0, sizeof(kDevPrefix) - 1, kDevPrefix) == 0) {
         const std::string rest = req.path.substr(sizeof(kDevPrefix) - 1);
         const size_t slash = rest.find('/');
-        if (slash == std::string::npos || rest.substr(slash) != "/link") {
+        const std::string action =
+            slash == std::string::npos ? std::string() : rest.substr(slash);
+        if (action != "/link" && action != "/polling_rate") {
             *out = rest_error_response(404, "unknown path");
             return true;
         }
@@ -563,6 +595,18 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
         std::string parseError;
         if (!req.body.empty() && !rest_parse_flat_json(req.body, &json, &parseError)) {
             *out = rest_error_response(400, parseError);
+            return true;
+        }
+        if (action == "/polling_rate") {
+            const auto rate = json.strings.find("polling_rate");
+            const std::string value =
+                rate == json.strings.end() ? std::string() : rate->second;
+            std::string rateError;
+            if (!rest_set_polling_rate(ordinal, value, &rateError)) {
+                *out = rest_error_response(400, rateError);
+                return true;
+            }
+            *out = rest_http_response(200, rest_devices_json());
             return true;
         }
         auto it = json.strings.find("config");
@@ -602,13 +646,20 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
         // back. ⓘ "known" is false on a listener that has just started and has
         // never seen a page; the page then falls back to its own record.
         if (req.method == "GET" && what == "view") {
+            // ⭐ A page's first question as it opens: its scripts are
+            // running and its keys are heard, so the quick config switch's
+            // steps may go (quick_switch_session.inl).
+            quick_switch_page_asked_view();
             bool compact = false, quick = false;
             std::string ordinal;
             const bool known = ui_view_get(&compact, &quick, &ordinal);
+            // ⓘ And whether this is the quick config switch's window, which
+            // starts no tutorial by itself.
             *out = rest_http_response(200,
                 std::string("{\"known\":") + (known ? "true" : "false") +
                 ",\"compact\":" + (compact ? "true" : "false") +
                 ",\"quick\":" + (quick ? "true" : "false") +
+                ",\"quick_switch\":" + (ui_quick_view_on() ? "true" : "false") +
                 ",\"ordinal\":\"" + rest_json_escape(ordinal) + "\"}");
             return true;
         }
@@ -639,6 +690,146 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
             }
             *out = rest_http_response(200, std::string(R"({"on":)") +
                                            (ui_open_on_bridge() ? "true" : "false") + "}");
+            return true;
+        }
+
+        // ⭐ THE QUICK CONFIG SWITCH (rhoquinn8217, 2026-10-23), the same
+        // shape as Open on bridge: GET says it, POST {"on": bool} sets it.
+        // ⓘ quick_switch.inl says what it is.
+        if (what == "quick-switch") {
+            if (req.method == "POST") {
+                RestJson json;
+                std::string parseError;
+                if (!rest_parse_flat_json(req.body, &json, &parseError)) {
+                    *out = rest_error_response(400, parseError);
+                    return true;
+                }
+                auto on = json.bools.find("on");
+                if (on == json.bools.end()) {
+                    *out = rest_error_response(400, "say on, true or false");
+                    return true;
+                }
+                ui_set_quick_switch(on->second);
+                device_log::session_w() << L"settings page: the quick config switch is "
+                                        << (on->second ? L"on" : L"off") << L" now";
+            } else if (req.method != "GET") {
+                *out = rest_error_response(405, "method not allowed", "Allow: GET, POST, OPTIONS\r\n");
+                return true;
+            }
+            *out = rest_http_response(200, std::string(R"({"on":)") +
+                                           (ui_quick_switch() ? "true" : "false") + "}");
+            return true;
+        }
+
+        // ⭐ THE TUTORIALS (rhoquinn8217, 2026-10-14): a GET says whether
+        // Simple's, Quick's and Advanced's have been seen and which the tray
+        // asked for, once a second while the page is in view, as Open on
+        // bridge is read. A POST of {"seen": "simple"}, "quick" or "advanced"
+        // keeps that one seen; {"taken": true} clears the tray's request once
+        // the page has it (tutorial_state.inl).
+        if (what == "tutorial") {
+            if (req.method == "POST") {
+                RestJson json;
+                std::string parseError;
+                if (!rest_parse_flat_json(req.body, &json, &parseError)) {
+                    *out = rest_error_response(400, parseError);
+                    return true;
+                }
+                auto seen = json.strings.find("seen");
+                auto taken = json.bools.find("taken");
+                const int kind = seen == json.strings.end() ? tutorial_state::None
+                                                            : tutorial_state::kind_of(seen->second);
+                if (seen != json.strings.end() && kind == tutorial_state::None) {
+                    *out = rest_error_response(400, "seen is simple, quick or advanced");
+                    return true;
+                }
+                if (seen == json.strings.end() && taken == json.bools.end()) {
+                    *out = rest_error_response(400, "say seen (simple, quick or advanced) or taken (true)");
+                    return true;
+                }
+                if (kind != tutorial_state::None) {
+                    ui_set_tutorial_seen(kind, true);
+                    device_log::session_w() << L"settings page: the "
+                                            << (kind == tutorial_state::Quick      ? L"Quick"
+                                                : kind == tutorial_state::Advanced ? L"Advanced"
+                                                                                   : L"Simple")
+                                            << L" tutorial is seen now";
+                }
+                if (taken != json.bools.end() && taken->second) ui_tutorial_take();
+            } else if (req.method != "GET") {
+                *out = rest_error_response(405, "method not allowed", "Allow: GET, POST, OPTIONS\r\n");
+                return true;
+            }
+            *out = rest_http_response(200, tutorial_state::json(ui_tutorial_seen(tutorial_state::Simple),
+                                                                ui_tutorial_seen(tutorial_state::Quick),
+                                                                ui_tutorial_seen(tutorial_state::Advanced),
+                                                                ui_tutorial_asked()));
+            return true;
+        }
+
+        // ⭐ THE TUTORIAL'S WORDS, OUTSIDE THE WINDOW (rhoquinn8217,
+        // 2026-10-14: *"We need to move the descriptions so that they don't
+        // cover any of the browser box."*). The page POSTs what a step says,
+        // the buttons under it as one string ("id:Label:kind|...",
+        // tutorial_bubble_rule::parse_buttons) and where its lit part sits,
+        // and the listener draws the words beside the window
+        // (tutorial_bubble.inl); {"show": false} takes them away. "arrow"
+        // says whether one points at a lit part, "anchors" where each arrow
+        // points when there are several ("ax,ay|ax,ay"), "side" the side of
+        // the window the step asks for, and "title" heads the start's card
+        // and the end's question. "target" is what the step lights and
+        // "obstacles" what is on the window ("l,t,r,b|...", thousandths of
+        // the view), for the words to stand beside the one and off the other,
+        // with "clear" left for the page's arrow. A GET of tutorial-press
+        // hands over a click on one of the buttons, by its id, once, for the
+        // page to act on, and says which side of what is lit the words stand
+        // and whether they are still on their way there ("moving"), for the
+        // page's dim to fade back in once they arrive.
+        if (what == "tutorial-bubble") {
+            if (req.method != "POST") {
+                *out = rest_error_response(405, "method not allowed", "Allow: POST, OPTIONS\r\n");
+                return true;
+            }
+            RestJson json;
+            std::string parseError;
+            if (!rest_parse_flat_json(req.body, &json, &parseError)) {
+                *out = rest_error_response(400, parseError);
+                return true;
+            }
+            auto flag = [&](const char *key) {
+                auto it = json.bools.find(key);
+                return it != json.bools.end() && it->second;
+            };
+            auto text = [&](const char *key) {
+                auto it = json.strings.find(key);
+                return it == json.strings.end() ? std::string() : it->second;
+            };
+            auto number = [&](const char *key, int fallback) {
+                auto it = json.numbers.find(key);
+                return it == json.numbers.end() ? fallback : static_cast<int>(it->second);
+            };
+            if (flag("show")) {
+                ui_tutorial_words_show(text("title"), text("count"), text("words"), text("buttons"),
+                                       text("focus"), flag("arrow"), number("ax", 500), number("ay", 500),
+                                       text("side"), text("anchors"), text("target"),
+                                       text("obstacles"), number("clear", 0),
+                                       // ⓘ The card's size, 1 to 3; true, as before, the largest.
+                                       flag("big") ? 3 : number("big", 0));
+            } else {
+                ui_tutorial_words_hide();
+            }
+            *out = rest_http_response(200, R"({"ok":true})");
+            return true;
+        }
+        if (what == "tutorial-press") {
+            if (req.method != "GET") {
+                *out = rest_error_response(405, "method not allowed", "Allow: GET, OPTIONS\r\n");
+                return true;
+            }
+            *out = rest_http_response(200, std::string(R"({"press":")") + ui_tutorial_words_take_press() +
+                                           R"(","side":")" + ui_tutorial_words_side() +
+                                           R"(","moving":)" + (ui_tutorial_words_moving() ? "true" : "false") +
+                                           "}");
             return true;
         }
 
@@ -761,6 +952,11 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
             // window came forward, so the failsafe can stand down.
             if (on) ctm_rebind_clear_provisional();
             ctm_rebind_set_config_mode(on);
+            // ⭐ AND THE FRONT IS FOLLOWED WHILE THE WINDOW HAS IT (2026-10-22),
+            // however the window was opened: a notification that takes it is
+            // made to give it back, and the log names what took it
+            // (open_ui.inl, follow_front). ⓘ One follower at a time.
+            if (on) ctm_open_ui::follow_front();
 
             const std::string notice = ctm_ui_take_notice();
             std::string body = std::string("{\"ok\":true,\"config_mode\":")
@@ -897,6 +1093,8 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
             // this is the path meant to be reliable.
             device_log::input(device_log::msg()
                 << "ui/closed: the page reported its own teardown");
+            // ⓘ The tutorial's words have nothing left to stand beside.
+            ui_tutorial_words_hide();
             // The other way out -- the X, or the browser going away. The
             // window may still be up for a moment; if it is, its place is
             // worth having.

@@ -165,6 +165,11 @@ namespace {
 bool g_configModeForTest = false;
 }  // namespace
 static bool ctm_rebind_config_mode_effective() { return g_configModeForTest; }
+// ⓘ Whether a tour is up, which has L2 and R2 while the window has the pad.
+namespace {
+bool g_tourUpForTest = false;
+}  // namespace
+static bool ui_tutorial_words_up() { return g_tourUpForTest; }
 
 namespace {
 int g_oskToggles = 0;
@@ -731,6 +736,28 @@ int run_trigger_click_tests()
         on_ds5_input(&pad, descriptor, "", report_with(0, 240).data(), 16);
         CTM_CHECK(g_keys.find(&pad) == g_keys.end());   // nothing typed into the page
         on_ds5_input(&pad, descriptor, "", report_with(0, 0).data(), 16);
+        g_configModeForTest = false;
+    }
+
+    // ⭐ A tour's Continue and Go back while it is up (2026-10-29): R2 then
+    // clicks nothing at the pointer as well; the rest of the time it clicks
+    // over the window, as a preset binds it to.
+    section("trigger click: no click from a trigger a tour has, while the settings window has the pad");
+    reset_all();
+    g_strings["ds5.right_trigger_steady_cursor_pull"] = "immediate";
+    g_strings["ds5.rebind_7"] = "MouseLeft";
+    {
+        const std::vector<unsigned char> descriptor(12, 0);
+        int pad = 0;
+        g_configModeForTest = true;
+        on_ds5_input(&pad, descriptor, "", report_with(0, 240).data(), 16);
+        CTM_CHECK_EQ((int)g_buttons, 0x01);
+        on_ds5_input(&pad, descriptor, "", report_with(0, 0).data(), 16);
+        g_tourUpForTest = true;
+        on_ds5_input(&pad, descriptor, "", report_with(0, 240).data(), 16);
+        CTM_CHECK_EQ((int)g_buttons, 0);
+        on_ds5_input(&pad, descriptor, "", report_with(0, 0).data(), 16);
+        g_tourUpForTest = false;
         g_configModeForTest = false;
     }
 

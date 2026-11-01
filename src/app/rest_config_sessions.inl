@@ -112,6 +112,12 @@ static std::vector<RestDeviceView> rest_collect_devices()
                 view.batteryState = ctm_battery::state_word(battery.state);
             }
             rest_fill_capabilities(&view);
+            // ⭐ The polling rate column (usbip/input_pace.inl).
+            view.inputRateHz = session->device->served_rate_hz();
+            view.arrivalRateHz = session->device->arrived_rate_hz();
+            view.takesRateLimit = session->device->takes_rate_limit();
+            view.pollingRate = session->device->rate_limit_setting();
+            view.rateLimitHz = input_pace::limit_hz(view.pollingRate);
         }
         out.push_back(std::move(view));
     }
@@ -163,6 +169,10 @@ static bool rest_link_device(const std::string &ordinal, const std::string &conf
         }
         std::lock_guard<std::mutex> sessionLock(session->mutex);
         session->linkedConfig = configName;
+        // ⓘ A config chosen while Windows is locked is the one kept at the
+        // unlock (lock_screen_rule.inl).
+        session->heldForLock = false;
+        session->beforeLock.clear();
         // ⭐ Push it to the device as well. The session field is what the API
         // reports; the DEVICE field is what actually resolves settings on the
         // output path. Setting only the first would make every link a no-op
@@ -200,6 +210,34 @@ static bool rest_link_device(const std::string &ordinal, const std::string &conf
     // old device list can only ever FAIL here -- never silently act on a
     // different physical controller. That is what removes the need for a
     // session token in the list response.
+    *error = ordinal + " is not connected";
+    return false;
+}
+
+// ⭐ A CONTROLLER'S POLLING LIMIT (config/polling_limits.inl; rhoquinn8217,
+// 2026-10-16: "keep it with the controller"). Kept for the controller, so no
+// link changes it, and set without one. Refused for a device that takes no
+// limit, a keyboard or a mouse, and for a value the page does not offer.
+static bool rest_set_polling_rate(const std::string &ordinal, const std::string &value,
+                                  std::string *error)
+{
+    std::lock_guard<std::mutex> lock(g_agent_sessions_mutex);
+    for (const auto &session : g_agent_sessions) {
+        if (session->ordinal != ordinal) continue;
+        std::lock_guard<std::mutex> sessionLock(session->mutex);
+        if (!session->device || !session->device->takes_rate_limit()) {
+            *error = ordinal + " takes no polling limit: only a controller is limited";
+            return false;
+        }
+        if (!session->device->set_rate_limit_setting(value)) {
+            *error = "no polling limit " + value + ": it is real_time, 500, 250 or 125";
+            return false;
+        }
+        device_log::config(device_log::msg()
+            << ordinal << " polling limit: "
+            << (value.empty() ? std::string("real_time") : value));
+        return true;
+    }
     *error = ordinal + " is not connected";
     return false;
 }

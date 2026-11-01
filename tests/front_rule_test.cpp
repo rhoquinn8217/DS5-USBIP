@@ -65,5 +65,44 @@ int run_front_rule_tests()
         CTM_CHECK(on_front_change(false) == Remember::Keep);   // an ordinary program: the game stays
     }
 
+    // A work area of 3840 x 2088 at 0,0, the taskbar under it.
+    section("front rule: a notification that took the front from the window");
+    {
+        // 400 x 120 at the bottom right, kept on top: a notification
+        CTM_CHECK(looks_like_notification(3420, 1950, 3820, 2070, 0, 0, 3840, 2088,
+                                          true, false, false, false, L"SomeToast"));
+        // at the top right, out of the taskbar
+        CTM_CHECK(looks_like_notification(3420, 20, 3820, 140, 0, 0, 3840, 2088,
+                                          false, true, false, false, L"SomeToast"));
+        // a little past the work area's edge, over the taskbar
+        CTM_CHECK(looks_like_notification(3460, 1990, 3860, 2110, 0, 0, 3840, 2088,
+                                          true, true, false, false, L"SomeToast"));
+        // on a second monitor, in its own bottom right
+        CTM_CHECK(looks_like_notification(5340, 900, 5740, 1060, 3840, 0, 5760, 1040,
+                                          true, false, false, false, L"SomeToast"));
+        // under the pointer: clicked, so chosen
+        CTM_CHECK(!looks_like_notification(3420, 1950, 3820, 2070, 0, 0, 3840, 2088,
+                                           true, false, true, false, L"SomeToast"));
+        // an ordinary window someone put in the corner
+        CTM_CHECK(!looks_like_notification(3420, 1950, 3820, 2070, 0, 0, 3840, 2088,
+                                           false, false, false, false, L"Notepad"));
+        // mid-screen: a dialog, not a notification
+        CTM_CHECK(!looks_like_notification(1700, 900, 2100, 1020, 0, 0, 3840, 2088,
+                                           true, false, false, false, L"#32770"));
+        // half the screen in the corner: not small
+        CTM_CHECK(!looks_like_notification(1800, 900, 3840, 2088, 0, 0, 3840, 2088,
+                                           true, false, false, false, L"SomeApp"));
+        // the tray's overflow, the shell's own, in that very corner
+        CTM_CHECK(!looks_like_notification(3500, 1900, 3840, 2088, 0, 0, 3840, 2088,
+                                           true, true, false, false, L"NotifyIconOverflowWindow"));
+        // the listener's own window
+        CTM_CHECK(!looks_like_notification(3420, 1950, 3820, 2070, 0, 0, 3840, 2088,
+                                           true, true, false, true, L"CtmOverlay"));
+        // and three times in ten seconds is the end of it
+        CTM_CHECK(may_take_front_back(0));
+        CTM_CHECK(may_take_front_back(2));
+        CTM_CHECK(!may_take_front_back(3));
+    }
+
     return 0;
 }

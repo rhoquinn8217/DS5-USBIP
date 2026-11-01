@@ -175,6 +175,10 @@ void ctm_osk_toggle(const std::string &, int, int) { ++g_oskToggles; }
 bool g_windowInFront = false;
 bool ctm_ui_has_foreground() { return g_windowInFront; }
 
+// ⓘ Whether a tour is up: L2 and R2 are the page's only then (gate_claims).
+bool g_tourUp = false;
+bool ui_tutorial_words_up() { return g_tourUp; }
+
 // ⓘ Counted from the thread the chord starts, so atomic. A check can make the
 // window slow to open, as a browser starting cold is.
 std::atomic<int> g_windowsAsked{0};
@@ -185,6 +189,11 @@ void ctm_chord_show_ui(const std::string &)
     std::this_thread::sleep_for(std::chrono::milliseconds(g_windowOpensMs.load()));
     g_windowsAsked.fetch_add(1);
 }
+
+// The quick config switch (quick_switch_session.inl) is not here: it hears
+// nothing, and sends the page no step.
+void quick_switch_report(const void *, bool, bool, int, float, float, bool, int, float, float) {}
+const char *quick_switch_key(const void *) { return nullptr; }
 
 uint32_t g_triggerPresses = 0;
 uint32_t trigger_click_pad_buttons(const void *) { return g_triggerPresses; }
@@ -197,8 +206,18 @@ inline void blank_report(const ctm_rebind::Layout &, uint8_t *, size_t) {}
 inline void forget_device(const void *) {}
 }  // namespace ctm_overlay
 bool g_steering = false;
+// ⓘ The layout the page last named: the gate gives the page R3 in the
+// compact views, Simple and Quick, and not in Advanced.
+bool g_compactView = false;
+bool g_quickView = false;
 namespace config_move {
 inline bool handle_report(const void *, const ctm_rebind::Layout &, uint8_t *, size_t) { return g_steering; }
+inline bool view_get(bool *compact, bool *quick, std::string *)
+{
+    if (compact) *compact = g_compactView;
+    if (quick) *quick = g_quickView;
+    return true;
+}
 }  // namespace config_move
 bool ctm_overlay_opened_for_page() { return false; }
 void ctm_overlay_hide() {}
@@ -218,9 +237,11 @@ using ctm_rebind::kBtnFaceRight;
 using ctm_rebind::kBtnFaceLeft;
 using ctm_rebind::kBtnFaceUp;
 using ctm_rebind::kBtnL1;
+using ctm_rebind::kBtnL2;
 using ctm_rebind::kBtnR2;
 using ctm_rebind::kBtnStart;
 using ctm_rebind::kBtnDpadUp;
+using ctm_rebind::kBtnR3;
 
 int g_padA = 0;
 int g_padB = 0;
@@ -381,6 +402,19 @@ int run_rebind_tests()
         CTM_CHECK_EQ(static_cast<int>(mods_of(kPadA)), 0x02);
     }
 
+    section("rebinder: a button bound to Win+Tab holds the Win key and Tab together");
+    {
+        // ⓘ The one name with both halves; either alone would be half of it.
+        reset();
+        g_strings["ds5.rebind_0"] = "win+tab";
+        send(kPadA, pressing({kBtnFaceDown}));
+        CTM_CHECK(keys_are(kPadA, {0x2B}));
+        CTM_CHECK_EQ(static_cast<int>(mods_of(kPadA)), 0x08);
+        send(kPadA, at_rest());
+        CTM_CHECK(keys_are(kPadA, {}));
+        CTM_CHECK_EQ(static_cast<int>(mods_of(kPadA)), 0);
+    }
+
     section("rebinder: Cross to Circle and Circle to Cross both work, whichever the loop meets first");
     {
         reset();
@@ -503,6 +537,92 @@ int run_rebind_tests()
         // Cross selects, it does not type F.
         send(kPadA, pressing({kBtnFaceDown}));
         CTM_CHECK(keys_are(kPadA, {0x28}));            // Enter
+    }
+
+    section("config mode: Triangle types Ctrl+Shift+Alt+Y and Square Ctrl+Shift+Alt+X, for the config selector");
+    {
+        // ⓘ Triangle reached nothing here until the config selector gave it
+        // auto link; Square's X is the toggle it always was.
+        reset();
+        ctm_rebind_set_config_mode(true);
+        g_windowInFront = true;
+        const std::vector<uint8_t> out = send(kPadA, pressing({kBtnFaceUp}));
+        CTM_CHECK(keys_are(kPadA, {0x1c}));            // Y
+        CTM_CHECK_EQ(static_cast<int>(mods_of(kPadA)), 0x07);
+        CTM_CHECK(out == at_rest());
+        send(kPadA, pressing({kBtnFaceLeft}));
+        CTM_CHECK(keys_are(kPadA, {0x1b}));            // X
+    }
+
+    section("config mode: while a name is being typed, Triangle and Square type nothing for the page");
+    {
+        // ⓘ They are space and backspace on the virtual keyboard then, and
+        // a page key as well would do both.
+        reset();
+        ctm_rebind_set_config_mode(true);
+        g_windowInFront = true;
+        ctm_rebind_set_editing_field(true);
+        send(kPadA, pressing({kBtnFaceUp}));
+        CTM_CHECK(keys_are(kPadA, {}));
+        send(kPadA, pressing({kBtnFaceLeft}));
+        CTM_CHECK(keys_are(kPadA, {}));
+        ctm_rebind_set_editing_field(false);
+    }
+
+    section("config mode: R3 types Ctrl+Shift+Alt+L in Simple and Quick, for their polling limit");
+    {
+        // ⓘ In Advanced it does what the config binds it to, and while a
+        // name is being typed it is the virtual keyboard's size.
+        reset();
+        ctm_rebind_set_config_mode(true);
+        g_windowInFront = true;
+        g_compactView = false;                          // Advanced
+        g_quickView = false;
+        send(kPadA, pressing({kBtnR3}));
+        CTM_CHECK(keys_are(kPadA, {}));
+        g_compactView = true;                           // Simple
+        const std::vector<uint8_t> simple = send(kPadA, pressing({kBtnR3}));
+        CTM_CHECK(keys_are(kPadA, {0x0f}));            // L
+        CTM_CHECK_EQ(static_cast<int>(mods_of(kPadA)), 0x07);
+        CTM_CHECK(simple == at_rest());
+        g_quickView = true;                             // Quick
+        const std::vector<uint8_t> out = send(kPadA, pressing({kBtnR3}));
+        CTM_CHECK(keys_are(kPadA, {0x0f}));            // L
+        CTM_CHECK_EQ(static_cast<int>(mods_of(kPadA)), 0x07);
+        CTM_CHECK(out == at_rest());
+        ctm_rebind_set_editing_field(true);
+        send(kPadA, pressing({kBtnR3}));
+        CTM_CHECK(keys_are(kPadA, {}));
+        ctm_rebind_set_editing_field(false);
+        g_compactView = false;
+        g_quickView = false;
+    }
+
+    section("config mode: L2 and R2 type Ctrl+Shift+Alt+G and F only while a tour is up, and click otherwise");
+    {
+        // ⓘ A tour's Go back and Continue (2026-10-29); the rest of the time a
+        // preset's clicks over the window, R2 the left button, are the
+        // config's. A click held as the tour began is let go.
+        reset();
+        ctm_rebind_set_config_mode(true);
+        g_windowInFront = true;
+        g_strings["ds5.rebind_7"] = "MouseLeft";
+        g_tourUp = false;
+        send(kPadA, pressing({kBtnR2}));
+        CTM_CHECK(keys_are(kPadA, {}));
+        CTM_CHECK_EQ(static_cast<int>(mouse_of(kPadA)), 0x01);
+        g_tourUp = true;
+        const std::vector<uint8_t> out = send(kPadA, pressing({kBtnR2}));
+        CTM_CHECK(keys_are(kPadA, {0x09}));            // F
+        CTM_CHECK_EQ(static_cast<int>(mods_of(kPadA)), 0x07);
+        CTM_CHECK_EQ(static_cast<int>(mouse_of(kPadA)), 0);
+        CTM_CHECK(out == at_rest());
+        send(kPadA, pressing({kBtnL2}));
+        CTM_CHECK(keys_are(kPadA, {0x0a}));            // G
+        g_tourUp = false;
+        send(kPadA, pressing({kBtnR2}));
+        CTM_CHECK(keys_are(kPadA, {}));
+        CTM_CHECK_EQ(static_cast<int>(mouse_of(kPadA)), 0x01);
     }
 
     section("config mode: with the window behind, the pad works as it does in a game");

@@ -94,18 +94,37 @@ inline window_move::Movers g_movers;
 // ⓘ 0.90 x 0.94 went with it: two sizes still. A saved index keeps its slot,
 // so a window left at the small opens at the new small, and a dragged size of
 // 1664 x 1298 is that preset now, so the next close drops it.
+// ⭐⭐ AND BOTH LARGER SINCE 2026-10-29, WITH THE PAGE'S TEXT (rhoquinn8217:
+// "Text size in advance mode is too small. Typical screen size is 55 inches
+// at 4k watching from 5 feet away."): Advanced's text and controls are half
+// as large again (the page's --advZoom), which wrapped its config row and its
+// sections onto two lines at the small. Shown the larger size as the one it
+// opens at, and asked, *"yes"*. So:
+//
+//   small   0.68 x 0.73   what Advanced opens at, the large until then
+//   large   0.90 x 0.94   the large it had until 2026-10-09
+//
+// ⓘ A saved index keeps its slot again, so a window left at the small opens
+// at the new small.
 // ⛔ The opening size is written twice more, and the three move together:
 // the page's wantSize() and the browser window's size in open_ui.inl.
 struct SizeShare { double w; double h; };
-inline const SizeShare kSizes[2] = { { 0.4334, 0.622 }, { 0.68, 0.73 } };
+inline const SizeShare kSizes[2] = { { 0.68, 0.73 }, { 0.90, 0.94 } };
 inline std::atomic_int g_size{0};
 
 // ⭐ COMPACT HAS SIZES OF ITS OWN (rhoquinn8217, 2026-09-09): at 250% scaling on
 // a large screen the compact view still needs to be sized to the room, so R3
 // cycles a second table while the page is compact, with a position of its own.
 //
-//   medium  0.45 x 0.45   what the page opens Simple at, so the two agree
-//   large   0.56 x 0.56
+//   medium  0.45 x 0.3879   what the page opens Simple at, so the two agree
+//   large   0.56 x 0.4819
+// ⭐ SHORTER SINCE 2026-10-22 (rhoquinn8217: "shrink the height of the window
+// so that the margin between the nickname and battery and the upper window
+// edge is halved and the margin between the config selector and the line
+// break is halved"): from 0.45 x 0.45 and 0.56 x 0.56, each page 0.855 of
+// its height at 150% on a work area 2088 tall, its title bar 44.7. The
+// page's sizes are in a unit of its own, --vh, which Simple makes the old
+// window's height in hundredths, so nothing on it gets smaller.
 // ⓘ Simple keeps its medium and large (rhoquinn8217, 2026-09-09); the 0.34
 // small is gone. ⛔ A quarter came off the width and a sixth off the height
 // the same evening and both went straight back: Simple holds the preset
@@ -116,7 +135,7 @@ inline std::atomic_int g_size{0};
 // for compact (rhoquinn8217, 2026-09-09: smallest first), large for full --
 // which is exactly the size the page resizes to on the switch, so R3 always
 // cycles from where the window actually is.
-inline const SizeShare kCompactSizes[2] = { { 0.45, 0.45 }, { 0.56, 0.56 } };
+inline const SizeShare kCompactSizes[2] = { { 0.45, 0.3879 }, { 0.56, 0.4819 } };
 inline std::atomic_int  g_sizeCompact{0};
 inline std::atomic_bool g_compact{false};
 
@@ -140,9 +159,36 @@ inline std::atomic_bool g_compact{false};
 // the ask was the width, and a long model name on the line under the name
 // was what it had no room for.
 //
-//   medium  0.278 x 0.150   what the page opens Quick at
+//   medium  0.278 x 0.150   (until 2026-10-16; below)
 //   large   0.346 x 0.187
-inline const SizeShare kQuickSizes[2] = { { 0.278, 0.150 }, { 0.346, 0.187 } };
+// ⭐ NARROWER, SO THE FOOTER'S LEGEND HAS HALF THE ROOM EITHER SIDE
+// (rhoquinn8217, 2026-10-16: "shrink the entire window so that the space on
+// the left and right of the legend is reduce to half"). At 150% on a work
+// area 3840 wide, 0.278 left 153 px before the legend and 187 after it,
+// and 0.225 leaves 71 and 99. Large keeps its 1.245 times medium.
+// The page's widths are in vw, and its config wheel is set wider in vw to
+// stay the size it was.
+//
+// ⭐ AND SHORTER, ITS CONFIG PANEL TALLER (rhoquinn8217, 2026-10-17:
+// "increase the height of config selector container but also shrink the
+// height of the window"): 0.130 tall from 0.150, which left about 12 px
+// above and below the panel at 150% on a work area 2088 tall; then 0.140,
+// as much taller as the wheel grew to show 3.5 lines ("increase the wheel
+// size to 3.5 lines"), and 0.143 for its config panel's title half as
+// large again ("increase by 1.5 instead"). Large 0.178,
+// from 0.187, keeping large's 1.29 times medium's page height. The
+// page's sizes are in a unit of its own, --vh, which Quick makes the old
+// window's height in hundredths, so nothing on it gets smaller.
+//
+// ⭐ LARGER FOR A TELEVISION (rhoquinn8217, 2026-10-17: "quick mode's small size
+// is too small. make the large size the small one and create a new large size
+// that is bigger than that"): medium is the old large, grown with what it
+// holds since (its configs larger, the choice set apart, the smaller text
+// larger), and large keeps 1.244 times its width and 1.288 its page's height.
+//
+//   medium  0.313 x 0.196   what the page opens Quick at
+//   large   0.390 x 0.246
+inline const SizeShare kQuickSizes[2] = { { 0.313, 0.196 }, { 0.390, 0.246 } };
 inline std::atomic_int  g_sizeQuick{0};
 inline std::atomic_bool g_quick{false};
 
@@ -456,6 +502,11 @@ inline void restore_geometry_soon()
 // window is put back at the size that layout was left at, in that layout's
 // home place. ⓘ The page cannot do this half: R3 never reaches it, so it does
 // not know the index. It sends `restore` and leaves the window alone.
+// ⭐ A SWITCH IN A WINDOW THE QUICK CONFIG SWITCH OPENED is the person's
+// choice, and stands: what the switch saved to put back is let go
+// (drop_quick_view, below).
+inline void drop_quick_view();
+
 inline void set_view(bool compact, bool quick, bool restore)
 {
     quick = compact && quick;
@@ -471,6 +522,7 @@ inline void set_view(bool compact, bool quick, bool restore)
         return;
     }
     if (!changed) { state_save(); return; }
+    drop_quick_view();
     // ⛔ T-253: and its dragged size with it. A switch already resets this
     // view to its ENTRY size, and the page resizes to that same size on the
     // switch -- so keeping a custom one here would put the two placers into
@@ -809,8 +861,41 @@ inline void snap_next(HWND hwnd)
 inline const char *state_file() { return "window-state.txt"; }
 
 // ⭐ OPEN ON BRIDGE (rhoquinn8217, 2026-10-09), kept with the window's place
-// and size; open_on_bridge.inl says what it means. On until it is turned off.
-inline std::atomic_bool g_openOnBridge{true};
+// and size; open_on_bridge.inl says what it means. Off until it is turned on,
+// since 2026-10-15.
+inline std::atomic_bool g_openOnBridge{open_on_bridge::kDefault};
+
+// ⭐ THE QUICK CONFIG SWITCH (rhoquinn8217, 2026-10-23), kept beside it;
+// quick_switch.inl says what it is. On until it is turned off, since
+// 2026-10-30.
+inline std::atomic_bool g_quickSwitch{quick_switch::kDefault};
+
+// ⭐ ITS WINDOW IS QUICK, FOR ITSELF ALONE (rhoquinn8217, 2026-10-23: "always
+// use quick view for quick config select button/gesture"). While the window
+// it opened is up, the layout and the controller the shortcut and the tray
+// open on wait here, and go back when it closes (end_quick_view). The file
+// keeps them rather than Quick meanwhile, so a listener stopped mid-switch
+// remembers them too.
+struct SavedView {
+    bool on = false;
+    bool compact = false;
+    bool quick = false;
+    bool known = false;
+    std::string ordinal;
+};
+inline std::mutex g_quickViewMutex;
+inline SavedView g_quickView;
+
+// ⭐ THE TUTORIALS (rhoquinn8217, 2026-10-14): whether Simple's, Quick's and
+// Advanced's have been seen, kept here with the rest; tutorial_state.inl says
+// what it means. The tray's request for one, which lives until the page takes
+// it and is not kept. And the last install's stamp this person's listener saw.
+inline std::atomic_bool g_tutorialSimpleSeen{false};
+inline std::atomic_bool g_tutorialQuickSeen{false};
+inline std::atomic_bool g_tutorialAdvancedSeen{false};
+inline std::atomic_int  g_tutorialAsked{tutorial_state::None};
+inline std::mutex g_stampMutex;
+inline std::string g_installStamp;
 
 inline void state_save()
 {
@@ -820,17 +905,39 @@ inline void state_save()
     std::ostringstream out;
     out << "# DS5-USBIP window state, written by config_move.inl (T-239).\n"
         << "# Safe to delete: the window then opens at its defaults.\n";
-    out << "compact = " << (g_compact.load() ? 1 : 0) << "\n"
-        << "quick = " << (g_quick.load() ? 1 : 0) << "\n"
-        << "known = " << (g_known.load() ? 1 : 0) << "\n"
+    SavedView view;
+    {
+        std::lock_guard<std::mutex> lock(g_quickViewMutex);
+        view = g_quickView;
+    }
+    if (!view.on) {
+        view.compact = g_compact.load();
+        view.quick = g_quick.load();
+        view.known = g_known.load();
+    }
+    out << "compact = " << (view.compact ? 1 : 0) << "\n"
+        << "quick = " << (view.quick ? 1 : 0) << "\n"
+        << "known = " << (view.known ? 1 : 0) << "\n"
         // ⓘ Marks a file that counts Advanced's TWO sizes (2026-10-02); one
         // without it counted three, and state_load() moves its index down.
         << "advanced_sizes = 2\n"
         << "size_advanced = " << g_size.load() << "\n"
         << "size_simple = " << g_sizeCompact.load() << "\n"
         << "size_quick = " << g_sizeQuick.load() << "\n";
-    out << open_on_bridge::line(g_openOnBridge.load());
+    out << open_on_bridge::default_line() << open_on_bridge::line(g_openOnBridge.load());
+    out << quick_switch::default_line() << quick_switch::line(g_quickSwitch.load());
+    out << tutorial_state::seen_line(tutorial_state::kSimpleSeenKey, g_tutorialSimpleSeen.load())
+        << tutorial_state::seen_line(tutorial_state::kQuickSeenKey, g_tutorialQuickSeen.load())
+        << tutorial_state::seen_line(tutorial_state::kAdvancedSeenKey, g_tutorialAdvancedSeen.load());
     {
+        std::lock_guard<std::mutex> lock(g_stampMutex);
+        if (!g_installStamp.empty()) {
+            out << tutorial_state::kInstallStampKey << " = " << g_installStamp << "\n";
+        }
+    }
+    if (view.on) {
+        if (!view.ordinal.empty()) out << "ordinal = " << view.ordinal << "\n";
+    } else {
         std::lock_guard<std::mutex> lock(g_ordinalMutex);
         if (!g_ordinal.empty()) out << "ordinal = " << g_ordinal << "\n";
     }
@@ -867,6 +974,14 @@ inline void state_load()
     // file says whether it counted three sizes or two.
     bool advancedTwo = false;
     int advancedRaw = -1;
+    // ⓘ Open on bridge is decided after the whole file is read too: its line
+    // counts only beside the default's line (open_on_bridge::loaded).
+    bool openSeen = false;
+    bool openOn = false;
+    bool openDefaultSeen = false;
+    bool quickSeen = false;
+    bool quickOn = false;
+    bool quickDefaultSeen = false;
     while (std::getline(f, line)) {
         if (line.empty() || line[0] == '#') continue;
         const size_t eq = line.find('=');
@@ -885,7 +1000,38 @@ inline void state_load()
             continue;
         }
         if (key == open_on_bridge::kKey) {
-            g_openOnBridge.store(open_on_bridge::parse(val));
+            openSeen = true;
+            openOn = open_on_bridge::parse(val);
+            continue;
+        }
+        if (key == open_on_bridge::kDefaultKey) {
+            openDefaultSeen = true;
+            continue;
+        }
+        if (key == quick_switch::kKey) {
+            quickSeen = true;
+            quickOn = quick_switch::parse(val);
+            continue;
+        }
+        if (key == quick_switch::kDefaultKey) {
+            quickDefaultSeen = true;
+            continue;
+        }
+        if (key == tutorial_state::kSimpleSeenKey) {
+            g_tutorialSimpleSeen.store(tutorial_state::parse_seen(val));
+            continue;
+        }
+        if (key == tutorial_state::kQuickSeenKey) {
+            g_tutorialQuickSeen.store(tutorial_state::parse_seen(val));
+            continue;
+        }
+        if (key == tutorial_state::kAdvancedSeenKey) {
+            g_tutorialAdvancedSeen.store(tutorial_state::parse_seen(val));
+            continue;
+        }
+        if (key == tutorial_state::kInstallStampKey) {
+            std::lock_guard<std::mutex> lock(g_stampMutex);
+            g_installStamp = val;
             continue;
         }
         // ⚠️ T-253: this must sit ABOVE the atoi fallback -- these values
@@ -930,6 +1076,8 @@ inline void state_load()
         else if (key == "size_simple") g_sizeCompact.store(n);
         else if (key == "size_quick") g_sizeQuick.store(n);
     }
+    g_openOnBridge.store(open_on_bridge::loaded(openSeen, openOn, openDefaultSeen));
+    g_quickSwitch.store(quick_switch::loaded(quickSeen, quickOn, quickDefaultSeen));
     if (advancedRaw >= 0) {
         // ⭐ The small size went on 2026-10-02 (kSizes). An index saved under
         // three sizes is one too high under two -- medium was 1 and is 0 now
@@ -946,18 +1094,167 @@ inline void state_load()
         << " quick=" << g_sizeQuick.load()
         << " posQuick=" << (g_posQuick.have ? 1 : 0)
         << " " << g_posQuick.x << "," << g_posQuick.y
-        << " open_on_bridge=" << (g_openOnBridge.load() ? 1 : 0));
+        << " open_on_bridge=" << (g_openOnBridge.load() ? 1 : 0)
+        << " quick_config_switch=" << (g_quickSwitch.load() ? 1 : 0)
+        << " tutorial_simple_seen=" << (g_tutorialSimpleSeen.load() ? 1 : 0)
+        << " tutorial_quick_seen=" << (g_tutorialQuickSeen.load() ? 1 : 0)
+        << " tutorial_advanced_seen=" << (g_tutorialAdvancedSeen.load() ? 1 : 0));
 }
 
-// The "Open on bridge" switch: read by the bridge, set by the tray and the
-// settings page, and written with the rest of the window's state at once, so
-// a restart keeps it.
+// ⭐ THE FIRST START AFTER AN INSTALL (tutorial_state.inl): the window opens
+// in Simple, and every tour starts by itself again. Run once, after
+// state_load, with the folder the exe is in. ⓘ Known, so the page takes
+// Simple from here rather than from its own memory of the last window.
+inline void install_check(const std::wstring &exeFolder)
+{
+    std::ifstream f((exeFolder + L"\\" + tutorial_state::kStampFile).c_str());
+    if (!f) return;
+    std::string line;
+    std::getline(f, line);
+    const std::string stamp = tutorial_state::stamp_from_file(line);
+    {
+        std::lock_guard<std::mutex> lock(g_stampMutex);
+        if (!tutorial_state::fresh_install(stamp, g_installStamp)) return;
+        g_installStamp = stamp;
+    }
+    g_compact.store(true);
+    g_quick.store(false);
+    g_known.store(true);
+    g_tutorialSimpleSeen.store(false);
+    g_tutorialQuickSeen.store(false);
+    g_tutorialAdvancedSeen.store(false);
+    state_save();
+    device_log::input(device_log::msg()
+        << "ui/install: the first start after an install (" << stamp
+        << "): the window opens in Simple, and every tutorial will start by itself again");
+}
+
+// The "Open on bridge" switch: read by the bridge, set by the settings page,
+// and written with the rest of the window's state at once, so a restart keeps
+// it.
 inline bool open_on_bridge() { return g_openOnBridge.load(); }
 inline void set_open_on_bridge(bool on)
 {
     g_openOnBridge.store(on);
     state_save();
 }
+
+// The quick config switch: read on every report of a pad with a touchpad,
+// set by the settings page, and written with the rest at once.
+inline bool quick_switch_on() { return g_quickSwitch.load(); }
+inline void set_quick_switch(bool on)
+{
+    g_quickSwitch.store(on);
+    state_save();
+}
+
+// The window the quick config switch opens shows Quick, on the switching
+// controller. ⓘ Before the window is asked for: the page asks which layout
+// to show (ui/view) as it opens. Called again while one waits, it keeps
+// what it saved first.
+inline void begin_quick_view(const std::string &ordinal)
+{
+    {
+        std::lock_guard<std::mutex> lock(g_quickViewMutex);
+        if (!g_quickView.on) {
+            g_quickView.on = true;
+            g_quickView.compact = g_compact.load();
+            g_quickView.quick = g_quick.load();
+            g_quickView.known = g_known.load();
+            std::lock_guard<std::mutex> ordinalLock(g_ordinalMutex);
+            g_quickView.ordinal = g_ordinal;
+        }
+    }
+    g_compact.store(true);
+    g_quick.store(true);
+    g_known.store(true);
+    std::lock_guard<std::mutex> lock(g_ordinalMutex);
+    g_ordinal = ordinal;
+}
+
+// ...and once its window has closed, the layout and the controller it held
+// back are the window's again.
+inline void end_quick_view()
+{
+    SavedView view;
+    {
+        std::lock_guard<std::mutex> lock(g_quickViewMutex);
+        if (!g_quickView.on) return;
+        view = g_quickView;
+        g_quickView = SavedView();
+    }
+    g_compact.store(view.compact);
+    g_quick.store(view.quick);
+    g_known.store(view.known);
+    {
+        std::lock_guard<std::mutex> lock(g_ordinalMutex);
+        g_ordinal = view.ordinal;
+    }
+    state_save();
+}
+
+// ...and pressed again, the window stays, in the layout from before, Simple
+// or Advanced (rhoquinn8217, 2026-10-28: "on the second press, it should
+// bring you to simple or advance based on what you had open last"): the layout
+// goes back at once, for the page to take (its KeyV), and the controller it
+// shows stays the one that pressed.
+inline void keep_quick_view()
+{
+    SavedView view;
+    {
+        std::lock_guard<std::mutex> lock(g_quickViewMutex);
+        if (!g_quickView.on) return;
+        view = g_quickView;
+        g_quickView = SavedView();
+    }
+    g_compact.store(view.compact);
+    g_quick.store(view.quick);
+    g_known.store(view.known);
+    state_save();
+}
+
+// ...unless the person picked a layout in that window meanwhile, which is
+// theirs: what the switch saved is let go rather than put back. ⓘ From
+// set_view, on the page's switch.
+inline void drop_quick_view()
+{
+    std::lock_guard<std::mutex> lock(g_quickViewMutex);
+    if (!g_quickView.on) return;
+    g_quickView = SavedView();
+    device_log::input(device_log::msg()
+        << "quick switch: a layout was picked in its window -- it stands, rather than the one from before");
+}
+
+// Whether the window up now is the quick config switch's: told to the page as
+// it opens (ui/view), so no tutorial starts by itself in it.
+inline bool quick_view_on()
+{
+    std::lock_guard<std::mutex> lock(g_quickViewMutex);
+    return g_quickView.on;
+}
+
+// Whether a tour has been seen: set by the page as it starts one, and kept at
+// once. ⓘ Simple's flag answers for a kind that names none, as before.
+inline std::atomic_bool &tutorial_flag(int kind)
+{
+    return kind == tutorial_state::Quick      ? g_tutorialQuickSeen
+         : kind == tutorial_state::Advanced   ? g_tutorialAdvancedSeen
+                                              : g_tutorialSimpleSeen;
+}
+inline bool tutorial_seen(int kind)
+{
+    return tutorial_flag(kind).load();
+}
+inline void set_tutorial_seen(int kind, bool seen)
+{
+    tutorial_flag(kind).store(seen);
+    state_save();
+}
+
+// The tray's list of tutorials: one asked for there, taken by the page.
+inline void ask_tutorial(int kind) { g_tutorialAsked.store(kind); }
+inline int tutorial_asked() { return g_tutorialAsked.load(); }
+inline void take_tutorial() { g_tutorialAsked.store(tutorial_state::None); }
 
 // This layout's slot, and the table it indexes.
 inline std::atomic_int &size_slot()
@@ -1026,6 +1323,43 @@ inline void remember_size_now(const RECT &rc)
 
 // The size this layout is at, applied about the window's CENTRE so it grows
 // and shrinks in place, then clamped fully on screen.
+// ⭐ WHERE THE WINDOW WILL BE PUT, BEFORE THERE IS ONE (rhoquinn8217,
+// 2026-10-23: "when the window opens in simple or quick mode, a larger window
+// blips open and close then the simple or quick mode window opens after.
+// Can we prevent that first larger window open blip?"). The restore
+// (restore_geometry_soon) puts a window that has come back at its layout's
+// size and place once the page says so; the browser asked for that same
+// rectangle at the start opens the window there, and the restore then moves
+// nothing. The same reckoning as the restore's: the size someone dragged, or
+// the layout's own; the place it was left, or its home (the bottom centre
+// for Simple and Quick, the middle for Advanced); clamped into the work
+// area. ⓘ False while no layout is known: the page decides then.
+inline bool opening_rect(int *x, int *y, int *w, int *h)
+{
+    if (!g_known.load()) return false;
+    const SizeShare *table = size_table();
+    const int idx = size_slot().load();
+    const RECT wa = work_area();
+    int customW = 0, customH = 0;
+    const bool custom = last_custom_size(&customW, &customH);
+    const int ww = custom ? ctm_window_size::from_thousandths(customW, wa.right - wa.left)
+                          : (int)((wa.right - wa.left) * table[idx].w);
+    const int hh = custom ? ctm_window_size::from_thousandths(customH, wa.bottom - wa.top)
+                          : (int)((wa.bottom - wa.top) * table[idx].h);
+    int xx = 0, yy = 0;
+    if (!last_pos(&xx, &yy)) {
+        xx = wa.left + ((wa.right - wa.left) - ww) / 2;
+        yy = g_compact.load() ? wa.bottom - bottom_gap(wa) - hh
+                              : wa.top + ((wa.bottom - wa.top) - hh) / 2;
+    }
+    clamp_into(wa, ww, hh, xx, yy);
+    *x = xx;
+    *y = yy;
+    *w = ww;
+    *h = hh;
+    return true;
+}
+
 inline void apply_size(HWND hwnd, int *outW, int *outH)
 {
     RECT rc;
@@ -1137,7 +1471,12 @@ inline bool handle_report(const void *deviceKey, const ctm_rebind::Layout &lay,
         // so a release seen later -- with the page back in front -- is not
         // read as a tap.
         g_movers.abandon_all();
-        r3_edge(deviceKey, false);
+        // ⭐ Create as it stands, not "up": one already held when the window
+        // comes forward is no press, so it does not resize it (rhoquinn8217,
+        // 2026-10-23: "Create should still resize the window when it is in
+        // focus" -- a press made there). The quick config switch brings the
+        // window up with Create held.
+        r3_edge(deviceKey, ctm_overlay::button_down(lay, data, len, 8));
         // ⓘ A hold dropped this way never sees Options come up, so the place
         // it steered to is written here instead.
         flush_pos();

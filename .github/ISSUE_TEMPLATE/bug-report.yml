@@ -1,0 +1,103 @@
+name: Bug Report
+description: Something does not work (bridging, a controller, Controller Configs, a crash)
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## The PC
+  - type: input
+    attributes:
+      label: DS5-USBIP version
+      description: In the menu of DS5-USBIP's tray icon.
+      placeholder: "Example: 0.2.0"
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Windows version
+      description: Settings > System > About, under Windows specifications.
+      placeholder: "Example: Windows 11 24H2"
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: Streaming host
+      options:
+        - Vibepollo
+        - Apollo
+        - Sunshine
+        - Other
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: |
+        ## The TV
+  - type: input
+    attributes:
+      label: aurora-tv build
+      description: The version and build in the app's Help window.
+      placeholder: "Example: 1.3.0 (603)"
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: TV model
+      placeholder: "Example: LG OLED48C1"
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: webOS version
+      description: Settings > General > About This TV.
+      placeholder: "Example: webOS 6.0"
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: |
+        ## The controller
+  - type: input
+    attributes:
+      label: Controller and connection
+      description: Which controller, and how it is connected to the TV.
+      placeholder: "Example: DualSense on the TV's USB port"
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: Bridged?
+      description: Was the controller bridged to the PC when it happened?
+      options:
+        - "Yes"
+        - "No"
+        - Not sure
+  - type: markdown
+    attributes:
+      value: |
+        ## What happened
+  - type: textarea
+    attributes:
+      label: What happened
+      placeholder: "Example: the controller stopped responding a few seconds after it was bridged"
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Steps to reproduce
+      description: How to make it happen again, if you know.
+      placeholder: |
+        Example:
+        1. Start a stream of Desktop
+        2. Hold two fingers on the touchpad for one second to bridge the DualSense
+        3. Press any button
+  - type: textarea
+    attributes:
+      label: What you expected
+      placeholder: "Example: the controller works on the PC"
+  - type: textarea
+    attributes:
+      label: Screenshots or photos
+      description: Optional. A screenshot of DS5-USBIP or a photo of the TV often helps.

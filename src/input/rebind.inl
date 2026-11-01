@@ -298,8 +298,46 @@ inline const GateBinding kConfigModeKeys[] = {
     // integers have increment steps that beat typing a number from a sofa. So
     // the collision is nearly theoretical, and when it happens you notice and
     // step off the box.
-    { kBtnFaceLeft,  "KeyX",  CTM_GATE_MODS },   // square: toggle
+    { kBtnFaceLeft,  "KeyX",  CTM_GATE_MODS },   // square: toggle; unlink on the config selector
+    // ⭐ TRIANGLE REACHES THE PAGE (rhoquinn8217, 2026-10-15: "Pressing
+    // triangle when you are on the config selector auto links it, all
+    // modes"). It sent nothing here until then.
+    { kBtnFaceUp,    "KeyY",  CTM_GATE_MODS },   // triangle: auto link on the config selector
+    // ⭐ R3 OPENS QUICK'S POLLING LIMIT (rhoquinn8217, 2026-10-16: "R3 will
+    // be the key that lets you reach the rate limit"), and Simple's since
+    // 2026-10-20 ("The rate limit should only be acessible with R3"):
+    // gate_claims leaves it to the config in Advanced, and it is the
+    // virtual keyboard's size while a name is being typed.
+    { kBtnR3,        "KeyL",  CTM_GATE_MODS },   // R3: the compact views' polling limit
+    // ⭐ L3 GOES TO SIMPLE'S NEXT TIP (rhoquinn8217, 2026-10-28: "L3 in simple
+    // mode cycles through hints"): only while Simple is in front, the one
+    // layout with tips (gate_claims). The virtual keyboard has no use for it.
+    { kBtnL3,        "KeyH",  CTM_GATE_MODS },   // L3: Simple's next tip
+    // ⭐ L2 AND R2 REACH THE PAGE WHILE A TOUR IS UP (rhoquinn8217, 2026-10-29:
+    // "add R2 symbol in the "Continue" button, L2 to the "Go Back" button"):
+    // its Go back and Continue. Only then (gate_claims): otherwise they are the
+    // config's, clicks over the window included.
+    { kBtnL2,        "KeyG",  CTM_GATE_MODS },   // L2: a tour's Go back
+    { kBtnR2,        "KeyF",  CTM_GATE_MODS },   // R2: a tour's Continue
 };
+
+// ⓘ Whether the page has this button: every one in the table, but R3
+// only while the window is in Simple or Quick, and L3 only in Simple; in
+// Advanced they do what the config binds them to, as they did before.
+inline bool gate_claims(int standardIndex)
+{
+    // ⭐ L2 AND R2 ONLY WHILE A TOUR IS UP (2026-10-29): its Go back and
+    // Continue then. ⛔ Claimed always, they lost the presets' clicks over the
+    // window, R2 the left button and L2 the right (config_presets.inl), which
+    // are meant to work there: claimed buttons are skipped below before the
+    // mouse is (rhoquinn8217, 2026-09-03: gating clicks "left the pad unable to
+    // click on the very page it was driving").
+    if (standardIndex == kBtnL2 || standardIndex == kBtnR2) return ::ui_tutorial_words_up();
+    if (standardIndex != kBtnR3 && standardIndex != kBtnL3) return true;
+    bool compact = false, quick = false;
+    if (!config_move::view_get(&compact, &quick, nullptr) || !compact) return false;
+    return standardIndex == kBtnR3 || !quick;
+}
 
 inline void apply(const void *deviceKey,
                   const std::vector<unsigned char> &descriptor,
@@ -356,6 +394,24 @@ inline void apply(const void *deviceKey,
         const bool f1 = ctm_rebind::touch_finger_down(chordLayout, data, len, 0);
         const bool f2 = ctm_rebind::touch_finger_down(chordLayout, data, len, 1);
         const bool options = ctm_rebind::is_pressed(chordLayout, data, len, ctm_rebind::kBtnStart);
+
+        // ⭐ THE QUICK CONFIG SWITCH reads the same fingers, and the pad
+        // pressed in, on every report, in the window or out of it: two
+        // fingers pressing open the window in Quick, each swipe of a finger
+        // up or down steps the config, the last finger lifting closes it,
+        // and a second press keeps it (quick_switch_session.inl). ⓘ Before
+        // anything here changes the report, and it changes nothing itself:
+        // mouse_exclusive.inl hides the touchpad it holds.
+        {
+            int x1 = 0, y1 = 0, x2 = 0, y2 = 0;
+            const bool at1 = f1 && ctm_rebind::touch_finger_pos(chordLayout, data, len, 0, &x1, &y1);
+            const bool at2 = f2 && ctm_rebind::touch_finger_pos(chordLayout, data, len, 1, &x2, &y2);
+            quick_switch_report(deviceKey, ctm_rebind::touch_pressed(chordLayout, data, len),
+                at1, ctm_rebind::touch_finger_id(chordLayout, data, len, 0),
+                static_cast<float>(x1), static_cast<float>(y1),
+                at2, ctm_rebind::touch_finger_id(chordLayout, data, len, 1),
+                static_cast<float>(x2), static_cast<float>(y2));
+        }
 
         // ⛔ EDGE, not level. Options is held for about 300ms and this runs at
         // 250Hz, so a level check would fire seventy times for one press.
@@ -682,9 +738,13 @@ inline void apply(const void *deviceKey,
         }
 
         for (const GateBinding &g : kConfigModeKeys) {
-            // ⛔ Square belongs to the keyboard while a text box has focus;
-            // sending the toggle as well would do both.
-            if (g.standardIndex == kBtnFaceLeft && ctm_rebind_editing_field()) continue;
+            // ⛔ Square and Triangle belong to the keyboard while a text box
+            // has focus, where they are backspace and space; sending the
+            // page's keys as well would do both. R3 is its size there.
+            if ((g.standardIndex == kBtnFaceLeft || g.standardIndex == kBtnFaceUp ||
+                 g.standardIndex == kBtnR3) &&
+                ctm_rebind_editing_field()) continue;
+            if (!gate_claims(g.standardIndex)) continue;
             const bool held = is_pressed(*layout, data, len, g.standardIndex);
             // ⛔ Cleared whether or not it is held, so a button released this
             // frame cannot leave a stale bit behind.
@@ -696,6 +756,18 @@ inline void apply(const void *deviceKey,
                 // ⓘ Shift for Shift+Tab. The modifier rides in report byte 0
                 // alongside the key, which is how a real keyboard sends it.
                 gateMods = static_cast<uint8_t>(gateMods | g.modifier);
+            }
+        }
+
+        // ⭐ THE QUICK CONFIG SWITCH'S STEPS (quick_switch_session.inl): KeyJ
+        // for the next config, KeyK for the one before, a moment each, which
+        // the page turns into a step of the wheel. In the same key set as the
+        // buttons', so nothing else publishes this pad's keys.
+        if (const char *qsKey = quick_switch_key(deviceKey)) {
+            const KeyName *k = key_for(qsKey);
+            if (k != nullptr && k->usage != 0 && gateCount < 6) {
+                gateKeys[gateCount++] = k->usage;
+                gateMods = static_cast<uint8_t>(gateMods | CTM_GATE_MODS);
             }
         }
 
@@ -761,9 +833,21 @@ inline void apply(const void *deviceKey,
         for (int i = 0; i < kButtonCount; ++i) {
             bool claimed = false;
             for (const GateBinding &g : kConfigModeKeys) {
-                if (g.standardIndex == i) { claimed = true; break; }
+                if (g.standardIndex == i && gate_claims(i)) { claimed = true; break; }
             }
-            if (claimed) continue;
+            if (claimed) {
+                // ⓘ A trigger a tour has (gate_claims) that the config binds to
+                // the mouse still has the mouse told it is up, or a click held as
+                // the tour began would stay down (mouse_held.inl).
+                if (i == kBtnL2 || i == kBtnR2) {
+                    char ckn[32];
+                    snprintf(ckn, sizeof(ckn), "rebind_%d", i);
+                    if (mouse_action_for(device_config_str(gateSection.c_str(), ckn)) != kMouseNone) {
+                        gateAnyMouse = true;
+                    }
+                }
+                continue;
+            }
 
             // ⛔⛔ A TRIGGER HANDED TO THE GESTURE IS NOT FIRED HERE EITHER.
             //
@@ -1043,11 +1127,10 @@ inline void apply(const void *deviceKey,
         if (!active) continue;
         const KeyName *k = key_for(code);
         if (k == nullptr) continue;          // unknown name: bound to nothing
-        if (k->usage == 0) {
-            modifiers = static_cast<uint8_t>(modifiers | k->modifier);
-        } else if (keyCount < 6) {
-            keys[keyCount++] = k->usage;
-        }
+        // ⓘ Both halves of a name: a modifier's bit and a key's usage. Most
+        // names have one; Win+Tab has both, and either alone would press half.
+        modifiers = static_cast<uint8_t>(modifiers | k->modifier);
+        if (k->usage != 0 && keyCount < 6) keys[keyCount++] = k->usage;
     }
 
     // ⭐ T-242 part A: now that every bound button has been cleared, the

@@ -3,6 +3,9 @@ public:
     ~CtmUsbipDevice()
     {
         stop_audio_stream();
+        audio_haptics::detach(std::atomic_exchange(&hapticsPad_, std::shared_ptr<audio_haptics::Pad>()));
+        usb_serial_fallback::g_slots.release(fallbackSerial_);
+        want_fine_timer(false);
     }
 
     bool load(
@@ -107,13 +110,6 @@ public:
         return audioInputSampleRate_;
     }
 
-    // ⓘ The TV a session belongs to (tv_sessions.inl), before attach_backend:
-    // two TVs' serial-less pads on the same node number are two devices.
-    void set_serial_tv(const std::string &tv)
-    {
-        serialTv_.assign(tv.begin(), tv.end());
-    }
-
     bool attach_backend(CtmBackend *backend, std::wstring *error)
     {
         backend_ = backend;
@@ -136,15 +132,35 @@ public:
         if (requestedSerial.empty()) {
             // ⛔ Not one constant for every such device (code review,
             // 2026-10-05): two of them bridged at once were one device to
-            // Windows. fallback_serial.inl says how this one is made.
-            requestedSerial = usb_serial_fallback::make(caps.path, caps.vendorId, caps.productId,
-                                                        serialTv_);
+            // Windows. ⛔ And not a new one on every bridge (2026-10-13): each
+            // was a new device to Windows, and they piled up by the hundred.
+            // fallback_serial.inl says how this one is made; stop() gives its
+            // slot back.
+            usb_serial_fallback::g_slots.release(fallbackSerial_);
+            fallbackSerial_ = usb_serial_fallback::g_slots.claim(caps.vendorId, caps.productId);
+            requestedSerial = fallbackSerial_;
         }
         if (!apply_virtual_serial_to_profile(&profile_, requestedSerial, &virtualSerial, error)) {
             return false;
         }
         info_ = parse_usb_info(profile_);
         device_log::usb_w() << L"virtual USB serial: " << virtualSerial;
+        refresh_gains();
+        // ⭐ PC sound as haptics (audio_haptics.inl): a DualSense or Edge
+        // joins, whether or not it is turned on; its settings decide that, and
+        // can change while it is bridged.
+        {
+            const char *kind = device_section_for(profile_.device_descriptor);
+            if (kind != nullptr && (std::strcmp(kind, "ds5") == 0 || std::strcmp(kind, "ds5_edge") == 0) &&
+                profile_.device_descriptor.size() >= 12) {
+                const unsigned vendor = profile_.device_descriptor[8] | (profile_.device_descriptor[9] << 8);
+                const unsigned product = profile_.device_descriptor[10] | (profile_.device_descriptor[11] << 8);
+                wchar_t instance[160] = {};
+                std::swprintf(instance, 160, L"USB\\VID_%04X&PID_%04X\\%ls", vendor, product, virtualSerial.c_str());
+                std::atomic_store(&hapticsPad_, audio_haptics::attach(instance, L"the pad " + virtualSerial,
+                                                                      device_settings_section(kind, linked_config())));
+            }
+        }
         // ⭐ The map replays captured packets, and an announce carries an id
         // Windows keys an XInput device on. Give it this controller's, derived
         // from the serial above, so two bridged pads are two devices.
@@ -255,6 +271,21 @@ public:
 
     // The per-controller config this device reads, or empty for the shared
     // section. Set by the agent at bridge time and whenever a link changes.
+    // ⭐ Its two sound gains from its own section, linked config or its
+    // kind's: audio_gain.inl says why they are read per pad.
+    void refresh_gains()
+    {
+        const std::string section = device_settings_section(device_section_for(profile_.device_descriptor), linked_config());
+        const ctm_audio_gain::Gains g = ctm_audio_gain::read(section.empty() ? nullptr : section.c_str());
+        const int oldHaptics = hapticsGain_.exchange(g.haptics);
+        const int oldSound = soundGain_.exchange(g.sound);
+        if (oldHaptics != g.haptics || oldSound != g.sound) {
+            device_log::audio(device_log::msg() << "gains from [" << section << "]: haptics "
+                              << (g.haptics < 0 ? std::string("unchanged") : std::to_string(g.haptics) + "%") << ", sound "
+                              << (g.sound < 0 ? std::string("unchanged") : std::to_string(g.sound) + "%"));
+        }
+    }
+
     std::string linked_config() const
     {
         std::lock_guard<std::mutex> lock(physicalSerialMutex_);
@@ -263,8 +294,79 @@ public:
 
     void set_linked_config(const std::string &name)
     {
+        {
+            std::lock_guard<std::mutex> lock(physicalSerialMutex_);
+            linkedConfig_ = name;
+        }
+        refresh_gains();
+        // ⓘ PC-sound haptics read the section a link names, as everything
+        // else here does.
+        if (const std::shared_ptr<audio_haptics::Pad> pad = std::atomic_load(&hapticsPad_)) {
+            audio_haptics::set_section(*pad, device_settings_section(device_section_for(profile_.device_descriptor), name));
+        }
+    }
+
+    // ⭐ WHETHER A RATE LIMIT CAN APPLY HERE (usbip/input_pace.inl).
+    //
+    // ⛔ CONTROLLERS ONLY. A keyboard or a mouse has no settings section, so it
+    // never has a limit -- and must not: a mouse report is a movement, and one
+    // thinned out is distance the cursor never travels. ⓘ Nor a device of
+    // several HID interfaces, which is forwarded exactly as it comes.
+    bool takes_rate_limit() const
+    {
+        return profile_.interface_report_descriptors.empty() &&
+               device_button_section_for(profile_.device_descriptor) != nullptr;
+    }
+
+    // ⭐ THE CONTROLLER'S OWN LIMIT (config/polling_limits.inl; rhoquinn8217,
+    // 2026-10-16: "keep it with the controller"): "500", "250" or "125",
+    // or empty for Real time. Kept by the controller's serial, so a change
+    // of config never moves it. ⓘ It was the linked config's polling_rate
+    // until then, which config files may still carry and nothing reads.
+    // ⓘ A controller with no usable serial keeps one for this bridge only.
+    std::string rate_limit_setting() const
+    {
+        if (!takes_rate_limit()) return std::string();
+        const std::string serial = physical_serial();
+        if (ctm_polling_limit_has_identity(serial)) return ctm_polling_limit_get(serial);
         std::lock_guard<std::mutex> lock(physicalSerialMutex_);
-        linkedConfig_ = name;
+        return bridgeRateLimit_;
+    }
+
+    // Sets it: "500", "250" or "125", or "real_time" or empty for none.
+    // False, changing nothing, for a device that takes no limit or a value
+    // the page does not offer.
+    bool set_rate_limit_setting(const std::string &value)
+    {
+        if (!takes_rate_limit()) return false;
+        const std::string serial = physical_serial();
+        if (ctm_polling_limit_has_identity(serial)) return ctm_polling_limit_set(serial, value);
+        const int hz = input_pace::limit_hz(value);
+        if (hz == 0 && !value.empty() && value != "real_time") return false;
+        std::lock_guard<std::mutex> lock(physicalSerialMutex_);
+        bridgeRateLimit_ = hz > 0 ? value : std::string();
+        return true;
+    }
+
+    // The limit in reports a second, or 0 for none.
+    int rate_limit_hz() const
+    {
+        return input_pace::limit_hz(rate_limit_setting());
+    }
+
+    // ⭐ THE READOUT: the reports a second Windows is getting from this device
+    // now, and the reports a second arriving from the TV. The two differ only
+    // under a limit.
+    int served_rate_hz() const
+    {
+        std::lock_guard<std::mutex> lock(rateMutex_);
+        return servedRate_.rate_hz(pace_now_us());
+    }
+
+    int arrived_rate_hz() const
+    {
+        std::lock_guard<std::mutex> lock(rateMutex_);
+        return arrivedRate_.rate_hz(pace_now_us());
     }
 
     void stop()
@@ -287,7 +389,16 @@ public:
         // release a button this pad held at unbridge.
         mouse_forget_device(this);
         rebind_forget_pad(this);
+        // ⭐ Out of PC-sound haptics too: its keep-alive closed, and the
+        // capture stopped if it was the last.
+        audio_haptics::detach(std::atomic_exchange(&hapticsPad_, std::shared_ptr<audio_haptics::Pad>()));
         stop_audio_stream();
+        // ⭐ Its serial's slot is free for the next device of its kind
+        // (fallback_serial.inl).
+        usb_serial_fallback::g_slots.release(fallbackSerial_);
+        fallbackSerial_.clear();
+        // ⓘ And its hold on the 1 ms timer, if a rate limit had taken one.
+        want_fine_timer(false);
     }
 
     CtmAudioStats audio_stats() const
@@ -671,6 +782,21 @@ public:
             submitInfo->endpointInterrupt = true;
         }
 
+        // ⭐ THE RATE LIMIT, read once a request: 0 is none, and with none
+        // everything below does what it always did (usbip/input_pace.inl).
+        // ⓘ Read before the input lock is taken, since it takes the device's
+        // own.
+        const int limit = rate_limit_hz();
+        want_fine_timer(limit > 0);
+        if (limit != loggedLimit_.exchange(limit)) {
+            device_log::usb_s() << "input rate limit: "
+                << (limit > 0 ? std::to_string(limit) + " a second" : std::string("none"))
+                << (ctm_polling_limit_has_identity(physical_serial())
+                    ? ", this controller's own"
+                    : ", for this bridge: the controller reports no serial")
+                << std::endl;
+        }
+
         using clock = std::chrono::steady_clock;
         const auto waitStart = clock::now();
         std::unique_lock<std::mutex> lock(inputMutex_);
@@ -694,35 +820,75 @@ public:
             }
             return std::find_if(pendingInputReports_.begin(), pendingInputReports_.end(), match);
         };
-        inputCv_.wait(lock, [&]() {
-            const bool hasPending = pendingForEndpoint() != pendingInputReports_.end();
-            const bool hasLatest =
-                hasInput_ &&
+        auto hasLatest = [&]() {
+            return hasInput_ &&
                 latestInput_.endpoint_address == endpointAddress &&
                 inputSequence_ > state.deliveredSequence;
-            return g_stop.load() ||
-                (sessionActive != nullptr && !sessionActive->load()) ||
-                hasPending ||
-                hasLatest;
-        });
+        };
+        // ⭐ WAIT until there is something to serve, as it always has. And
+        // under a limit, input that has come before its turn waits for the
+        // turn: a newer report arriving meanwhile wakes this and is looked at
+        // in its place. ⛔ The map's packets never wait.
+        for (;;) {
+            if (g_stop.load() || (sessionActive != nullptr && !sessionActive->load())) break;
+            const auto next = pendingForEndpoint();
+            if (next != pendingInputReports_.end() && next->priority) break;
+            if (next == pendingInputReports_.end() && !hasLatest()) {
+                inputCv_.wait(lock);
+                continue;
+            }
+            if (state.pace.may_serve(pace_now_us(), limit)) break;
+            inputCv_.wait_until(lock, pace_time_point(state.pace.earliest_us(limit)));
+        }
         CTM_INPUT_REPORT report = {};
         uint32_t deliveredSequence = 0;
         // ⭐ WHICH HALF ANSWERED, for the log below: a packet the map queued
         // (a handshake) or the live input the pad is sending.
         bool fromQueue = false;
+        // ⓘ The pad's own input, which the limit and the readout count. A map
+        // packet is neither.
+        bool input = true;
         auto pendingIt = pendingForEndpoint();
-        if (pendingIt != pendingInputReports_.end()) {
+        if (pendingIt != pendingInputReports_.end() && !pendingIt->priority && limit > 0) {
+            // ⭐ NEWEST WINS. The latest report this endpoint has waiting goes,
+            // and the older ones are dropped with it unserved: they are what the
+            // limit thins out. ⓘ The queue is in arrival order, so it is the
+            // last one that matches.
+            auto newest = pendingIt;
+            for (auto it = pendingIt; it != pendingInputReports_.end(); ++it) {
+                if (!it->priority && it->report.endpoint_address == endpointAddress &&
+                    it->sequence > state.deliveredSequence) {
+                    newest = it;
+                }
+            }
             fromQueue = true;
+            report = newest->report;
+            deliveredSequence = newest->sequence;
+            pendingInputReports_.erase(
+                std::remove_if(pendingInputReports_.begin(), pendingInputReports_.end(),
+                    [&](const QueuedInputReport &item) {
+                        return !item.priority &&
+                            item.report.endpoint_address == endpointAddress &&
+                            item.sequence <= deliveredSequence;
+                    }),
+                pendingInputReports_.end());
+        } else if (pendingIt != pendingInputReports_.end()) {
+            fromQueue = true;
+            input = !pendingIt->priority;
             report = pendingIt->report;
             deliveredSequence = pendingIt->sequence;
             pendingInputReports_.erase(pendingIt);
-        } else if (hasInput_ &&
-            latestInput_.endpoint_address == endpointAddress &&
-            inputSequence_ > state.deliveredSequence) {
+        } else if (hasLatest()) {
             report = latestInput_;
             deliveredSequence = inputSequence_;
         } else {
             return kStatusStall;
+        }
+        if (input) {
+            const int64_t now = pace_now_us();
+            state.pace.served(now, limit);
+            std::lock_guard<std::mutex> rateLock(rateMutex_);
+            servedRate_.record(now);
         }
 
         const size_t copy = (std::min<size_t>)(report.length, transferLength);
@@ -843,7 +1009,33 @@ private:
         // read by the verbose "input served" line, which exists to tell a host
         // that is not polling from a device that is not producing.
         unsigned long servedCount = 0;
+        // ⓘ When the next report is due under a rate limit (input_pace.inl).
+        input_pace::Pacer pace;
     };
+
+    // ⓘ The time the pacing and the readout count in: microseconds of the
+    // steady clock, and back.
+    static int64_t pace_now_us()
+    {
+        return std::chrono::duration_cast<std::chrono::microseconds>(
+            std::chrono::steady_clock::now().time_since_epoch()).count();
+    }
+
+    static std::chrono::steady_clock::time_point pace_time_point(int64_t us)
+    {
+        return std::chrono::steady_clock::time_point(
+            std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+                std::chrono::microseconds(us)));
+    }
+
+    // Takes or gives back this device's hold on the 1 ms timer
+    // (usbip/fine_timer.inl), once each way.
+    void want_fine_timer(bool want)
+    {
+        const bool had = fineTimer_.exchange(want);
+        if (want && !had) fine_timer::acquire();
+        else if (!want && had) fine_timer::release();
+    }
 
     void configure_audio_stream_from_map()
     {
@@ -889,6 +1081,10 @@ private:
         if (!priority) {
             latestInput_ = report;
             hasInput_ = true;
+            // ⓘ What the TV sends, beside what Windows gets: the readout's two
+            // halves, which differ only under a rate limit.
+            std::lock_guard<std::mutex> rateLock(rateMutex_);
+            arrivedRate_.record(pace_now_us());
         }
         ++inputSequence_;
         pendingInputReports_.push_back(QueuedInputReport{inputSequence_, report, priority});
@@ -1819,6 +2015,19 @@ private:
         event.event_type = endpoint_is_iso(info_, endpointAddress) ? CTM_USB_EVENT_ISO_OUT : CTM_USB_EVENT_HID_OUTPUT;
         event.endpoint_address = endpointAddress;
         if (event.event_type == CTM_USB_EVENT_ISO_OUT) {
+            // ⓘ About once a second: the gains follow a changed file or link.
+            if (++gainChunks_ % 100 == 0) refresh_gains();
+            // ⭐ PC sound as haptics, into channels 2 and 3 BEFORE the stream
+            // splits into its wired and Bluetooth paths, so both carry it
+            // (audio_haptics.inl). ⓘ A copy only while it is on.
+            const std::shared_ptr<audio_haptics::Pad> pad = std::atomic_load(&hapticsPad_);
+            if (pad && pad->on.load() && endpointAddress == audioIsoEndpoint_) {
+                std::vector<uint8_t> mixed(data);
+                audio_haptics::into_stream(*pad, &mixed);
+                return map_iso_passthrough_enabled()
+                    ? process_iso_output_wired(endpointAddress, mixed)
+                    : process_iso_output(endpointAddress, mixed);
+            }
             return map_iso_passthrough_enabled()
                 ? process_iso_output_wired(endpointAddress, data)
                 : process_iso_output(endpointAddress, data);
@@ -1848,11 +2057,20 @@ private:
         return process_hid_output_event(event);
     }
 
-    int process_iso_output(uint8_t endpointAddress, const std::vector<uint8_t> &data)
+    int process_iso_output(uint8_t endpointAddress, const std::vector<uint8_t> &input)
     {
         if (endpointAddress != audioIsoEndpoint_) {
             return kStatusOk;
         }
+        // ⭐ The same two gains as the wired path (audio_gain.inl): until
+        // 2026-10-13 nothing scaled a Bluetooth pad's haptics or its sound.
+        const ctm_audio_gain::Gains gains{ hapticsGain_.load(), soundGain_.load() };
+        std::vector<uint8_t> scaledCopy;
+        if (ctm_audio_gain::active(gains)) {
+            scaledCopy = input;
+            ctm_audio_gain::apply(scaledCopy, gains);
+        }
+        const std::vector<uint8_t> &data = scaledCopy.empty() ? input : scaledCopy;
         if (audioChannels_ == 0 || audioInputSampleRate_ == 0 || audioReservoirSampleRate_ == 0) {
             return kStatusOk;
         }
@@ -1927,9 +2145,10 @@ private:
         // data is const and owned by the caller, so scaling needs a copy --
         // made only when a gain is configured, so an unconfigured build pays
         // nothing on this ~100/sec path.
-        if (ctm_audio_gain::configured()) {
+        const ctm_audio_gain::Gains gains{ hapticsGain_.load(), soundGain_.load() };
+        if (ctm_audio_gain::active(gains)) {
             std::vector<uint8_t> scaled(data);
-            ctm_audio_gain::apply(scaled);
+            ctm_audio_gain::apply(scaled, gains);
             ctm_pcm_amp::maybe_log(scaled);
             backend_->send_iso_audio(scaled, &err);
             return kStatusOk;
@@ -2046,6 +2265,16 @@ private:
     std::deque<QueuedInputReport> pendingInputReports_;
     // ⓘ One line per session when the cap above evicts something, no more.
     bool droppedQueuedLogged_ = false;
+    // ⭐ THE POLLING RATE (usbip/input_pace.inl): what Windows gets and what
+    // the TV sends, counted as they go. Their own lock, so the settings page
+    // reading them never waits on the input path. ⓘ Taken inside inputMutex_,
+    // never the other way round.
+    mutable std::mutex rateMutex_;
+    input_pace::RateMeter servedRate_;
+    input_pace::RateMeter arrivedRate_;
+    // Whether this device holds the 1 ms timer, and the limit last logged.
+    std::atomic<bool> fineTimer_{false};
+    std::atomic<int> loggedLimit_{0};
     // ⓘ How many of each per-report line this device has reached, for
     // ctm_log_report_line. Atomic: output arrives on the host's thread.
     std::atomic<uint64_t> setOutputLines_{0};
@@ -2066,10 +2295,21 @@ private:
     std::vector<uint8_t> physicalFeatureScratch_;
     std::map<FeatureCacheKey, CTM_USB_RESPONSE> featureCache_;
     mutable std::mutex physicalSerialMutex_;
-    // The TV this device came from, for the fallback serial: set_serial_tv().
-    std::wstring serialTv_;
+    // The serial made for it when the TV sent none, held until stop()
+    // (fallback_serial.inl). Empty for a device with a serial of its own.
+    std::wstring fallbackSerial_;
     std::string physicalSerial_;
     std::string linkedConfig_;
+    // Its two sound gains, from its own section (audio_gain.inl): -1 for
+    // none. Read on its sound stream's thread, re-read by refresh_gains.
+    std::atomic<int> hapticsGain_{-1};
+    std::atomic<int> soundGain_{-1};
+    unsigned gainChunks_ = 0;           // its sound stream's thread only
+    // Its place in PC-sound haptics, for a DualSense or Edge: set at attach,
+    // read by its sound stream's thread, so loaded and stored atomically.
+    std::shared_ptr<audio_haptics::Pad> hapticsPad_;
+    // A controller with no usable serial: its polling limit, for this bridge.
+    std::string bridgeRateLimit_;
     std::mutex unknownLogMutex_;
     std::map<std::string, uint64_t> unknownLogCounts_;
     std::chrono::steady_clock::time_point unknownLogLastFlush_;

@@ -1,12 +1,10 @@
 // The words on the tray icon's menu.
 //
-// ⭐ WHAT THESE PROTECT. The menu says how many controllers are connected,
-// lists each one, and marks which layout the config window is in. Each of
-// those is a small rule with an edge: one controller is not "1 controllers",
-// a pad that has not reported its battery must not read as an empty one, and
-// the padlock belongs on one mode or on none. The hints on the settings page
-// and the tool that quits the listener both quote these words, so the words
-// themselves are pinned too.
+// ⭐ WHAT THESE PROTECT. The menu says how many controllers are connected and
+// lists each one. Each of those is a small rule with an edge: one controller is
+// not "1 controllers", and a pad that has not reported its battery must not
+// read as an empty one. The hints on the settings page and the tool that quits
+// the listener both quote these words, so the words themselves are pinned too.
 //
 // WHAT THESE CANNOT DO. They draw nothing and open no menu. That the title is
 // larger, that the lines come in this order and that choosing one does what
@@ -19,6 +17,7 @@
 
 #include "app/tray_menu.inl"
 #include "app/open_on_bridge.inl"
+#include "app/tutorial_state.inl"
 
 using namespace ctmtest;
 
@@ -35,14 +34,80 @@ std::string narrow(const std::wstring &w)
 
 int run_tray_menu_tests()
 {
+    section("tutorial: seen only when window-state.txt says 1, and what the page is told");
+    {
+        CTM_CHECK(tutorial_state::parse_seen("1"));
+        CTM_CHECK(!tutorial_state::parse_seen("0"));
+        CTM_CHECK(!tutorial_state::parse_seen(""));      // a file from before: shown once more
+        CTM_CHECK(!tutorial_state::parse_seen("yes"));   // junk: the same
+        CTM_CHECK_EQ(tutorial_state::seen_line(tutorial_state::kSimpleSeenKey, true),
+                     std::string("tutorial_simple_seen = 1\n"));
+        CTM_CHECK_EQ(tutorial_state::seen_line(tutorial_state::kQuickSeenKey, false),
+                     std::string("tutorial_quick_seen = 0\n"));
+        CTM_CHECK_EQ(tutorial_state::seen_line(tutorial_state::kAdvancedSeenKey, true),
+                     std::string("tutorial_advanced_seen = 1\n"));
+        CTM_CHECK_EQ(tutorial_state::json(false, false, false, tutorial_state::None),
+                     std::string(R"({"simple_seen":false,"quick_seen":false,"advanced_seen":false,"request":""})"));
+        CTM_CHECK_EQ(tutorial_state::json(true, false, false, tutorial_state::Simple),
+                     std::string(R"({"simple_seen":true,"quick_seen":false,"advanced_seen":false,"request":"simple"})"));
+        CTM_CHECK_EQ(tutorial_state::json(true, true, false, tutorial_state::Quick),
+                     std::string(R"({"simple_seen":true,"quick_seen":true,"advanced_seen":false,"request":"quick"})"));
+        CTM_CHECK_EQ(tutorial_state::json(true, true, true, tutorial_state::Advanced),
+                     std::string(R"({"simple_seen":true,"quick_seen":true,"advanced_seen":true,"request":"advanced"})"));
+        CTM_CHECK_EQ(tutorial_state::kind_of("simple"), int(tutorial_state::Simple));
+        CTM_CHECK_EQ(tutorial_state::kind_of("quick"), int(tutorial_state::Quick));
+        CTM_CHECK_EQ(tutorial_state::kind_of("advanced"), int(tutorial_state::Advanced));
+        CTM_CHECK_EQ(tutorial_state::kind_of("expert"), int(tutorial_state::None));
+        CTM_CHECK_EQ(narrow(tray_menu::kStartTutorial), std::string("Start Tutorial"));
+    }
+
+    section("tutorial: the tray's list, each tour going to the layout it is named for");
+    {
+        CTM_CHECK_EQ(tray_menu::kTutorialCount, 3);
+        CTM_CHECK_EQ(narrow(tray_menu::kTutorials[0].name), std::string("Simple mode"));
+        CTM_CHECK_EQ(narrow(tray_menu::kTutorials[1].name), std::string("Quick mode"));
+        CTM_CHECK_EQ(narrow(tray_menu::kTutorials[2].name), std::string("Advanced mode"));
+        for (int i = 0; i < tray_menu::kTutorialCount; ++i) {
+            const tray_menu::Tutorial &t = tray_menu::kTutorials[i];
+            CTM_CHECK(t.mode >= 0 && t.mode < tray_menu::kModeCount);
+            CTM_CHECK(narrow(t.name).rfind(narrow(tray_menu::kModes[t.mode].name), 0) == 0);
+            CTM_CHECK_EQ(std::string(tutorial_state::kind_name(t.kind)),
+                         t.mode == 0 ? std::string("advanced")
+                                     : t.mode == 1 ? std::string("simple") : std::string("quick"));
+        }
+    }
+
+    section("tutorial: an install's stamp starts the tours again, and nothing else does");
+    {
+        CTM_CHECK(tutorial_state::fresh_install("2026-10-26 10:00:00.000", ""));        // the first install
+        CTM_CHECK(tutorial_state::fresh_install("2026-10-27 09:00:00.000",
+                                                "2026-10-26 10:00:00.000"));           // a reinstall
+        CTM_CHECK(!tutorial_state::fresh_install("2026-10-26 10:00:00.000",
+                                                 "2026-10-26 10:00:00.000"));          // already seen
+        CTM_CHECK(!tutorial_state::fresh_install("", ""));                             // a build's own folder
+        CTM_CHECK(!tutorial_state::fresh_install("", "2026-10-26 10:00:00.000"));
+        CTM_CHECK_EQ(tutorial_state::stamp_from_file("2026-10-26 10:00:00.000\r\n"),
+                     std::string("2026-10-26 10:00:00.000"));
+        CTM_CHECK_EQ(tutorial_state::stamp_from_file("  stamp  \nmore"), std::string("stamp"));
+        CTM_CHECK_EQ(tutorial_state::stamp_from_file(""), std::string(""));
+    }
+
     section("open on bridge: kept in window-state.txt, on unless it says 0");
     {
         CTM_CHECK(open_on_bridge::parse("1"));
         CTM_CHECK(!open_on_bridge::parse("0"));
-        CTM_CHECK(open_on_bridge::parse(""));       // junk reads as on, as before the switch
-        CTM_CHECK(open_on_bridge::parse("yes"));
+        CTM_CHECK(!open_on_bridge::parse(""));      // junk reads as off, the default since 2026-10-15
+        CTM_CHECK(!open_on_bridge::parse("yes"));
         CTM_CHECK_EQ(open_on_bridge::line(true), std::string("open_on_bridge = 1\n"));
         CTM_CHECK_EQ(open_on_bridge::line(false), std::string("open_on_bridge = 0\n"));
+        CTM_CHECK_EQ(open_on_bridge::default_line(), std::string("open_on_bridge_default = off\n"));
+        // ⭐ Off by default, and for every install once (2026-10-15).
+        CTM_CHECK(!open_on_bridge::kDefault);
+        CTM_CHECK(!open_on_bridge::loaded(false, false, false));   // no file, or no line
+        CTM_CHECK(!open_on_bridge::loaded(true, true, false));     // "on" from before the change: dropped
+        CTM_CHECK(open_on_bridge::loaded(true, true, true));       // turned on since: kept
+        CTM_CHECK(!open_on_bridge::loaded(true, false, true));
+        CTM_CHECK(!open_on_bridge::loaded(false, false, true));
     }
 
     section("open on bridge: whether a bridge opens the window");
@@ -68,7 +133,7 @@ int run_tray_menu_tests()
         CTM_CHECK(!opens_window(true, false, false));      // ... and with the switch off: it does not
     }
 
-    section("tray menu: picking a mode in Window Mode");
+    section("tray menu: asking for a layout");
     {
         using tray_menu::mode_pick;
         using tray_menu::ModePick;
@@ -153,40 +218,13 @@ int run_tray_menu_tests()
         CTM_CHECK_EQ(mode_index(true, true, true), 2);       // Quick
         // ⓘ "quick" means nothing unless the window is compact.
         CTM_CHECK_EQ(mode_index(true, false, true), 0);
-        // ⛔ A listener that has not been told has no mode to mark.
+        // ⛔ A listener that has not been told has no mode.
         CTM_CHECK_EQ(mode_index(false, false, false), -1);
         CTM_CHECK_EQ(mode_index(false, true, true), -1);
         // The table says the same thing the other way round.
         for (int i = 0; i < tray_menu::kModeCount; ++i) {
             CTM_CHECK_EQ(mode_index(true, tray_menu::kModes[i].compact, tray_menu::kModes[i].quick), i);
         }
-    }
-
-    section("tray menu: the padlock is on the mode the window is in, and on no other");
-    {
-        using tray_menu::mode_line;
-        const std::wstring lock = tray_menu::kPadlock;
-        // ⓘ One code point above the first plane: two wchar_t on Windows.
-        CTM_CHECK_EQ(static_cast<int>(lock.size()), 2);
-        CTM_CHECK(lock[0] == 0xD83D && lock[1] == 0xDD12);
-
-        CTM_CHECK(mode_line(0, 1) == L"Advanced");
-        CTM_CHECK(mode_line(1, 1) == std::wstring(L"Simple ") + lock);
-        CTM_CHECK(mode_line(2, 1) == L"Quick");
-        // Not told: no padlock anywhere.
-        for (int i = 0; i < tray_menu::kModeCount; ++i) {
-            CTM_CHECK(mode_line(i, -1).find(lock) == std::wstring::npos);
-        }
-        // Exactly one line carries it, whichever mode it is.
-        for (int current = 0; current < tray_menu::kModeCount; ++current) {
-            int marked = 0;
-            for (int i = 0; i < tray_menu::kModeCount; ++i) {
-                if (mode_line(i, current).find(lock) != std::wstring::npos) ++marked;
-            }
-            CTM_CHECK_EQ(marked, 1);
-        }
-        CTM_CHECK(mode_line(-1, 0).empty());
-        CTM_CHECK(mode_line(3, 0).empty());
     }
 
     section("tray menu: the words other things quote");
@@ -196,11 +234,12 @@ int run_tray_menu_tests()
         CTM_CHECK_EQ(narrow(tray_menu::kOpenConfig), std::string("Open Controller Configs"));
         // ⓘ The swap tool opens this side menu by its words.
         CTM_CHECK_EQ(narrow(tray_menu::kDevices), std::string("Devices"));
-        CTM_CHECK_EQ(narrow(tray_menu::kConfigMode), std::string("Window Mode"));
-        // ⓘ The settings page's switch says the same words.
-        CTM_CHECK_EQ(narrow(tray_menu::kOpenOnBridge), std::string("Open on bridge"));
         CTM_CHECK_EQ(narrow(tray_menu::kOpenFolder), std::string("Open configs folder"));
         CTM_CHECK_EQ(narrow(tray_menu::kTitle), std::string("DS5-USBIP"));
+        // ⓘ The version beside it: a v, then the tooltip's own words for it,
+        // as the Controller Configs window's title has them.
+        CTM_CHECK_EQ(narrow(tray_menu::kVersion), std::string("v") + PRODUCT_VERSION_DISPLAY);
+        CTM_CHECK(narrow(tray_menu::kVersion).rfind("v" PRODUCT_VERSION " (", 0) == 0);
         CTM_CHECK_EQ(narrow(tray_menu::kQuit), std::string("Quit"));
     }
 
