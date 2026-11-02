@@ -177,6 +177,7 @@ carry it; upstream's own history is unchanged.
 | 2026-10-31 | The tray menu: Show tutorial reads Start Tutorial, and Window Mode and Open on bridge are gone from it. Both stay in the Controller Configs window, in its Mode picker and on Advanced's Overview, and Start Tutorial's list still takes the window to the layout it tours. The line under Open on bridge's box and the words in the first step of Advanced's tour that pointed at the tray went with them, and so did the page's read of the box and the quick switch's each second, which was there only for a change made in the tray. Page 2.66.128. | `7af2305`, merge `0a05d33` |
 | 2026-11-01 | A long config name no longer takes the auto link mark with it in Quick. The wheel row is one line with an ellipsis and the mark is the last thing in it, so a name too long for the row hid the one thing that says which config is auto linked. Quick opens 0.342 of the screen wide rather than 0.313, which holds a 25 character name of the shape people use, and its large size is 0.429 rather than 0.390 so the two widths keep the same ratio as the two heights -- Quick sizes its text from the height, so a large size that grew taller than it grew wide clipped a name the small one held. The rename box takes 24 characters, one less than the width holds. A name longer than that, made outside DS5-USBIP, still works and still shows the three dots. Simple is unchanged: its row is half the window and already had the room. Page 2.66.130. | `1403a8c`, `991e30a`, merge `e267614` |
 | 2026-10-31 | The quick config switch is on out of the box. It was off until it was ticked, so two of the four ways of opening the Controller Configs window -- the DualSense touchpad pressed with two fingers, and the same press with a finger left down -- did nothing on a fresh install. The default sits beside the key now, as Open on bridge's does, and every save writes `quick_config_switch_default = on` above the switch's line: a window-state.txt without that line was written while the default was off, so its `quick_config_switch = 0` said only that and is dropped once. An install that has the switch turned off since keeps it off, and a file that is gone gives the default. Page 2.66.129. | `1538eff`, merge `bc1c386` |
+| 2026-11-01 | No new bridge while Windows is locked. A bridge asked for then is refused with its reason, and STATUS says `locked=0` or `locked=1`, an optional word that an older TV app ignores. The TV app waits for the unlock, bridges what is ticked once Windows is open, and in the meantime makes a controller on the stream the mouse and keys Windows' sign-in screen needs. A controller already bridged when the lock comes stays, on no config. | `dd7d78c`, merge `96e3b71` |
 
 ## Files changed
 
@@ -191,7 +192,7 @@ ENet library, removed with the ENet transport).
  .github/ISSUE_TEMPLATE/config.yml             |     5 +
  .github/ISSUE_TEMPLATE/feature-request.yml    |    22 +
  .gitignore                                    |    41 +-
- CHANGES.md                                    |   421 +
+ CHANGES.md                                    |   422 +
  LINK                                          |     0
  README.md                                     |   329 +-
  app/compatibility.manifest                    |    27 +
@@ -241,7 +242,7 @@ ENet library, removed with the ENet transport).
  profiles/descriptors/virtual_keyboard.profile |    74 +
  profiles/descriptors/virtual_mouse.profile    |    59 +
  release.ps1                                   |   266 +
- src/app/agent.inl                             |  1246 +-
+ src/app/agent.inl                             |  1259 +-
  src/app/agent_session_sweep.inl               |   333 +
  src/app/cli.inl                               |    66 +-
  src/app/common.inl                            |   166 +-
@@ -262,7 +263,7 @@ ENet library, removed with the ENet transport).
  src/app/open_ui.inl                           |   943 ++
  src/app/overlay_window.inl                    |  2472 ++++
  src/app/paired_tv.inl                         |   495 +
- src/app/protocol_level.inl                    |    77 +
+ src/app/protocol_level.inl                    |    86 +
  src/app/quick_switch.inl                      |   373 +
  src/app/quick_switch_session.inl              |   424 +
  src/app/quit_request.inl                      |    28 +
@@ -384,7 +385,7 @@ ENet library, removed with the ENet transport).
  tests/paired_tv_test.cpp                      |   319 +
  tests/polling_limits_test.cpp                 |   122 +
  tests/product_version_test.cpp                |    45 +
- tests/protocol_level_test.cpp                 |   101 +
+ tests/protocol_level_test.cpp                 |   112 +
  tests/quick_switch_test.cpp                   |   354 +
  tests/quit_request_test.cpp                   |    69 +
  tests/rebind_test.cpp                         |   784 ++
@@ -417,5 +418,5 @@ ENet library, removed with the ENet transport).
  tools/create-desktop-shortcut.bat             |    46 +
  tools/create-desktop-shortcut.ps1             |   148 +
  tools/osk-mockups.py                          |   103 +
- 231 files changed, 74271 insertions(+), 1568 deletions(-)
+ 231 files changed, 74305 insertions(+), 1568 deletions(-)
 ```
