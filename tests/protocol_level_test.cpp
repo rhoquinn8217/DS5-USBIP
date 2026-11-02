@@ -60,11 +60,20 @@ int run_protocol_level_tests()
 
     section("protocol level: what STATUS says");
     {
-        const std::string reply = protocol_level::status_reply();
+        const std::string reply = protocol_level::status_reply(false);
         CTM_CHECK(reply.rfind("OK CTM_AGENT_V1 ", 0) == 0);   // the TV's probe wants the OK first
         CTM_CHECK_EQ(protocol_level::word_value(reply, "level=", 0), kLevel);
         CTM_CHECK_EQ(protocol_level::word_value(reply, "min_tv=", 0), kMinTv);
         CTM_CHECK(!reply.empty() && reply.back() == '\n');
+    }
+
+    section("protocol level: STATUS says whether Windows is locked");
+    {
+        CTM_CHECK_EQ(protocol_level::word_value(protocol_level::status_reply(false), "locked=", -1), 0);
+        CTM_CHECK_EQ(protocol_level::word_value(protocol_level::status_reply(true), "locked=", -1), 1);
+        // The level words read the same either way, and the TV reads the refusal by its first words.
+        CTM_CHECK_EQ(protocol_level::word_value(protocol_level::status_reply(true), "level=", 0), kLevel);
+        CTM_CHECK(std::string(protocol_level::kWindowsLocked).rfind("ERR Windows is locked", 0) == 0);
     }
 
     section("protocol level: a TV's level, from its BRIDGE_START");
@@ -93,9 +102,11 @@ int run_protocol_level_tests()
         const std::string agent = read_agent_source();
         CTM_CHECK(!agent.empty());
         const std::string status = between(agent, "if (command == \"STATUS\") {", "return;");
-        CTM_CHECK(status.find("send_text(client, protocol_level::status_reply());") != std::string::npos);
+        CTM_CHECK(status.find("send_text(client, protocol_level::status_reply(g_windows_locked.load()));") != std::string::npos);
         const std::string start = between(agent, "if (command == \"BRIDGE_START\") {", "start_bridge_session_for(");
         CTM_CHECK(start.find("protocol_level::refusal_for(") != std::string::npos);
+        CTM_CHECK(start.find("if (g_windows_locked.load()) {") != std::string::npos);
+        CTM_CHECK(start.find("protocol_level::kWindowsLocked") != std::string::npos);
     }
     return 0;
 }

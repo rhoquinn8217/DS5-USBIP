@@ -24,6 +24,10 @@
 // ...", which the TV shows in its bridge panel. A TV that says no level is
 // level 1, the level of every TV from before there were levels.
 // ⓘ Its own file so the test binary can reach it.
+//
+// ⭐ AND WHETHER WINDOWS IS LOCKED (rhoquinn8217, 2026-11-01). No new bridge while
+// it is, and only this side can see it, so STATUS says "locked=1" and the TV waits
+// for "locked=0". An optional word: an older TV skips it, and meets the refusal.
 
 #pragma once
 
@@ -55,10 +59,15 @@ inline int word_value(const std::string &line, const std::string &word, int miss
 }
 
 // The answer to STATUS.
-inline std::string status_reply()
+inline std::string status_reply(bool windowsLocked)
 {
-    return "OK CTM_AGENT_V1 level=" + std::to_string(kLevel) + " min_tv=" + std::to_string(kMinTv) + "\n";
+    return "OK CTM_AGENT_V1 level=" + std::to_string(kLevel) + " min_tv=" + std::to_string(kMinTv) +
+           (windowsLocked ? " locked=1" : " locked=0") + "\n";
 }
+
+// A BRIDGE_START while Windows is locked.
+// ⚠️ The TV reads it by its first words, "ERR Windows is locked".
+inline const char *const kWindowsLocked = "ERR Windows is locked\n";
 
 // The TV's level, from a BRIDGE_START.
 inline int tv_level(const std::string &command)
