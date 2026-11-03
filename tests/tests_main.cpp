@@ -21,6 +21,7 @@ int run_stick_mouse_tests();
 int run_osk_tests();
 int run_window_icon_rule_tests();
 int run_quit_request_tests();
+int run_licence_files_tests();
 int run_stream_commands_tests();
 int run_taskbar_rule_tests();
 int run_audio_haptics_dsp_tests();
@@ -124,6 +125,8 @@ int main(int argc, char **argv)
     run_binding_names_tests();
     // ⛔ And here: it reads installer/ds5-usbip.iss.
     run_quit_request_tests();
+    // ⛔ And here: it reads the installer and the licence files.
+    run_licence_files_tests();
 
     if (!enter_scratch()) {
         std::fprintf(stderr, "could not create the scratch directory -- "
