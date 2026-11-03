@@ -160,23 +160,30 @@ static PairedTvMode paired_tv_mode()
 
 // The streaming host's paired devices, read from its state file each time a
 // proof is checked, so a TV paired a minute ago is let in with no restart.
-// ⓘ [global] streaming_host_state_file names the file; otherwise Apollo's,
-// then Sunshine's, under Program Files. `where` says which was read, or
-// tried first when none could be.
+// ⓘ [global] streaming_host_state_file names the file; otherwise the host's
+// own, found through its Windows service, then Apollo's and Sunshine's under
+// Program Files (paired_tv::state_file_candidates). `where` says which was
+// read, or tried first when none could be.
 static bool load_paired_devices(std::vector<paired_tv::Device> *out, std::wstring *where)
 {
-    std::vector<std::wstring> candidates;
     const std::string named = device_config_str("global", "streaming_host_state_file");
-    if (!named.empty()) {
-        candidates.push_back(widen_ascii(named.c_str(), named.size()));
-    } else {
-        wchar_t programFiles[MAX_PATH] = {};
-        const DWORD got = GetEnvironmentVariableW(L"ProgramFiles", programFiles, MAX_PATH);
-        const std::wstring base = (got > 0 && got < MAX_PATH) ? std::wstring(programFiles)
-                                                              : std::wstring(L"C:/Program Files");
-        candidates.push_back(base + L"/Apollo/config/sunshine_state.json");
-        candidates.push_back(base + L"/Sunshine/config/sunshine_state.json");
+    std::vector<std::wstring> hostFolders;
+    for (const wchar_t *service : paired_tv::kHostServices) {
+        const std::wstring key = std::wstring(L"SYSTEM\\CurrentControlSet\\Services\\") + service;
+        wchar_t image[1024] = {};
+        DWORD size = sizeof(image);
+        // ⓘ RRF_RT_REG_SZ takes a REG_EXPAND_SZ too, its variables expanded.
+        if (RegGetValueW(HKEY_LOCAL_MACHINE, key.c_str(), L"ImagePath", RRF_RT_REG_SZ,
+                         nullptr, image, &size) == ERROR_SUCCESS) {
+            hostFolders.push_back(paired_tv::host_folder_from_image_path(image));
+        }
     }
+    wchar_t programFiles[MAX_PATH] = {};
+    const DWORD got = GetEnvironmentVariableW(L"ProgramFiles", programFiles, MAX_PATH);
+    const std::wstring base = (got > 0 && got < MAX_PATH) ? std::wstring(programFiles)
+                                                          : std::wstring(L"C:\\Program Files");
+    const std::vector<std::wstring> candidates = paired_tv::state_file_candidates(
+        widen_ascii(named.c_str(), named.size()), hostFolders, base);
     for (const std::wstring &path : candidates) {
         std::ifstream f(path, std::ios::binary);
         if (!f) continue;
@@ -1266,7 +1273,8 @@ static void handle_agent_client(SOCKET client, const sockaddr_in &peer)
         const PairedTvMode mode = paired_tv_mode();
         if (mode != PairedTvMode::Off) {
             const paired_tv::Need need = paired_tv::need_for(
-                peerAddr, true, device_config_bool("global", "paired_tv_proof_at_home", false));
+                peerAddr, true, device_config_bool("global", "paired_tv_proof_at_home",
+                                                   paired_tv::kRequireAtHomeByDefault));
             const bool sent = std::string(line).find(paired_tv::kProofWord) != std::string::npos;
             if (need == paired_tv::Need::Required || sent) {
                 std::vector<paired_tv::Device> devices;
