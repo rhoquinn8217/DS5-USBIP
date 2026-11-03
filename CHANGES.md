@@ -181,6 +181,8 @@ carry it; upstream's own history is unchanged.
 | 2026-11-02 | A DS4's speaker over Bluetooth gets its sound from FFmpeg's SBC encoder, copied into the exe as `third_party/sbc`: the same frames byte for byte, so the setup installs no FFmpeg DLL and an upgrade removes the old ones. The capture tool, the last user of `third_party/ffmpeg`, is gone, with that folder and `third_party/AMF`. | `689b44e`, `2aef6ea`, merge `91d54b4` |
 | 2026-11-02 | A DS4 is told full volume when nothing sets one. With no volume in its config it played at its own quiet level while the Controller Configs window showed 100; now the speaker and the headset jack get 100, a set value still wins, and every other pad is as it was. | `69ca184`, merge `aea064a` |
 | 2026-11-02 | The setup installs the licences: DS5-USBIP's own as LICENSE.txt, and THIRD-PARTY-NOTICES.txt naming every part that is someone else's (the SBC encoder from FFmpeg, Opus, GamepadMotionHelpers, usbip-win2) with its licence in full. A test fails when the setup, the notices and the parts drift apart. | `58bac55`, merge `a6bbca1` |
+| 2026-11-03 | Simple, for the release: L3's mark is in the legend as "next tip" rather than beside the tip; tip 5 draws one button, the pad's own, and the tip saying the window opens on every bridge is gone, as a bridge opens it only with Open on bridge ticked; five of Simple's tour steps are in rhoquinn8217's words, two of them shared with the Quick and Advanced tours; Simple is 0.49 of the screen wide, its large size 0.611, just enough for the legend on one line; and "preset" on screen where three labels said "pre-set". | `5506f67`, `2e23b4e`, `dde0399`, merge `2c56a2c` |
+| 2026-11-03 | The quick config switch: while a finger holds Quick up, the right stick up or down steps the wheel too, one step a push, up the config above as the d-pad's up is, and the stick mouse stands aside meanwhile. Its box on the Overview is called "Two finger touchpad quick switch". Page 2.66.134. | `3fb4699`, `14b6462`, merge `2c56a2c` |
 
 ## Files changed
 
@@ -195,7 +197,7 @@ ENet library, removed with the ENet transport).
  .github/ISSUE_TEMPLATE/config.yml             |     5 +
  .github/ISSUE_TEMPLATE/feature-request.yml    |    22 +
  .gitignore                                    |    43 +-
- CHANGES.md                                    |   441 +
+ CHANGES.md                                    |   443 +
  LINK                                          |     0
  README.md                                     |   329 +-
  THIRD-PARTY-NOTICES.txt                       |   618 +
@@ -254,7 +256,7 @@ ENet library, removed with the ENet transport).
  src/app/agent_session_sweep.inl               |   331 +
  src/app/cli.inl                               |    66 +-
  src/app/common.inl                            |   166 +-
- src/app/config_move.inl                       |  1549 +++
+ src/app/config_move.inl                       |  1561 +++
  src/app/console_attach.inl                    |    82 +
  src/app/control_caller.inl                    |    48 +
  src/app/device_capabilities.inl               |    75 +
@@ -272,8 +274,8 @@ ENet library, removed with the ENet transport).
  src/app/overlay_window.inl                    |  2472 ++++
  src/app/paired_tv.inl                         |   495 +
  src/app/protocol_level.inl                    |    86 +
- src/app/quick_switch.inl                      |   373 +
- src/app/quick_switch_session.inl              |   424 +
+ src/app/quick_switch.inl                      |   408 +
+ src/app/quick_switch_session.inl              |   457 +
  src/app/quit_request.inl                      |    28 +
  src/app/rest.inl                              |   885 ++
  src/app/rest_config.inl                       |  1518 +++
@@ -343,14 +345,14 @@ ENet library, removed with the ENet transport).
  src/input/mouse_held.inl                      |    99 +
  src/input/osk.inl                             |   228 +
  src/input/pad_press.inl                       |   116 +
- src/input/rebind.inl                          |  1392 ++
- src/input/stick_mouse.inl                     |   474 +
+ src/input/rebind.inl                          |  1398 ++
+ src/input/stick_mouse.inl                     |   477 +
  src/input/touch_mouse.inl                     |  1707 +++
  src/input/trigger_click.inl                   |   864 ++
  src/input/trigger_effect.inl                  |   637 +
  src/log/capped_log.inl                        |   117 +
  src/log/device_log.inl                        |   233 +
- src/main.cpp                                  |  1074 +-
+ src/main.cpp                                  |  1078 +-
  src/map/runtime.cpp                           |   203 +-
  src/usbdisplay/README.md                      |    13 +
  src/usbip/device.inl                          |  1068 +-
@@ -398,9 +400,9 @@ ENet library, removed with the ENet transport).
  tests/polling_limits_test.cpp                 |   122 +
  tests/product_version_test.cpp                |    45 +
  tests/protocol_level_test.cpp                 |   112 +
- tests/quick_switch_test.cpp                   |   354 +
+ tests/quick_switch_test.cpp                   |   383 +
  tests/quit_request_test.cpp                   |    69 +
- tests/rebind_test.cpp                         |   784 ++
+ tests/rebind_test.cpp                         |   785 ++
  tests/rest_parser_test.cpp                    |   252 +
  tests/rest_shared_section_test.cpp            |    79 +
  tests/rumble_floor_test.cpp                   |    87 +
@@ -410,7 +412,7 @@ ENet library, removed with the ENet transport).
  tests/sbc_encoder_test.cpp                    |   150 +
  tests/sbc_test_signals.h                      |   171 +
  tests/schema_json_test.cpp                    |   158 +
- tests/stick_mouse_test.cpp                    |   735 ++
+ tests/stick_mouse_test.cpp                    |   736 ++
  tests/stop_wait_test.cpp                      |    93 +
  tests/stream_commands_test.cpp                |   118 +
  tests/taskbar_rule_test.cpp                   |    46 +
@@ -429,7 +431,7 @@ ENet library, removed with the ENet transport).
  tests/window_move_test.cpp                    |   136 +
  tests/window_open_rule_test.cpp               |    43 +
  tests/window_size_rule_test.cpp               |   129 +
- tools/controller-config-test-client.html      | 16371 ++++++++++++++++++++++++
+ tools/controller-config-test-client.html      | 16410 ++++++++++++++++++++++++
  tools/create-desktop-shortcut.bat             |    46 +
  tools/create-desktop-shortcut.ps1             |   148 +
  tools/osk-mockups.py                          |   103 +
@@ -437,5 +439,5 @@ ENet library, removed with the ENet transport).
  tools/sbc-golden-gen/ffmpeg_side.cpp          |   117 +
  tools/sbc-golden-gen/ffmpeg_side.h            |    15 +
  tools/sbc-golden-gen/main.cpp                 |   131 +
- 247 files changed, 75792 insertions(+), 6161 deletions(-)
+ 247 files changed, 75957 insertions(+), 6161 deletions(-)
 ```
