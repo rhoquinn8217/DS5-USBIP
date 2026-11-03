@@ -881,7 +881,8 @@ static void bridge_session_worker(AgentBridgeSession *session)
             // section is visible.
             //
             // ⚠️ kAudioUnset for anything absent, never zero -- zero is a legal
-            // percentage and means silent.
+            // percentage and means silent. ⭐ Except a DS4's volumes, which are
+            // 100 when absent: ctm/audio_volume.h says why.
             {
                 const int spk  = device_config_int(section.c_str(), "speaker_volume", -1);
                 const int hset = device_config_int(section.c_str(), "headset_volume", -1);
@@ -899,12 +900,11 @@ static void bridge_session_worker(AgentBridgeSession *session)
                 else if (outStr == "headset_mono") mode = 3;
                 else if (outStr == "both")         mode = 4;
 
-                const uint8_t spkByte  = (spk  >= 0 && spk  <= 100)
-                                       ? static_cast<uint8_t>(spk)
-                                       : CtmBridgeProtocol::kAudioUnset;
-                const uint8_t hsetByte = (hset >= 0 && hset <= 100)
-                                       ? static_cast<uint8_t>(hset)
-                                       : CtmBridgeProtocol::kAudioUnset;
+                static_assert(audio_volume::kUnset == CtmBridgeProtocol::kAudioUnset,
+                              "audio_volume.h's unset must be the protocol's");
+                const bool fullWhenUnset = audio_volume::full_when_unset(latencyKind);
+                const uint8_t spkByte  = audio_volume::volume_byte(spk, fullWhenUnset);
+                const uint8_t hsetByte = audio_volume::volume_byte(hset, fullWhenUnset);
 
                 if (spkByte  != CtmBridgeProtocol::kAudioUnset ||
                     hsetByte != CtmBridgeProtocol::kAudioUnset ||

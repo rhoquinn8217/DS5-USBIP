@@ -27,8 +27,14 @@
 //
 // ⛔ Protecting logic, not behaviour. Whether the bytes reach a controller is
 // threading through the output path and needs hardware.
+//
+// ⭐ The volume byte is the real one, from ctm/audio_volume.h, since a DS4 started
+// getting 100 when its config says nothing (2026-11-02). The mode and the send
+// guard are still mirrored.
 
 #include "harness.h"
+
+#include "ctm/audio_volume.h"
 
 #include <cstdint>
 #include <string>
@@ -39,14 +45,15 @@ namespace {
 
 constexpr uint8_t kAudioUnset = 0xFFu;
 
-// The conversion, mirrored from agent.inl / agent_session_sweep.inl. Mirrored
-// rather than included: the real call sites need a live session, a resolved
-// config section and a backend.
+// Every controller but a DS4, through the real conversion.
 uint8_t volume_byte(int configured)
 {
-    return (configured >= 0 && configured <= 100)
-             ? static_cast<uint8_t>(configured)
-             : kAudioUnset;
+    return audio_volume::volume_byte(configured, false);
+}
+
+uint8_t ds4_volume_byte(int configured)
+{
+    return audio_volume::volume_byte(configured, audio_volume::full_when_unset("ds4"));
 }
 
 // ⓘ The TV's enum: AUTO 0, OFF 1, SPEAKER 2, HEADSET 3, BOTH 4.
@@ -120,6 +127,26 @@ int run_host_audio_settings_tests()
     // audio_output = auto explicitly must be distinguishable from leaving it
     // absent -- the same zero-is-legal trap in a second place.
     CTM_CHECK(mode_byte("auto") != mode_byte(""));
+
+    // ⭐⭐ A DS4 WITH NOTHING SET IS TOLD 100, and so is sent something. Told
+    // nothing, it played quietly while the configs window showed 100 for it.
+    CTM_CHECK_EQ(audio_volume::kUnset, kAudioUnset);
+    CTM_CHECK_EQ(ds4_volume_byte(-1), 100);
+    CTM_CHECK(worth_sending(ds4_volume_byte(-1), ds4_volume_byte(-1), mode_byte("")));
+
+    // ⛔ But what a DS4's config does say still wins, and 0 is still silent.
+    CTM_CHECK_EQ(ds4_volume_byte(0), 0);
+    CTM_CHECK_EQ(ds4_volume_byte(40), 40);
+    CTM_CHECK_EQ(ds4_volume_byte(100), 100);
+
+    // ⛔ Only a DS4. A DualSense, an Edge, an Xbox pad and anything without a
+    // section are left exactly as they were: absent stays unset.
+    CTM_CHECK(audio_volume::full_when_unset("ds4"));
+    CTM_CHECK(!audio_volume::full_when_unset("ds5"));
+    CTM_CHECK(!audio_volume::full_when_unset("ds5_edge"));
+    CTM_CHECK(!audio_volume::full_when_unset("xbox"));
+    CTM_CHECK(!audio_volume::full_when_unset(""));
+    CTM_CHECK(!audio_volume::full_when_unset("ds4_usb"));
 
     return 0;
 }
