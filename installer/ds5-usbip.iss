@@ -116,17 +116,29 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 ; (StreamHostFound, below).
 Name: "vibepollo"; Description: "Start {#AppName} when a Vibepollo stream starts, and quit it when the stream ends"; GroupDescription: "Vibepollo:"; Check: StreamHostFound
 
+[InstallDelete]
+; FFmpeg's DLLs, which setups up to build 104 installed. The one part of FFmpeg
+; the listener uses is built into the exe now, so an upgrade takes these away.
+Type: files; Name: "{app}\avcodec-62.dll"
+Type: files; Name: "{app}\avdevice-62.dll"
+Type: files; Name: "{app}\avfilter-11.dll"
+Type: files; Name: "{app}\avformat-62.dll"
+Type: files; Name: "{app}\avutil-60.dll"
+Type: files; Name: "{app}\swresample-6.dll"
+Type: files; Name: "{app}\swscale-9.dll"
+
 [Files]
 Source: "{#SrcRoot}\out\x64\{#Configuration}\{#ExeName}"; DestDir: "{app}"; Flags: ignoreversion
-; The ffmpeg runtime comes from the REPO, not from the build output: the build
-; output holds whatever was last compiled there, which may be stale or absent.
-Source: "{#SrcRoot}\third_party\ffmpeg\x64\release\bin\*.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#SrcRoot}\profiles\descriptors\*"; DestDir: "{app}\profiles\descriptors"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#SrcRoot}\maps\*"; DestDir: "{app}\maps"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; usbip-win2 (BSD-2-Clause, (c) Vadym Hrynchyshyn): its signed installer ships
 ; unmodified, and its licence is installed beside the app.
 Source: "{#SrcRoot}\third_party\usbip-win2\{#UsbipInstaller}"; DestDir: "{tmp}"; Flags: deleteafterinstall
 Source: "{#SrcRoot}\third_party\usbip-win2\LICENSE.txt"; DestDir: "{app}"; DestName: "usbip-win2-LICENSE.txt"; Flags: ignoreversion
+; Its own licence, and every other part that is someone else's, named and with
+; their licences in full. tests/licence_files_test.cpp fails when they drift apart.
+Source: "{#SrcRoot}\LICENSE"; DestDir: "{app}"; DestName: "LICENSE.txt"; Flags: ignoreversion
+Source: "{#SrcRoot}\THIRD-PARTY-NOTICES.txt"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#ExeName}"; WorkingDir: "{app}"

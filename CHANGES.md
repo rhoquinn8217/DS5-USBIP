@@ -176,13 +176,18 @@ carry it; upstream's own history is unchanged.
 | 2026-10-30 | Advanced mode's tour. It starts from the tray's Show tutorial, which now lists Advanced too, or by itself once, when Advanced is on screen with a controller bridged, and walks the window on the practice controllers in thirty-five steps: Overview's two Bridging Options boxes, a step each; Dual's config list opened, then a config picked from it; a config made from a pre-set's custom page, renamed with the listener's keyboard, Copy shown, Unlink and auto link; its sections lit, a rebind picked from its list, rapid fire's box pressed and then changed; Archive Config; the Editor's list opened, then any config picked; the window's position, size and mode list, Circle and Close. Advanced draws its page half as large again, and larger as its window is wider, and its tour dims the page by half; in every tour the dim fades out while the words move and back in once they arrive. In every tour Continue, Go back and End tutorial carry R2, L2 and Circle, RT, LT and B on an Xbox pad and PgDn, PgUp and Esc on a keyboard, which are their only keys, and the listener gives L2 and R2 to the page only while a tour's words are up. The last step's Continue is Finish tutorial, which puts up a Congratulations card, in Advanced's, Simple's or Quick's size, with confetti falling over the window; End tutorial there ends the tour at once. Enter in a config's name box sets the name: the same Enter went on to the page's own keys, which, with the row already shut, pressed the button that had opened it again, Rename in a tour and Copy anywhere. The Editor no longer shows a config it has left when that config's answer comes late. Page 2.66.119 to 2.66.126. | `78f41ff`, `3149d00`, `b13c62b`, `829feab`, `b087a03`, `ff32bd2`, `232fb5f`, merge `2c1aec0` |
 | 2026-10-31 | The Controller Configs window draws when it opens behind another window. A browser draws nothing in a window it judges covered, and one opened behind another was judged so from its first moment: the raise brought it to the front, but neither the raise nor the front made the browser look again, so it stayed black, title bar and all, until someone moved it. Every raise now ends with a frame change, which wakes it with nothing moved. On a VM, under a window holding the front: 20 opens of 20 black at 100% scale and 3 of 6 at 125% before, none of 24 after. A PC at 150% went black under the same test neither before nor after, so the proof is the VM's. | `71bf7e5`, merge `629376e` |
 | 2026-10-31 | The tray menu: Show tutorial reads Start Tutorial, and Window Mode and Open on bridge are gone from it. Both stay in the Controller Configs window, in its Mode picker and on Advanced's Overview, and Start Tutorial's list still takes the window to the layout it tours. The line under Open on bridge's box and the words in the first step of Advanced's tour that pointed at the tray went with them, and so did the page's read of the box and the quick switch's each second, which was there only for a change made in the tray. Page 2.66.128. | `7af2305`, merge `0a05d33` |
+| 2026-11-01 | A long config name no longer takes the auto link mark with it in Quick. The wheel row is one line with an ellipsis and the mark is the last thing in it, so a name too long for the row hid the one thing that says which config is auto linked. Quick opens 0.342 of the screen wide rather than 0.313, which holds a 25 character name of the shape people use, and its large size is 0.429 rather than 0.390 so the two widths keep the same ratio as the two heights -- Quick sizes its text from the height, so a large size that grew taller than it grew wide clipped a name the small one held. The rename box takes 24 characters, one less than the width holds. A name longer than that, made outside DS5-USBIP, still works and still shows the three dots. Simple is unchanged: its row is half the window and already had the room. Page 2.66.130. | `1403a8c`, `991e30a`, merge `e267614` |
 | 2026-10-31 | The quick config switch is on out of the box. It was off until it was ticked, so two of the four ways of opening the Controller Configs window -- the DualSense touchpad pressed with two fingers, and the same press with a finger left down -- did nothing on a fresh install. The default sits beside the key now, as Open on bridge's does, and every save writes `quick_config_switch_default = on` above the switch's line: a window-state.txt without that line was written while the default was off, so its `quick_config_switch = 0` said only that and is dropped once. An install that has the switch turned off since keeps it off, and a file that is gone gives the default. Page 2.66.129. | `1538eff`, merge `bc1c386` |
+| 2026-11-01 | No new bridge while Windows is locked. A bridge asked for then is refused with its reason, and STATUS says `locked=0` or `locked=1`, an optional word that an older TV app ignores. The TV app waits for the unlock, bridges what is ticked once Windows is open, and in the meantime makes a controller on the stream the mouse and keys Windows' sign-in screen needs. A controller already bridged when the lock comes stays, on no config. | `dd7d78c`, merge `96e3b71` |
+| 2026-11-02 | A DS4's speaker over Bluetooth gets its sound from FFmpeg's SBC encoder, copied into the exe as `third_party/sbc`: the same frames byte for byte, so the setup installs no FFmpeg DLL and an upgrade removes the old ones. The capture tool, the last user of `third_party/ffmpeg`, is gone, with that folder and `third_party/AMF`. | `689b44e`, `2aef6ea`, merge `91d54b4` |
+| 2026-11-02 | A DS4 is told full volume when nothing sets one. With no volume in its config it played at its own quiet level while the Controller Configs window showed 100; now the speaker and the headset jack get 100, a set value still wins, and every other pad is as it was. | `69ca184`, merge `aea064a` |
+| 2026-11-02 | The setup installs the licences: DS5-USBIP's own as LICENSE.txt, and THIRD-PARTY-NOTICES.txt naming every part that is someone else's (the SBC encoder from FFmpeg, Opus, GamepadMotionHelpers, usbip-win2) with its licence in full. A test fails when the setup, the notices and the parts drift apart. | `58bac55`, merge `a6bbca1` |
 
 ## Files changed
 
 Generated from `git diff origin/main origin/rhqn-main --stat`, excluding
-`third_party/` (29 files, +1333 -6524 -- the GamepadMotionHelpers library,
-upstream's release FFmpeg binaries replacing the repo's debug ones, and the
+`third_party/` (1272 files, +2942 -264776 -- the GamepadMotionHelpers library, FFmpeg's
+SBC encoder copied in where FFmpeg's binaries and the AMF headers were, and the
 ENet library, removed with the ENet transport).
 
 ```
@@ -190,15 +195,17 @@ ENet library, removed with the ENet transport).
  .github/ISSUE_TEMPLATE/bug-report.yml         |   103 +
  .github/ISSUE_TEMPLATE/config.yml             |     5 +
  .github/ISSUE_TEMPLATE/feature-request.yml    |    22 +
- .gitignore                                    |    41 +-
- CHANGES.md                                    |   416 +
+ .gitignore                                    |    43 +-
+ CHANGES.md                                    |   441 +
  LINK                                          |     0
  README.md                                     |   329 +-
+ THIRD-PARTY-NOTICES.txt                       |   618 +
  app/compatibility.manifest                    |    27 +
- app/ctm-usbip-tests.vcxproj                   |   151 +
+ app/ctm-capture.vcxproj                       |    86 -
+ app/ctm-usbip-tests.vcxproj                   |   162 +
  app/ctm-usbip.ico                             |   Bin 156019 -> 30139 bytes
  app/ctm-usbip.rc                              |    26 +-
- app/ctm-usbip.vcxproj                         |    63 +-
+ app/ctm-usbip.vcxproj                         |    76 +-
  attic/README.md                               |    24 +
  attic/device-config-panel-edge.bat            |     9 +
  attic/device-config-panel-edge.ps1            |   327 +
@@ -208,9 +215,10 @@ ENet library, removed with the ENet transport).
  attic/flydigi_apex4_usb.profile               |    24 +
  build-number.ps1                              |   169 +
  build-tests.ps1                               |    86 +
- build.ps1                                     |   110 +-
+ build.ps1                                     |   121 +-
  device-config.md                              |   195 +
  docs/control_port.md                          |   121 +
+ docs/ctm-capture-controls.md                  |    70 -
  docs/images/ds5usbip-advanced-overview.png    |   Bin 0 -> 313356 bytes
  docs/images/ds5usbip-advanced-touchpad.png    |   Bin 0 -> 725906 bytes
  docs/images/ds5usbip-keyboard-sizes.png       |   Bin 0 -> 431047 bytes
@@ -221,14 +229,16 @@ ENet library, removed with the ENet transport).
  docs/images/ds5usbip-tray-menu.png            |   Bin 0 -> 25374 bytes
  docs/rest_api.md                              |   218 +
  docs/steam_puck_knowledge.md                  |     5 +-
+ include/ctm/audio_volume.h                    |    40 +
  include/ctm/build_number.h                    |    23 +
- include/ctm/map/runtime.h                     |    34 +
+ include/ctm/map/runtime.h                     |    42 +-
  include/ctm/product.h                         |    43 +
  include/ctm/protocol.h                        |    65 +-
  installer/build-ds5-installer.ps1             |   126 +
  installer/build-icon.ps1                      |   238 +
  installer/controller-path.txt                 |    68 +
- installer/ds5-usbip.iss                       |   787 ++
+ installer/ctm-usbip.iss                       |     3 +-
+ installer/ds5-usbip.iss                       |   799 ++
  installer/icon-source.png                     |   Bin 0 -> 100705 bytes
  installer/make-icon-ds5.ps1                   |   236 +
  installer/trace-silhouette.py                 |   368 +
@@ -240,12 +250,12 @@ ENet library, removed with the ENet transport).
  profiles/descriptors/ds5e_composite.profile   |    30 +
  profiles/descriptors/virtual_keyboard.profile |    74 +
  profiles/descriptors/virtual_mouse.profile    |    59 +
- release.ps1                                   |   266 +
- src/app/agent.inl                             |  1246 +-
- src/app/agent_session_sweep.inl               |   333 +
+ release.ps1                                   |   264 +
+ src/app/agent.inl                             |  1259 +-
+ src/app/agent_session_sweep.inl               |   331 +
  src/app/cli.inl                               |    66 +-
  src/app/common.inl                            |   166 +-
- src/app/config_move.inl                       |  1525 +++
+ src/app/config_move.inl                       |  1549 +++
  src/app/console_attach.inl                    |    82 +
  src/app/control_caller.inl                    |    48 +
  src/app/device_capabilities.inl               |    75 +
@@ -262,7 +272,7 @@ ENet library, removed with the ENet transport).
  src/app/open_ui.inl                           |   943 ++
  src/app/overlay_window.inl                    |  2472 ++++
  src/app/paired_tv.inl                         |   495 +
- src/app/protocol_level.inl                    |    77 +
+ src/app/protocol_level.inl                    |    86 +
  src/app/quick_switch.inl                      |   373 +
  src/app/quick_switch_session.inl              |   424 +
  src/app/quit_request.inl                      |    28 +
@@ -308,7 +318,10 @@ ENet library, removed with the ENet transport).
  src/backend/bridge.inl                        |   396 +-
  src/backend/bridge_enet.inl                   |   800 --
  src/backend/bt.inl                            |    24 +-
- src/capture/README.md                         |    14 +
+ src/capture/amf_decoder.inl                   |   319 -
+ src/capture/amf_encoder.inl                   |   209 -
+ src/capture/ctm_stream_protocol.h             |    91 -
+ src/capture/main.cpp                          |  3695 ------
  src/config/config_presets.inl                 |   498 +
  src/config/config_store.inl                   |   856 ++
  src/config/config_watcher.inl                 |   171 +
@@ -338,8 +351,8 @@ ENet library, removed with the ENet transport).
  src/input/trigger_effect.inl                  |   637 +
  src/log/capped_log.inl                        |   117 +
  src/log/device_log.inl                        |   233 +
- src/main.cpp                                  |  1073 +-
- src/map/runtime.cpp                           |    90 +-
+ src/main.cpp                                  |  1074 +-
+ src/map/runtime.cpp                           |   203 +-
  src/usbdisplay/README.md                      |    13 +
  src/usbip/device.inl                          |  1068 +-
  src/usbip/fallback_serial.inl                 |    81 +
@@ -367,11 +380,12 @@ ENet library, removed with the ENet transport).
  tests/harness.h                               |    55 +
  tests/held_edges_test.cpp                     |    84 +
  tests/home_folder_test.cpp                    |   178 +
- tests/host_audio_settings_test.cpp            |   125 +
+ tests/host_audio_settings_test.cpp            |   152 +
  tests/input_pace_test.cpp                     |   184 +
  tests/iso_in_pacing_test.cpp                  |   118 +
  tests/key_pulse_test.cpp                      |   148 +
  tests/keyboard_device_test.cpp                |   170 +
+ tests/licence_files_test.cpp                  |    92 +
  tests/lock_screen_rule_test.cpp               |    36 +
  tests/map_defaults_test.cpp                   |   100 +
  tests/mic_report_test.cpp                     |    64 +
@@ -384,7 +398,7 @@ ENet library, removed with the ENet transport).
  tests/paired_tv_test.cpp                      |   319 +
  tests/polling_limits_test.cpp                 |   122 +
  tests/product_version_test.cpp                |    45 +
- tests/protocol_level_test.cpp                 |   101 +
+ tests/protocol_level_test.cpp                 |   112 +
  tests/quick_switch_test.cpp                   |   354 +
  tests/quit_request_test.cpp                   |    69 +
  tests/rebind_test.cpp                         |   784 ++
@@ -393,12 +407,15 @@ ENet library, removed with the ENet transport).
  tests/rumble_floor_test.cpp                   |    87 +
  tests/same_controller_test.cpp                |    49 +
  tests/same_device_test.cpp                    |    95 +
+ tests/sbc_encoder_golden.inl                  |    53 +
+ tests/sbc_encoder_test.cpp                    |   150 +
+ tests/sbc_test_signals.h                      |   171 +
  tests/schema_json_test.cpp                    |   158 +
  tests/stick_mouse_test.cpp                    |   735 ++
  tests/stop_wait_test.cpp                      |    93 +
  tests/stream_commands_test.cpp                |   118 +
  tests/taskbar_rule_test.cpp                   |    46 +
- tests/tests_main.cpp                          |   193 +
+ tests/tests_main.cpp                          |   198 +
  tests/touch_mouse_test.cpp                    |  2591 ++++
  tests/tray_menu_test.cpp                      |   247 +
  tests/trigger_click_test.cpp                  |   928 ++
@@ -413,9 +430,13 @@ ENet library, removed with the ENet transport).
  tests/window_move_test.cpp                    |   136 +
  tests/window_open_rule_test.cpp               |    43 +
  tests/window_size_rule_test.cpp               |   129 +
- tools/controller-config-test-client.html      | 16353 ++++++++++++++++++++++++
+ tools/controller-config-test-client.html      | 16371 ++++++++++++++++++++++++
  tools/create-desktop-shortcut.bat             |    46 +
  tools/create-desktop-shortcut.ps1             |   148 +
  tools/osk-mockups.py                          |   103 +
- 231 files changed, 74224 insertions(+), 1568 deletions(-)
+ tools/sbc-golden-gen/build.bat                |    16 +
+ tools/sbc-golden-gen/ffmpeg_side.cpp          |   117 +
+ tools/sbc-golden-gen/ffmpeg_side.h            |    15 +
+ tools/sbc-golden-gen/main.cpp                 |   131 +
+ 247 files changed, 75792 insertions(+), 6161 deletions(-)
 ```

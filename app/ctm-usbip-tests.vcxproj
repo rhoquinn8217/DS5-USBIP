@@ -50,12 +50,12 @@
            out as two or three wrong ones. The tray icon's tooltip did. -->
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
-      <AdditionalIncludeDirectories>..\include;..\tests;..\src;..\third_party;..\third_party\vcpkg\installed\x64-windows-static\include;..\third_party\ffmpeg\x64\release\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\include;..\tests;..\src;..\third_party;..\third_party\vcpkg\installed\x64-windows-static\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>UNICODE;_UNICODE;NOMINMAX;_WINSOCK_DEPRECATED_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>..\third_party\vcpkg\installed\x64-windows-static\debug\lib;..\third_party\ffmpeg\x64\release\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>setupapi.lib;hid.lib;cfgmgr32.lib;advapi32.lib;opus.lib;avcodec.lib;avutil.lib;ws2_32.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>..\third_party\vcpkg\installed\x64-windows-static\debug\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>setupapi.lib;hid.lib;cfgmgr32.lib;advapi32.lib;opus.lib;ws2_32.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Console</SubSystem>
     </Link>
   </ItemDefinitionGroup>
@@ -66,12 +66,12 @@
       <!-- UTF-8 sources: see the Debug settings above. -->
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <AdditionalIncludeDirectories>..\include;..\tests;..\src;..\third_party;..\third_party\vcpkg\installed\x64-windows-static\include;..\third_party\ffmpeg\x64\release\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\include;..\tests;..\src;..\third_party;..\third_party\vcpkg\installed\x64-windows-static\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>UNICODE;_UNICODE;NOMINMAX;NDEBUG;_WINSOCK_DEPRECATED_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>..\third_party\vcpkg\installed\x64-windows-static\lib;..\third_party\ffmpeg\x64\release\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>setupapi.lib;hid.lib;cfgmgr32.lib;advapi32.lib;opus.lib;avcodec.lib;avutil.lib;ws2_32.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>..\third_party\vcpkg\installed\x64-windows-static\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>setupapi.lib;hid.lib;cfgmgr32.lib;advapi32.lib;opus.lib;ws2_32.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Console</SubSystem>
     </Link>
   </ItemDefinitionGroup>
@@ -79,6 +79,16 @@
        binary provides its own main(). -->
   <ItemGroup>
     <ClCompile Include="..\src\map\runtime.cpp" />
+    <ClCompile Include="..\third_party\sbc\sbc.c">
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="..\third_party\sbc\sbcdsp.c">
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="..\third_party\sbc\sbcenc.c">
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="..\tests\sbc_encoder_test.cpp" />
     <ClCompile Include="..\tests\map_defaults_test.cpp" />
     <ClCompile Include="..\tests\device_config_test.cpp" />
     <ClCompile Include="..\tests\iso_in_pacing_test.cpp" />
@@ -96,6 +106,7 @@
     <ClCompile Include="..\tests\osk_test.cpp" />
     <ClCompile Include="..\tests\window_icon_rule_test.cpp" />
     <ClCompile Include="..\tests\quit_request_test.cpp" />
+    <ClCompile Include="..\tests\licence_files_test.cpp" />
     <ClCompile Include="..\tests\stream_commands_test.cpp" />
     <ClCompile Include="..\tests\taskbar_rule_test.cpp" />
     <ClCompile Include="..\tests\audio_haptics_dsp_test.cpp" />

@@ -18,6 +18,7 @@
 #include "ctm/profile.h"
 #include "ctm/version.h"
 #include "ctm/product.h"
+#include "ctm/audio_volume.h"
 
 #include <hidsdi.h>
 // ⓘ Named outright: WIN32_LEAN_AND_MEAN leaves it out, and usbip/fine_timer.inl

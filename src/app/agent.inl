@@ -874,7 +874,8 @@ static void bridge_session_worker(AgentBridgeSession *session)
             // section is visible.
             //
             // ⚠️ kAudioUnset for anything absent, never zero -- zero is a legal
-            // percentage and means silent.
+            // percentage and means silent. ⭐ Except a DS4's volumes, which are
+            // 100 when absent: ctm/audio_volume.h says why.
             {
                 const int spk  = device_config_int(section.c_str(), "speaker_volume", -1);
                 const int hset = device_config_int(section.c_str(), "headset_volume", -1);
@@ -892,12 +893,11 @@ static void bridge_session_worker(AgentBridgeSession *session)
                 else if (outStr == "headset_mono") mode = 3;
                 else if (outStr == "both")         mode = 4;
 
-                const uint8_t spkByte  = (spk  >= 0 && spk  <= 100)
-                                       ? static_cast<uint8_t>(spk)
-                                       : CtmBridgeProtocol::kAudioUnset;
-                const uint8_t hsetByte = (hset >= 0 && hset <= 100)
-                                       ? static_cast<uint8_t>(hset)
-                                       : CtmBridgeProtocol::kAudioUnset;
+                static_assert(audio_volume::kUnset == CtmBridgeProtocol::kAudioUnset,
+                              "audio_volume.h's unset must be the protocol's");
+                const bool fullWhenUnset = audio_volume::full_when_unset(latencyKind);
+                const uint8_t spkByte  = audio_volume::volume_byte(spk, fullWhenUnset);
+                const uint8_t hsetByte = audio_volume::volume_byte(hset, fullWhenUnset);
 
                 if (spkByte  != CtmBridgeProtocol::kAudioUnset ||
                     hsetByte != CtmBridgeProtocol::kAudioUnset ||
@@ -1320,7 +1320,7 @@ static void handle_agent_client(SOCKET client, const sockaddr_in &peer)
         // ⭐ With this listener's protocol level, and the oldest TV level it
         // works with: the TV refuses to bridge to a listener it is too new for
         // (protocol_level.inl).
-        send_text(client, protocol_level::status_reply());
+        send_text(client, protocol_level::status_reply(g_windows_locked.load()));
         return;
     }
 
@@ -1363,6 +1363,19 @@ static void handle_agent_client(SOCKET client, const sockaddr_in &peer)
                                     << protocol_level::tv_level(line) << ", and this listener needs "
                                     << protocol_level::kMinTv << " or newer";
             send_text(client, tooOld);
+            return;
+        }
+        // ⭐⭐ NOTHING BRIDGES WHILE WINDOWS IS LOCKED (rhoquinn8217, 2026-11-01).
+        // The configs window cannot open over the lock screen, so a config that
+        // took the buttons the PIN needs could not be changed. Unbridged, the
+        // controller is the stream's, with its own buttons, and types the PIN.
+        // ⓘ One already bridged when the lock comes reads no config until the
+        // unlock (lock_screen_rule.inl).
+        if (g_windows_locked.load()) {
+            char peerIp[INET_ADDRSTRLEN] = {};
+            inet_ntop(AF_INET, &peer.sin_addr, peerIp, sizeof(peerIp));
+            device_log::session_s() << "control: BRIDGE_START from " << peerIp << " refused: Windows is locked";
+            send_text(client, protocol_level::kWindowsLocked);
             return;
         }
         std::wstring error;
