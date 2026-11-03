@@ -260,6 +260,43 @@ inline bool ensure_dir(const char *dir)
     return GetLastError() == ERROR_ALREADY_EXISTS;
 }
 
+// ⭐ A CONFIG IS WRITTEN WHOLE OR NOT AT ALL (code review, 2026-11-01). Each
+// writer here truncated its file where it stood and checked only that it
+// opened, so a write that failed halfway -- a full disk, the listener stopped
+// mid-write -- left a config cut short or empty, and its settings with it.
+// The text now goes to a file beside it, which takes the config's place only
+// once all of it is written. ⓘ ".writing" is not ".txt", so a leftover one is
+// never read as a config.
+inline bool write_text_whole(const std::string &path, const std::string &text, std::string *error)
+{
+    const std::string temp = path + ".writing";
+    const std::wstring wTemp(temp.begin(), temp.end());
+    const std::wstring wPath(path.begin(), path.end());
+    bool written = false;
+    {
+        std::ofstream out(temp, std::ios::binary | std::ios::trunc);
+        if (out.is_open()) {
+            out << text;
+            out.close();
+            written = !out.fail();
+        }
+    }
+    if (!written ||
+        !MoveFileExW(wTemp.c_str(), wPath.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
+        DeleteFileW(wTemp.c_str());
+        if (error) *error = "could not write " + path;
+        return false;
+    }
+    return true;
+}
+
+inline bool write_lines_whole(const std::string &path, const std::vector<std::string> &lines, std::string *error)
+{
+    std::string text;
+    for (const std::string &l : lines) text += l + "\r\n";
+    return write_text_whole(path, text, error);
+}
+
 // Parses one file: its settings block into *settings, the rest into *out.
 // ⓘ Touches nothing shared, so it runs with no lock held; reload_all() says why.
 inline bool parse_one(const std::string &name, ConfigFile *out,
@@ -498,8 +535,7 @@ inline bool create_config(const std::string &name, std::string *error)
     // ⛔ BINARY, as every other writer here is. The text below spells its own
     // CRLF, and a text stream on Windows turned each one into CR CR LF (code
     // review, 2026-10-05: found on disk in configs made by New).
-    std::ofstream file(path_for(name), std::ios::binary | std::ios::trunc);
-    if (!file.is_open()) { *error = "could not write " + path_for(name); return false; }
+    std::ostringstream file;
 
     // ⭐ The settings block is written EMPTY, not pre-filled with defaults.
     // "All settings at defaults" and "nothing overridden" are the same thing
@@ -518,7 +554,7 @@ inline bool create_config(const std::string &name, std::string *error)
          << "# Serials linked to this config automatically at bridge time.\r\n"
          << "auto_link =\r\n\r\n"
          << "[" << kSettingsBlock << "]\r\n";
-    file.close();
+    if (!write_text_whole(path_for(name), file.str(), error)) return false;
     {
         // ⛔ The ABSOLUTE path, logged at every create -- the other half of
         // the working-directory line, so a created file can always be found
@@ -589,8 +625,8 @@ inline bool rename_config(const std::string &oldName, const std::string &newName
         in.close();
         if (!lines.empty() && lines[0] == "# " + cfg.name) {
             lines[0] = "# " + newName;
-            std::ofstream out(target, std::ios::binary | std::ios::trunc);
-            for (const std::string &l : lines) out << l << "\r\n";
+            std::string ignored;
+            (void) write_lines_whole(target, lines, &ignored);
         }
     }
     reload_all();
@@ -652,11 +688,7 @@ inline bool copy_config(const std::string &fromName, const std::string &toName,
     (void) clearedClaim;
 
     const std::string target = path_for(toName);
-    {
-        std::ofstream out(target, std::ios::binary | std::ios::trunc);
-        if (!out.is_open()) { *error = "could not write " + target; return false; }
-        for (const std::string &l : lines) out << l << "\r\n";
-    }
+    if (!write_lines_whole(target, lines, error)) return false;
     {
         wchar_t abs[MAX_PATH] = L"?";
         const std::wstring wtarget(target.begin(), target.end());
@@ -760,10 +792,7 @@ inline bool set_setting(const std::string &name, const std::string &key,
         std::string indent;
         for (char c : lines[i]) { if (c == ' ' || c == '\t') indent.push_back(c); else break; }
         lines[i] = indent + key + " = " + value;
-        std::ofstream out(cfg.path, std::ios::binary | std::ios::trunc);
-        if (!out.is_open()) { *error = "could not write " + cfg.path; return false; }
-        for (const std::string &l : lines) out << l << "\r\n";
-        out.close();
+        if (!write_lines_whole(cfg.path, lines, error)) return false;
         reload_all();
         notify_changed();
         return true;
@@ -778,10 +807,7 @@ inline bool set_setting(const std::string &name, const std::string &key,
         while (insert > sectionStart + 1 && trim(lines[insert - 1]).empty()) --insert;
         lines.insert(lines.begin() + insert, key + " = " + value);
     }
-    std::ofstream out(cfg.path, std::ios::binary | std::ios::trunc);
-    if (!out.is_open()) { *error = "could not write " + cfg.path; return false; }
-    for (const std::string &l : lines) out << l << "\r\n";
-    out.close();
+    if (!write_lines_whole(cfg.path, lines, error)) return false;
     reload_all();
     notify_changed();
     return true;
@@ -808,10 +834,7 @@ inline bool set_auto_link_line(const ConfigFile &cfg, const std::string &joined,
         }
     }
     if (!wrote) { *error = cfg.name + " has no auto_link line"; return false; }
-    std::ofstream out(cfg.path, std::ios::binary | std::ios::trunc);
-    if (!out.is_open()) { *error = "could not write " + cfg.path; return false; }
-    for (const std::string &l : lines) out << l << "\r\n";
-    out.close();
+    if (!write_lines_whole(cfg.path, lines, error)) return false;
     reload_all();
     notify_changed();
     return true;
