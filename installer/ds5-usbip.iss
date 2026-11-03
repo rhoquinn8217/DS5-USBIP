@@ -135,6 +135,10 @@ Source: "{#SrcRoot}\maps\*"; DestDir: "{app}\maps"; Flags: ignoreversion recurse
 ; unmodified, and its licence is installed beside the app.
 Source: "{#SrcRoot}\third_party\usbip-win2\{#UsbipInstaller}"; DestDir: "{tmp}"; Flags: deleteafterinstall
 Source: "{#SrcRoot}\third_party\usbip-win2\LICENSE.txt"; DestDir: "{app}"; DestName: "usbip-win2-LICENSE.txt"; Flags: ignoreversion
+; Its own licence, and every other part that is someone else's, named and with
+; their licences in full. tests/licence_files_test.cpp fails when they drift apart.
+Source: "{#SrcRoot}\LICENSE"; DestDir: "{app}"; DestName: "LICENSE.txt"; Flags: ignoreversion
+Source: "{#SrcRoot}\THIRD-PARTY-NOTICES.txt"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#ExeName}"; WorkingDir: "{app}"
