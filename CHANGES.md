@@ -178,12 +178,13 @@ carry it; upstream's own history is unchanged.
 | 2026-11-01 | A long config name no longer takes the auto link mark with it in Quick. The wheel row is one line with an ellipsis and the mark is the last thing in it, so a name too long for the row hid the one thing that says which config is auto linked. Quick opens 0.342 of the screen wide rather than 0.313, which holds a 25 character name of the shape people use, and its large size is 0.429 rather than 0.390 so the two widths keep the same ratio as the two heights -- Quick sizes its text from the height, so a large size that grew taller than it grew wide clipped a name the small one held. The rename box takes 24 characters, one less than the width holds. A name longer than that, made outside DS5-USBIP, still works and still shows the three dots. Simple is unchanged: its row is half the window and already had the room. Page 2.66.130. | `1403a8c`, `991e30a`, merge `e267614` |
 | 2026-10-31 | The quick config switch is on out of the box. It was off until it was ticked, so two of the four ways of opening the Controller Configs window -- the DualSense touchpad pressed with two fingers, and the same press with a finger left down -- did nothing on a fresh install. The default sits beside the key now, as Open on bridge's does, and every save writes `quick_config_switch_default = on` above the switch's line: a window-state.txt without that line was written while the default was off, so its `quick_config_switch = 0` said only that and is dropped once. An install that has the switch turned off since keeps it off, and a file that is gone gives the default. Page 2.66.129. | `1538eff`, merge `bc1c386` |
 | 2026-11-01 | No new bridge while Windows is locked. A bridge asked for then is refused with its reason, and STATUS says `locked=0` or `locked=1`, an optional word that an older TV app ignores. The TV app waits for the unlock, bridges what is ticked once Windows is open, and in the meantime makes a controller on the stream the mouse and keys Windows' sign-in screen needs. A controller already bridged when the lock comes stays, on no config. | `dd7d78c`, merge `96e3b71` |
+| 2026-11-02 | A DS4's speaker over Bluetooth gets its sound from FFmpeg's SBC encoder, copied into the exe as `third_party/sbc`: the same frames byte for byte, so the setup installs no FFmpeg DLL and an upgrade removes the old ones. The capture tool, the last user of `third_party/ffmpeg`, is gone, with that folder and `third_party/AMF`. | `689b44e`, `2aef6ea`, merge `91d54b4` |
 
 ## Files changed
 
 Generated from `git diff origin/main origin/rhqn-main --stat`, excluding
-`third_party/` (29 files, +1333 -6524 -- the GamepadMotionHelpers library,
-upstream's release FFmpeg binaries replacing the repo's debug ones, and the
+`third_party/` (1272 files, +2942 -264776 -- the GamepadMotionHelpers library, FFmpeg's
+SBC encoder copied in where FFmpeg's binaries and the AMF headers were, and the
 ENet library, removed with the ENet transport).
 
 ```
@@ -191,15 +192,16 @@ ENet library, removed with the ENet transport).
  .github/ISSUE_TEMPLATE/bug-report.yml         |   103 +
  .github/ISSUE_TEMPLATE/config.yml             |     5 +
  .github/ISSUE_TEMPLATE/feature-request.yml    |    22 +
- .gitignore                                    |    41 +-
- CHANGES.md                                    |   422 +
+ .gitignore                                    |    43 +-
+ CHANGES.md                                    |   436 +
  LINK                                          |     0
  README.md                                     |   329 +-
  app/compatibility.manifest                    |    27 +
- app/ctm-usbip-tests.vcxproj                   |   151 +
+ app/ctm-capture.vcxproj                       |    86 -
+ app/ctm-usbip-tests.vcxproj                   |   161 +
  app/ctm-usbip.ico                             |   Bin 156019 -> 30139 bytes
  app/ctm-usbip.rc                              |    26 +-
- app/ctm-usbip.vcxproj                         |    63 +-
+ app/ctm-usbip.vcxproj                         |    76 +-
  attic/README.md                               |    24 +
  attic/device-config-panel-edge.bat            |     9 +
  attic/device-config-panel-edge.ps1            |   327 +
@@ -209,9 +211,10 @@ ENet library, removed with the ENet transport).
  attic/flydigi_apex4_usb.profile               |    24 +
  build-number.ps1                              |   169 +
  build-tests.ps1                               |    86 +
- build.ps1                                     |   110 +-
+ build.ps1                                     |   121 +-
  device-config.md                              |   195 +
  docs/control_port.md                          |   121 +
+ docs/ctm-capture-controls.md                  |    70 -
  docs/images/ds5usbip-advanced-overview.png    |   Bin 0 -> 313356 bytes
  docs/images/ds5usbip-advanced-touchpad.png    |   Bin 0 -> 725906 bytes
  docs/images/ds5usbip-keyboard-sizes.png       |   Bin 0 -> 431047 bytes
@@ -223,13 +226,14 @@ ENet library, removed with the ENet transport).
  docs/rest_api.md                              |   218 +
  docs/steam_puck_knowledge.md                  |     5 +-
  include/ctm/build_number.h                    |    23 +
- include/ctm/map/runtime.h                     |    34 +
+ include/ctm/map/runtime.h                     |    42 +-
  include/ctm/product.h                         |    43 +
  include/ctm/protocol.h                        |    65 +-
  installer/build-ds5-installer.ps1             |   126 +
  installer/build-icon.ps1                      |   238 +
  installer/controller-path.txt                 |    68 +
- installer/ds5-usbip.iss                       |   787 ++
+ installer/ctm-usbip.iss                       |     3 +-
+ installer/ds5-usbip.iss                       |   795 ++
  installer/icon-source.png                     |   Bin 0 -> 100705 bytes
  installer/make-icon-ds5.ps1                   |   236 +
  installer/trace-silhouette.py                 |   368 +
@@ -241,7 +245,7 @@ ENet library, removed with the ENet transport).
  profiles/descriptors/ds5e_composite.profile   |    30 +
  profiles/descriptors/virtual_keyboard.profile |    74 +
  profiles/descriptors/virtual_mouse.profile    |    59 +
- release.ps1                                   |   266 +
+ release.ps1                                   |   264 +
  src/app/agent.inl                             |  1259 +-
  src/app/agent_session_sweep.inl               |   333 +
  src/app/cli.inl                               |    66 +-
@@ -309,7 +313,10 @@ ENet library, removed with the ENet transport).
  src/backend/bridge.inl                        |   396 +-
  src/backend/bridge_enet.inl                   |   800 --
  src/backend/bt.inl                            |    24 +-
- src/capture/README.md                         |    14 +
+ src/capture/amf_decoder.inl                   |   319 -
+ src/capture/amf_encoder.inl                   |   209 -
+ src/capture/ctm_stream_protocol.h             |    91 -
+ src/capture/main.cpp                          |  3695 ------
  src/config/config_presets.inl                 |   498 +
  src/config/config_store.inl                   |   856 ++
  src/config/config_watcher.inl                 |   171 +
@@ -340,7 +347,7 @@ ENet library, removed with the ENet transport).
  src/log/capped_log.inl                        |   117 +
  src/log/device_log.inl                        |   233 +
  src/main.cpp                                  |  1073 +-
- src/map/runtime.cpp                           |    90 +-
+ src/map/runtime.cpp                           |   203 +-
  src/usbdisplay/README.md                      |    13 +
  src/usbip/device.inl                          |  1068 +-
  src/usbip/fallback_serial.inl                 |    81 +
@@ -394,12 +401,15 @@ ENet library, removed with the ENet transport).
  tests/rumble_floor_test.cpp                   |    87 +
  tests/same_controller_test.cpp                |    49 +
  tests/same_device_test.cpp                    |    95 +
+ tests/sbc_encoder_golden.inl                  |    53 +
+ tests/sbc_encoder_test.cpp                    |   150 +
+ tests/sbc_test_signals.h                      |   171 +
  tests/schema_json_test.cpp                    |   158 +
  tests/stick_mouse_test.cpp                    |   735 ++
  tests/stop_wait_test.cpp                      |    93 +
  tests/stream_commands_test.cpp                |   118 +
  tests/taskbar_rule_test.cpp                   |    46 +
- tests/tests_main.cpp                          |   193 +
+ tests/tests_main.cpp                          |   195 +
  tests/touch_mouse_test.cpp                    |  2591 ++++
  tests/tray_menu_test.cpp                      |   247 +
  tests/trigger_click_test.cpp                  |   928 ++
@@ -418,5 +428,9 @@ ENet library, removed with the ENet transport).
  tools/create-desktop-shortcut.bat             |    46 +
  tools/create-desktop-shortcut.ps1             |   148 +
  tools/osk-mockups.py                          |   103 +
- 231 files changed, 74305 insertions(+), 1568 deletions(-)
+ tools/sbc-golden-gen/build.bat                |    16 +
+ tools/sbc-golden-gen/ffmpeg_side.cpp          |   117 +
+ tools/sbc-golden-gen/ffmpeg_side.h            |    15 +
+ tools/sbc-golden-gen/main.cpp                 |   131 +
+ 244 files changed, 75003 insertions(+), 6161 deletions(-)
 ```
