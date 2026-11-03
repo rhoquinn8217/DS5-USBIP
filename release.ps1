@@ -105,7 +105,6 @@ New-Item -ItemType Directory -Force -Path (Join-Path $stage 'profiles\descriptor
 New-Item -ItemType Directory -Force -Path (Join-Path $stage 'maps') | Out-Null
 
 Copy-Item -Force -Path (Join-Path $binaries 'DS5-USBIP.exe') -Destination $stage
-Copy-Item -Force -Path (Join-Path $binaries '*.dll') -Destination $stage
 
 # ⛔ Copied from the REPO, not from the build output. The build output is a
 # staging area that accumulates whatever ran there -- a profile someone dropped
@@ -176,7 +175,6 @@ What is in here, and what each part is for:
 
     DS5-USBIP.exe             the listener: double-click it
     create-desktop-shortcut.bat   puts a shortcut to it on your desktop
-    *.dll                     ffmpeg, for audio
     profiles\descriptors\     what each controller looks like over USB
     maps\                     how its reports translate
 
