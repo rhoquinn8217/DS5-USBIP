@@ -32,6 +32,9 @@
 // two finger swipe up or down is disabled and only control the wheel"*). The
 // config's own swipe up and down and its two-finger scroll stand aside there;
 // one finger alone still moves the cursor.
+// ⭐ AND THE RIGHT STICK, UP OR DOWN, WHILE A FINGER HOLDS THE WINDOW UP
+// (rhoquinn8217, 2026-11-03; quick_switch::stick_steps): a step a push, the
+// stick mouse standing aside meanwhile (holds_stick).
 // ⓘ A press with the window already in front opens nothing: it is there.
 // ⓘ Advanced has no wheel: a swipe there steps nothing.
 //
@@ -81,6 +84,7 @@ struct PadState {
     quick_switch::Armed armed;      // pressed with two fingers: the window comes as it comes up
     quick_switch::Swipes swipes;    // each finger's swipe while the window is open
     quick_switch::Swipes front;     // the same, with the wheel in front and both fingers down
+    quick_switch::Stick stick;      // the right stick's pushes while the window is open
 };
 
 inline std::mutex g_mutex;
@@ -167,9 +171,11 @@ inline void close_when_sent(unsigned id)
 }
 
 // Every report of a pad with a touchpad, read before anything changes the
-// report: whether the pad is pressed in, and each of its two fingers -- down
-// or not, the id the pad gave its touch, and where it is.
-inline void report(const void *deviceKey, bool pressed, const quick_switch::Touch (&touch)[2])
+// report: whether the pad is pressed in, each of its two fingers -- down or
+// not, the id the pad gave its touch, and where it is -- and its right stick,
+// when the report holds one (haveStick), up negative.
+inline void report(const void *deviceKey, bool pressed, const quick_switch::Touch (&touch)[2],
+                   bool haveStick, float rx, float ry)
 {
     const int fingers = (touch[0].down ? 1 : 0) + (touch[1].down ? 1 : 0);
     if (!config_move::quick_switch_on()) {
@@ -196,6 +202,7 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
     enum class Did { Nothing, Armed, Opened, TooLong, Stepped, Lifted, Kept, InFront, SomeoneElse };
     Did did = Did::Nothing;
     int step = 0;
+    bool byStick = false;
     unsigned closer = 0;
     unsigned opened = 0;
     unsigned kept = 0;
@@ -212,7 +219,11 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
             // ⓘ Each finger by itself, not the two together: a thumb swiping
             // beside a resting one moves their midpoint as well, and would
             // step twice.
-            const int steps = quick_switch::swipe_steps(ps.swipes, touch);
+            const int swiped = quick_switch::swipe_steps(ps.swipes, touch);
+            // ⭐ And the right stick's push, a step as a swipe is. Read on
+            // every report, so it knows when the stick has come back.
+            const int pushed = haveStick ? quick_switch::stick_steps(ps.stick, rx, ry) : 0;
+            const int steps = swiped != 0 ? swiped : pushed;
             switch (quick_switch::while_held(pressEdge, fingers, steps)) {
             case quick_switch::Held::Close:
                 s.ending = true;
@@ -234,6 +245,7 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
             case quick_switch::Held::Step:
                 quick_switch::queue(s.keys, steps);
                 step = steps;
+                byStick = swiped == 0;
                 did = Did::Stepped;
                 break;
             case quick_switch::Held::Stay:
@@ -265,6 +277,7 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
                 s.id = g_nextId++;
                 opened = s.id;
                 ps.swipes = quick_switch::Swipes();
+                ps.stick = quick_switch::Stick();
                 did = Did::Opened;
                 break;
             case quick_switch::Up::TooLong:
@@ -349,6 +362,7 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
                                "and the touchpad is the config's again" :
             did == Did::InFront ? "two fingers pressed, with the window in front already" :
             did == Did::SomeoneElse ? "the touchpad, while another controller is switching" :
+            byStick ? (step > 0 ? "right stick down: the next config" : "right stick up: the config before") :
             step > 0 ? "up: the next config" : "down: the config before"));
 }
 
@@ -387,6 +401,19 @@ inline bool holds_touchpad(const void *deviceKey, int fingers, bool pressed)
     return s.active && s.device == deviceKey && s.pressed && !s.ending;
 }
 
+// Whether the pad's sticks are the switch's right now, kept from the stick
+// mouse (stick_mouse.inl): every report from the window opening until the last
+// finger lifts or a second press keeps it, while the right stick steps the
+// wheel. ⓘ The stick mouse stands aside whole, either stick, as it does while
+// a stick steers a window.
+inline bool holds_stick(const void *deviceKey)
+{
+    if (!config_move::quick_switch_on()) return false;
+    std::lock_guard<std::mutex> lock(g_mutex);
+    const Session &s = g_session;
+    return s.active && s.device == deviceKey && s.pressed && !s.ending;
+}
+
 }  // namespace quick_switch_session
 
 // ⓘ For the declarations in main.cpp: rebind.inl, touch_mouse.inl and
@@ -394,10 +421,16 @@ inline bool holds_touchpad(const void *deviceKey, int fingers, bool pressed)
 // this file.
 void quick_switch_report(const void *deviceKey, bool pressed,
                          bool down0, int id0, float x0, float y0,
-                         bool down1, int id1, float x1, float y1)
+                         bool down1, int id1, float x1, float y1,
+                         bool haveStick, float rx, float ry)
 {
     const quick_switch::Touch touch[2] = { { down0, id0, x0, y0 }, { down1, id1, x1, y1 } };
-    quick_switch_session::report(deviceKey, pressed, touch);
+    quick_switch_session::report(deviceKey, pressed, touch, haveStick, rx, ry);
+}
+
+bool quick_switch_holds_stick(const void *deviceKey)
+{
+    return quick_switch_session::holds_stick(deviceKey);
 }
 
 const char *quick_switch_key(const void *deviceKey)

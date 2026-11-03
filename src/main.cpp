@@ -149,8 +149,12 @@ void ui_set_quick_switch(bool on);
  * layout to show as it opens (rest_config.inl). */
 void quick_switch_report(const void *deviceKey, bool pressed,
                          bool down0, int id0, float x0, float y0,
-                         bool down1, int id1, float x1, float y1);
+                         bool down1, int id1, float x1, float y1,
+                         bool haveStick, float rx, float ry);
 bool quick_switch_holds_touchpad(const void *deviceKey, int fingers, bool pressed);
+/* ...and whether its right stick is stepping the wheel, so the stick mouse
+ * stands aside (stick_mouse.inl). */
+bool quick_switch_holds_stick(const void *deviceKey);
 const char *quick_switch_key(const void *deviceKey);
 bool quick_switch_has_vertical_swipes();
 void quick_switch_page_asked_view();

@@ -275,6 +275,41 @@ inline int front_steps(Swipes &s, bool armed, const Touch (&now)[2])
     return swipe_steps(s, now);
 }
 
+// ⭐ THE RIGHT STICK STEPS IT TOO, WHILE A FINGER HOLDS THE WINDOW UP
+// (rhoquinn8217, 2026-11-03: "whenever the quick mode is being held up by
+// resting a finger on the touchpad, I want right stick to up and down to move
+// the wheel"). One step a push, as a swipe steps once: past kStickStepAt up or
+// down, at least as far as it went sideways, as a swipe is judged, and nothing
+// more until the stick has come
+// back within kStickRearmAt of the middle. ⓘ Up is the config above, as the
+// d-pad's up is on the wheel; a swipe up is the one below, the wheel
+// following the finger.
+// ⓘ It starts unarmed, so a stick already pushed as the window opens steps
+// nothing until it has come back.
+constexpr float kStickStepAt = 0.6f;
+constexpr float kStickRearmAt = 0.3f;
+
+struct Stick {
+    bool armed = false;   // back near the middle since its last step
+};
+
+// The step this report makes: -1 for a push up (the config above), +1 down,
+// 0 none. ⓘ x and y as stick_axis gives them, from -1 to +1, up negative.
+inline int stick_steps(Stick &s, float x, float y)
+{
+    const float ax = x < 0 ? -x : x;
+    const float ay = y < 0 ? -y : y;
+    if (!s.armed) {
+        if (ax < kStickRearmAt && ay < kStickRearmAt) s.armed = true;
+        return 0;
+    }
+    if (ay >= kStickStepAt && ay >= ax) {
+        s.armed = false;
+        return y < 0 ? -1 : 1;
+    }
+    return 0;
+}
+
 // ⭐ THE PAGE HEARS A STEP AS A KEY: KeyJ for the next config, KeyK for the
 // one before, with the gate's three modifiers (rebind.inl), held a moment and
 // let go, one at a time. The page's CONFIG_MODE_KEYS turn them into a step of

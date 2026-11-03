@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.130 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.134 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,29 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.134 The Overview's box is "Two finger touchpad quick switch"
+             ("rename the setting in the overview to 'Two finger touchpad
+             quick switch'"), in Advanced's tour as well; and its help and
+             that step say the right stick up or down changes the config
+             while a finger holds Quick up, which the listener does now.
+    2.66.133 "Preset" on screen where it said "pre-set" ("yes change all
+             three to preset"): the title of the list New opens, the box
+             after Use this, and Simple's tour's opening card, as the
+             tour's steps say it since 2.66.132.
+    2.66.132 L3's mark is in Simple's legend, as "next tip", and no longer
+             beside the tip ("Move the L3 symbol near the hint to the legend
+             in simple mode"); LS on an Xbox pad and H on a keyboard with it.
+             The tips and Simple's tour in rhoquinn8217's words: tip 5 draws
+             one button, the pad's own ("show only 1 button based on the
+             controller connected"); the tip saying this window opens on
+             every bridge is gone ("tip 10: remove"), a bridge opening it
+             only with Open on bridge ticked; and steps 5, 10, 14, 15 and 17
+             reworded, 14 and 15 in all three tours, whose steps share them.
+             And Simple's window is 0.49 of the screen wide, from 0.45, and
+             its large size 0.611 from 0.56, just enough for the legend to
+             be one line ("widen the simple mode window just enough for the
+             legend to be 1 line"); kCompactSizes in config_move.inl with it.
+             (2.66.131 is taken on another branch.)
     2.66.130 A long config name no longer takes the auto link mark with it
              in Quick. The wheel row is one line with an ellipsis and the
              mark is last in it, so a name too long for the row hid the one
@@ -2315,13 +2338,6 @@
                        font-size:calc(2.3 * var(--vh)); color:#c8c9ce; text-align:center; line-height:1.4;
     max-width:80vw; }
   #compactBox .cinfo b { color:#e8e8ea; }
-  /* ⭐ L3'S MARK AT THE TIP'S RIGHT (rhoquinn8217, 2026-10-28: "Put the L3
-     button symbol at the right of the hint."): the words and the mark as one
-     centred line, the mark beside them, centred on them whether they take one
-     line or two. */
-  #compactBox .cinfo .ctipline { display:inline-flex; align-items:center; gap:0.55em;
-    max-width:100%; vertical-align:top; }
-  #compactBox .cinfo .ctip { min-width:0; }
   /* ⭐ The footer's two corners: Configurator bottom-left, Close bottom-right,
      away from the actions under the selector (rhoquinn8217, 2026-09-09). */
   /* ⛔⛔ THE MODE PICKER IS SIZED WITH THE FOOTER'S BUTTONS, NOT WITH THE
@@ -3213,8 +3229,8 @@
          Painted by paintQuickSwitch(); a pad stop of its own
          (data-gp-focus), as Open on bridge has. -->
     <label class="ovcheck ovnext" id="quickSwitchLabel"
-      title="Unticked: the touchpad does what the config says. Tick it to switch configs by pressing the touchpad with two fingers."><input type="checkbox" id="quickSwitch" data-gp-focus="1" onchange="toggleQuickSwitch()">Press the touchpad with two fingers to switch configs</label>
-    <div class="ovhelp">Every controller: Quick view opens as the press comes up and stays while a finger rests on the touchpad; a press held four seconds is the TV's release, and opens nothing. Each swipe of another finger up or down changes the config, and pressing again keeps the window, in the layout you had open last. Until then the touchpad reaches neither Windows nor the game. In Simple and Quick, the same swipe beside a resting thumb moves the wheel, with no press.</div>
+      title="Unticked: the touchpad does what the config says. Tick it to switch configs by pressing the touchpad with two fingers."><input type="checkbox" id="quickSwitch" data-gp-focus="1" onchange="toggleQuickSwitch()">Two finger touchpad quick switch</label>
+    <div class="ovhelp">Every controller: Quick view opens as the press comes up and stays while a finger rests on the touchpad; a press held four seconds is the TV's release, and opens nothing. Each swipe of another finger up or down, or each push of the right stick up or down, changes the config, and pressing again keeps the window, in the layout you had open last. Until then the touchpad reaches neither Windows nor the game. In Simple and Quick, the same swipe beside a resting thumb moves the wheel, with no press.</div>
   </div>
   <div class="ovcard conn">
     <!-- ⓘ The light is this card's own (paintConnLight). The line beside
@@ -3284,7 +3300,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.66.130</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.66.134</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -3333,7 +3349,7 @@
 
 <div id="presetBox" style="display:none">
   <div class="confirmCard">
-    <h2>Select pre-set</h2>
+    <h2>Select preset</h2>
     <div id="presetList"></div>
     <div class="confirmBtns">
       <button onclick="presetCancel()">Cancel</button>
@@ -4695,7 +4711,7 @@ var PAD_LEGEND_PS = {
   // an Xbox pad and PgDn and PgUp on a keyboard, drawn on those buttons.
   next: 'R2', prev: 'L2',
   // ⭐ L3 goes to Simple's next tip (2.66.116), LS on an Xbox pad and H on a
-  // keyboard, its mark at the tip's right.
+  // keyboard, its mark in Simple's legend (2.66.132).
   tip: 'L3',
   // ⭐ The d-pad is the same shape on every pad, so both tables carry the
   // same glyph. It lives here rather than in the strings, so a family that
@@ -5518,11 +5534,15 @@ var FOOTER_HINTS = [
   'bring back this window. You can also open the DS5-USBIP virtual keyboard ' +
   'from there.',
 
-  // ⓘ Both pads' buttons, as the words always gave both.
+  // ⭐ ONE BUTTON, THE PAD'S OWN (rhoquinn8217, 2026-11-02: *"tip 5 uses
+  // [Square]/[Xbox X] when it should show only 1 button based on the
+  // controller connected"*): Square on a PlayStation pad, X on an Xbox one,
+  // and with a keyboard in hand the shown controller's (buttonMarkSet).
   function () {
+    var set = buttonMarkSet();
     return 'Give a pad a <b>stick, gyro or touchpad to mouse</b> preset and it drives ' +
-      'this PC with no mouse or keyboard. Presets use ' + keyCap('□', PAD_LEGEND_PS) +
-      '/' + keyCap('X', PAD_LEGEND_XBOX) + ' to open the DS5-USBIP virtual keyboard.';
+      'this PC with no mouse or keyboard. Presets use ' + keyCap(set.toggle, set) +
+      ' to open the DS5-USBIP virtual keyboard.';
   },
 
   "Bridged controllers don't reach the <b>game</b> while this window is open. " +
@@ -5543,13 +5563,14 @@ var FOOTER_HINTS = [
       keyCap(L.position) + ' moves this window, ' + keyCap(L.resize) + ' resizes it.';
   },
 
-  // ⓘ The wording of this one and of the two after it is rhoquinn8217's
-  // own (2026-10-01), given after seeing the first eight on screen.
+  // ⓘ The wording of this one and of the next is rhoquinn8217's own
+  // (2026-10-01), given after seeing the first eight on screen. A third of
+  // theirs between the two, that this window opens whenever a device is
+  // bridged, went at their word (2026-11-02, "tip 10: remove"): a bridge
+  // opens it only with Open on bridge ticked, off out of the box.
   'Every bridged controller gets a name like <b>Titan</b> or <b>Wasabi</b>, a ' +
   'quick identifier for multi-controller games. It is a new name each time it ' +
   'connects.',
-
-  'This window opens whenever a device is <b>bridged</b>.',
 
   'Use <b>Quick</b> mode mid-game to quickly switch between controller configs.',
 
@@ -5587,7 +5608,6 @@ var HINT_EVERY_MS = 30000;
 function hintAdvance() {
   if (!COMPACT || QUICK) return;
   HINT_AT = (HINT_AT + 1) % FOOTER_HINTS.length;
-  // ⓘ The words only: L3's mark beside them stays (2.66.116).
   var el = document.querySelector('#compactBox .cinfo .ctip');
   if (el) el.innerHTML = hintHtml(HINT_AT);
 }
@@ -6034,7 +6054,7 @@ function createFromPreset(ordinal, preset) {
       // the game, or stay and customise it (rhoquinn8217, 2026-09-09).
       // "Customize it" is the configurator on this controller, where the
       // new config's settings are; "Go back" is the compact view as it was.
-      if (COMPACT) compactAskExit('Pre-set config created!', [
+      if (COMPACT) compactAskExit('Preset config created!', [
         { label: 'Try it out now', act: closeWindow },
         { label: 'Customize it', act: function () { setCompact(false); } },
         { label: 'Go back' }]);
@@ -8830,7 +8850,7 @@ function gpActivate() {
     // that was the whole of the argument for calling this a coin-flip
     // preference. `config_move.inl` gives Quick a size table of ITS OWN:
     //
-    //     Simple  kCompactSizes  0.45  x 0.45  of the screen
+    //     Simple  kCompactSizes  0.49  x 0.3879  of the screen (0.45 x 0.45 when this was written)
     //     Quick   kQuickSizes    0.342 x 0.196   (0.313 wide until 2.66.130, 0.278 x 0.150 until 2.66.87)
     //
     // ➡️ **Simple's window is THREE TIMES TALLER than Quick's.** So the
@@ -10654,7 +10674,7 @@ function setMode(m, restore) {
   }
 }
 
-// ⓘ Simple opens at the smaller of its two sizes, 0.45 each way, centred --
+// ⓘ Simple opens at the smaller of its two sizes (compactSize), centred --
 // the listener's table agrees, so R3 cycles from where the window actually
 // is (rhoquinn8217, 2026-09-09: two sizes per layout).
 // ⛔ The quarter off the width and the sixth off the height were both taken
@@ -10677,8 +10697,10 @@ function compactHome(w, h) {
 // ⓘ 0.3879 of the screen's height since 2026-10-22, from 0.45 ("shrink the
 // height of the window"), its sizes kept by Simple's --vh; kCompactSizes in
 // config_move.inl is the other placer, and moves with this.
+// ⭐ 0.49 OF ITS WIDTH SINCE 2.66.132, from 0.45, just enough for the
+// footer's legend to be one line (rhoquinn8217, 2026-11-02).
 function compactSize() {
-  compactHome(Math.round(screen.availWidth * 0.45),
+  compactHome(Math.round(screen.availWidth * 0.49),
               Math.round(screen.availHeight * 0.3879));
 }
 
@@ -11538,12 +11560,15 @@ function paintCompact() {
                         // ⭐ Square and Triangle on the config selector (2.66.84).
                         [keyCap(LG.unlink), 'unlink'], [keyCap(LG.autolink), 'auto link'],
                         [keyCap(LG.position), 'position'], [keyCap(LG.resize), 'resize'],
-                        [keyCap(LG.close), 'to close']]) + '</div>' +
+                        [keyCap(LG.close), 'to close'],
+                        // ⭐ L3 IN THE LEGEND, NOT BESIDE THE TIP (2.66.132;
+                        // rhoquinn8217, 2026-11-02: *"Move the L3 symbol near the
+                        // hint to the legend in simple mode."*).
+                        [keyCap(LG.tip), 'next tip']]) + '</div>' +
             '<div class="cinfo" title="Click for the next tip" ' +
             'onmouseenter="HINT_HELD = true" onmouseleave="HINT_HELD = false" ' +
             'onmousedown="hintPressed(event)" onmouseup="hintReleased(event)">' +
-            '<span class="ctipline"><span class="ctip">' + hintHtml(HINT_AT) + '</span>' +
-            keyCap(LG.tip) + '</span></div>' +
+            '<span class="ctip">' + hintHtml(HINT_AT) + '</span></div>' +
             '</div>' + modeGroupHtml() +
             '<button class="cclose" onclick="closeWindow()">Close</button></div>';
   }
@@ -12574,7 +12599,7 @@ function selfTest() {
   // ⓘ Rendering is not testable from here. The two-line reservation
   // (min-height:2.8em) is still measured by eye at Simple's width.
   {
-    ok('every hint is present', FOOTER_HINTS.length === 12,
+    ok('every hint is present', FOOTER_HINTS.length === 11,
        'got ' + FOOTER_HINTS.length);
     var allText = true, i;
     for (i = 0; i < FOOTER_HINTS.length; i++) {
@@ -12597,10 +12622,16 @@ function selfTest() {
     LAST_PRESS_KIND = 'ds5';
     ok('hint 8 names L1 and R1 for a DualSense', hintHtml(7).indexOf('aria-label="L1"') >= 0, hintHtml(7));
     // ⓘ The tips draw their buttons as the legend does (2.66.87): Options in
-    // hint 1 and hint 3, Square and an Xbox pad's X in hint 5.
+    // hint 1 and hint 3, and in hint 5 one button, the pad's own (2.66.132):
+    // Square for a DualSense, an Xbox pad's X for an Xbox pad.
+    var squareMark = PS_SHAPES['□'];
     ok('the tips draw their buttons',
        hintHtml(0).indexOf('class="kps"') >= 0 && hintHtml(2).indexOf('class="kps"') >= 0 &&
-       hintHtml(4).indexOf('aria-label="X"') >= 0 && hintHtml(4).indexOf('<b>□') < 0,
+       !!squareMark && hintHtml(4).indexOf(squareMark) >= 0 &&
+       hintHtml(4).indexOf('aria-label="X"') < 0, hintHtml(4));
+    LAST_PRESS_KIND = 'xbox';
+    ok('hint 5 draws an Xbox pad\'s X alone for an Xbox pad',
+       hintHtml(4).indexOf('aria-label="X"') >= 0 && hintHtml(4).indexOf(squareMark) < 0,
        hintHtml(4));
     INPUT_LAST = savedInput;
     LAST_PRESS_KIND = savedKind;
@@ -14143,7 +14174,7 @@ function tutEl(x) {
   return el && el.isConnected ? el : null;
 }
 
-// ⭐ THE BOX AFTER A CONFIG IS MADE: "Pre-set config created!", with Try it
+// ⭐ THE BOX AFTER A CONFIG IS MADE: "Preset config created!", with Try it
 // out now, Customize it and Go back (createFromPreset). Up, or put up again
 // for a step gone back to.
 function tutCreatedUp() {
@@ -14151,7 +14182,7 @@ function tutCreatedUp() {
   return !!CONFIRM_CB && !!box && box.classList.contains('cexit');
 }
 function tutCreatedBox() {
-  compactAskExit('Pre-set config created!', [
+  compactAskExit('Preset config created!', [
     { label: 'Try it out now', act: closeWindow },
     { label: 'Customize it', act: function () { setCompact(false); } },
     { label: 'Go back' }]);
@@ -14249,8 +14280,9 @@ function tutWordsAutoLink(press, also) {
   var p = tutPad(), now = p ? TUT_MOCK.links[p.ordinal] : '';
   var was = p && TUT_MOCK.was ? TUT_MOCK.was[p.ordinal] : '';
   var back = now && now === was ? tutHl(now) + ' is selected again. ' : '';
-  return back + 'Press ' + press + ': ' + tutNick() + ' will pick ' + (back ? 'it' : 'the selected config') +
-         " by itself every time it's bridged." + (also || '');
+  // ⓘ Their words, in all three tours (rhoquinn8217, 2026-11-02).
+  return back + 'Press ' + press + ': Whenever this specific controller is bridged, it will link ' +
+         'this selected config every time.' + (also || '');
 }
 function tutWordsMark() {
   var p = tutPad(), name = p ? tutAutoOf(p.ordinal) : '';
@@ -14261,9 +14293,10 @@ function tutWordsMark() {
 function tutWordsUnlink(press, also) {
   return 'Press ' + press + ': ' + tutNick() + ' stops using a config.' + (also || '');
 }
+// ⓘ Their words, in all three tours (rhoquinn8217, 2026-11-02).
 function tutWordsNoConfig() {
   return tutNick() + ' has no config now: ' + tutHl('(no config)') + ' is selected, so ' + tutNick() +
-         ' works as a plain controller.';
+         ' works normally without any rebinds.';
 }
 // ⓘ A tap and a hold (rhoquinn8217, 2026-10-28: *"explain that tap cycle
 // through set location and holding allows you to freely position it with
@@ -14581,7 +14614,8 @@ var TUT_SIMPLE = [
     anchors: function () { return [PRESET_OPEN ? tutPresetRow() : tutNewBtn()]; },
     hits: function () { return [PRESET_OPEN ? tutPresetRow() : tutNewBtn()]; },
     words: function () {
-      return 'Press ' + tutHl('New') + ', then choose ' + tutHl('stick-to-mouse') + ': a pre-set ' +
+      // ⓘ "preset", as everywhere else in the tour (rhoquinn8217, 2026-11-02).
+      return 'Press ' + tutHl('New') + ', then choose ' + tutHl('stick-to-mouse') + ': a preset ' +
              'is a ready-made config to start from.';
     },
     done: function () { return PRESET_INFO_OPEN === 'stick-to-mouse'; } },
@@ -14622,9 +14656,10 @@ var TUT_SIMPLE = [
     tick: function () { tutBoxLocks(tutCreatedUp()); },
     lit: function () { return tutCreatedUp() ? tutConfirmCard() : []; },
     words: function () {
+      // ⓘ Their words (rhoquinn8217, 2026-11-02).
       return tutNick() + ' uses your new config now. ' + tutHl('Try it out now') + ' closes this ' +
-             'window so you can try it in a game, and ' + tutHl('Customize it') + ' opens it in ' +
-             'Advanced Mode. For this tour, choose ' + tutHl('Go back') + ' in the box.';
+             'window so you can start using it, and ' + tutHl('Customize it') + ' opens it in ' +
+             'Advanced Mode to customize it. For this tour, choose ' + tutHl('Go back') + ' in the box.';
     },
     done: function () { return !CONFIRM_CB; } },
   // 11 (rhoquinn8217, 2026-10-28: *"After the creating a config and then
@@ -14686,8 +14721,10 @@ var TUT_SIMPLE = [
     anchors: function () { return tutQ('.csbtns .carchive-btn'); },
     hits: function () { return tutQ('.csbtns .carchive-btn'); },
     words: function () {
-      return tutHl('Archive') + ' puts the selected config away: press ' + tutHl('Archive') +
-             ', then choose ' + tutHl('OK') + ', and ' + tutNick() + ' has no config again.';
+      // ⓘ Their words (rhoquinn8217, 2026-11-02): the folder is configs\archive.
+      return tutHl('Archive') + ' puts the selected config away in an archived folder: press ' +
+             tutHl('Archive') + ', then choose ' + tutHl('OK') + ', and ' + tutNick() +
+             ' has no config again.';
     },
     done: function () { return !!TUT.made && TUT_MOCK.configs.indexOf(TUT.made) < 0; } },
   // 18: the window's position, a tap or a hold, as in Quick's. Options
@@ -14997,10 +15034,12 @@ var TUT_ADVANCED = [
   { side: 'left', enter: tutAdvOverview, lit: function () { return tutAdvSwitch('quickSwitch'); },
     anchors: function () { return tutA('#quickSwitch'); },
     words: function () {
-      return 'Ticked, ' + tutHl('Press the touchpad with two fingers to switch configs') + ' switches ' +
+      // ⓘ The box's name as rhoquinn8217 gave it (2026-11-03), and the right
+      // stick beside the swipe since the same day.
+      return 'Ticked, ' + tutHl('Two finger touchpad quick switch') + ' switches ' +
              'configs mid-game: press the touchpad with two fingers and Quick opens while a finger rests ' +
-             'on it. Swipe another finger up or down to change the config; lifting closes it, and ' +
-             'pressing again keeps it open.';
+             'on it. Swipe another finger up or down, or push the right stick up or down, to change the ' +
+             'config; lifting closes it, and pressing again keeps it open.';
     } },
   // 3: the controllers bridged, a row each, and its heading.
   { side: 'left', enter: tutAdvOverview,
@@ -15260,7 +15299,7 @@ var TUT_CARDS = {
   quick: { title: 'Quick mode tutorial',
            words: 'A short tour with practice controllers: nothing in it changes your real ones.' },
   simple: { title: 'Simple mode tutorial',
-            words: 'A short tour with practice controllers: make a config from a pre-set, and ' +
+            words: 'A short tour with practice controllers: make a config from a preset, and ' +
                    'manage the ones you have. Nothing in it changes your real ones.' },
   advanced: { title: 'Advanced mode tutorial',
               words: 'A short tour with practice controllers: make a config and name it, rebind a ' +
