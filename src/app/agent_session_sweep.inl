@@ -283,7 +283,8 @@ static void apply_pending_config_to_sessions()
         // appeared. ➡️ **Settings reach a live session through the sweep.**
         //
         // ⚠️ kAudioUnset for anything absent, NEVER zero -- zero is a legal
-        // percentage and means silent.
+        // percentage and means silent. ⭐ Except a DS4's volumes, which are 100
+        // when absent: ctm/audio_volume.h says why.
         {
             const int spk  = device_config_int(latencySection.c_str(), "speaker_volume", -1);
             const int hset = device_config_int(latencySection.c_str(), "headset_volume", -1);
@@ -300,12 +301,9 @@ static void apply_pending_config_to_sessions()
             else if (outStr == "headset_mono") mode = 3;
             else if (outStr == "both")         mode = 4;
 
-            const uint8_t spkByte  = (spk  >= 0 && spk  <= 100)
-                                   ? static_cast<uint8_t>(spk)
-                                   : CtmBridgeProtocol::kAudioUnset;
-            const uint8_t hsetByte = (hset >= 0 && hset <= 100)
-                                   ? static_cast<uint8_t>(hset)
-                                   : CtmBridgeProtocol::kAudioUnset;
+            const bool fullWhenUnset = audio_volume::full_when_unset(settingsKind);
+            const uint8_t spkByte  = audio_volume::volume_byte(spk, fullWhenUnset);
+            const uint8_t hsetByte = audio_volume::volume_byte(hset, fullWhenUnset);
 
             if (spkByte  != CtmBridgeProtocol::kAudioUnset ||
                 hsetByte != CtmBridgeProtocol::kAudioUnset ||
