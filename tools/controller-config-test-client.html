@@ -2,7 +2,7 @@
 <!--
   Test client for the per-controller config REST API.
 
-  VERSION 2.66.132 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.133 -- see the changelog at the bottom of this comment.
 
   WHAT THIS IS FOR. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -25,6 +25,10 @@
   tidy message about it.
 
   CHANGELOG
+    2.66.133 "Preset" on screen where it said "pre-set" ("yes change all
+             three to preset"): the title of the list New opens, the box
+             after Use this, and Simple's tour's opening card, as the
+             tour's steps say it since 2.66.132.
     2.66.132 L3's mark is in Simple's legend, as "next tip", and no longer
              beside the tip ("Move the L3 symbol near the hint to the legend
              in simple mode"); LS on an Xbox pad and H on a keyboard with it.
@@ -3291,7 +3295,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.66.132</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.66.133</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -3340,7 +3344,7 @@
 
 <div id="presetBox" style="display:none">
   <div class="confirmCard">
-    <h2>Select pre-set</h2>
+    <h2>Select preset</h2>
     <div id="presetList"></div>
     <div class="confirmBtns">
       <button onclick="presetCancel()">Cancel</button>
@@ -6045,7 +6049,7 @@ function createFromPreset(ordinal, preset) {
       // the game, or stay and customise it (rhoquinn8217, 2026-09-09).
       // "Customize it" is the configurator on this controller, where the
       // new config's settings are; "Go back" is the compact view as it was.
-      if (COMPACT) compactAskExit('Pre-set config created!', [
+      if (COMPACT) compactAskExit('Preset config created!', [
         { label: 'Try it out now', act: closeWindow },
         { label: 'Customize it', act: function () { setCompact(false); } },
         { label: 'Go back' }]);
@@ -14165,7 +14169,7 @@ function tutEl(x) {
   return el && el.isConnected ? el : null;
 }
 
-// ⭐ THE BOX AFTER A CONFIG IS MADE: "Pre-set config created!", with Try it
+// ⭐ THE BOX AFTER A CONFIG IS MADE: "Preset config created!", with Try it
 // out now, Customize it and Go back (createFromPreset). Up, or put up again
 // for a step gone back to.
 function tutCreatedUp() {
@@ -14173,7 +14177,7 @@ function tutCreatedUp() {
   return !!CONFIRM_CB && !!box && box.classList.contains('cexit');
 }
 function tutCreatedBox() {
-  compactAskExit('Pre-set config created!', [
+  compactAskExit('Preset config created!', [
     { label: 'Try it out now', act: closeWindow },
     { label: 'Customize it', act: function () { setCompact(false); } },
     { label: 'Go back' }]);
@@ -15288,7 +15292,7 @@ var TUT_CARDS = {
   quick: { title: 'Quick mode tutorial',
            words: 'A short tour with practice controllers: nothing in it changes your real ones.' },
   simple: { title: 'Simple mode tutorial',
-            words: 'A short tour with practice controllers: make a config from a pre-set, and ' +
+            words: 'A short tour with practice controllers: make a config from a preset, and ' +
                    'manage the ones you have. Nothing in it changes your real ones.' },
   advanced: { title: 'Advanced mode tutorial',
               words: 'A short tour with practice controllers: make a config and name it, rebind a ' +
