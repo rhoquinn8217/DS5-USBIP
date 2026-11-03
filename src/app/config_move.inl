@@ -116,7 +116,7 @@ inline std::atomic_int g_size{0};
 // a large screen the compact view still needs to be sized to the room, so R3
 // cycles a second table while the page is compact, with a position of its own.
 //
-//   medium  0.45 x 0.3879   what the page opens Simple at, so the two agree
+//   medium  0.45 x 0.3879   (until 2026-11-02; below)
 //   large   0.56 x 0.4819
 // ⭐ SHORTER SINCE 2026-10-22 (rhoquinn8217: "shrink the height of the window
 // so that the margin between the nickname and battery and the upper window
@@ -135,7 +135,19 @@ inline std::atomic_int g_size{0};
 // for compact (rhoquinn8217, 2026-09-09: smallest first), large for full --
 // which is exactly the size the page resizes to on the switch, so R3 always
 // cycles from where the window actually is.
-inline const SizeShare kCompactSizes[2] = { { 0.45, 0.3879 }, { 0.56, 0.4819 } };
+//
+// ⭐ WIDER, JUST ENOUGH FOR THE FOOTER'S LEGEND TO BE ONE LINE (rhoquinn8217,
+// 2026-11-02: "widen the simple mode window just enough for the legend to be
+// 1 line"), with L3's "next tip" in it. ⓘ Measured on the page, not
+// reckoned, at 150% on a work area 3840 x 2088 (its page 510 px tall): at
+// 0.45 the legend had 614 px and wanted 658, 673 with a keyboard in hand,
+// whose Enter and Esc are wider, so it wrapped after "resize". 0.49 gives it
+// 690. Large keeps the small one's spare room: 0.611 gives its legend 864 px
+// against 844 wanted, where 0.56 gave 766. The heights are as they were.
+//
+//   medium  0.49  x 0.3879   what the page opens Simple at, so the two agree
+//   large   0.611 x 0.4819
+inline const SizeShare kCompactSizes[2] = { { 0.49, 0.3879 }, { 0.611, 0.4819 } };
 inline std::atomic_int  g_sizeCompact{0};
 inline std::atomic_bool g_compact{false};
 
