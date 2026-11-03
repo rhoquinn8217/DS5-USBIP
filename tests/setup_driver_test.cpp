@@ -6,6 +6,8 @@
 // with nothing on screen to say why. And a usbip.exe whose driver was gone was
 // taken for a good install and never repaired. The setup itself can only be
 // run on a PC; these keep the two fixes from being undone.
+// ⓘ And the setup keeps a log of its own (2026-11-03): a clean PC's install
+// wrote none without /LOG, so the exit code it read was then lost.
 
 #include "harness.h"
 
@@ -58,6 +60,11 @@ int run_setup_driver_tests()
     section("setup: a usbip.exe whose driver is gone is installed again");
     {
         CTM_CHECK(has(iss, "RegKeyExists(HKLM, 'SYSTEM\\CurrentControlSet\\Services\\usbip2_ude')"));
+    }
+
+    section("setup: it writes a log of its own, so the driver step's exit code is kept");
+    {
+        CTM_CHECK(has(iss, "\nSetupLogging=yes\n"));
     }
 
     return 0;

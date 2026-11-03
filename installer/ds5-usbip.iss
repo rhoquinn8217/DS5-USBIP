@@ -109,6 +109,11 @@ UninstallDisplayName={#AppName}
 UninstallDisplayIcon={app}\{#ExeName}
 SetupIconFile={#SrcRoot}\app\{#IconName}
 WizardStyle=modern
+; A log every time, as /LOG would give: "Setup Log <date> #NNN.txt" in the
+; installing account's %TEMP%. Without it the driver step's exit code (Log, in
+; InstallUsbip below) was written nowhere, and a clean PC's install left
+; nothing to read afterwards.
+SetupLogging=yes
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
