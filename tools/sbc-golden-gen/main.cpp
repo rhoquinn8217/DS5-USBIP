@@ -6,9 +6,9 @@
 //
 // ⭐ WHY IT IS KEPT WHEN FFMPEG IS GONE. tests/sbc_encoder_golden.inl is what FFmpeg
 // produced, and this is the only thing that can make it again. It needs FFmpeg 8.0's
-// headers and libraries, which this repo carried in third_party/ffmpeg up to the
-// commit before they were removed: check that commit out beside this one and build
-// with build.bat, FFMPEG_ROOT pointing at its third_party\ffmpeg\x64\release.
+// headers and libraries, which this repo's history still holds: the parent of
+// `git log -1 --format=%h -- third_party/ffmpeg` has them. Check that out beside this
+// tree and run build.bat with FFMPEG_ROOT at its third_party\ffmpeg\x64\release.
 
 #include "ffmpeg_side.h"
 #include "sbc_test_signals.h"
