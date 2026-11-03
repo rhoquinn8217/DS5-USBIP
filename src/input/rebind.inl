@@ -402,15 +402,21 @@ inline void apply(const void *deviceKey,
         // and a second press keeps it (quick_switch_session.inl). ⓘ Before
         // anything here changes the report, and it changes nothing itself:
         // mouse_exclusive.inl hides the touchpad it holds.
+        // ⭐ And the right stick, which steps the config too while a finger
+        // holds the window up (2026-11-03).
         {
             int x1 = 0, y1 = 0, x2 = 0, y2 = 0;
             const bool at1 = f1 && ctm_rebind::touch_finger_pos(chordLayout, data, len, 0, &x1, &y1);
             const bool at2 = f2 && ctm_rebind::touch_finger_pos(chordLayout, data, len, 1, &x2, &y2);
+            float rx = 0.0f, ry = 0.0f;
+            const bool stick = ctm_rebind::stick_axis(chordLayout, data, len, ctm_rebind::kStickRX, &rx) &&
+                               ctm_rebind::stick_axis(chordLayout, data, len, ctm_rebind::kStickRY, &ry);
             quick_switch_report(deviceKey, ctm_rebind::touch_pressed(chordLayout, data, len),
                 at1, ctm_rebind::touch_finger_id(chordLayout, data, len, 0),
                 static_cast<float>(x1), static_cast<float>(y1),
                 at2, ctm_rebind::touch_finger_id(chordLayout, data, len, 1),
-                static_cast<float>(x2), static_cast<float>(y2));
+                static_cast<float>(x2), static_cast<float>(y2),
+                stick, rx, ry);
         }
 
         // ⛔ EDGE, not level. Options is held for about 300ms and this runs at

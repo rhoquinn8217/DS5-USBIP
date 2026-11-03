@@ -465,6 +465,9 @@ void ctm_stick_mouse_apply(const void *deviceKey,
     // window_move namespace, because this file's test builds without it and
     // stubs the answer the way it stubs the gate.
     if (ctm_window_steering(deviceKey)) return;
+    // ⭐ NOR WHILE THE QUICK CONFIG SWITCH HOLDS ITS WINDOW UP: the right stick
+    // steps the wheel then (2026-11-03), and would move the cursor as well.
+    if (quick_switch_holds_stick(deviceKey)) return;
     ctm_stick_mouse::on_ds5_input(deviceKey, descriptor, linkedConfig, data, len);
 }
 

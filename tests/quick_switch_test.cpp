@@ -10,8 +10,10 @@
 // window in front in Simple or Quick (armed), the same, with no press, while
 // both fingers are down (2026-10-26), one finger alone stepping nothing; the
 // window a press opened closes once it is there, never before, so fingers
-// lifted at once still close it (2026-10-27); and each step reaches the page
-// as one press of its own key.
+// lifted at once still close it (2026-10-27); each step reaches the page
+// as one press of its own key; and the right stick, while a finger holds the
+// window up, steps once a push and not again until it has come back
+// (2026-11-03).
 //
 // WHAT THESE CANNOT DO. No window opens here and no pad is read: the window,
 // the gate and the link are looked at with the listener running.
@@ -348,6 +350,33 @@ int run_quick_switch_tests()
         CTM_CHECK(idle(k));
         queue(k, -1);
         CTM_CHECK(std::string(key_now(k, 1000)) == "KeyK");
+    }
+
+    // ⓘ The right stick while a finger holds the window up (2026-11-03): a
+    // step a push, up the config above as the d-pad's up is.
+    section("quick switch: the right stick, a step a push, up the config above");
+    {
+        Stick s;
+        CTM_CHECK_EQ(stick_steps(s, 0.0f, 0.0f), 0);     // at rest: armed
+        CTM_CHECK_EQ(stick_steps(s, 0.0f, -0.5f), 0);    // not far enough
+        CTM_CHECK_EQ(stick_steps(s, 0.0f, -0.7f), -1);   // up: the config above
+        CTM_CHECK_EQ(stick_steps(s, 0.0f, -1.0f), 0);    // held: no more
+        CTM_CHECK_EQ(stick_steps(s, 0.0f, -0.4f), 0);    // still out
+        CTM_CHECK_EQ(stick_steps(s, 0.0f, -0.2f), 0);    // back near the middle
+        CTM_CHECK_EQ(stick_steps(s, 0.1f, 0.9f), 1);     // down: the next one
+        CTM_CHECK_EQ(stick_steps(s, 0.0f, 0.0f), 0);
+        CTM_CHECK_EQ(stick_steps(s, 0.0f, 0.65f), 1);    // and again, once back
+    }
+
+    section("quick switch: the right stick, nothing sideways, nothing before it has come back");
+    {
+        Stick s;
+        CTM_CHECK_EQ(stick_steps(s, 0.0f, -0.9f), 0);    // pushed as the window opens: unarmed
+        CTM_CHECK_EQ(stick_steps(s, 0.0f, -0.9f), 0);
+        CTM_CHECK_EQ(stick_steps(s, 0.0f, 0.0f), 0);     // back: armed
+        CTM_CHECK_EQ(stick_steps(s, 0.9f, 0.0f), 0);     // sideways
+        CTM_CHECK_EQ(stick_steps(s, -0.9f, 0.7f), 0);    // more sideways than down
+        CTM_CHECK_EQ(stick_steps(s, 0.7f, -0.7f), -1);   // as far up as across: a step
     }
 
     return 0;
