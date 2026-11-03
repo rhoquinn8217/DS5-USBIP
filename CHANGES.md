@@ -179,6 +179,7 @@ carry it; upstream's own history is unchanged.
 | 2026-10-31 | The quick config switch is on out of the box. It was off until it was ticked, so two of the four ways of opening the Controller Configs window -- the DualSense touchpad pressed with two fingers, and the same press with a finger left down -- did nothing on a fresh install. The default sits beside the key now, as Open on bridge's does, and every save writes `quick_config_switch_default = on` above the switch's line: a window-state.txt without that line was written while the default was off, so its `quick_config_switch = 0` said only that and is dropped once. An install that has the switch turned off since keeps it off, and a file that is gone gives the default. Page 2.66.129. | `1538eff`, merge `bc1c386` |
 | 2026-11-01 | No new bridge while Windows is locked. A bridge asked for then is refused with its reason, and STATUS says `locked=0` or `locked=1`, an optional word that an older TV app ignores. The TV app waits for the unlock, bridges what is ticked once Windows is open, and in the meantime makes a controller on the stream the mouse and keys Windows' sign-in screen needs. A controller already bridged when the lock comes stays, on no config. | `dd7d78c`, merge `96e3b71` |
 | 2026-11-02 | A DS4's speaker over Bluetooth gets its sound from FFmpeg's SBC encoder, copied into the exe as `third_party/sbc`: the same frames byte for byte, so the setup installs no FFmpeg DLL and an upgrade removes the old ones. The capture tool, the last user of `third_party/ffmpeg`, is gone, with that folder and `third_party/AMF`. | `689b44e`, `2aef6ea`, merge `91d54b4` |
+| 2026-11-02 | A DS4 is told full volume when nothing sets one. With no volume in its config it played at its own quiet level while the Controller Configs window showed 100; now the speaker and the headset jack get 100, a set value still wins, and every other pad is as it was. | `69ca184`, merge `aea064a` |
 
 ## Files changed
 
@@ -193,7 +194,7 @@ ENet library, removed with the ENet transport).
  .github/ISSUE_TEMPLATE/config.yml             |     5 +
  .github/ISSUE_TEMPLATE/feature-request.yml    |    22 +
  .gitignore                                    |    43 +-
- CHANGES.md                                    |   436 +
+ CHANGES.md                                    |   438 +
  LINK                                          |     0
  README.md                                     |   329 +-
  app/compatibility.manifest                    |    27 +
@@ -225,6 +226,7 @@ ENet library, removed with the ENet transport).
  docs/images/ds5usbip-tray-menu.png            |   Bin 0 -> 25374 bytes
  docs/rest_api.md                              |   218 +
  docs/steam_puck_knowledge.md                  |     5 +-
+ include/ctm/audio_volume.h                    |    40 +
  include/ctm/build_number.h                    |    23 +
  include/ctm/map/runtime.h                     |    42 +-
  include/ctm/product.h                         |    43 +
@@ -247,7 +249,7 @@ ENet library, removed with the ENet transport).
  profiles/descriptors/virtual_mouse.profile    |    59 +
  release.ps1                                   |   264 +
  src/app/agent.inl                             |  1259 +-
- src/app/agent_session_sweep.inl               |   333 +
+ src/app/agent_session_sweep.inl               |   331 +
  src/app/cli.inl                               |    66 +-
  src/app/common.inl                            |   166 +-
  src/app/config_move.inl                       |  1549 +++
@@ -346,7 +348,7 @@ ENet library, removed with the ENet transport).
  src/input/trigger_effect.inl                  |   637 +
  src/log/capped_log.inl                        |   117 +
  src/log/device_log.inl                        |   233 +
- src/main.cpp                                  |  1073 +-
+ src/main.cpp                                  |  1074 +-
  src/map/runtime.cpp                           |   203 +-
  src/usbdisplay/README.md                      |    13 +
  src/usbip/device.inl                          |  1068 +-
@@ -375,7 +377,7 @@ ENet library, removed with the ENet transport).
  tests/harness.h                               |    55 +
  tests/held_edges_test.cpp                     |    84 +
  tests/home_folder_test.cpp                    |   178 +
- tests/host_audio_settings_test.cpp            |   125 +
+ tests/host_audio_settings_test.cpp            |   152 +
  tests/input_pace_test.cpp                     |   184 +
  tests/iso_in_pacing_test.cpp                  |   118 +
  tests/key_pulse_test.cpp                      |   148 +
@@ -432,5 +434,5 @@ ENet library, removed with the ENet transport).
  tools/sbc-golden-gen/ffmpeg_side.cpp          |   117 +
  tools/sbc-golden-gen/ffmpeg_side.h            |    15 +
  tools/sbc-golden-gen/main.cpp                 |   131 +
- 244 files changed, 75003 insertions(+), 6161 deletions(-)
+ 245 files changed, 75071 insertions(+), 6161 deletions(-)
 ```
