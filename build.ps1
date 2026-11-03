@@ -4,8 +4,7 @@ param(
     [string]$Platform = 'x64',
     [ValidateSet('Debug', 'Release')]
     [string]$Configuration = 'Debug',
-    [switch]$WithUsbDisplay,
-    [switch]$WithCapture
+    [switch]$WithUsbDisplay
 )
 
 $ErrorActionPreference = 'Stop'
@@ -62,8 +61,8 @@ $project = Join-Path $Root 'app\ctm-usbip.vcxproj'
 # .gitignore claimed this script did. So the only machines that could build were
 # ones where the folder happened to predate the clone.
 #
-# ⓘ One package: opus, static x64. Everything else the project links is either
-# a Windows library or the vendored FFmpeg under third_party/ffmpeg.
+# ⓘ One package: opus, static x64. Everything else the project links is a Windows
+# library.
 #
 # ⚠️ Skipped entirely when it is already there. The first run takes several
 # minutes -- vcpkg compiles itself, then builds opus from source -- and doing
@@ -166,7 +165,6 @@ Copy-Item -Force -Path (Join-Path $Root 'profiles\descriptors\virtual_keyboard.p
 Copy-Item -Force -Path (Join-Path $Root 'maps\virtual_keyboard.map') -Destination (Join-Path $out 'maps\virtual_keyboard.map')
 Copy-Item -Force -Path (Join-Path $Root 'profiles\descriptors\xbox_gip_usb.profile') -Destination (Join-Path $out 'profiles\descriptors\xbox_gip_usb.profile')
 Copy-Item -Force -Path (Join-Path $Root 'maps\xbox_gip_usb_over_xbox_bt.map') -Destination (Join-Path $out 'maps\xbox_gip_usb_over_xbox_bt.map')
-Copy-Item -Force -Path (Join-Path $Root 'third_party\ffmpeg\x64\release\bin\*.dll') -Destination $out
 
 # Where this build's exe keeps its config, its log and the settings page: the
 # root of the checkout, three folders up, where they have always been. The exe
@@ -183,11 +181,4 @@ if ($WithUsbDisplay) {
     & $msbuild $displayProject /m /p:Configuration=$Configuration /p:Platform=$Platform
     if ($LASTEXITCODE -ne 0) { throw 'ctm-usbdisplay build failed.' }
     Write-Host "Built: $(Join-Path $out 'ctm-usbdisplay.exe')"
-}
-
-if ($WithCapture) {
-    $captureProject = Join-Path $Root 'app\ctm-capture.vcxproj'
-    & $msbuild $captureProject /m /p:Configuration=$Configuration /p:Platform=$Platform
-    if ($LASTEXITCODE -ne 0) { throw 'ctm-capture build failed.' }
-    Write-Host "Built: $(Join-Path $out 'ctm-capture.exe')"
 }

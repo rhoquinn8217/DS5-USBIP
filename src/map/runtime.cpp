@@ -16,28 +16,13 @@
 
 #include <opus/opus.h>
 
-extern "C" {
-#include <libavcodec/avcodec.h>
-#include <libavcodec/sbc.h>
-#include <libavutil/channel_layout.h>
-#include <libavutil/error.h>
-#include <libavutil/frame.h>
-}
+#include "sbc/sbc_encoder.h"
 
 struct IniFile {
     std::map<std::string, std::map<std::string, std::string>> sections;
 };
 
 static constexpr uint32_t kMaxPhysicalFeatureReportBytes = 2048;
-
-struct FfmpegSbcPrivPrefix {
-    const AVClass *avClass = nullptr;
-    int64_t maxDelay = 0;
-    int msbc = 0;
-    alignas(SBC_ALIGN) struct sbc_frame frame;
-};
-
-static_assert(offsetof(FfmpegSbcPrivPrefix, frame) % SBC_ALIGN == 0, "SBC frame must match FFmpeg alignment");
 
 static std::string trim_ascii(std::string value)
 {
@@ -415,14 +400,9 @@ CtmMapRuntime::~CtmMapRuntime()
         opus_encoder_destroy(opus_);
         opus_ = nullptr;
     }
-    if (sbcPacket_ != nullptr) {
-        av_packet_free(&sbcPacket_);
-    }
-    if (sbcFrame_ != nullptr) {
-        av_frame_free(&sbcFrame_);
-    }
     if (sbc_ != nullptr) {
-        avcodec_free_context(&sbc_);
+        sbc_encoder_destroy(sbc_);
+        sbc_ = nullptr;
     }
 }
 
@@ -1929,57 +1909,15 @@ bool CtmMapRuntime::ensure_sbc_encoder(
         return true;
     }
 
-    if (sbcPacket_ != nullptr) {
-        av_packet_free(&sbcPacket_);
-    }
-    if (sbcFrame_ != nullptr) {
-        av_frame_free(&sbcFrame_);
-    }
     if (sbc_ != nullptr) {
-        avcodec_free_context(&sbc_);
+        sbc_encoder_destroy(sbc_);
+        sbc_ = nullptr;
     }
     sbcEncoderSampleRate_ = 0;
 
-    const AVCodec *codec = avcodec_find_encoder(AV_CODEC_ID_SBC);
-    if (codec == nullptr) {
-        std::cout << "map runtime sbc encoder not available" << std::endl;
-        return false;
-    }
-    sbc_ = avcodec_alloc_context3(codec);
+    sbc_ = sbc_encoder_create(sbc_frequency_code(sampleRate), blocks, channelMode, allocation, subbands, bitpool);
     if (sbc_ == nullptr) {
-        return false;
-    }
-
-    sbc_->sample_rate = static_cast<int>(sampleRate);
-    sbc_->sample_fmt = AV_SAMPLE_FMT_S16;
-    sbc_->bit_rate = 225000;
-    sbc_->global_quality = static_cast<int>(bitpool) * FF_QP2LAMBDA;
-    av_channel_layout_default(&sbc_->ch_layout, 2);
-
-    const int openRet = avcodec_open2(sbc_, codec, nullptr);
-    if (openRet < 0) {
-        std::cout << "map runtime sbc encoder failed err=" << openRet << std::endl;
-        avcodec_free_context(&sbc_);
-        return false;
-    }
-
-    auto *priv = reinterpret_cast<FfmpegSbcPrivPrefix *>(sbc_->priv_data);
-    priv->frame.frequency = sbc_frequency_code(sampleRate);
-    priv->frame.blocks = blocks;
-    priv->frame.mode = static_cast<decltype(priv->frame.mode)>(channelMode);
-    priv->frame.channels = 2;
-    priv->frame.allocation = static_cast<decltype(priv->frame.allocation)>(allocation);
-    priv->frame.subbands = subbands;
-    priv->frame.bitpool = bitpool;
-    priv->frame.codesize = static_cast<uint16_t>(subbands * blocks * 2 * sizeof(int16_t));
-    sbc_->frame_size = subbands * blocks;
-
-    sbcFrame_ = av_frame_alloc();
-    sbcPacket_ = av_packet_alloc();
-    if (sbcFrame_ == nullptr || sbcPacket_ == nullptr) {
-        if (sbcPacket_ != nullptr) av_packet_free(&sbcPacket_);
-        if (sbcFrame_ != nullptr) av_frame_free(&sbcFrame_);
-        avcodec_free_context(&sbc_);
+        std::cout << "map runtime sbc encoder not available" << std::endl;
         return false;
     }
 
@@ -2017,42 +1955,15 @@ bool CtmMapRuntime::encode_sbc(
 
     destination->clear();
     destination->reserve(bytes);
+    const size_t frameBytes = sbc_encoder_frame_length(sbc_);
     for (size_t frameOffset = 0; frameOffset < frameSamples; frameOffset += sbcSamplesPerFrame) {
-        av_frame_unref(sbcFrame_);
-        sbcFrame_->format = AV_SAMPLE_FMT_S16;
-        sbcFrame_->sample_rate = static_cast<int>(sampleRate);
-        sbcFrame_->nb_samples = static_cast<int>(sbcSamplesPerFrame);
-        av_channel_layout_default(&sbcFrame_->ch_layout, 2);
-        if (av_frame_get_buffer(sbcFrame_, 0) < 0) {
+        const size_t written = destination->size();
+        if (written + frameBytes > bytes) {
             return false;
         }
-
-        const size_t sampleOffset = frameOffset * 2;
-        const size_t byteCount = sbcSamplesPerFrame * 2 * sizeof(int16_t);
-        std::memcpy(sbcFrame_->data[0], source.data() + sampleOffset, byteCount);
-
-        int ret = avcodec_send_frame(sbc_, sbcFrame_);
-        if (ret < 0) {
+        destination->resize(written + frameBytes);
+        if (sbc_encoder_encode(sbc_, source.data() + frameOffset * 2, destination->data() + written, frameBytes) < 0) {
             return false;
-        }
-        for (;;) {
-            ret = avcodec_receive_packet(sbc_, sbcPacket_);
-            if (ret == AVERROR(EAGAIN)) {
-                break;
-            }
-            if (ret < 0) {
-                return false;
-            }
-            if (sbcPacket_->size < 0 ||
-                destination->size() + static_cast<size_t>(sbcPacket_->size) > bytes) {
-                av_packet_unref(sbcPacket_);
-                return false;
-            }
-            destination->insert(
-                destination->end(),
-                sbcPacket_->data,
-                sbcPacket_->data + sbcPacket_->size);
-            av_packet_unref(sbcPacket_);
         }
     }
 

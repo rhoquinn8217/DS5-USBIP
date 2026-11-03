@@ -1,6 +1,6 @@
 ; CTM Bridge — Windows service installer (Inno Setup 6).
 ;
-; Packages ctm-usbip.exe + the ffmpeg runtime DLLs + profiles/maps into
+; Packages ctm-usbip.exe + profiles/maps into
 ; C:\Program Files\CTM Bridge, then registers the auto-start LocalSystem
 ; service and the LAN firewall rules by invoking `ctm-usbip.exe install`.
 ; Uninstall calls `ctm-usbip.exe uninstall` (stop + remove service + rules)
@@ -49,7 +49,6 @@ WizardStyle=modern
 
 [Files]
 Source: "{#SrcRoot}\out\x64\Release\{#ExeName}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#SrcRoot}\third_party\ffmpeg\x64\release\bin\*.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#SrcRoot}\profiles\descriptors\*"; DestDir: "{app}\profiles\descriptors"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#SrcRoot}\maps\*"; DestDir: "{app}\maps"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; Bundled usbip-win2 (BSD-2-Clause): the signed installer runs from {tmp} only

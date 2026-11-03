@@ -10,9 +10,7 @@
 #include <vector>
 
 struct OpusEncoder;
-struct AVCodecContext;
-struct AVFrame;
-struct AVPacket;
+struct SbcEncoder;
 
 class CtmMapRuntime {
 public:
@@ -485,9 +483,7 @@ private:
 
     OpusEncoder *opus_ = nullptr;
     uint32_t opusEncoderSampleRate_ = 0;
-    AVCodecContext *sbc_ = nullptr;
-    AVFrame *sbcFrame_ = nullptr;
-    AVPacket *sbcPacket_ = nullptr;
+    SbcEncoder *sbc_ = nullptr;
     uint32_t sbcEncoderSampleRate_ = 0;
     uint8_t sbcEncoderBitpool_ = 0;
     uint8_t sbcEncoderBlocks_ = 0;
