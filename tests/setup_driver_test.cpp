@@ -67,5 +67,11 @@ int run_setup_driver_tests()
         CTM_CHECK(has(iss, "\nSetupLogging=yes\n"));
     }
 
+    section("setup: the log says whether the driver's setup runs or is skipped");
+    {
+        CTM_CHECK(has(iss, "Log('usbip-win2: missing or broken, its setup will run')"));
+        CTM_CHECK(has(iss, "Log('usbip-win2: already installed, its setup is skipped')"));
+    }
+
     return 0;
 }

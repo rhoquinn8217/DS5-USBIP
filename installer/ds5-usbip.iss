@@ -703,6 +703,14 @@ begin
     install and never repaired. }
   GInstallUsbip := (not FileExists(ExpandConstant('{commonpf64}\USBip\usbip.exe')))
                 or (not RegKeyExists(HKLM, 'SYSTEM\CurrentControlSet\Services\usbip2_ude'));
+
+  { ⭐ Logged either way (clean-PC test, 2026-11-03): an upgrade's log said
+    nothing about the driver, so a skip read the same as a step that never
+    ran. }
+  if GInstallUsbip then
+    Log('usbip-win2: missing or broken, its setup will run')
+  else
+    Log('usbip-win2: already installed, its setup is skipped');
 end;
 
 { THE DRIVER: usbip-win2's own signed setup, unchanged, run only when
