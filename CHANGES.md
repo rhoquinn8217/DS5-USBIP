@@ -183,6 +183,8 @@ carry it; upstream's own history is unchanged.
 | 2026-11-02 | The setup installs the licences: DS5-USBIP's own as LICENSE.txt, and THIRD-PARTY-NOTICES.txt naming every part that is someone else's (the SBC encoder from FFmpeg, Opus, GamepadMotionHelpers, usbip-win2) with its licence in full. A test fails when the setup, the notices and the parts drift apart. | `58bac55`, merge `a6bbca1` |
 | 2026-11-03 | Simple, for the release: L3's mark is in the legend as "next tip" rather than beside the tip; tip 5 draws one button, the pad's own, and the tip saying the window opens on every bridge is gone, as a bridge opens it only with Open on bridge ticked; five of Simple's tour steps are in rhoquinn8217's words, two of them shared with the Quick and Advanced tours; Simple is 0.49 of the screen wide, its large size 0.611, just enough for the legend on one line; and "preset" on screen where three labels said "pre-set". | `5506f67`, `2e23b4e`, `dde0399`, merge `2c56a2c` |
 | 2026-11-03 | The quick config switch: while a finger holds Quick up, the right stick up or down steps the wheel too, one step a push, up the config above as the d-pad's up is, and the stick mouse stands aside meanwhile. Its box on the Overview is called "Two finger touchpad quick switch". Page 2.66.134. | `3fb4699`, `14b6462`, merge `2c56a2c` |
+| 2026-11-03 | Fixes from a review of the listener. A request on the control or settings port has one deadline for the whole of it, so a caller sending a byte at a time cannot hold the port. A bridge whose USB/IP attach failed ends, rather than staying "bridged" with nothing behind it. A config is written to a `.writing` file and moved into place whole, so a save cut short leaves the old file rather than half of one. And the Controller Configs window escapes quote marks, so one in a value no longer breaks the page, whose own comment no longer calls it a test client; its changelog has this as 2.66.131, and the page stays 2.66.134. | `4b4b2f2`, merge `15bdb11` |
+| 2026-11-03 | From the same review, the setup runs usbip-win2's own setup from its code, which reads the exit code, says on screen when the driver did not install, and installs it again when the driver is gone though `usbip.exe` is still there. And the setup keeps a log of its own, `Setup Log <date> #NNN.txt` in the installing account's `%TEMP%`, which says whether the driver's setup ran or was skipped, and whether a running DS5-USBIP was asked to quit and did. | `4b4b2f2`, `17563a9`, `99ff06d`, `d04d57e`, merge `15bdb11` |
 
 ## Files changed
 
@@ -197,13 +199,13 @@ ENet library, removed with the ENet transport).
  .github/ISSUE_TEMPLATE/config.yml             |     5 +
  .github/ISSUE_TEMPLATE/feature-request.yml    |    22 +
  .gitignore                                    |    43 +-
- CHANGES.md                                    |   443 +
+ CHANGES.md                                    |   448 +
  LINK                                          |     0
  README.md                                     |   329 +-
  THIRD-PARTY-NOTICES.txt                       |   618 +
  app/compatibility.manifest                    |    27 +
  app/ctm-capture.vcxproj                       |    86 -
- app/ctm-usbip-tests.vcxproj                   |   162 +
+ app/ctm-usbip-tests.vcxproj                   |   164 +
  app/ctm-usbip.ico                             |   Bin 156019 -> 30139 bytes
  app/ctm-usbip.rc                              |    26 +-
  app/ctm-usbip.vcxproj                         |    76 +-
@@ -239,7 +241,7 @@ ENet library, removed with the ENet transport).
  installer/build-icon.ps1                      |   238 +
  installer/controller-path.txt                 |    68 +
  installer/ctm-usbip.iss                       |     3 +-
- installer/ds5-usbip.iss                       |   799 ++
+ installer/ds5-usbip.iss                       |   864 ++
  installer/icon-source.png                     |   Bin 0 -> 100705 bytes
  installer/make-icon-ds5.ps1                   |   236 +
  installer/trace-silhouette.py                 |   368 +
@@ -252,7 +254,7 @@ ENet library, removed with the ENet transport).
  profiles/descriptors/virtual_keyboard.profile |    74 +
  profiles/descriptors/virtual_mouse.profile    |    59 +
  release.ps1                                   |   264 +
- src/app/agent.inl                             |  1259 +-
+ src/app/agent.inl                             |  1276 +-
  src/app/agent_session_sweep.inl               |   331 +
  src/app/cli.inl                               |    66 +-
  src/app/common.inl                            |   166 +-
@@ -277,7 +279,8 @@ ENet library, removed with the ENet transport).
  src/app/quick_switch.inl                      |   408 +
  src/app/quick_switch_session.inl              |   457 +
  src/app/quit_request.inl                      |    28 +
- src/app/rest.inl                              |   885 ++
+ src/app/read_deadline.inl                     |    28 +
+ src/app/rest.inl                              |   898 ++
  src/app/rest_config.inl                       |  1518 +++
  src/app/rest_config_sessions.inl              |   243 +
  src/app/rest_sessions.inl                     |    33 +
@@ -324,7 +327,7 @@ ENet library, removed with the ENet transport).
  src/capture/ctm_stream_protocol.h             |    91 -
  src/capture/main.cpp                          |  3695 ------
  src/config/config_presets.inl                 |   498 +
- src/config/config_store.inl                   |   856 ++
+ src/config/config_store.inl                   |   879 ++
  src/config/config_watcher.inl                 |   171 +
  src/config/device_config.inl                  |   342 +
  src/config/polling_limits.inl                 |   150 +
@@ -352,7 +355,7 @@ ENet library, removed with the ENet transport).
  src/input/trigger_effect.inl                  |   637 +
  src/log/capped_log.inl                        |   117 +
  src/log/device_log.inl                        |   233 +
- src/main.cpp                                  |  1078 +-
+ src/main.cpp                                  |  1079 +-
  src/map/runtime.cpp                           |   203 +-
  src/usbdisplay/README.md                      |    13 +
  src/usbip/device.inl                          |  1068 +-
@@ -368,7 +371,7 @@ ENet library, removed with the ENet transport).
  tests/bridge_handshake_test.cpp               |   631 +
  tests/button_layout_test.cpp                  |  1189 ++
  tests/capped_log_test.cpp                     |   140 +
- tests/config_store_test.cpp                   |  1006 ++
+ tests/config_store_test.cpp                   |  1044 ++
  tests/control_caller_test.cpp                 |    73 +
  tests/device_capabilities_test.cpp            |    75 +
  tests/device_config_cache_test.cpp            |   148 +
@@ -401,7 +404,8 @@ ENet library, removed with the ENet transport).
  tests/product_version_test.cpp                |    45 +
  tests/protocol_level_test.cpp                 |   112 +
  tests/quick_switch_test.cpp                   |   383 +
- tests/quit_request_test.cpp                   |    69 +
+ tests/quit_request_test.cpp                   |    86 +
+ tests/read_deadline_test.cpp                  |    50 +
  tests/rebind_test.cpp                         |   785 ++
  tests/rest_parser_test.cpp                    |   252 +
  tests/rest_shared_section_test.cpp            |    79 +
@@ -412,11 +416,12 @@ ENet library, removed with the ENet transport).
  tests/sbc_encoder_test.cpp                    |   150 +
  tests/sbc_test_signals.h                      |   171 +
  tests/schema_json_test.cpp                    |   158 +
+ tests/setup_driver_test.cpp                   |    77 +
  tests/stick_mouse_test.cpp                    |   736 ++
  tests/stop_wait_test.cpp                      |    93 +
  tests/stream_commands_test.cpp                |   118 +
  tests/taskbar_rule_test.cpp                   |    46 +
- tests/tests_main.cpp                          |   198 +
+ tests/tests_main.cpp                          |   203 +
  tests/touch_mouse_test.cpp                    |  2591 ++++
  tests/tray_menu_test.cpp                      |   247 +
  tests/trigger_click_test.cpp                  |   928 ++
@@ -431,7 +436,7 @@ ENet library, removed with the ENet transport).
  tests/window_move_test.cpp                    |   136 +
  tests/window_open_rule_test.cpp               |    43 +
  tests/window_size_rule_test.cpp               |   129 +
- tools/controller-config-test-client.html      | 16410 ++++++++++++++++++++++++
+ tools/controller-config-test-client.html      | 16421 ++++++++++++++++++++++++
  tools/create-desktop-shortcut.bat             |    46 +
  tools/create-desktop-shortcut.ps1             |   148 +
  tools/osk-mockups.py                          |   103 +
@@ -439,5 +444,5 @@ ENet library, removed with the ENet transport).
  tools/sbc-golden-gen/ffmpeg_side.cpp          |   117 +
  tools/sbc-golden-gen/ffmpeg_side.h            |    15 +
  tools/sbc-golden-gen/main.cpp                 |   131 +
- 247 files changed, 75957 insertions(+), 6161 deletions(-)
+ 250 files changed, 76309 insertions(+), 6161 deletions(-)
 ```
