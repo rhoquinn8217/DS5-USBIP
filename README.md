@@ -78,13 +78,11 @@ virtual keyboard the controller types on.
 Ways to open the Controller Configs window:
 
 - **Select "Open Controller Configs" in the tray icon menu.**
-- **Press the DualSense touchpad with two fingers and hold 1 finger on the
-  touchpad.**<br>
-  Lifting your finger closes the window. While you rest 1 finger on the
-  touchpad use another finger to swipe up/down to switch configs.
-- **Press the DualSense touchpad with two fingers twice.**<br>
-  Doing this makes the config window stay up after you lift both fingers off
-  the touchpad.
+- **Press the DualSense touchpad with two fingers, then keep one finger on
+  it.**<br>
+  Quick Mode opens and stays up while that finger rests there. Swipe your
+  other finger up or down to change config. Lift off and it goes away, or
+  press twice to leave it open and switch to the mode you were using last.
 - **Use the DS5-USBIP streaming overlay button in rhoquinn8217/aurora-tv.**
 
 ## What this fork adds
@@ -146,6 +144,30 @@ rebindings could be stored and managed.
 Report a bug in [Issues](https://github.com/rhoquinn8217/DS5-USBIP/issues), with
 the form there. Questions, setup help and ideas go to
 [Discussions](https://github.com/rhoquinn8217/DS5-USBIP/discussions).
+
+## Screenshots
+
+### Window modes
+
+**Advanced Mode**
+
+<a href="docs/images/ds5usbip-mode-advanced.png"><img src="docs/images/ds5usbip-mode-advanced.png" alt="Advanced mode" width="498"></a> <a href="docs/images/ds5usbip-section-gyro.png"><img src="docs/images/ds5usbip-section-gyro.png" alt="Advanced mode, the Gyro settings" width="498"></a>
+
+**Simple Mode and Quick Mode**
+
+<a href="docs/images/ds5usbip-mode-simple.png"><img src="docs/images/ds5usbip-mode-simple.png" alt="Simple mode" width="531"></a> <a href="docs/images/ds5usbip-mode-quick.png"><img src="docs/images/ds5usbip-mode-quick.png" alt="Quick mode" width="465"></a>
+
+### Pre-sets
+
+<a href="docs/images/ds5usbip-preset-touchpad.png"><img src="docs/images/ds5usbip-preset-touchpad.png" alt="touchpad-to-mouse pre-set" width="498"></a> <a href="docs/images/ds5usbip-preset-gyro.png"><img src="docs/images/ds5usbip-preset-gyro.png" alt="gyro-to-mouse pre-set" width="498"></a>
+
+### Tray icon menu
+
+<a href="docs/images/ds5usbip-tray-devices.png"><img src="docs/images/ds5usbip-tray-devices.png" alt="Tray icon menu, Devices expanded" width="541"></a> <a href="docs/images/ds5usbip-tray-tutorial.png"><img src="docs/images/ds5usbip-tray-tutorial.png" alt="Tray icon menu, Start Tutorial expanded" width="455"></a>
+
+### Tutorial
+
+<a href="docs/images/ds5usbip-tutorial-simple.png"><img src="docs/images/ds5usbip-tutorial-simple.png" alt="Simple tutorial" width="488"></a> <a href="docs/images/ds5usbip-tutorial-quick.png"><img src="docs/images/ds5usbip-tutorial-quick.png" alt="Quick tutorial" width="508"></a>
 
 ## Clean-room
 
