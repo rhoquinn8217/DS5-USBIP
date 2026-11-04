@@ -932,7 +932,17 @@ static void bridge_session_worker(AgentBridgeSession *session)
     if (!run_usbip_attach(session->busId, kDefaultUsbipPort)) {
         std::wcerr << L"agent local attach failed busid=" << session->busId << L"\n";
         device_log::session_w() << L"attach FAILED busid=" << session->busId
-                                << L": Windows did not get this pad; the [usb] line above says why";
+                                << L": Windows did not get this pad; the [usb] line above says why."
+                                << L" The session ends, so nothing says it is bridged";
+        // ⭐ AND THE SESSION GOES (code review, 2026-11-01). It was ready by
+        // now, so the configs window, the tray and the TV all showed a bridge
+        // Windows never got, with only the line above to say otherwise. Ended
+        // as a failed backend start is, queued to the agent loop: the TV sees
+        // its bridge close, and can bridge again.
+        set_bridge_session_error(session, L"Windows did not take the pad: usbip attach failed");
+        if (!session->stopping.load()) {
+            request_bridge_session_reap(session->busId);
+        }
     }
 }
 
@@ -1201,11 +1211,18 @@ static void handle_agent_client(SOCKET client, const sockaddr_in &peer)
                reinterpret_cast<const char *>(&timeoutMs), sizeof(timeoutMs));
 
     // ⓘ Up to a newline: a command with its pairing proof is about 460
-    // bytes, which one read usually holds but need not. Each read still waits
-    // at most the second above.
+    // bytes, which one read usually holds but need not.
+    // ⛔ AND THE SECOND IS FOR THE WHOLE LINE, not for each read (code review,
+    // 2026-11-01): a caller sending a byte every 0.9 s kept each read inside
+    // its second and held this loop for half an hour. read_deadline.inl.
     char line[2048] = {};
     int got = 0;
+    const ULONGLONG readEnd = GetTickCount64() + timeoutMs;
     while (got < static_cast<int>(sizeof(line)) - 1) {
+        const DWORD wait = read_deadline::wait_ms(GetTickCount64(), readEnd, timeoutMs);
+        if (wait == 0) break;
+        setsockopt(client, SOL_SOCKET, SO_RCVTIMEO,
+                   reinterpret_cast<const char *>(&wait), sizeof(wait));
         const int n = recv(client, line + got, static_cast<int>(sizeof(line)) - 1 - got, 0);
         if (n <= 0) break;
         got += n;

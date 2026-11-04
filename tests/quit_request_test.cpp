@@ -65,5 +65,22 @@ int run_quit_request_tests()
         CTM_CHECK(iss.find(trayClass) != std::string::npos);
         CTM_CHECK(iss.find(message) != std::string::npos);
     }
+
+    // ⭐ The clean-PC test, 2026-11-03: an upgrade over a running copy logged
+    // only Restart Manager's line, so a copy that quit read the same as one
+    // that was never running.
+    section("quit request: the setup's log says what became of a running copy");
+    {
+        const std::string iss = installer_source();
+        const char *lines[] = {
+            "Log('{#AppName} is not running')",
+            "Log('{#AppName} is running, with no tray window to ask it to quit')",
+            "Log('{#AppName} was running, was asked to quit, and quit')",
+            "Log('{#AppName} was asked to quit, and is still running after 10 seconds')",
+            "Log('{#AppName} quit from its tray, then Retry')",
+            "Log('{#AppName} still running at Retry')",
+        };
+        for (const char *line : lines) CTM_CHECK(iss.find(line) != std::string::npos);
+    }
     return 0;
 }

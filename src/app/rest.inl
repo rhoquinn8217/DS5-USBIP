@@ -823,10 +823,17 @@ static void rest_handle_client(SOCKET client, uint16_t agentPort)
     constexpr size_t kMaxHead = 16 * 1024;
     constexpr size_t kMaxBody = 8 * 1024;
 
+    // ⛔ The two seconds are for the whole request, head and body, not for
+    // each read (code review, 2026-11-01): read_deadline.inl says why.
+    const ULONGLONG readEnd = GetTickCount64() + timeoutMs;
     std::string raw;
     size_t headEnd = std::string::npos;
     while (raw.size() < kMaxHead) {
         char buf[2048];
+        const DWORD wait = read_deadline::wait_ms(GetTickCount64(), readEnd, timeoutMs);
+        if (wait == 0) break;
+        setsockopt(client, SOL_SOCKET, SO_RCVTIMEO,
+                   reinterpret_cast<const char *>(&wait), sizeof(wait));
         const int n = recv(client, buf, sizeof(buf), 0);
         if (n <= 0) break; // closed, reset, or receive timeout
         raw.append(buf, static_cast<size_t>(n));
@@ -870,7 +877,13 @@ static void rest_handle_client(SOCKET client, uint16_t agentPort)
     req.body = raw.substr(headEnd + 4);
     while (req.body.size() < contentLength) {
         char buf[2048];
-        const int n = recv(client, buf, sizeof(buf), 0);
+        const DWORD wait = read_deadline::wait_ms(GetTickCount64(), readEnd, timeoutMs);
+        int n = 0;
+        if (wait != 0) {
+            setsockopt(client, SOL_SOCKET, SO_RCVTIMEO,
+                       reinterpret_cast<const char *>(&wait), sizeof(wait));
+            n = recv(client, buf, sizeof(buf), 0);
+        }
         if (n <= 0) {
             rest_send_all(client, rest_error_response(408, "incomplete body"));
             return;

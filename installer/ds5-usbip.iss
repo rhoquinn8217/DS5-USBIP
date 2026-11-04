@@ -109,6 +109,11 @@ UninstallDisplayName={#AppName}
 UninstallDisplayIcon={app}\{#ExeName}
 SetupIconFile={#SrcRoot}\app\{#IconName}
 WizardStyle=modern
+; A log every time, as /LOG would give: "Setup Log <date> #NNN.txt" in the
+; installing account's %TEMP%. Without it the driver step's exit code (Log, in
+; InstallUsbip below) was written nowhere, and a clean PC's install left
+; nothing to read afterwards.
+SetupLogging=yes
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
@@ -145,9 +150,8 @@ Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#ExeName}"; WorkingDir: "{a
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#ExeName}"; WorkingDir: "{app}"; Tasks: desktopicon
 
 [Run]
-; Only the main and client components: not the pdb, sdk or gui, none of which
-; this uses. /NORESTART so the restart prompt a person sees is ours.
-Filename: "{tmp}\{#UsbipInstaller}"; Parameters: "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /COMPONENTS=main,client"; StatusMsg: "Installing the usbip-win2 driver..."; Flags: waituntilterminated; Check: NeedsUsbip
+; ⓘ The usbip-win2 driver is not installed from here: InstallUsbip in [Code]
+; runs it, where its exit code can be read.
 ; DS5-USBIP.exe through Windows Firewall, on private AND public networks: a
 ; TV reaches it over the network, and a rule that leaves its network out
 ; breaks that without a word. Deleted first, so an upgrade leaves one rule,
@@ -206,6 +210,8 @@ const
 
 var
   GInstallUsbip: Boolean;
+  { Set by InstallUsbip when usbip-win2's setup failed or did not run. }
+  GUsbipFailed: Boolean;
   { The copy already installed: its version as Windows lists it, 0.1.0.N,
     and the uninstaller it was installed with. Both empty when there is
     none. }
@@ -321,17 +327,32 @@ end;
   and replug it. Quit from the tray icon releases the bridges first. So this
   asks for that same Quit, by posting the message the tray window listens
   for, and gives it ten seconds. True when nothing is left running. A copy
-  from before 2026-10-12 does not know the message and stays running. }
+  from before 2026-10-12 does not know the message and stays running.
+  ⭐ Each outcome is logged (clean-PC test, 2026-11-03): an upgrade over a
+  running copy logged only Restart Manager's line, so a copy that quit read
+  the same as one that was never running. }
 function AskListenerToQuit(): Boolean;
 var
   Wnd: HWND;
 begin
   Result := not ListenerIsRunning();
-  if Result then Exit;
+  if Result then
+  begin
+    Log('{#AppName} is not running');
+    Exit;
+  end;
   Wnd := FindWindowByClassName('{#TrayClassName}');
-  if Wnd = 0 then Exit;
+  if Wnd = 0 then
+  begin
+    Log('{#AppName} is running, with no tray window to ask it to quit');
+    Exit;
+  end;
   PostMessage(Wnd, RegisterWindowMessage('{#QuitMessageName}'), 0, 0);
   Result := ListenerGoneWithin(10000);
+  if Result then
+    Log('{#AppName} was running, was asked to quit, and quit')
+  else
+    Log('{#AppName} was asked to quit, and is still running after 10 seconds');
 end;
 
 { Quits a running DS5-USBIP, and asks the person to quit it from its tray
@@ -346,6 +367,10 @@ begin
               mbError, MB_RETRYCANCEL) <> IDRETRY then
       Exit;
     Result := ListenerGoneWithin(5000);
+    if Result then
+      Log('{#AppName} quit from its tray, then Retry')
+    else
+      Log('{#AppName} still running at Retry');
   end;
 end;
 
@@ -691,23 +716,61 @@ begin
     Exit;
   end;
 
-  { Decided once, before the run steps, so the answer cannot change halfway. }
-  GInstallUsbip := not FileExists(ExpandConstant('{commonpf64}\USBip\usbip.exe'));
+  { Decided once, before the run steps, so the answer cannot change halfway.
+    ⭐ The driver's own service counts too (code review, 2026-11-01): a
+    usbip.exe whose driver had gone, half an uninstall, was taken for a good
+    install and never repaired. }
+  GInstallUsbip := (not FileExists(ExpandConstant('{commonpf64}\USBip\usbip.exe')))
+                or (not RegKeyExists(HKLM, 'SYSTEM\CurrentControlSet\Services\usbip2_ude'));
+
+  { ⭐ Logged either way (clean-PC test, 2026-11-03): an upgrade's log said
+    nothing about the driver, so a skip read the same as a step that never
+    ran. }
+  if GInstallUsbip then
+    Log('usbip-win2: missing or broken, its setup will run')
+  else
+    Log('usbip-win2: already installed, its setup is skipped');
 end;
 
-function NeedsUsbip(): Boolean;
+{ THE DRIVER: usbip-win2's own signed setup, unchanged, run only when
+  PrepareToInstall found it missing or broken, so a copy someone manages
+  themselves is never downgraded or clobbered. Only the main and client
+  components: not the pdb, sdk or gui, none of which this uses. /NORESTART
+  so the restart prompt a person sees is ours.
+  ⭐ RUN FROM HERE, NOT FROM [Run] (code review, 2026-11-01): a [Run] entry's
+  exit code is never read, so a driver that failed to install finished like
+  one that worked, and DS5-USBIP then bridged nothing with nothing on screen
+  to say why. }
+procedure InstallUsbip();
+var
+  Code: Integer;
 begin
-  { True only when usbip-win2 was absent, so a copy someone manages themselves
-    is never downgraded or clobbered. }
-  Result := GInstallUsbip;
+  if not GInstallUsbip then Exit;
+  WizardForm.StatusLabel.Caption := 'Installing the usbip-win2 driver...';
+  if Exec(ExpandConstant('{tmp}\{#UsbipInstaller}'), '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /COMPONENTS=main,client',
+          '', SW_HIDE, ewWaitUntilTerminated, Code) then
+  begin
+    Log('usbip-win2 setup: exit ' + IntToStr(Code));
+    GUsbipFailed := Code <> 0;
+  end
+  else
+  begin
+    Log('usbip-win2 setup did not run: ' + SysErrorMessage(Code));
+    GUsbipFailed := True;
+  end;
+  if GUsbipFailed then
+    SuppressibleMsgBox('The usbip-win2 driver did not install (code ' + IntToStr(Code) + '), and {#AppName}'
+      + ' cannot bridge a controller without it.' + #13#10#13#10
+      + 'Run this setup again. If it fails again, install usbip-win2 itself from'
+      + ' github.com/vadimgrn/usbip-win2.', mbError, MB_OK, IDOK);
 end;
 
 function NeedRestart(): Boolean;
 begin
   { usbip-win2's own setup is AlwaysRestart=yes, because it installs a driver.
     We run it /NORESTART, so the reboot prompt has to come from here instead,
-    and only when we were the ones who installed it. }
-  Result := GInstallUsbip;
+    and only when we were the ones who installed it, and it went in. }
+  Result := GInstallUsbip and not GUsbipFailed;
 end;
 
 { UNINSTALLING FROM WINDOWS' LIST, while DS5-USBIP runs: asked, then quit the
@@ -757,6 +820,8 @@ var
   Code: Integer;
 begin
   if CurStep <> ssPostInstall then Exit;
+  { The driver first: see InstallUsbip. }
+  InstallUsbip();
   { A stamp of this install beside the program, new each time setup runs, so
     a reinstall of the same version counts too: the first start after it
     opens the configs window in Simple, and its tutorials start by themselves

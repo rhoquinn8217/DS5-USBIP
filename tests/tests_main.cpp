@@ -22,6 +22,8 @@ int run_osk_tests();
 int run_window_icon_rule_tests();
 int run_quit_request_tests();
 int run_licence_files_tests();
+int run_setup_driver_tests();
+int run_read_deadline_tests();
 int run_stream_commands_tests();
 int run_taskbar_rule_tests();
 int run_audio_haptics_dsp_tests();
@@ -127,6 +129,8 @@ int main(int argc, char **argv)
     run_quit_request_tests();
     // ⛔ And here: it reads the installer and the licence files.
     run_licence_files_tests();
+    // ⛔ And here: it reads the installer.
+    run_setup_driver_tests();
 
     if (!enter_scratch()) {
         std::fprintf(stderr, "could not create the scratch directory -- "
@@ -137,6 +141,7 @@ int main(int argc, char **argv)
 
     // Everything below writes files. All of it lands in the scratch directory.
     run_device_config_tests();
+    run_read_deadline_tests();
     run_iso_in_pacing_tests(argc, argv);
     run_rest_parser_tests();
     run_config_store_tests();

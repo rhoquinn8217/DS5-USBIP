@@ -77,6 +77,44 @@ int run_config_store_tests()
 {
     wipe_configs();      // start from nothing, whatever a previous run left
 
+    section("config store: a config is written whole, or left as it was");
+    {
+        // ⓘ A folder of its own, so the configs folder never sees this file.
+        std::filesystem::create_directories("whole-write");
+        const std::string path = "whole-write\\test.txt";
+        const auto contents = [&path]() {
+            std::ifstream in(path, std::ios::binary);
+            std::stringstream buffer;
+            buffer << in.rdbuf();
+            return buffer.str();
+        };
+        std::string error;
+        CTM_CHECK(cs::write_lines_whole(path, {"[settings]", "a = 1"}, &error));
+        CTM_CHECK_EQ(contents(), std::string("[settings]\r\na = 1\r\n"));
+        // ⭐ A write that cannot be finished, here because its new text cannot
+        // be put down (a folder stands where it would go, as a full disk
+        // would stop it): refused, and the old file is exactly as it was. A
+        // writer that truncated the file first would have lost it.
+        std::filesystem::create_directories(path + ".writing");
+        CTM_CHECK(!cs::write_lines_whole(path, {"[settings]", "a = 2"}, &error));
+        CTM_CHECK(error.find("could not write") != std::string::npos);
+        CTM_CHECK_EQ(contents(), std::string("[settings]\r\na = 1\r\n"));
+        std::filesystem::remove_all(path + ".writing");
+        // A file held open with no sharing cannot be replaced either, and is
+        // left as it was, with nothing beside it.
+        HANDLE held = CreateFileA(path.c_str(), GENERIC_READ, 0, nullptr, OPEN_EXISTING,
+                                  FILE_ATTRIBUTE_NORMAL, nullptr);
+        CTM_CHECK(held != INVALID_HANDLE_VALUE);
+        CTM_CHECK(!cs::write_lines_whole(path, {"[settings]", "a = 2"}, &error));
+        if (held != INVALID_HANDLE_VALUE) CloseHandle(held);
+        CTM_CHECK_EQ(contents(), std::string("[settings]\r\na = 1\r\n"));
+        CTM_CHECK(!std::filesystem::exists(path + ".writing"));
+        // And once nothing is in the way, the next write goes in.
+        CTM_CHECK(cs::write_lines_whole(path, {"[settings]", "a = 3"}, &error));
+        CTM_CHECK_EQ(contents(), std::string("[settings]\r\na = 3\r\n"));
+        std::filesystem::remove_all("whole-write");
+    }
+
     section("config store: names");
     CTM_CHECK(cs::valid_name("couch"));
     CTM_CHECK(cs::valid_name("ds5_custom-01"));
