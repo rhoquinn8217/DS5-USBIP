@@ -327,17 +327,32 @@ end;
   and replug it. Quit from the tray icon releases the bridges first. So this
   asks for that same Quit, by posting the message the tray window listens
   for, and gives it ten seconds. True when nothing is left running. A copy
-  from before 2026-10-12 does not know the message and stays running. }
+  from before 2026-10-12 does not know the message and stays running.
+  ⭐ Each outcome is logged (clean-PC test, 2026-11-03): an upgrade over a
+  running copy logged only Restart Manager's line, so a copy that quit read
+  the same as one that was never running. }
 function AskListenerToQuit(): Boolean;
 var
   Wnd: HWND;
 begin
   Result := not ListenerIsRunning();
-  if Result then Exit;
+  if Result then
+  begin
+    Log('{#AppName} is not running');
+    Exit;
+  end;
   Wnd := FindWindowByClassName('{#TrayClassName}');
-  if Wnd = 0 then Exit;
+  if Wnd = 0 then
+  begin
+    Log('{#AppName} is running, with no tray window to ask it to quit');
+    Exit;
+  end;
   PostMessage(Wnd, RegisterWindowMessage('{#QuitMessageName}'), 0, 0);
   Result := ListenerGoneWithin(10000);
+  if Result then
+    Log('{#AppName} was running, was asked to quit, and quit')
+  else
+    Log('{#AppName} was asked to quit, and is still running after 10 seconds');
 end;
 
 { Quits a running DS5-USBIP, and asks the person to quit it from its tray
@@ -352,6 +367,10 @@ begin
               mbError, MB_RETRYCANCEL) <> IDRETRY then
       Exit;
     Result := ListenerGoneWithin(5000);
+    if Result then
+      Log('{#AppName} quit from its tray, then Retry')
+    else
+      Log('{#AppName} still running at Retry');
   end;
 end;
 
