@@ -115,6 +115,8 @@ int run_map_defaults_tests(int argc, char **argv)
             CTM_CHECK_EQ(static_cast<unsigned>(map.usb_iso_in_endpoint()), 0x82u);
             CTM_CHECK_EQ(map.iso_in_sample_rate(), 48000u);
             CTM_CHECK_EQ(static_cast<unsigned>(map.iso_in_channels()), 2u);
+            // Its microphone keeps the hold by the bytes asked for.
+            CTM_CHECK_EQ(map.iso_in_packet_pacing(), false);
         }
     }
 
@@ -143,6 +145,7 @@ int run_map_defaults_tests(int argc, char **argv)
             CTM_CHECK_EQ(static_cast<unsigned>(map.usb_iso_in_endpoint()), 0x82u);
             CTM_CHECK_EQ(map.iso_in_sample_rate(), 16000u);
             CTM_CHECK_EQ(static_cast<unsigned>(map.iso_in_channels()), 1u);
+            CTM_CHECK_EQ(map.iso_in_packet_pacing(), true);
         } else {
             std::printf("  could not load %s\n", ds4MapPath.c_str());
         }

@@ -17,6 +17,10 @@ struct CtmSubmitInfo {
     bool endpointInterrupt = false;
     InputReplyKind inputReply = InputReplyKind::None;
     uint32_t inputWaitUs = 0;
+    // The other way: the server tells the device how many packets an
+    // isochronous request carries (0 for any other), so a microphone paced by
+    // the packet (the map's packet_pacing) can fill each with a millisecond.
+    uint32_t isoPackets = 0;
 };
 
 struct CtmAudioStats {

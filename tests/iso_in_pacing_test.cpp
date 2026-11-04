@@ -139,5 +139,19 @@ int run_iso_in_pacing_tests(int argc, char **argv)
         CTM_CHECK_EQ(IsoInPacer::duration_us_for_bytes(1920u, 32000u), 60000u);
     }
 
+    // --- Test 10: paced by the packet ---------------------------------------
+    // ⭐ A cabled DS4's request is ten packets of 34 bytes, a sample more than
+    // a millisecond each: timed by its bytes it is held 10.625 ms. Its map
+    // asks for a millisecond a packet (packet_pacing), 10 ms.
+    section("a request paced by the packet is held a millisecond a packet");
+    {
+        CTM_CHECK_EQ(IsoInPacer::duration_us_for_packets(10u), 10000u);
+        CTM_CHECK_EQ(IsoInPacer::duration_us_for_packets(1u), 1000u);
+        CTM_CHECK_EQ(IsoInPacer::duration_us_for_packets(0u), 0u);
+        CTM_CHECK_EQ(IsoInPacer::duration_us_for_packets(1000u), 100000u);   // the clamp
+        // Control: the same request timed by its bytes is the 6% longer hold.
+        CTM_CHECK_EQ(IsoInPacer::duration_us_for_bytes(340u, 32000u), 10625u);
+    }
+
     return 0;   // main() in tests_main.cpp reports the combined summary
 }

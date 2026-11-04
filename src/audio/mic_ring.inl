@@ -57,6 +57,11 @@ static size_t mic_ring_capacity_for(uint32_t bytesPerSecond)
     return bytesPerSecond == 0 ? kMicRingCapacity : static_cast<size_t>(bytesPerSecond) / 5u;
 }
 
+// How much a microphone paced by the packet (mic_ring_pop_paced) keeps in
+// hand: enough for the TV's chunks to arrive unevenly, little enough not to
+// be heard.
+static constexpr uint32_t kMicPacedTargetMs = 20u;
+
 // A fixed table rather than a map, so this file needs no extra headers and
 // cannot allocate on the URB read loop. Four bridged controllers at once is
 // already well past anything tested.
@@ -194,6 +199,110 @@ static void mic_ring_pop_fill(const CtmBackend *owner, std::vector<uint8_t> *out
     if (report) {
         device_log::audio_s() << "mic ring"
                   << " session=" << slotIndex
+                  << " in_bytes=" << pushed
+                  << " out_bytes=" << popped
+                  << " short_bytes=" << shortfall
+                  << " dropped_bytes=" << dropped
+                  << " requests=" << requests
+                  << " fill_bytes=" << remaining
+                  << std::endl;
+    }
+}
+
+// ⭐ A microphone paced by the packet (its map's packet_pacing, the cabled
+// DS4's): each request is held a millisecond a packet (iso_in_pacing.inl), so
+// it is given a millisecond of sound a packet, `nominalBytes`. A frame more
+// when the ring holds more than half a request over `targetBytes`, a frame
+// less when it holds that much under: the TV's clock and this PC's never
+// quite agree, and this keeps the delay where it was set instead of letting
+// it creep. More than twice the target, left from before Windows first asked
+// or from a stall, goes at once, the oldest first. Whole frames only, so the
+// channels stay in step. Short when the ring holds less, as the pop above,
+// and like it NEVER WAITS.
+static void mic_ring_pop_paced(const CtmBackend *owner, std::vector<uint8_t> *out,
+                               uint32_t nominalBytes, uint32_t maxBytes, uint32_t frameBytes,
+                               size_t targetBytes, size_t capacity = kMicRingCapacity)
+{
+    if (out == nullptr) {
+        return;
+    }
+    out->clear();
+    if (owner == nullptr || maxBytes == 0 || frameBytes == 0) {
+        return;
+    }
+
+    bool report = false;
+    uint64_t pushed = 0, popped = 0, dropped = 0, shortfall = 0, requests = 0;
+    size_t remaining = 0;
+    size_t slotIndex = 0;
+    {
+        std::lock_guard<std::mutex> lock(g_micRingMutex);
+        MicRingSlot *slot = mic_ring_slot(owner, false);
+        if (slot == nullptr) {
+            return;         // nothing has ever arrived for this session
+        }
+        slotIndex = static_cast<size_t>(slot - &g_micRings[0]);
+        if (capacity != 0) {
+            slot->capacity = capacity;
+        }
+        size_t excess = 0;
+        if (slot->data.size() > slot->capacity) {
+            excess = slot->data.size() - slot->capacity;
+        }
+        if (targetBytes != 0 && slot->data.size() - excess > targetBytes * 2) {
+            excess = slot->data.size() - targetBytes;
+        }
+        excess -= excess % frameBytes;
+        if (excess != 0) {
+            slot->data.erase(slot->data.begin(), slot->data.begin() + excess);
+            slot->dropped += excess;
+        }
+        const size_t fill = slot->data.size();
+        const size_t band = nominalBytes / 2u;
+        size_t want = nominalBytes;
+        if (fill > targetBytes + band) {
+            want += frameBytes;
+        } else if (fill + band < targetBytes && want >= frameBytes) {
+            want -= frameBytes;
+        }
+        if (want > maxBytes) {
+            want = maxBytes - maxBytes % frameBytes;
+        }
+        size_t taken = fill < want ? fill : want;
+        taken -= taken % frameBytes;
+        if (taken != 0) {
+            out->assign(slot->data.begin(), slot->data.begin() + taken);
+            slot->data.erase(slot->data.begin(), slot->data.begin() + taken);
+        }
+        slot->popped += taken;
+        slot->shortfall += (want - taken);
+        ++slot->requests;
+        remaining = slot->data.size();
+
+        const uint64_t nowUs = monotonic_us();
+        if (slot->lastLogUs == 0) {
+            slot->lastLogUs = nowUs;
+        } else if (nowUs - slot->lastLogUs >= 1000000ULL) {
+            slot->lastLogUs = nowUs;
+            report = true;
+            pushed = slot->pushed;
+            popped = slot->popped;
+            dropped = slot->dropped;
+            shortfall = slot->shortfall;
+            requests = slot->requests;
+            slot->pushed = 0;
+            slot->popped = 0;
+            slot->dropped = 0;
+            slot->shortfall = 0;
+            slot->requests = 0;
+        }
+    }
+
+    // The pop above's line, marked paced.
+    if (report) {
+        device_log::audio_s() << "mic ring"
+                  << " session=" << slotIndex
+                  << " paced=1"
                   << " in_bytes=" << pushed
                   << " out_bytes=" << popped
                   << " short_bytes=" << shortfall

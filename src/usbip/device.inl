@@ -122,6 +122,15 @@ public:
         return micSampleRate_ * micChannels_ * static_cast<uint32_t>(sizeof(int16_t));
     }
 
+    // ⭐ Whether the microphone's requests are held a millisecond a packet
+    // instead of for their bytes (usbip/server.inl), and filled to match
+    // (handle_endpoint_in): the map's packet_pacing, the cabled DS4's. Only
+    // for this device's microphone endpoint.
+    bool iso_in_packet_pacing(uint8_t endpointAddress) const
+    {
+        return micPacketPacing_ && endpointAddress == micIsoEndpoint_;
+    }
+
     bool attach_backend(CtmBackend *backend, std::wstring *error)
     {
         backend_ = backend;
@@ -1070,6 +1079,7 @@ private:
         micIsoEndpoint_ = map_.usb_iso_in_endpoint();
         micSampleRate_ = map_.iso_in_sample_rate() != 0 ? map_.iso_in_sample_rate() : 48000;
         micChannels_ = map_.iso_in_channels() != 0 ? map_.iso_in_channels() : 2;
+        micPacketPacing_ = map_.iso_in_packet_pacing();
         if (ctm_verbose_logs()) device_log::usb_s() << "audio pipeline"
                   << " usb_rate=" << audioInputSampleRate_
                   << " reservoir_rate=" << audioReservoirSampleRate_
@@ -1081,6 +1091,7 @@ private:
                   << std::defaultfloat
                   << " mic_rate=" << micSampleRate_
                   << " mic_channels=" << static_cast<unsigned int>(micChannels_)
+                  << " mic_packet_pacing=" << (micPacketPacing_ ? 1 : 0)
                   << std::endl;
     }
 
@@ -2250,9 +2261,24 @@ private:
             // ⭐ Both follow THIS pad's microphone (configure_audio_stream_
             // from_map): a DualSense's 2 channels at 48 kHz, a cabled DS4's 1
             // at 16 kHz, and the ring keeps about 200 ms of whichever it is.
-            if (!iso_in_fill_test_tone(inData, transferLength, micChannels_, micSampleRate_)) {
-                mic_ring_pop_fill(backend_, inData, transferLength,
-                                  mic_ring_capacity_for(iso_in_bytes_per_second(micIsoEndpoint_)));
+            // ⭐ Paced by the packet (the map's packet_pacing, a cabled
+            // DS4's), a request is held a millisecond a packet, so it is given
+            // a millisecond of sound a packet, not all it has room for.
+            const bool paced = micPacketPacing_ && endpointAddress == micIsoEndpoint_ &&
+                               submitInfo != nullptr && submitInfo->isoPackets != 0;
+            const uint32_t frameBytes = static_cast<uint32_t>(micChannels_ * sizeof(int16_t));
+            const uint32_t bytesPerMs = (micSampleRate_ / 1000u) * frameBytes;
+            const uint32_t fillBytes = paced
+                ? (std::min<uint32_t>)(submitInfo->isoPackets * bytesPerMs, transferLength)
+                : transferLength;
+            if (!iso_in_fill_test_tone(inData, fillBytes, micChannels_, micSampleRate_)) {
+                const size_t capacity = mic_ring_capacity_for(iso_in_bytes_per_second(micIsoEndpoint_));
+                if (paced) {
+                    mic_ring_pop_paced(backend_, inData, fillBytes, transferLength, frameBytes,
+                                       static_cast<size_t>(bytesPerMs) * kMicPacedTargetMs, capacity);
+                } else {
+                    mic_ring_pop_fill(backend_, inData, transferLength, capacity);
+                }
             }
             return kStatusOk;
         }
@@ -2356,6 +2382,7 @@ private:
     uint8_t micIsoEndpoint_ = 0x82;
     uint32_t micSampleRate_ = 48000;
     uint8_t micChannels_ = 2;
+    bool micPacketPacing_ = false;
     CtmPcmReservoir audioReservoir_;
     std::mutex audioThreadMutex_;
     std::thread audioBuilderThread_;

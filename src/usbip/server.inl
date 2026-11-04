@@ -840,6 +840,7 @@ private:
 
             std::vector<uint8_t> inData;
             CtmSubmitInfo submitInfo;
+            submitInfo.isoPackets = packets != kNonIsoPackets ? packets : 0;
             int status = device->handle_submit(
                 direction,
                 ep,
@@ -1093,8 +1094,15 @@ private:
                 // and the free-running endpoint would come straight back.
                 // ⭐ At THIS device's microphone rate: a cabled DS4's is a
                 // sixth of a DualSense's.
-                pacedItem.durationUs = IsoInPacer::duration_us_for_bytes(
-                    transferLength, device->iso_in_bytes_per_second(endpointAddress));
+                // ⭐ Or a millisecond a packet, where the map says so (the
+                // cabled DS4's): a DS4's packet holds a sample more than a
+                // millisecond, so timed by the bytes its answers came 6% slow
+                // and Windows' recorder logged glitches, 34 a second.
+                pacedItem.durationUs =
+                    device->iso_in_packet_pacing(endpointAddress) && packets != kNonIsoPackets
+                        ? IsoInPacer::duration_us_for_packets(packets)
+                        : IsoInPacer::duration_us_for_bytes(
+                              transferLength, device->iso_in_bytes_per_second(endpointAddress));
                 if (isoInPacer.submit(std::move(pacedItem))) {
                     continue;
                 }

@@ -79,6 +79,11 @@ public:
     uint8_t usb_iso_in_endpoint() const { return usbIsoInEndpoint_; }
     uint32_t iso_in_sample_rate() const { return isoInSampleRate_; }
     uint8_t iso_in_channels() const { return isoInChannels_; }
+    // Whether each microphone request is held a millisecond per packet and
+    // given a millisecond of sound per packet, as a real pad sends it, rather
+    // than held for the bytes Windows asked for (usbip/server.inl). Off unless
+    // the map says `packet_pacing = true`; a DualSense's map does not.
+    bool iso_in_packet_pacing() const { return isoInPacketPacing_; }
 
     /* ⭐ THE ID THIS DEVICE ANNOUNCES AS, six bytes derived from the serial its
      * virtual USB device carries. Set once, before any packet is built.
@@ -412,6 +417,7 @@ private:
     uint32_t reservoirSampleRate_ = 44100;
     uint8_t isoChannels_ = 4;
     uint8_t isoInChannels_ = 2;
+    bool isoInPacketPacing_ = false;
     uint16_t isoFrameSamples_ = 480;
     uint16_t hapticOutputRate_ = 3200;
     uint8_t streamReportId_ = 0x36;
