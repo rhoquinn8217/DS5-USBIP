@@ -155,68 +155,6 @@ int run_mic_ring_tests()
         reset_all();
     }
 
-    // ⭐ Paced by the packet (a cabled DS4's map): a 10-packet request takes
-    // 10 ms of its stream, 320 bytes, with 640 (20 ms) kept in hand, and a
-    // frame more or less as the ring sits over or under that.
-    section("mic ring: paced by the packet, a request takes a millisecond a packet");
-    {
-        std::vector<uint8_t> got;
-        push(0, bytes(700, 0));
-        // Within half a request of the target: exactly 10 ms.
-        micring::mic_ring_pop_paced(session(0), &got, 320u, 340u, 2u, 640u, 6400u);
-        CTM_CHECK_EQ(got.size(), static_cast<size_t>(320));
-        CTM_CHECK(got == bytes(320, 0));
-        // 380 left, under the target by more than half a request: a frame less.
-        micring::mic_ring_pop_paced(session(0), &got, 320u, 340u, 2u, 640u, 6400u);
-        CTM_CHECK_EQ(got.size(), static_cast<size_t>(318));
-        // 62 left: what there is, short and never padded.
-        micring::mic_ring_pop_paced(session(0), &got, 320u, 340u, 2u, 640u, 6400u);
-        CTM_CHECK_EQ(got.size(), static_cast<size_t>(62));
-        micring::mic_ring_pop_paced(session(0), &got, 320u, 340u, 2u, 640u, 6400u);
-        CTM_CHECK(got.empty());
-        // Over the target by more than half a request: a frame more.
-        push(0, bytes(900, 0));
-        micring::mic_ring_pop_paced(session(0), &got, 320u, 340u, 2u, 640u, 6400u);
-        CTM_CHECK_EQ(got.size(), static_cast<size_t>(322));
-        reset_all();
-    }
-
-    section("mic ring: paced, a backlog over twice the target drops to it, the oldest first");
-    {
-        std::vector<uint8_t> got;
-        push(0, std::vector<uint8_t>(3000, 0x11));
-        push(0, std::vector<uint8_t>(640, 0x22));
-        micring::mic_ring_pop_paced(session(0), &got, 320u, 340u, 2u, 640u, 6400u);
-        CTM_CHECK_EQ(got.size(), static_cast<size_t>(320));
-        bool newest = true;
-        for (uint8_t b : got) newest = newest && b == 0x22;
-        CTM_CHECK(newest);
-        // Control: up to twice the target nothing is dropped.
-        reset_all();
-        push(0, std::vector<uint8_t>(1280, 0x33));
-        micring::mic_ring_pop_paced(session(0), &got, 320u, 340u, 2u, 640u, 6400u);
-        CTM_CHECK_EQ(got.size(), static_cast<size_t>(322));
-        micring::mic_ring_pop_fill(session(0), &got, 100000u);
-        CTM_CHECK_EQ(got.size(), static_cast<size_t>(1280 - 322));
-        reset_all();
-    }
-
-    section("mic ring: paced, only whole frames go, and never more than was asked");
-    {
-        std::vector<uint8_t> got;
-        // Two channels, 4 bytes a frame: 7 bytes is one frame, its tail kept.
-        push(0, bytes(7, 1));
-        micring::mic_ring_pop_paced(session(0), &got, 384u, 392u, 4u, 768u, 38400u);
-        CTM_CHECK_EQ(got.size(), static_cast<size_t>(4));
-        micring::mic_ring_pop_fill(session(0), &got, 100u);
-        CTM_CHECK(got == bytes(3, 5));
-        // A frame more never goes past what Windows asked for.
-        push(0, std::vector<uint8_t>(1200, 0));
-        micring::mic_ring_pop_paced(session(0), &got, 340u, 340u, 2u, 640u, 6400u);
-        CTM_CHECK_EQ(got.size(), static_cast<size_t>(340));
-        reset_all();
-    }
-
     section("mic ring: a reset puts the DualSense's figure back");
     {
         const size_t ds4 = micring::mic_ring_capacity_for(32000u);

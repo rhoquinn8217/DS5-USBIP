@@ -113,10 +113,6 @@ channels = 2
 # The headset microphone, ISO IN 0x82: one channel. Its rate is
 # endpoint.0x82.default above. The default is the DualSense's two.
 channels = 1
-# Each request held a millisecond a packet and given a millisecond of sound a
-# packet (16 samples), as the pad sends it. Its packets hold 17, so held for
-# their bytes the answers ran 6% slow and Windows' recorder logged glitches.
-packet_pacing = true
 
 [advertise]
 controller_name = DualShock 4 (Wired)

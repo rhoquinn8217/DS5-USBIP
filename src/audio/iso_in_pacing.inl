@@ -108,16 +108,6 @@ public:
         return static_cast<uint32_t>(us > 100000ULL ? 100000ULL : us);
     }
 
-    // A millisecond for each packet: the 1 ms service interval both pads'
-    // microphone endpoints declare (bInterval 4 at high speed). For a device
-    // whose map asks for it (packet_pacing), filled with a millisecond of
-    // sound a packet to match. Clamped as above.
-    static uint32_t duration_us_for_packets(uint32_t packets)
-    {
-        const uint64_t us = static_cast<uint64_t>(packets) * 1000ULL;
-        return static_cast<uint32_t>(us > 100000ULL ? 100000ULL : us);
-    }
-
     // Queue a completion. Returns false if the pacer is not running, in
     // which case the caller must send it itself -- never drop a URB.
     bool submit(IsoInPending item)

@@ -118,7 +118,6 @@ public:
     uint32_t iso_out_audio_frames(uint8_t, uint32_t) const { return 0; }
     uint32_t iso_out_expected_rate_hz(uint8_t) const { return 0; }
     uint32_t iso_in_bytes_per_second(uint8_t) const { return 0; }
-    bool iso_in_packet_pacing(uint8_t) const { return false; }
     CtmAudioStats audio_stats() const { return CtmAudioStats(); }
 
     // Control and OUT requests. A control IN is answered with the 18 bytes of
