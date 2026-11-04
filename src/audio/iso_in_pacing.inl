@@ -46,7 +46,9 @@
 // reports Capture interface 2 altset 1, S16_LE, 2 channels, 48000 Hz; and
 // Windows reports the bridged endpoint as "2 channel, 16 bit, 48000 Hz".
 // Both 2026-08-02.
-// TODO: move to the device config file once capture is configurable.
+// ⭐ Only the DEFAULT now: each device says its own (device.inl,
+// iso_in_bytes_per_second), from its map. A cabled DS4's is 1 channel at
+// 16 kHz, 32000, and timed by this figure its answers came six times fast.
 static constexpr uint32_t kIsoInBytesPerSecond = 192000u;
 
 // A completion held back until its audio duration has elapsed.
@@ -90,16 +92,16 @@ public:
         worker_ = std::thread([this]() { loop(); });
     }
 
-    // How long `byteCount` of capture audio represents, in microseconds.
-    // Clamped the same way the outbound path clamps its own duration.
-    static uint32_t duration_us_for_bytes(uint32_t byteCount)
+    // How long `byteCount` of capture audio represents, in microseconds, in a
+    // stream of `bytesPerSecond` (0 for the default above). Clamped the same
+    // way the outbound path clamps its own duration.
+    static uint32_t duration_us_for_bytes(uint32_t byteCount, uint32_t bytesPerSecond = kIsoInBytesPerSecond)
     {
         if (byteCount == 0) {
             return 0;
         }
-        const uint64_t us = (static_cast<uint64_t>(byteCount) * 1000000ULL +
-                             kIsoInBytesPerSecond - 1) /
-                            kIsoInBytesPerSecond;
+        const uint64_t rate = bytesPerSecond == 0 ? kIsoInBytesPerSecond : bytesPerSecond;
+        const uint64_t us = (static_cast<uint64_t>(byteCount) * 1000000ULL + rate - 1) / rate;
         if (us == 0) {
             return 1;
         }

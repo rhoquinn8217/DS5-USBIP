@@ -124,6 +124,51 @@ int run_mic_ring_tests()
         reset_all();
     }
 
+    section("mic ring: 200 ms is reckoned from each stream's own rate");
+    {
+        // ⭐ The DualSense's figure is exactly what it was, and a device that
+        // says nothing gets it.
+        CTM_CHECK_EQ(micring::mic_ring_capacity_for(192000u), micring::kMicRingCapacity);
+        CTM_CHECK_EQ(micring::mic_ring_capacity_for(0u), micring::kMicRingCapacity);
+        // A cabled DS4's headset microphone: 1 channel x 2 bytes x 16000 Hz.
+        CTM_CHECK_EQ(micring::mic_ring_capacity_for(32000u), static_cast<size_t>(6400));
+    }
+
+    section("mic ring: a cabled DS4's session keeps 200 ms of ITS stream, the newest");
+    {
+        const size_t ds4 = micring::mic_ring_capacity_for(32000u);
+        // Before Windows asks, the DualSense's figure holds: all of it stays.
+        push(0, std::vector<uint8_t>(ds4, 0x11));
+        push(0, std::vector<uint8_t>(1000, 0x22));
+        // The first ask brings it down to the DS4's, the oldest going first.
+        std::vector<uint8_t> got;
+        micring::mic_ring_pop_fill(session(0), &got, static_cast<uint32_t>(ds4 + 5000), ds4);
+        CTM_CHECK_EQ(got.size(), ds4);
+        bool newestKept = true;
+        for (size_t i = ds4 - 1000; i < ds4; ++i) newestKept = newestKept && got[i] == 0x22;
+        CTM_CHECK(newestKept);
+        CTM_CHECK_EQ(static_cast<int>(got[0]), 0x11);
+        // And it stays the DS4's: a push past it keeps only that much.
+        push(0, std::vector<uint8_t>(ds4 + 3000, 0x33));
+        micring::mic_ring_pop_fill(session(0), &got, static_cast<uint32_t>(ds4 + 5000), ds4);
+        CTM_CHECK_EQ(got.size(), ds4);
+        reset_all();
+    }
+
+    section("mic ring: a reset puts the DualSense's figure back");
+    {
+        const size_t ds4 = micring::mic_ring_capacity_for(32000u);
+        push(0, bytes(4, 1));
+        std::vector<uint8_t> got;
+        micring::mic_ring_pop_fill(session(0), &got, 100, ds4);
+        micring::mic_ring_reset(session(0));
+        // The next session on that slot keeps up to the DualSense's again.
+        push(0, std::vector<uint8_t>(ds4 + 3000, 0x44));
+        const std::vector<uint8_t> all = pop(0, static_cast<uint32_t>(ds4 + 5000));
+        CTM_CHECK_EQ(all.size(), ds4 + 3000);
+        reset_all();
+    }
+
     section("mic ring: two sessions never mix");
     {
         push(0, bytes(4, 10));

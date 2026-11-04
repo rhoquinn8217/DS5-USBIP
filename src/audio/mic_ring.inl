@@ -38,14 +38,24 @@
 // REQUIRED HEADERS (pulled in by main.cpp before this file):
 //   <atomic> <chrono> <cstdint> <cstring> <mutex> <vector>
 
-// Capture stream: 2 channels x 2 bytes x 48000 Hz = 192000 bytes/second.
-// Measured from the device on the TV and confirmed by what Windows reports
-// for the bridged endpoint, both 2026-08-02.
+// A DualSense's capture stream: 2 channels x 2 bytes x 48000 Hz = 192000
+// bytes/second. Measured from the device on the TV and confirmed by what
+// Windows reports for the bridged endpoint, both 2026-08-02.
 static constexpr size_t kMicRingBytesPerSecond = 192000u;
 
 // About 200 ms. Deep enough to ride out a network hiccup, shallow enough that
 // the delay between speaking and being heard stays unnoticeable.
 static constexpr size_t kMicRingCapacity = kMicRingBytesPerSecond / 5u;
+
+// ⭐ About 200 ms of ANY stream, which is what each session keeps once Windows
+// asks for its microphone (mic_ring_pop_fill). A cabled DS4's is 1 channel at
+// 16 kHz, 32000 bytes a second: held to the DualSense's figure above it kept
+// 1.2 seconds, and a delay that size never drains, because Windows reads at
+// exactly the rate the TV sends.
+static size_t mic_ring_capacity_for(uint32_t bytesPerSecond)
+{
+    return bytesPerSecond == 0 ? kMicRingCapacity : static_cast<size_t>(bytesPerSecond) / 5u;
+}
 
 // A fixed table rather than a map, so this file needs no extra headers and
 // cannot allocate on the URB read loop. Four bridged controllers at once is
@@ -55,6 +65,9 @@ static constexpr size_t kMicRingMaxSessions = 4;
 struct MicRingSlot {
     const CtmBackend *owner = nullptr;
     std::vector<uint8_t> data;
+    // How much it keeps: the DualSense's until Windows first asks, then what
+    // the asking device says (mic_ring_pop_fill).
+    size_t capacity = kMicRingCapacity;
     uint64_t pushed = 0;        // bytes arrived from the TV
     uint64_t popped = 0;        // bytes handed to Windows
     uint64_t dropped = 0;       // bytes discarded on overflow
@@ -100,19 +113,22 @@ static void mic_ring_push(const CtmBackend *owner, const uint8_t *data, size_t l
     }
     slot->data.insert(slot->data.end(), data, data + len);
     slot->pushed += len;
-    if (slot->data.size() > kMicRingCapacity) {
+    if (slot->data.size() > slot->capacity) {
         // Drop from the FRONT: the newest audio is what someone is waiting to
         // hear. Keeping stale samples would grow the delay permanently, which
         // is worse than a brief gap.
-        const size_t excess = slot->data.size() - kMicRingCapacity;
+        const size_t excess = slot->data.size() - slot->capacity;
         slot->data.erase(slot->data.begin(), slot->data.begin() + excess);
         slot->dropped += excess;
     }
 }
 
 // Called from the URB read loop. Hands over as much as this session's ring
-// holds, up to `want`, and NO MORE. NEVER WAITS.
-static void mic_ring_pop_fill(const CtmBackend *owner, std::vector<uint8_t> *out, uint32_t want)
+// holds, up to `want`, and NO MORE. NEVER WAITS. `capacity` is how much this
+// session keeps from now on (mic_ring_capacity_for): what is over it goes, the
+// oldest first, as on a push.
+static void mic_ring_pop_fill(const CtmBackend *owner, std::vector<uint8_t> *out, uint32_t want,
+                              size_t capacity = kMicRingCapacity)
 {
     if (out == nullptr) {
         return;
@@ -133,6 +149,16 @@ static void mic_ring_pop_fill(const CtmBackend *owner, std::vector<uint8_t> *out
             return;         // nothing has ever arrived for this session
         }
         slotIndex = static_cast<size_t>(slot - &g_micRings[0]);
+        if (capacity != 0) {
+            slot->capacity = capacity;
+        }
+        if (slot->data.size() > slot->capacity) {
+            // What arrived before Windows first asked, held to the DualSense's
+            // figure: the same drop as the push's, the oldest first.
+            const size_t excess = slot->data.size() - slot->capacity;
+            slot->data.erase(slot->data.begin(), slot->data.begin() + excess);
+            slot->dropped += excess;
+        }
         const size_t taken = slot->data.size() < want ? slot->data.size() : want;
         if (taken != 0) {
             out->assign(slot->data.begin(), slot->data.begin() + taken);
@@ -192,6 +218,7 @@ static void mic_ring_reset(const CtmBackend *owner)
     }
     slot->data.clear();
     slot->data.shrink_to_fit();
+    slot->capacity = kMicRingCapacity;
     slot->owner = nullptr;
     slot->pushed = 0;
     slot->popped = 0;

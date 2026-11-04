@@ -73,6 +73,12 @@ public:
     uint32_t iso_sample_rate() const { return isoSampleRate_; }
     uint16_t iso_frame_samples() const { return isoFrameSamples_; }
     uint8_t iso_channels() const { return isoChannels_; }
+    // The microphone stream (ISO IN): its endpoint, its rate as Windows is
+    // told it, and its channels. A DualSense's 48 kHz and two unless the map
+    // says otherwise.
+    uint8_t usb_iso_in_endpoint() const { return usbIsoInEndpoint_; }
+    uint32_t iso_in_sample_rate() const { return isoInSampleRate_; }
+    uint8_t iso_in_channels() const { return isoInChannels_; }
 
     /* ⭐ THE ID THIS DEVICE ANNOUNCES AS, six bytes derived from the serial its
      * virtual USB device carries. Set once, before any packet is built.
@@ -405,6 +411,7 @@ private:
     uint32_t isoSampleRate_ = 48000;
     uint32_t reservoirSampleRate_ = 44100;
     uint8_t isoChannels_ = 4;
+    uint8_t isoInChannels_ = 2;
     uint16_t isoFrameSamples_ = 480;
     uint16_t hapticOutputRate_ = 3200;
     uint8_t streamReportId_ = 0x36;

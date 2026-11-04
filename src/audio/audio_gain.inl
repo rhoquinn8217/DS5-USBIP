@@ -12,6 +12,12 @@
 //
 // Both are scaled here, independently, by their own config key.
 //
+// ⭐ A DS4'S STREAM HAS TWO CHANNELS, BOTH SOUND, AND NO HAPTICS -- on a cable
+// and over Bluetooth alike. So the caller says how many channels its stream
+// has (device.inl passes the map's), and only the third and fourth of four
+// are haptics. ⛔ Read as four, a DS4's stream had every other FRAME scaled by
+// the haptics gain: two of its stereo frames taken for one of the DualSense's.
+//
 // GAIN IS NOT VOLUME, AND THE DISTINCTION IS THE AUDIO CONVENTION:
 //
 //   * GAIN scales a SIGNAL on its way through. 100 means UNCHANGED.
@@ -126,18 +132,21 @@ inline void scale_sample(uint8_t *at, int gain)
 }
 
 // Scales sound and haptic channels in place, each by its own gain, leaving
-// either untouched when its gain is absent or 100.
-inline void apply(std::vector<uint8_t> &data, const Gains &gains)
+// either untouched when its gain is absent or 100. `channels` is the stream's:
+// the first two are sound and any after them haptics, so a two-channel stream
+// takes the sound gain only.
+inline void apply(std::vector<uint8_t> &data, const Gains &gains, size_t channels = kChannels)
 {
     const bool doRumble = gain_is_active(gains.haptics);
     const bool doSpeaker = gain_is_active(gains.sound);
-    if (!doRumble && !doSpeaker) {
+    if ((!doRumble && !doSpeaker) || channels == 0) {
         return;
     }
-    const size_t frames = data.size() / kBytesPerFrame;
+    const size_t bytesPerFrame = channels * sizeof(int16_t);
+    const size_t frames = data.size() / bytesPerFrame;
     for (size_t f = 0; f < frames; ++f) {
-        uint8_t *frameStart = data.data() + f * kBytesPerFrame;
-        for (size_t ch = 0; ch < kChannels; ++ch) {
+        uint8_t *frameStart = data.data() + f * bytesPerFrame;
+        for (size_t ch = 0; ch < channels; ++ch) {
             const bool isSpeaker = ch < kSpeakerChannels;
             if (isSpeaker ? !doSpeaker : !doRumble) {
                 continue;

@@ -1091,7 +1091,10 @@ private:
                 // ring hands back only what it holds, so a short reply is normal;
                 // timing on it would mean no hold at all when the ring is empty,
                 // and the free-running endpoint would come straight back.
-                pacedItem.durationUs = IsoInPacer::duration_us_for_bytes(transferLength);
+                // ⭐ At THIS device's microphone rate: a cabled DS4's is a
+                // sixth of a DualSense's.
+                pacedItem.durationUs = IsoInPacer::duration_us_for_bytes(
+                    transferLength, device->iso_in_bytes_per_second(endpointAddress));
                 if (isoInPacer.submit(std::move(pacedItem))) {
                     continue;
                 }
