@@ -46,7 +46,7 @@ struct RestDeviceView {
     // unknown gets every section. A false hide costs someone a feature they
     // own and cannot find; a false show costs one dead row.
     bool hasAudio = true;      // the pad speaker, the headset jack, echo cancel
-    bool hasRumbleGains = true; // the three gains, patched only into a DualSense report
+    bool hasRumbleGains = true; // the rumble dials, on a DualSense's report or a DS4's
     bool hasTouchpad = true;
     bool hasGyro = true;
     // ⭐ THE POLLING RATE (usbip/input_pace.inl): the reports a second Windows

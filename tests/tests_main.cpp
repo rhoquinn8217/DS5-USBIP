@@ -41,6 +41,7 @@ int run_same_controller_tests();
 int run_same_device_tests();
 int run_device_capabilities_tests();
 int run_rumble_floor_tests();
+int run_ds4_settings_tests();
 int run_host_audio_settings_tests();
 int run_trigger_effect_tests();
 int run_trigger_click_tests();
@@ -172,6 +173,7 @@ int main(int argc, char **argv)
     run_same_device_tests();
     run_device_capabilities_tests();
     run_rumble_floor_tests();
+    run_ds4_settings_tests();
     run_mic_report_tests();
     run_host_audio_settings_tests();
     run_capped_log_tests();

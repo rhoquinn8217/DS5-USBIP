@@ -4516,7 +4516,34 @@ function pollRates() {
   }).catch(function () {});
 }
 
+// ⭐ A TAB FOLLOWS ITS DEVICE BACK (2026-11-04). A DS4Dongle restarts when the
+// listener sets it to play its speaker without headphones, so the DS4 leaves
+// for a few seconds and returns as a new session under its old nickname
+// (ds4_dongle_return.inl on the listener). The window fell back to Overview when it left, and goes back
+// to it when it returns, unless the window was moved meanwhile. ⓘ The nickname
+// is the device here, as in groupDevices.
+var TAB_BACK = null;              // { name, to, until }: a tab its device took away
+var TAB_BACK_MS = 20000;
+
+function followTabBack(lostName) {
+  // ⓘ And looked for at once: the list is read every POLL_MS, and a pad back
+  // within that time is gone and back in the same list.
+  if (lostName) TAB_BACK = { name: lostName, to: ACTIVE, until: Date.now() + TAB_BACK_MS };
+  if (!TAB_BACK) return;
+  if (Date.now() > TAB_BACK.until || ACTIVE !== TAB_BACK.to) { TAB_BACK = null; return; }
+  var back = DEVICE_LEADS.filter(function (d) { return d.nickname === TAB_BACK.name; })[0];
+  if (!back) return;
+  TAB_BACK = null;
+  showTab(back.ordinal);
+}
+
 function renderTabs(devices) {
+  // ⓘ Read before the list is replaced: the name of the device on the tab.
+  var nameBefore = '';
+  if (isControllerTab(ACTIVE)) {
+    var before = deviceByOrdinal(leadOf(ACTIVE));
+    nameBefore = (before && before.nickname) || '';
+  }
   LAST_DEVICES = devices || [];
   groupDevices(LAST_DEVICES);
   // The event, not an expiry: a device in the list means bridging works now.
@@ -4590,10 +4617,14 @@ function renderTabs(devices) {
   // nothing -- an unbridge should not leave a blank page.
   // ⓘ A tab's key moves to another part when its device gains one that takes a
   // config, so the part is followed to its device before the tab is given up.
+  var fellBack = false;
   if (TABS.indexOf(ACTIVE) < 0) {
-    showTab(TABS.indexOf(leadOf(ACTIVE)) >= 0 ? leadOf(ACTIVE) : 'overview');
+    fellBack = TABS.indexOf(leadOf(ACTIVE)) < 0;
+    showTab(fellBack ? 'overview' : leadOf(ACTIVE));
   }
   if (COMPACT) compactEnsureController();
+  // ⓘ After the compact views' own choice, which is where the window now is.
+  followTabBack(fellBack ? nameBefore : '');
 }
 
 // A SESSION kind ("ds5_usb") is not the kind a config is stored under ("ds5").
@@ -4608,10 +4639,12 @@ function renderTabs(devices) {
 // The wire strings are left alone -- the TV sends them, so renaming is a
 // two-repo protocol change rather than a rename.
 function transportOf(sessionKind) {
-  if (sessionKind === 'ds5') return 'Bluetooth';
+  if (sessionKind === 'ds5' || sessionKind === 'ds4') return 'Bluetooth';
   // ⓘ "USB", not "wired": it pairs like-for-like with BT -- both name the
   // transport -- and matches the wire string ds5_usb.
-  if (sessionKind === 'ds5_usb' || sessionKind === 'ds5e_usb') return 'USB';
+  // ⓘ A DS4 since its Audio section (2026-11-04): ds4 is the Bluetooth one,
+  // ds4_usb the cabled one.
+  if (sessionKind === 'ds5_usb' || sessionKind === 'ds5e_usb' || sessionKind === 'ds4_usb') return 'USB';
   return '';
 }
 
@@ -6459,20 +6492,25 @@ var ADAPTIVE_TRIGGER_KINDS = ['ds5', 'ds5_edge'];
 // none of those four is gated on being a DualSense. Hiding the Audio section
 // from a DS4 took all four with it, which is what this fixes.
 //
-// These two do not travel:
-//   audio_gain        rides the WIRED ISO audio path (audio_gain.inl), four
-//                     channels in one buffer, which is a DualSense layout. A
-//                     DS4's audio is SBC frames on a different endpoint.
+// This one does not travel:
 //   force_echo_cancel is an output-report patch in ds5_output_overrides.inl
 //                     and ds5_apply_settings.inl, so the 0x02 gate stops it.
 //
-// ⚠️ audio_gain has a SECOND limit that is not about the pad at all: it reads
-// the literal "ds5" section, so it acts only from the shared [ds5] block and a
-// named config's copy is ignored. That is T-229 item C's to fix -- greying it
-// here for a DS4 is right either way.
+// ⓘ audio_gain left this list on 2026-11-04: it scales the sound in the
+// listener before it is sent (audio_gain.inl), each pad from its own section,
+// and a DS4's two channels take it as the first two of a DualSense's four.
 var NEEDS_DS5_AUDIO_PATH = {
-  audio_gain: 1,
   force_echo_cancel: 1
+};
+
+// ⭐ PC SOUND AS VIBRATION plays through a DualSense's haptics, the third and
+// fourth channels of its sound. A DS4 has rumble motors and two channels, so
+// these do nothing on one.
+var NEEDS_DS5_HAPTICS = {
+  audio_haptics: 1,
+  audio_haptics_strength: 1,
+  audio_haptics_bass_hz: 1,
+  audio_haptics_mode: 1
 };
 
 // The settings kinds whose reports those two paths actually read.
@@ -6498,6 +6536,16 @@ function inertReason(key, sessionKind) {
   if (NEEDS_ADAPTIVE_TRIGGERS[key] &&
       ADAPTIVE_TRIGGER_KINDS.indexOf(settingsKindOf(sessionKind)) < 0) {
     return 'this controller has no adaptive triggers';
+  }
+  if (NEEDS_DS5_HAPTICS[key] &&
+      DS5_AUDIO_PATH_KINDS.indexOf(settingsKindOf(sessionKind)) < 0) {
+    return 'DualSense only — it plays the PC’s sound through the DualSense’s haptics';
+  }
+  // ⓘ A DS4 plays where its jack says: the headset when one is in, its own
+  // speaker when not. On a cable nothing picks a route for it, and over
+  // Bluetooth a route was never seen to act (2026-09-20).
+  if (key === 'audio_output' && settingsKindOf(sessionKind) === 'ds4') {
+    return 'no effect on a DS4 — its headphone jack decides';
   }
   if (NEEDS_DS5_AUDIO_PATH[key] &&
       DS5_AUDIO_PATH_KINDS.indexOf(settingsKindOf(sessionKind)) < 0) {
@@ -6736,6 +6784,11 @@ function renderConfigEditor(hostId, configName, prefix, ordinal) {
         // adjusting a controller -- and every row is one more to scroll past.
         // Set them by hand in the config file when they are needed.
         if (hiddenSetting(meta.key)) return;
+        var rowDev = ordinal ? (deviceByOrdinal(ordinal) || {}) : {};
+        // ⭐ ON A DS4, A ROW THAT DOES NOTHING IS HIDDEN, NOT GREYED
+        // (rhoquinn8217, 2026-11-04: "hide them"). A DualSense keeps its greyed
+        // rows and their reasons, as before.
+        if (rowDev.kind && settingsKindOf(rowDev.kind) === 'ds4' && inertReason(meta.key, rowDev.kind)) return;
         var val = current[meta.key];
         // ⚠️ Present-but-empty counts as UNMANAGED, not as a value. That is
         // what the agent does too: "" fails to parse and falls back, and an
@@ -12572,6 +12625,20 @@ function selfTest() {
        rateSelectValue({ polling_rate: '1000', rate_limit_hz: 0 }) === 'real_time' &&
        rateSelectValue({ polling_rate: 'max', rate_limit_hz: 0 }) === 'real_time');
     ok('polling_rate is not offered again in the settings list', hiddenSetting('polling_rate'));
+    // ⭐ A DS4's Audio rows (2026-11-04): what acts on one is offered, the
+    // rest is inert there, and a DualSense keeps every row it had.
+    ok('a DS4 on a cable takes its volumes and the gain',
+       !inertReason('speaker_volume', 'ds4_usb') && !inertReason('headset_volume', 'ds4_usb') &&
+       !inertReason('audio_gain', 'ds4_usb') && !inertReason('audio_gain', 'ds4'));
+    ok('a DS4 has no route, no echo cancel and no PC sound as vibration',
+       !!inertReason('audio_output', 'ds4_usb') && !!inertReason('audio_output', 'ds4') &&
+       !!inertReason('force_echo_cancel', 'ds4_usb') && !!inertReason('audio_haptics', 'ds4') &&
+       !!inertReason('audio_haptics_strength', 'ds4_usb'));
+    ok('the speaker buffer is a Bluetooth DS4\'s and not a cabled one\'s',
+       !!inertReason('audio_latency_ms', 'ds4_usb') && !inertReason('audio_latency_ms', 'ds4'));
+    ok('a DualSense keeps its route, echo cancel and PC sound as vibration',
+       !inertReason('audio_output', 'ds5_usb') && !inertReason('force_echo_cancel', 'ds5_usb') &&
+       !inertReason('audio_haptics', 'ds5') && !inertReason('audio_gain', 'ds5_usb'));
     var rbox = document.createElement('div');
     rbox.innerHTML = rateTag(held);
     document.body.appendChild(rbox);
@@ -12675,6 +12742,50 @@ function selfTest() {
     ok('pane exists for ' + d.ordinal, !!pane);
     ok('header built for ' + d.ordinal, !!HEADS[d.ordinal]);
   });
+
+  // 4b. ⭐ A TAB FOLLOWS ITS DEVICE BACK (2026-11-04): a DS4Dongle restarted to
+  //     play its speaker leaves for a few seconds and returns, a new session
+  //     under its old name. Made-up lists, and `fake` drawn again after. ⓘ Advanced
+  //     only: the compact views choose their own controller first.
+  if (!COMPACT) {
+    var savedTabBack = TAB_BACK;
+    var savedActive = ACTIVE;
+    var ds4 = function (ordinal, nickname) {
+      return [{ ordinal: ordinal, nickname: nickname, kind: 'ds4_usb', device_type: 'controller',
+                serial: '30:0e:d5:a9:69:51', linked_config: 'touchpad_to_mouse_2',
+                reads: 'touchpad_to_mouse_2', ready: true, supports_config: true }];
+    };
+    var threwBack = '';
+    try {
+      renderTabs(ds4('ds4_usb_3', 'Rogue'));
+      showTab('ds4_usb_3');
+      renderTabs([]);
+      ok('a tab whose device left falls back to Overview', ACTIVE === 'overview', 'got ' + ACTIVE);
+      renderTabs(ds4('ds4_usb_4', 'Rogue'));
+      ok('and goes back to it when it returns under its name', ACTIVE === 'ds4_usb_4', 'got ' + ACTIVE);
+      renderTabs(ds4('ds4_usb_9', 'Rogue'));
+      ok('even gone and back between two reads of the list', ACTIVE === 'ds4_usb_9', 'got ' + ACTIVE);
+      renderTabs([]);
+      renderTabs(ds4('ds4_usb_5', 'Mamba'));
+      ok('another device is not taken for it', ACTIVE === 'overview', 'got ' + ACTIVE);
+      TAB_BACK = null;
+      renderTabs(ds4('ds4_usb_6', 'Rogue'));
+      showTab('ds4_usb_6');
+      renderTabs([]);
+      showTab('editor');
+      renderTabs(ds4('ds4_usb_7', 'Rogue'));
+      ok('nor once the window was moved meanwhile', ACTIVE === 'editor', 'got ' + ACTIVE);
+      showTab('ds4_usb_7');
+      renderTabs([]);
+      if (TAB_BACK) TAB_BACK.until = Date.now() - 1;
+      renderTabs(ds4('ds4_usb_8', 'Rogue'));
+      ok('nor after its time', ACTIVE === 'overview', 'got ' + ACTIVE);
+    } catch (e) { threwBack = e.message; }
+    ok('a DS4 back from a restart draws without throwing', !threwBack, threwBack);
+    TAB_BACK = savedTabBack;
+    renderTabs(fake);
+    if (TABS.indexOf(savedActive) >= 0) showTab(savedActive);
+  }
 
   // 5. Names are assigned, distinct, and stable while the device is present.
   // ⓘ Names are the agent's now; these checked the browser's own generator.

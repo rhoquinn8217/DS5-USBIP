@@ -55,21 +55,24 @@ inline bool is_dualsense(const std::string &settingsKind)
 // ⛔ AND IT IS A LIST OF PADS WITH SPEAKERS, NOT "anything not an Xbox pad". An
 // Xbox pad has neither speaker nor jack, and an unknown generic pad has told us
 // nothing about either.
+//
+// ⭐⭐ AND A DS4 SINCE 2026-11-04, BECAUSE THE SETTINGS NOW ACT ON ONE. Over
+// Bluetooth its two volumes were heard to work once the TV sent them itself
+// (2026-09-22). On a cable the TV now sets them on the pad's own sound card,
+// following its headphone jack, and the gain scales its sound here. The page
+// hides, on a DS4, every row that still does nothing on one.
 inline bool has_audio_hardware(const std::string &settingsKind)
 {
-    return is_dualsense(settingsKind);
+    return is_dualsense(settingsKind) || settingsKind == "ds4";
 }
 
-// ⛔ The three gains are patched by ds5_output_overrides.inl, and every override
-// there begins `if (data[0] != 0x02) return;` -- the DualSense's WIRED report
-// id. On any other pad they do nothing at all.
-// ⚠️ A DS4's own rumble path is T-229 item B and is not written yet. When it
-// is, this is the line that changes -- and the capture says a DS4's output
-// report is id 0x05 with its own claim byte, so it is a second path rather than
-// a wider gate on the first.
+// ⛔ The DualSense's dials are patched by ds5_output_overrides.inl behind
+// `if (data[0] != 0x02) return;` -- its WIRED report id.
+// ⭐ A DS4's since 2026-11-04: its own report, 0x05, which Windows sends a DS4
+// on either transport (ds4_rumble.inl, ds4_output_overrides.inl).
 inline bool has_rumble_gains(const std::string &settingsKind)
 {
-    return is_dualsense(settingsKind);
+    return is_dualsense(settingsKind) || settingsKind == "ds4";
 }
 
 } // namespace ctm_caps

@@ -126,6 +126,7 @@
     <ClCompile Include="..\tests\device_capabilities_test.cpp" />
     <ClCompile Include="..\tests\same_device_test.cpp" />
     <ClCompile Include="..\tests\rumble_floor_test.cpp" />
+    <ClCompile Include="..\tests\ds4_settings_test.cpp" />
     <ClCompile Include="..\tests\mic_report_test.cpp" />
     <ClCompile Include="..\tests\capped_log_test.cpp" />
     <ClCompile Include="..\tests\product_version_test.cpp" />
