@@ -186,6 +186,7 @@ carry it; upstream's own history is unchanged.
 | 2026-11-03 | Fixes from a review of the listener. A request on the control or settings port has one deadline for the whole of it, so a caller sending a byte at a time cannot hold the port. A bridge whose USB/IP attach failed ends, rather than staying "bridged" with nothing behind it. A config is written to a `.writing` file and moved into place whole, so a save cut short leaves the old file rather than half of one. And the Controller Configs window escapes quote marks, so one in a value no longer breaks the page, whose own comment no longer calls it a test client; its changelog has this as 2.66.131, and the page stays 2.66.134. | `4b4b2f2`, merge `15bdb11` |
 | 2026-11-03 | From the same review, the setup runs usbip-win2's own setup from its code, which reads the exit code, says on screen when the driver did not install, and installs it again when the driver is gone though `usbip.exe` is still there. And the setup keeps a log of its own, `Setup Log <date> #NNN.txt` in the installing account's `%TEMP%`, which says whether the driver's setup ran or was skipped, and whether a running DS5-USBIP was asked to quit and did. | `4b4b2f2`, `17563a9`, `99ff06d`, `d04d57e`, merge `15bdb11` |
 | 2026-11-04 | A second-model DS4 on a cable, or a device that answers as one, bridges its sound: Windows gets a 32 kHz stereo speaker and a 16 kHz mono headset microphone, on the wired path the cabled DualSense's sound takes. Where that path assumed a DualSense it now asks the device: the microphone's timing and its 200 ms ring follow the pad's own rate, and the gains and the amplitude log take the stream's channel count, so every other frame of a DS4's sound no longer takes the haptics gain, over Bluetooth as well. The DualSense's figures are the defaults, and a test pins them. | `f6de44b`, merge `ebdae61` |
+| 2026-11-04 | Windows' default speaker stays where it was when a controller with a speaker is bridged. Windows can make a bridged pad's sound device the default speaker the moment the pad arrives, in all three of its roles, as a cabled DS4's headset jack did: what played on the default then came out of the pad, and the streaming host, which streams whatever the default plays, sent it to the TV as well. The listener now gives the default back to the speaker that had it, role by role, when it goes to a controller within ten seconds of that controller arriving. A controller a person chooses as the default keeps it, through its next bridge too, until they choose a speaker that is not a controller. | `c5249f4`, `c24633a`, merge `e7926a8` |
 
 ## Files changed
 
@@ -200,16 +201,16 @@ ENet library, removed with the ENet transport).
  .github/ISSUE_TEMPLATE/config.yml             |     5 +
  .github/ISSUE_TEMPLATE/feature-request.yml    |    22 +
  .gitignore                                    |    43 +-
- CHANGES.md                                    |   459 +
+ CHANGES.md                                    |   465 +
  LINK                                          |     0
  README.md                                     |   291 +-
  THIRD-PARTY-NOTICES.txt                       |   618 +
  app/compatibility.manifest                    |    27 +
  app/ctm-capture.vcxproj                       |    86 -
- app/ctm-usbip-tests.vcxproj                   |   164 +
+ app/ctm-usbip-tests.vcxproj                   |   165 +
  app/ctm-usbip.ico                             |   Bin 156019 -> 30139 bytes
  app/ctm-usbip.rc                              |    26 +-
- app/ctm-usbip.vcxproj                         |    76 +-
+ app/ctm-usbip.vcxproj                         |    77 +-
  attic/README.md                               |    24 +
  attic/device-config-panel-edge.bat            |     9 +
  attic/device-config-panel-edge.ps1            |   327 +
@@ -265,7 +266,7 @@ ENet library, removed with the ENet transport).
  profiles/descriptors/virtual_keyboard.profile |    74 +
  profiles/descriptors/virtual_mouse.profile    |    59 +
  release.ps1                                   |   264 +
- src/app/agent.inl                             |  1276 +-
+ src/app/agent.inl                             |  1285 +-
  src/app/agent_session_sweep.inl               |   331 +
  src/app/cli.inl                               |    66 +-
  src/app/common.inl                            |   166 +-
@@ -320,12 +321,16 @@ ENet library, removed with the ENet transport).
  src/audio/audio_gain.inl                      |   160 +
  src/audio/audio_haptics.inl                   |   299 +
  src/audio/audio_haptics_dsp.inl               |   346 +
+ src/audio/controller_sound.inl                |    20 +
+ src/audio/default_speaker.cpp                 |   327 +
+ src/audio/default_speaker.h                   |    24 +
+ src/audio/default_speaker_rule.inl            |   104 +
  src/audio/ds5_apply_settings.inl              |   316 +
  src/audio/ds5_output_overrides.inl            |   699 +
  src/audio/iso_in_pacing.inl                   |   223 +
  src/audio/iso_in_test_tone.inl                |   103 +
  src/audio/mic_ring.inl                        |   229 +
- src/audio/pc_sound_capture.cpp                |   349 +
+ src/audio/pc_sound_capture.cpp                |   346 +
  src/audio/pc_sound_capture.h                  |    52 +
  src/audio/pcm_amplitude_log.inl               |   167 +
  src/audio/rumble_floor.inl                    |    58 +
@@ -366,7 +371,7 @@ ENet library, removed with the ENet transport).
  src/input/trigger_effect.inl                  |   637 +
  src/log/capped_log.inl                        |   117 +
  src/log/device_log.inl                        |   233 +
- src/main.cpp                                  |  1079 +-
+ src/main.cpp                                  |  1080 +-
  src/map/runtime.cpp                           |   205 +-
  src/usbdisplay/README.md                      |    13 +
  src/usbip/device.inl                          |  1095 +-
@@ -384,6 +389,7 @@ ENet library, removed with the ENet transport).
  tests/capped_log_test.cpp                     |   140 +
  tests/config_store_test.cpp                   |  1044 ++
  tests/control_caller_test.cpp                 |    73 +
+ tests/default_speaker_rule_test.cpp           |   197 +
  tests/device_capabilities_test.cpp            |    75 +
  tests/device_config_cache_test.cpp            |   148 +
  tests/device_config_test.cpp                  |   565 +
@@ -432,7 +438,7 @@ ENet library, removed with the ENet transport).
  tests/stop_wait_test.cpp                      |    93 +
  tests/stream_commands_test.cpp                |   118 +
  tests/taskbar_rule_test.cpp                   |    46 +
- tests/tests_main.cpp                          |   203 +
+ tests/tests_main.cpp                          |   205 +
  tests/touch_mouse_test.cpp                    |  2591 ++++
  tests/tray_menu_test.cpp                      |   247 +
  tests/trigger_click_test.cpp                  |   928 ++
@@ -455,5 +461,5 @@ ENet library, removed with the ENet transport).
  tools/sbc-golden-gen/ffmpeg_side.cpp          |   117 +
  tools/sbc-golden-gen/ffmpeg_side.h            |    15 +
  tools/sbc-golden-gen/main.cpp                 |   131 +
- 260 files changed, 76621 insertions(+), 6132 deletions(-)
+ 265 files changed, 77310 insertions(+), 6132 deletions(-)
 ```
