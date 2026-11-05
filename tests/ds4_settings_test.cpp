@@ -172,35 +172,21 @@ int run_ds4_settings_tests()
     pad.product = "Sony Interactive Entertainment Wireless Controller";
     Entry restarted;
     restarted.who = pad;
-    restarted.linkedConfig = "touchpad_to_mouse_2";
     restarted.nickname = "Rogue";
-    restarted.followJack = 1;
+    restarted.followJack = 0;
     const Clock::time_point t0 = Clock::now();
 
-    section("ds4 dongle restart: the pad back takes its config, its name and what it was given, once");
+    section("ds4 dongle restart: the pad back takes its name and what it was given, once");
     {
         List list;
         list.expect(restarted, t0);
         Entry back;
         // ⓘ 6 s: the C1's DS4 was back in five, and named in one more.
         CTM_CHECK(list.take(pad, t0 + seconds(6), &back));
-        CTM_CHECK(back.linkedConfig == "touchpad_to_mouse_2");
         CTM_CHECK(back.nickname == "Rogue");
-        CTM_CHECK_EQ(back.followJack, 1);
+        CTM_CHECK_EQ(back.followJack, 0);
         CTM_CHECK(!list.take(pad, t0 + seconds(7), &back));
         CTM_CHECK_EQ(static_cast<int>(list.size()), 0);
-    }
-
-    section("ds4 dongle restart: the shared section is carried too, as a choice");
-    {
-        List list;
-        Entry shared = restarted;
-        shared.linkedConfig.clear();
-        list.expect(shared, t0);
-        Entry back;
-        back.linkedConfig = "not cleared";
-        CTM_CHECK(list.take(pad, t0 + seconds(6), &back));
-        CTM_CHECK(back.linkedConfig.empty());
     }
 
     section("ds4 dongle restart: another TV's, another pad or another model takes nothing");
@@ -250,15 +236,13 @@ int run_ds4_settings_tests()
         List list;
         list.expect(restarted, t0);
         Entry again = restarted;
-        again.linkedConfig = "stick_to_mouse";
-        again.followJack = 0;
+        again.nickname = "Mamba";
         list.expect(again, t0 + seconds(10));
         CTM_CHECK_EQ(static_cast<int>(list.size()), 1);
         Entry back;
         // ⓘ 25 s: past the first restart's window, inside the second's.
         CTM_CHECK(list.take(pad, t0 + seconds(25), &back));
-        CTM_CHECK(back.linkedConfig == "stick_to_mouse");
-        CTM_CHECK_EQ(back.followJack, 0);
+        CTM_CHECK(back.nickname == "Mamba");
     }
 
     return 0;

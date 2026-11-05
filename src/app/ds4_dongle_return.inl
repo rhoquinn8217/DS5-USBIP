@@ -1,18 +1,15 @@
 #pragma once
 // ⭐ A DS4DONGLE THIS LISTENER RESTARTED COMES BACK AS ITSELF (2026-11-04).
 //
-// Changing speaker_without_headphones restarts the dongle (ds4_dongle_keep.inl),
-// which ends the bridge, and the TV bridges the pad again a few seconds later
-// as a NEW session. A new session starts on its auto link or on the shared
-// section, under a new nickname. ⛔ So a config chosen by hand was lost at the
-// restart, and when that config was the one turning the switch off, the shared
-// section's "on" turned it straight back and restarted the dongle a second time
-// (rhoquinn8217, 2026-11-04: "the controller turns off and on ... everytime").
+// Setting a DS4Dongle to play its speaker without headphones restarts it
+// (ds4_dongle_keep.inl), which ends the bridge, and the TV bridges the pad again
+// a few seconds later as a NEW session, under a new nickname: the restart
+// would read as another pad arriving. ⛔ And a dongle that did not keep the
+// setting would be set and restarted again at every bridge, for ever.
 //
-// ➡️ So the restart is remembered: which pad, from which TV, the config it read
-// (the shared section counts: that is a choice too), its nickname, and what was
-// written to it. The same pad back from the same TV within kWindow takes all of
-// it back, once.
+// ➡️ So the restart is remembered: which pad, from which TV, its nickname, and
+// what was written to it. The same pad back from the same TV within kWindow
+// takes its name back, and its bridge knows what it was given, once.
 //
 // ⓘ Pure: the agent holds one List behind its own mutex and gives it the clock.
 
@@ -40,8 +37,6 @@ struct Who {
 
 struct Entry {
     Who who;
-    // The config it read. Empty is the shared section.
-    std::string linkedConfig;
     std::string nickname;
     // The audio_follow_jack written to it before it left, -1 none.
     int followJack = -1;

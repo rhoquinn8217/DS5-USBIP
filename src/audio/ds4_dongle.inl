@@ -4,8 +4,8 @@
 // over Bluetooth) shows the TV a wired second-model DS4 and keeps a few settings
 // in its flash. One of them decides whether its sound card exists while nothing
 // is in the pad's headphone jack, and it ships as "only with a plug in": a DS4
-// without a headset had no speaker at all. rhoquinn8217 asked for a switch for
-// it here, on by default, applied at once (speaker_without_headphones).
+// without a headset had no speaker at all. The listener sets it to play the
+// speaker without headphones (ds4_dongle_keep.inl).
 //
 // ⛔ WINDOWS CANNOT REACH THESE REPORTS. The dongle's descriptor is a real DS4
 // v2's, which declares none of them, and Windows' HID class driver refuses a
@@ -104,7 +104,7 @@ inline std::vector<uint8_t> function_request(uint8_t function)
     return r;
 }
 
-// audio_follow_jack for a speaker_without_headphones: on is 0, the card always there.
+// audio_follow_jack for the speaker without headphones: on is 0, the card always there.
 inline uint8_t follow_jack_for(bool speakerWithoutHeadphones)
 {
     return speakerWithoutHeadphones ? 0 : 1;

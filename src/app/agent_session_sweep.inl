@@ -183,11 +183,6 @@ static void apply_pending_config_to_sessions()
         // The settings report goes out through the device's map, which shapes
         // it for the wire the pad is on. Held, so it outlives the lock.
         std::shared_ptr<CtmUsbipDevice> device;
-        // A cabled DS4's DS4Dongle settings (ds4_dongle_keep.inl), held the same way,
-        // and who it is and its name, kept if its dongle restarts (ds4_dongle_return.inl).
-        std::shared_ptr<Ds4DongleState> dongle;
-        ds4_dongle_return::Who who;
-        std::string nickname;
     };
     std::vector<Target> targets;
     {
@@ -197,15 +192,12 @@ static void apply_pending_config_to_sessions()
                 continue;
             }
             std::string linked;
-            std::string nickname;
             {
                 std::lock_guard<std::mutex> sessionLock(session->mutex);
                 linked = session->linkedConfig;
-                nickname = session->nickname;
             }
             targets.push_back(Target{session->backend, linked, session->kind,
-                                     session->busIdAscii, session->device, session->dongle,
-                                     ds4_dongle_who_of(*session), nickname});
+                                     session->busIdAscii, session->device});
         }
     }
 
@@ -333,16 +325,6 @@ static void apply_pending_config_to_sessions()
                         << latencySection << ": audio settings FAILED on busid="
                         << target.busIdAscii << " -- " << narrow_ascii(audioError));
                 }
-            }
-        }
-
-        // ⭐ A cabled DS4 that is a DS4Dongle: its speaker without headphones,
-        // as the config now says. Asks the dongle only when the setting changed.
-        if (target.kind == "ds4_usb") {
-            const int wrote = ds4_dongle_keep(target.backend.get(), latencySection, target.dongle.get(),
-                                              "config changed");
-            if (wrote >= 0) {
-                ds4_dongle_expect_back(target.who, target.linkedConfig, target.nickname, wrote);
             }
         }
     }

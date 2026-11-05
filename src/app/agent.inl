@@ -45,8 +45,8 @@ struct AgentBridgeSession {
     // what it read when the lock came, for an unlock with no auto link.
     bool heldForLock = false;
     std::string beforeLock;
-    // A cabled DS4 that may be a DS4Dongle, and its own settings
-    // (ds4_dongle_keep.inl). Shared: the sweep reaches it from the agent loop.
+    // A cabled DS4 that may be a DS4Dongle, and what was asked of it
+    // (ds4_dongle_keep.inl).
     std::shared_ptr<Ds4DongleState> dongle = std::make_shared<Ds4DongleState>();
 };
 
@@ -75,12 +75,11 @@ static ds4_dongle_return::Who ds4_dongle_who_of(const AgentBridgeSession &sessio
 }
 
 // Its dongle was asked to restart with `wrote`: keep the pad until it is back.
-static void ds4_dongle_expect_back(const ds4_dongle_return::Who &who, const std::string &linked,
-                                   const std::string &nickname, int wrote)
+static void ds4_dongle_expect_back(const ds4_dongle_return::Who &who, const std::string &nickname,
+                                   int wrote)
 {
     ds4_dongle_return::Entry entry;
     entry.who = who;
-    entry.linkedConfig = linked;
     entry.nickname = nickname;
     entry.followJack = wrote;
     std::lock_guard<std::mutex> lock(g_ds4_dongle_returns_mutex);
@@ -699,12 +698,8 @@ static void bridge_session_worker(AgentBridgeSession *session)
     }
 
     // ⭐ BACK FROM A RESTART THIS LISTENER ASKED FOR (ds4_dongle_return.inl): a
-    // DS4Dongle takes back the config it read, chosen by hand or not, and its
-    // name. ⛔ Without the config, one that turned its speaker off was lost with
-    // the restart, and the shared section turned it straight back on.
+    // DS4Dongle takes its name back, and its bridge knows what it was given.
     // ⓘ OUTSIDE session->mutex, as the nickname block above.
-    bool backFromRestart = false;
-    std::string linkBack;
     if (session->kind == "ds4_usb" && session->device) {
         ds4_dongle_return::Entry back;
         bool found = false;
@@ -714,8 +709,6 @@ static void bridge_session_worker(AgentBridgeSession *session)
                                               ds4_dongle_return::Clock::now(), &back);
         }
         if (found) {
-            backFromRestart = true;
-            linkBack = back.linkedConfig;
             {
                 std::lock_guard<std::mutex> lock(session->dongle->m);
                 session->dongle->wroteBeforeRestart = back.followJack;
@@ -744,8 +737,7 @@ static void bridge_session_worker(AgentBridgeSession *session)
             device_log::session(device_log::msg()
                 << ordinalNow << " is back from the restart this listener asked its DS4Dongle for: "
                 << (nameFree ? back.nickname + " again (was " + previous + ")"
-                             : "still " + previous + ", " + back.nickname + " being taken")
-                << ", reading " << (linkBack.empty() ? std::string("the shared section") : linkBack));
+                             : "still " + previous + ", " + back.nickname + " being taken"));
         }
     }
 
@@ -758,16 +750,7 @@ static void bridge_session_worker(AgentBridgeSession *session)
         std::lock_guard<std::mutex> lock(session->mutex);
         session->physicalSerial = serial;
         session->tvPath = myTvPath;
-        if (backFromRestart) {
-            // ⓘ What it read before the restart, in place of the auto link. While
-            // Windows is locked it is held for the unlock, as any link is.
-            if (g_windows_locked.load() && config_store::kind_supports_config(session->kind)) {
-                session->heldForLock = true;
-                session->beforeLock = linkBack;
-            } else {
-                session->linkedConfig = linkBack;
-            }
-        } else if (session->linkedConfig.empty()) {
+        if (session->linkedConfig.empty()) {
             const std::string autoLink = config_store::auto_link_for(serial, session->kind);
             // ⭐ NOT WHILE WINDOWS IS LOCKED (lock_screen_rule.inl): the auto link
             // waits for the unlock, and the controller's own buttons reach the
@@ -1021,18 +1004,18 @@ static void bridge_session_worker(AgentBridgeSession *session)
                 }
             }
 
-            // ⭐ A cabled DS4 that is a DS4Dongle: its speaker without
-            // headphones, as its config says (ds4_dongle_keep.inl). A change
-            // restarts the dongle, and the TV bridges it again.
+            // ⭐ A cabled DS4 that is a DS4Dongle plays its speaker without
+            // headphones (ds4_dongle_keep.inl). A dongle found without it is
+            // set and restarted once, and the TV bridges it again.
             if (session->kind == "ds4_usb") {
-                const int wrote = ds4_dongle_keep(backendPtr, section, session->dongle.get(), "at bridge");
+                const int wrote = ds4_dongle_keep(backendPtr, section, session->dongle.get());
                 if (wrote >= 0) {
                     std::string nickname;
                     {
                         std::lock_guard<std::mutex> lock(session->mutex);
                         nickname = session->nickname;
                     }
-                    ds4_dongle_expect_back(ds4_dongle_who_of(*session), linked, nickname, wrote);
+                    ds4_dongle_expect_back(ds4_dongle_who_of(*session), nickname, wrote);
                 }
             }
         }

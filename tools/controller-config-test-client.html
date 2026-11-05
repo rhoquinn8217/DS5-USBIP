@@ -4516,10 +4516,10 @@ function pollRates() {
   }).catch(function () {});
 }
 
-// ⭐ A TAB FOLLOWS ITS DEVICE BACK (2026-11-04). A DS4Dongle restarts when its
-// speaker_without_headphones changes, so the DS4 leaves for a few seconds and
-// returns as a new session under its old nickname (ds4_dongle_return.inl on
-// the listener). The window fell back to Overview when it left, and goes back
+// ⭐ A TAB FOLLOWS ITS DEVICE BACK (2026-11-04). A DS4Dongle restarts when the
+// listener sets it to play its speaker without headphones, so the DS4 leaves
+// for a few seconds and returns as a new session under its old nickname
+// (ds4_dongle_return.inl on the listener). The window fell back to Overview when it left, and goes back
 // to it when it returns, unless the window was moved meanwhile. ⓘ The nickname
 // is the device here, as in groupDevices.
 var TAB_BACK = null;              // { name, to, until }: a tab its device took away
@@ -6784,10 +6784,7 @@ function renderConfigEditor(hostId, configName, prefix, ordinal) {
         // adjusting a controller -- and every row is one more to scroll past.
         // Set them by hand in the config file when they are needed.
         if (hiddenSetting(meta.key)) return;
-        // ⭐ The DS4Dongle's own switch, on a pad that is one, and on Overview,
-        // where no pad is in hand. On any other pad it could only be greyed.
         var rowDev = ordinal ? (deviceByOrdinal(ordinal) || {}) : {};
-        if (meta.key === 'speaker_without_headphones' && ordinal && !rowDev.is_ds4dongle) return;
         // ⭐ ON A DS4, A ROW THAT DOES NOTHING IS HIDDEN, NOT GREYED
         // (rhoquinn8217, 2026-11-04: "hide them"). A DualSense keeps its greyed
         // rows and their reasons, as before.
@@ -12746,9 +12743,9 @@ function selfTest() {
     ok('header built for ' + d.ordinal, !!HEADS[d.ordinal]);
   });
 
-  // 4b. ⭐ A TAB FOLLOWS ITS DEVICE BACK (2026-11-04): a DS4Dongle restarted for
-  //     its speaker leaves for a few seconds and returns, a new session under
-  //     its old name. Made-up lists, and `fake` drawn again after. ⓘ Advanced
+  // 4b. ⭐ A TAB FOLLOWS ITS DEVICE BACK (2026-11-04): a DS4Dongle restarted to
+  //     play its speaker leaves for a few seconds and returns, a new session
+  //     under its old name. Made-up lists, and `fake` drawn again after. ⓘ Advanced
   //     only: the compact views choose their own controller first.
   if (!COMPACT) {
     var savedTabBack = TAB_BACK;
