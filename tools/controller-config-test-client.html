@@ -4526,10 +4526,9 @@ var TAB_BACK = null;              // { name, to, until }: a tab its device took 
 var TAB_BACK_MS = 20000;
 
 function followTabBack(lostName) {
-  if (lostName) {
-    TAB_BACK = { name: lostName, to: ACTIVE, until: Date.now() + TAB_BACK_MS };
-    return;
-  }
+  // ⓘ And looked for at once: the list is read every POLL_MS, and a pad back
+  // within that time is gone and back in the same list.
+  if (lostName) TAB_BACK = { name: lostName, to: ACTIVE, until: Date.now() + TAB_BACK_MS };
   if (!TAB_BACK) return;
   if (Date.now() > TAB_BACK.until || ACTIVE !== TAB_BACK.to) { TAB_BACK = null; return; }
   var back = DEVICE_LEADS.filter(function (d) { return d.nickname === TAB_BACK.name; })[0];
@@ -12767,6 +12766,8 @@ function selfTest() {
       ok('a tab whose device left falls back to Overview', ACTIVE === 'overview', 'got ' + ACTIVE);
       renderTabs(ds4('ds4_usb_4', 'Rogue'));
       ok('and goes back to it when it returns under its name', ACTIVE === 'ds4_usb_4', 'got ' + ACTIVE);
+      renderTabs(ds4('ds4_usb_9', 'Rogue'));
+      ok('even gone and back between two reads of the list', ACTIVE === 'ds4_usb_9', 'got ' + ACTIVE);
       renderTabs([]);
       renderTabs(ds4('ds4_usb_5', 'Mamba'));
       ok('another device is not taken for it', ACTIVE === 'overview', 'got ' + ACTIVE);
