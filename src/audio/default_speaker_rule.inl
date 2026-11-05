@@ -12,6 +12,12 @@
 // ⭐ ONLY WHAT WINDOWS DID. The default is taken back when it goes to a
 // controller within kArrivalMs of that controller arriving. Later, it was a
 // person's choice, and it stays.
+// ⭐ AND A PERSON'S CHOICE OUTLASTS A BRIDGE. Windows gives a device the
+// default again when it comes back if it had it when it went, so a pad a
+// person chose would come back as the default at every bridge, inside the
+// window: that is their choice returning, and it stays too. Choosing a
+// speaker that is not a controller ends it; Windows handing the default to
+// one because the chosen pad went does not.
 // ⓘ A change heard before the arrival counts as one just after it: Windows
 // tells of the two separately, and they can come in either order.
 // ⛔ And never more than kMostTakeBacks times for one arrival, so a Windows
@@ -52,11 +58,14 @@ public:
 
     // Windows made `id` the default speaker for `role` at `atMs`. The device
     // to make the default again, or an empty string to leave it as it is.
-    std::wstring default_changed(int role, const std::wstring &id, bool controller, uint64_t atMs)
+    // `chosenThere`: whether the pad a person chose for this role, if any, is
+    // still connected, as the caller finds it when the change is read.
+    std::wstring default_changed(int role, const std::wstring &id, bool controller, uint64_t atMs, bool chosenThere = true)
     {
         if (role < 0 || role >= kRoles || id.empty()) return std::wstring();
         if (!controller) {
             kept_[role] = id;
+            if (chosenThere) chosen_[role].clear();
             return std::wstring();
         }
         auto found = arrivals_.find(id);
@@ -64,13 +73,20 @@ public:
         Arrival &arrival = found->second;
         if (arrival.atMs == kBefore) return std::wstring();
         const uint64_t since = atMs > arrival.atMs ? atMs - arrival.atMs : 0;
-        if (since > kArrivalMs || kept_[role].empty() || arrival.takenBack >= kMostTakeBacks) return std::wstring();
+        if (since > kArrivalMs) {
+            chosen_[role] = id;
+            return std::wstring();
+        }
+        if (chosen_[role] == id || kept_[role].empty() || arrival.takenBack >= kMostTakeBacks) return std::wstring();
         ++arrival.takenBack;
         return kept_[role];
     }
 
     // The last default for `role` that was not a controller's.
     std::wstring kept(int role) const { return role >= 0 && role < kRoles ? kept_[role] : std::wstring(); }
+
+    // The controller a person made the default for `role`, or nothing.
+    std::wstring chosen(int role) const { return role >= 0 && role < kRoles ? chosen_[role] : std::wstring(); }
 
 private:
     struct Arrival {
@@ -80,6 +96,9 @@ private:
     static constexpr uint64_t kBefore = UINT64_MAX;
     std::map<std::wstring, Arrival> arrivals_;
     std::wstring kept_[kRoles];
+    // A controller a person made the default, per role, until they choose
+    // a speaker that is not one.
+    std::wstring chosen_[kRoles];
 };
 
 }  // namespace default_speaker_rule

@@ -188,6 +188,14 @@ std::wstring speaker_name(IMMDeviceEnumerator *enumerator, const std::wstring &i
     return name_of(device.Get());
 }
 
+// Whether a sound device is connected now.
+bool is_connected(IMMDeviceEnumerator *enumerator, const std::wstring &id)
+{
+    ComPtr<IMMDevice> device;
+    DWORD state = 0;
+    return SUCCEEDED(enumerator->GetDevice(id.c_str(), &device)) && SUCCEEDED(device->GetState(&state)) && state == DEVICE_STATE_ACTIVE;
+}
+
 const wchar_t *role_name(int role)
 {
     return role == eConsole ? L"console" : role == eMultimedia ? L"multimedia" : L"communications";
@@ -257,7 +265,12 @@ void watch(default_speaker::Log log)
                 if (controller_sound::is_controller(speaker_name(enumerator.Get(), e.id))) rule.arrived(e.id, e.atMs);
             } else {
                 const std::wstring name = speaker_name(enumerator.Get(), e.id);
-                const std::wstring back = rule.default_changed(e.role, e.id, controller_sound::is_controller(name), e.atMs);
+                // ⓘ Whether a pad a person chose is still there, read now: when
+                // it has gone, a speaker that is not a controller taking the
+                // default is Windows' doing, not their change of mind.
+                const std::wstring chosen = rule.chosen(e.role);
+                const bool chosenThere = chosen.empty() || is_connected(enumerator.Get(), chosen);
+                const std::wstring back = rule.default_changed(e.role, e.id, controller_sound::is_controller(name), e.atMs, chosenThere);
                 if (!back.empty()) {
                     const std::wstring backName = speaker_name(enumerator.Get(), back);
                     const HRESULT hr = policy->SetDefaultEndpoint(back.c_str(), static_cast<ERole>(e.role));

@@ -134,6 +134,44 @@ int run_default_speaker_rule_tests()
         CTM_CHECK_EQ(undone, dsr::kMostTakeBacks);
     }
 
+    section("default speaker: a pad a person chose keeps the default through its next bridge");
+    {
+        dsr::Rule rule = kept_steam();
+        rule.arrived(kDs4, 50000);
+        CTM_CHECK(rule.default_changed(0, kDs4, true, 70000).empty());   // chosen, long after it came
+        CTM_CHECK(rule.chosen(0) == kDs4);
+        // It goes, and Windows hands the default to the TV's speaker meanwhile.
+        rule.left(kDs4);
+        CTM_CHECK(rule.default_changed(0, kSteam, false, 80000, false).empty());
+        CTM_CHECK(rule.chosen(0) == kDs4);
+        rule.arrived(kDs4, 90000);
+        // Windows hands it the default again as it comes back: their choice, kept.
+        CTM_CHECK(rule.default_changed(0, kDs4, true, 90500).empty());
+        // Control: the role nobody chose it for is still given back.
+        CTM_CHECK(rule.default_changed(1, kDs4, true, 90500) == kSteam);
+    }
+
+    section("default speaker: choosing a speaker that is not a controller ends that choice");
+    {
+        dsr::Rule rule = kept_steam();
+        rule.arrived(kDs4, 50000);
+        rule.default_changed(0, kDs4, true, 70000);          // the pad, chosen
+        rule.default_changed(0, kSteam, false, 80000, true); // then the TV's speaker, the pad still there
+        CTM_CHECK(rule.chosen(0).empty());
+        rule.left(kDs4);
+        rule.arrived(kDs4, 90000);
+        CTM_CHECK(rule.default_changed(0, kDs4, true, 90500) == kSteam);
+    }
+
+    section("default speaker: a person's choice of one pad does not shield another");
+    {
+        dsr::Rule rule = kept_steam();
+        rule.arrived(kDs4, 50000);
+        rule.default_changed(0, kDs4, true, 70000);    // the DS4, chosen
+        rule.arrived(kEdge, 90000);
+        CTM_CHECK(rule.default_changed(0, kEdge, true, 90300) == kSteam);
+    }
+
     section("default speaker: its own putting back is remembered, not undone");
     {
         dsr::Rule rule = kept_steam();
