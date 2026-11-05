@@ -17,6 +17,7 @@
 #include "audio/rumble_floor.inl"
 #include "audio/ds4_rumble.inl"
 #include "audio/ds4_dongle.inl"
+#include "audio/ds4_speaker.inl"
 #include "app/same_device.inl"
 #include "app/tv_sessions.inl"
 #include "app/ds4_dongle_return.inl"
@@ -159,6 +160,68 @@ int run_ds4_settings_tests()
         CTM_CHECK_EQ(nonZero, 0);
         const std::vector<uint8_t> get = ds4_dongle::get_request(ds4_dongle::kReportConfig);
         CTM_CHECK(get.size() == 64 && get[0] == 0xF7);
+    }
+
+    section("ds4 speaker: the jack is byte 30 of report 0x01, headphones or a mic");
+    {
+        // ⓘ The C1's DS4 through its DS4Dongle, nothing in the jack: byte 30 0x05.
+        std::vector<uint8_t> r(64, 0);
+        r[0] = 0x01;
+        r[30] = 0x05;
+        CTM_CHECK_EQ(ds4_speaker::jack_in(r.data(), r.size()), 0);
+        r[30] = 0x25;
+        CTM_CHECK_EQ(ds4_speaker::jack_in(r.data(), r.size()), 1);
+        r[30] = 0x45;
+        CTM_CHECK_EQ(ds4_speaker::jack_in(r.data(), r.size()), 1);
+        r[30] = 0x65;
+        CTM_CHECK_EQ(ds4_speaker::jack_in(r.data(), r.size()), 1);
+        r[30] = 0x1f;       // charging, full: the cable bit is not the jack
+        CTM_CHECK_EQ(ds4_speaker::jack_in(r.data(), r.size()), 0);
+        r[0] = 0x11;        // a Bluetooth report: not this layout
+        CTM_CHECK_EQ(ds4_speaker::jack_in(r.data(), r.size()), -1);
+        r[0] = 0x01;
+        CTM_CHECK_EQ(ds4_speaker::jack_in(r.data(), 30), -1);
+        CTM_CHECK_EQ(ds4_speaker::jack_in(nullptr, 64), -1);
+    }
+
+    section("ds4 speaker: each frame becomes half of each channel, on both");
+    {
+        auto frame = [](int16_t left, int16_t right) {
+            std::vector<uint8_t> f(4);
+            f[0] = static_cast<uint8_t>(static_cast<uint16_t>(left) & 0xff);
+            f[1] = static_cast<uint8_t>(static_cast<uint16_t>(left) >> 8);
+            f[2] = static_cast<uint8_t>(static_cast<uint16_t>(right) & 0xff);
+            f[3] = static_cast<uint8_t>(static_cast<uint16_t>(right) >> 8);
+            return f;
+        };
+        auto left_of = [](const std::vector<uint8_t> &f) {
+            return static_cast<int16_t>(static_cast<uint16_t>(f[0]) | (static_cast<uint16_t>(f[1]) << 8));
+        };
+        auto right_of = [](const std::vector<uint8_t> &f) {
+            return static_cast<int16_t>(static_cast<uint16_t>(f[2]) | (static_cast<uint16_t>(f[3]) << 8));
+        };
+        // ⭐ Windows' Test: the left chime alone reaches the speaker now.
+        std::vector<uint8_t> f = frame(20000, 0);
+        ds4_speaker::mix_to_mono(f);
+        CTM_CHECK_EQ(static_cast<int>(left_of(f)), 10000);
+        CTM_CHECK_EQ(static_cast<int>(right_of(f)), 10000);
+        f = frame(0, -20000);
+        ds4_speaker::mix_to_mono(f);
+        CTM_CHECK_EQ(static_cast<int>(left_of(f)), -10000);
+        CTM_CHECK_EQ(static_cast<int>(right_of(f)), -10000);
+        // The loudest of both, either way, and nothing wraps.
+        f = frame(32767, 32767);
+        ds4_speaker::mix_to_mono(f);
+        CTM_CHECK_EQ(static_cast<int>(left_of(f)), 32767);
+        f = frame(-32768, -32768);
+        ds4_speaker::mix_to_mono(f);
+        CTM_CHECK_EQ(static_cast<int>(right_of(f)), -32768);
+        // A trailing part frame is left alone.
+        std::vector<uint8_t> two = frame(100, 300);
+        two.push_back(0xAB);
+        ds4_speaker::mix_to_mono(two);
+        CTM_CHECK_EQ(static_cast<int>(left_of(two)), 200);
+        CTM_CHECK(two.size() == 5 && two[4] == 0xAB);
     }
 
     // ⭐ The C1's DS4 on its DS4Dongle, 2026-11-04, as the bridge names it.

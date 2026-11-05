@@ -579,6 +579,17 @@ public:
         }
         log_input31_research(data, length);
 
+        // ⭐ A DS4's headphone jack, for its own speaker's mono mix
+        // (ds4_speaker.inl). On every report: a plug can go in at any time.
+        if (is_ds4()) {
+            const int jack = ds4_speaker::jack_in(data, length);
+            if (jack >= 0 && ds4Jack_.exchange(jack, std::memory_order_relaxed) != jack) {
+                device_log::report(device_log::msg() << "ds4: "
+                    << (jack ? "something in the headphone jack: the PC's sound goes to it in stereo"
+                             : "nothing in the headphone jack: the PC's sound is mixed to mono for its speaker"));
+            }
+        }
+
         // ⛔ A MICROPHONE REPORT IS NOT PAD STATE. STOP HERE.
         //
         // A Bluetooth DualSense says what a report holds in the low nibble of
@@ -1047,6 +1058,13 @@ private:
         const bool had = fineTimer_.exchange(want);
         if (want && !had) fine_timer::acquire();
         else if (!want && had) fine_timer::release();
+    }
+
+    // A DualShock 4 of either revision, by its USB ids.
+    bool is_ds4() const
+    {
+        const char *section = device_section_for(profile_.device_descriptor);
+        return section != nullptr && std::strcmp(section, "ds4") == 0;
     }
 
     void configure_audio_stream_from_map()
@@ -2168,8 +2186,13 @@ private:
         // made only when a gain is configured, so an unconfigured build pays
         // nothing on this ~100/sec path.
         const ctm_audio_gain::Gains gains{ hapticsGain_.load(), soundGain_.load() };
-        if (ctm_audio_gain::active(gains)) {
+        // ⭐ A DS4 with nothing in its jack plays its one speaker, which takes
+        // only the right channel: both are mixed into each (ds4_speaker.inl).
+        // ⓘ ds4Jack_ is set for a DS4 alone, so a DualSense never mixes.
+        const bool mono = audioChannels_ == 2 && ds4Jack_.load(std::memory_order_relaxed) == 0;
+        if (mono || ctm_audio_gain::active(gains)) {
             std::vector<uint8_t> scaled(data);
+            if (mono) ds4_speaker::mix_to_mono(scaled);
             ctm_audio_gain::apply(scaled, gains, audioChannels_);
             ctm_pcm_amp::maybe_log(scaled, audioChannels_);
             backend_->send_iso_audio(scaled, &err);
@@ -2330,6 +2353,9 @@ private:
     // none. Read on its sound stream's thread, re-read by refresh_gains.
     std::atomic<int> hapticsGain_{-1};
     std::atomic<int> soundGain_{-1};
+    // A DS4's headphone jack, off its reports (ds4_speaker.inl): -1 not known
+    // or not a DS4, 0 nothing in it, 1 something. Read by its sound stream.
+    std::atomic<int> ds4Jack_{-1};
     unsigned gainChunks_ = 0;           // its sound stream's thread only
     // Its place in PC-sound haptics, for a DualSense or Edge: set at attach,
     // read by its sound stream's thread, so loaded and stored atomically.

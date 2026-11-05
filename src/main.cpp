@@ -85,6 +85,7 @@ namespace {
 #include "audio/ds5_output_overrides.inl"
 #include "audio/ds4_rumble.inl"            // a DS4's motors: the rumble dials' bytes
 #include "audio/ds4_output_overrides.inl"  // needs device_section_for, from the line above it
+#include "audio/ds4_speaker.inl"           // a DS4's one speaker hears both channels; pure
 #include "input/gyro_calibration.inl"   // read before gyro_mouse.inl uses it
 // ⓘ gyro_mouse.inl gates on this, and it is defined in rebind.inl which comes
 // later -- so it is declared here, above its user.
