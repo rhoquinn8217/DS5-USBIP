@@ -1578,6 +1578,12 @@ static int run_agent(uint16_t port)
         config_move::install_check(module_directory());
     }
 
+    // ⭐ Before any bridge: Windows can make a bridged controller's sound
+    // device the default speaker as it arrives, and this takes the default
+    // back (default_speaker_rule.inl). ⓘ Here, past every way of failing to
+    // start, so only a listener that runs starts it and reaches its stop.
+    default_speaker::start([](const std::wstring &line) { device_log::session_w() << line; });
+
     // ⭐ Open the page HERE, once the agent is actually listening.
     //
     // ⛔ main.cpp only FOCUSES an existing window, and only opens a new one when
@@ -1673,6 +1679,9 @@ static int run_agent(uint16_t port)
         g_agent_usbip_server->stop();
         g_agent_usbip_server.reset();
     }
+    // And the default speaker's watch, once the bridges are down, so nothing
+    // of it is logged after the log may be gone.
+    default_speaker::stop();
     closesocket(udp);
     closesocket(tcp);
     WSACleanup();

@@ -63,6 +63,7 @@
 // unit of its own, and a declaration first seen inside that namespace
 // would name a different function, which nothing defines.
 #include "audio/pc_sound_capture.h"
+#include "audio/default_speaker.h"   // a unit of its own as well, for the same reason
 
 #pragma comment(lib, "hid.lib")
 #pragma comment(lib, "ws2_32.lib")
