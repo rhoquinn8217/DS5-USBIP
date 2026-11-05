@@ -4608,10 +4608,12 @@ function renderTabs(devices) {
 // The wire strings are left alone -- the TV sends them, so renaming is a
 // two-repo protocol change rather than a rename.
 function transportOf(sessionKind) {
-  if (sessionKind === 'ds5') return 'Bluetooth';
+  if (sessionKind === 'ds5' || sessionKind === 'ds4') return 'Bluetooth';
   // ⓘ "USB", not "wired": it pairs like-for-like with BT -- both name the
   // transport -- and matches the wire string ds5_usb.
-  if (sessionKind === 'ds5_usb' || sessionKind === 'ds5e_usb') return 'USB';
+  // ⓘ A DS4 since its Audio section (2026-11-04): ds4 is the Bluetooth one,
+  // ds4_usb the cabled one.
+  if (sessionKind === 'ds5_usb' || sessionKind === 'ds5e_usb' || sessionKind === 'ds4_usb') return 'USB';
   return '';
 }
 
@@ -6459,20 +6461,25 @@ var ADAPTIVE_TRIGGER_KINDS = ['ds5', 'ds5_edge'];
 // none of those four is gated on being a DualSense. Hiding the Audio section
 // from a DS4 took all four with it, which is what this fixes.
 //
-// These two do not travel:
-//   audio_gain        rides the WIRED ISO audio path (audio_gain.inl), four
-//                     channels in one buffer, which is a DualSense layout. A
-//                     DS4's audio is SBC frames on a different endpoint.
+// This one does not travel:
 //   force_echo_cancel is an output-report patch in ds5_output_overrides.inl
 //                     and ds5_apply_settings.inl, so the 0x02 gate stops it.
 //
-// ⚠️ audio_gain has a SECOND limit that is not about the pad at all: it reads
-// the literal "ds5" section, so it acts only from the shared [ds5] block and a
-// named config's copy is ignored. That is T-229 item C's to fix -- greying it
-// here for a DS4 is right either way.
+// ⓘ audio_gain left this list on 2026-11-04: it scales the sound in the
+// listener before it is sent (audio_gain.inl), each pad from its own section,
+// and a DS4's two channels take it as the first two of a DualSense's four.
 var NEEDS_DS5_AUDIO_PATH = {
-  audio_gain: 1,
   force_echo_cancel: 1
+};
+
+// ⭐ PC SOUND AS VIBRATION plays through a DualSense's haptics, the third and
+// fourth channels of its sound. A DS4 has rumble motors and two channels, so
+// these do nothing on one.
+var NEEDS_DS5_HAPTICS = {
+  audio_haptics: 1,
+  audio_haptics_strength: 1,
+  audio_haptics_bass_hz: 1,
+  audio_haptics_mode: 1
 };
 
 // The settings kinds whose reports those two paths actually read.
@@ -6498,6 +6505,16 @@ function inertReason(key, sessionKind) {
   if (NEEDS_ADAPTIVE_TRIGGERS[key] &&
       ADAPTIVE_TRIGGER_KINDS.indexOf(settingsKindOf(sessionKind)) < 0) {
     return 'this controller has no adaptive triggers';
+  }
+  if (NEEDS_DS5_HAPTICS[key] &&
+      DS5_AUDIO_PATH_KINDS.indexOf(settingsKindOf(sessionKind)) < 0) {
+    return 'DualSense only — it plays the PC’s sound through the DualSense’s haptics';
+  }
+  // ⓘ A DS4 plays where its jack says: the headset when one is in, its own
+  // speaker when not. On a cable nothing picks a route for it, and over
+  // Bluetooth a route was never seen to act (2026-09-20).
+  if (key === 'audio_output' && settingsKindOf(sessionKind) === 'ds4') {
+    return 'no effect on a DS4 — its headphone jack decides';
   }
   if (NEEDS_DS5_AUDIO_PATH[key] &&
       DS5_AUDIO_PATH_KINDS.indexOf(settingsKindOf(sessionKind)) < 0) {
@@ -6736,6 +6753,14 @@ function renderConfigEditor(hostId, configName, prefix, ordinal) {
         // adjusting a controller -- and every row is one more to scroll past.
         // Set them by hand in the config file when they are needed.
         if (hiddenSetting(meta.key)) return;
+        // ⭐ The DS4Dongle's own switch, on a pad that is one, and on Overview,
+        // where no pad is in hand. On any other pad it could only be greyed.
+        var rowDev = ordinal ? (deviceByOrdinal(ordinal) || {}) : {};
+        if (meta.key === 'speaker_without_headphones' && ordinal && !rowDev.is_ds4dongle) return;
+        // ⭐ ON A DS4, A ROW THAT DOES NOTHING IS HIDDEN, NOT GREYED
+        // (rhoquinn8217, 2026-11-04: "hide them"). A DualSense keeps its greyed
+        // rows and their reasons, as before.
+        if (rowDev.kind && settingsKindOf(rowDev.kind) === 'ds4' && inertReason(meta.key, rowDev.kind)) return;
         var val = current[meta.key];
         // ⚠️ Present-but-empty counts as UNMANAGED, not as a value. That is
         // what the agent does too: "" fails to parse and falls back, and an
@@ -12572,6 +12597,20 @@ function selfTest() {
        rateSelectValue({ polling_rate: '1000', rate_limit_hz: 0 }) === 'real_time' &&
        rateSelectValue({ polling_rate: 'max', rate_limit_hz: 0 }) === 'real_time');
     ok('polling_rate is not offered again in the settings list', hiddenSetting('polling_rate'));
+    // ⭐ A DS4's Audio rows (2026-11-04): what acts on one is offered, the
+    // rest is inert there, and a DualSense keeps every row it had.
+    ok('a DS4 on a cable takes its volumes and the gain',
+       !inertReason('speaker_volume', 'ds4_usb') && !inertReason('headset_volume', 'ds4_usb') &&
+       !inertReason('audio_gain', 'ds4_usb') && !inertReason('audio_gain', 'ds4'));
+    ok('a DS4 has no route, no echo cancel and no PC sound as vibration',
+       !!inertReason('audio_output', 'ds4_usb') && !!inertReason('audio_output', 'ds4') &&
+       !!inertReason('force_echo_cancel', 'ds4_usb') && !!inertReason('audio_haptics', 'ds4') &&
+       !!inertReason('audio_haptics_strength', 'ds4_usb'));
+    ok('the speaker buffer is a Bluetooth DS4\'s and not a cabled one\'s',
+       !!inertReason('audio_latency_ms', 'ds4_usb') && !inertReason('audio_latency_ms', 'ds4'));
+    ok('a DualSense keeps its route, echo cancel and PC sound as vibration',
+       !inertReason('audio_output', 'ds5_usb') && !inertReason('force_echo_cancel', 'ds5_usb') &&
+       !inertReason('audio_haptics', 'ds5') && !inertReason('audio_gain', 'ds5_usb'));
     var rbox = document.createElement('div');
     rbox.innerHTML = rateTag(held);
     document.body.appendChild(rbox);

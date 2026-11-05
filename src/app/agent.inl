@@ -45,6 +45,9 @@ struct AgentBridgeSession {
     // what it read when the lock came, for an unlock with no auto link.
     bool heldForLock = false;
     std::string beforeLock;
+    // A cabled DS4 that may be a DS4Dongle, and its own settings
+    // (ds4_dongle_keep.inl). Shared: the sweep reaches it from the agent loop.
+    std::shared_ptr<Ds4DongleState> dongle = std::make_shared<Ds4DongleState>();
 };
 
 static std::mutex g_agent_sessions_mutex;
@@ -923,6 +926,13 @@ static void bridge_session_worker(AgentBridgeSession *session)
                             << narrow_ascii(audioError));
                     }
                 }
+            }
+
+            // ⭐ A cabled DS4 that is a DS4Dongle: its speaker without
+            // headphones, as its config says (ds4_dongle_keep.inl). A change
+            // restarts the dongle, and the TV bridges it again.
+            if (session->kind == "ds4_usb") {
+                ds4_dongle_keep(backendPtr, section, session->dongle.get(), "at bridge");
             }
         }
     }

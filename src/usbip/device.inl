@@ -2057,6 +2057,9 @@ private:
         }
         ds5_apply_output_overrides(event.data, event.length, profile_.device_descriptor,
                                    linked_config());
+        // A DS4's rumble dials, on its own report; nothing for any other pad.
+        ds4_apply_output_overrides(event.data, event.length, profile_.device_descriptor,
+                                   linked_config());
         // ⭐ After the overrides, so [trigger-in] above logs what the HOST sent.
         trigger_defend_host_report(event.data, event.length, profile_.device_descriptor,
                                    linked_config());

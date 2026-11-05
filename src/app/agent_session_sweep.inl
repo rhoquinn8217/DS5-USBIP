@@ -183,6 +183,8 @@ static void apply_pending_config_to_sessions()
         // The settings report goes out through the device's map, which shapes
         // it for the wire the pad is on. Held, so it outlives the lock.
         std::shared_ptr<CtmUsbipDevice> device;
+        // A cabled DS4's DS4Dongle settings (ds4_dongle_keep.inl), held the same way.
+        std::shared_ptr<Ds4DongleState> dongle;
     };
     std::vector<Target> targets;
     {
@@ -197,7 +199,7 @@ static void apply_pending_config_to_sessions()
                 linked = session->linkedConfig;
             }
             targets.push_back(Target{session->backend, linked, session->kind,
-                                     session->busIdAscii, session->device});
+                                     session->busIdAscii, session->device, session->dongle});
         }
     }
 
@@ -326,6 +328,12 @@ static void apply_pending_config_to_sessions()
                         << target.busIdAscii << " -- " << narrow_ascii(audioError));
                 }
             }
+        }
+
+        // ⭐ A cabled DS4 that is a DS4Dongle: its speaker without headphones,
+        // as the config now says. Asks the dongle only when the setting changed.
+        if (target.kind == "ds4_usb") {
+            ds4_dongle_keep(target.backend.get(), latencySection, target.dongle.get(), "config changed");
         }
     }
 }

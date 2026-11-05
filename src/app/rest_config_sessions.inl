@@ -112,6 +112,7 @@ static std::vector<RestDeviceView> rest_collect_devices()
                 view.batteryState = ctm_battery::state_word(battery.state);
             }
             rest_fill_capabilities(&view);
+            view.isDs4Dongle = session->dongle && session->dongle->isDongle.load() == 1;
             // ⭐ The polling rate column (usbip/input_pace.inl).
             view.inputRateHz = session->device->served_rate_hz();
             view.arrivalRateHz = session->device->arrived_rate_hz();

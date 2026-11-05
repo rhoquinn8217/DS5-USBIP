@@ -46,9 +46,12 @@ struct RestDeviceView {
     // unknown gets every section. A false hide costs someone a feature they
     // own and cannot find; a false show costs one dead row.
     bool hasAudio = true;      // the pad speaker, the headset jack, echo cancel
-    bool hasRumbleGains = true; // the three gains, patched only into a DualSense report
+    bool hasRumbleGains = true; // the rumble dials, on a DualSense's report or a DS4's
     bool hasTouchpad = true;
     bool hasGyro = true;
+    // ⭐ A cabled DS4 that answered as a DS4Dongle (ds4_dongle_keep.inl): the
+    // page offers speaker_without_headphones on it, and on no other pad.
+    bool isDs4Dongle = false;
     // ⭐ THE POLLING RATE (usbip/input_pace.inl): the reports a second Windows
     // is getting now, and arriving from the TV, which differ only under a
     // limit; whether a limit can apply at all, a controller's and never a
@@ -107,6 +110,7 @@ static std::string rest_device_json(const RestDeviceView &d)
     out += ",\"has_rumble_gains\":" + std::string(d.hasRumbleGains ? "true" : "false");
     out += ",\"has_touchpad\":" + std::string(d.hasTouchpad ? "true" : "false");
     out += ",\"has_gyro\":" + std::string(d.hasGyro ? "true" : "false");
+    out += ",\"is_ds4dongle\":" + std::string(d.isDs4Dongle ? "true" : "false");
     // ⭐ The polling rate column, Advanced only on the page.
     out += ",\"input_rate_hz\":" + std::to_string(d.inputRateHz);
     out += ",\"arrival_rate_hz\":" + std::to_string(d.arrivalRateHz);
@@ -483,6 +487,7 @@ static std::string rest_keys_json()
 {"key":"audio_output","type":"choice","choices":["auto","headset","headset_mono","speaker","both","off"],"default":"auto","help":"Where controller audio goes. The mode also decides which volume keys apply."},
 {"key":"speaker_volume","type":"int","min":0,"max":100,"default":100,"help":"Controller speaker level. 100 is maximum."},
 {"key":"headset_volume","type":"int","min":0,"max":100,"default":100,"help":"Controller headset jack level. 100 is maximum."},
+{"key":"speaker_without_headphones","type":"bool","default":true,"name":"Speaker without headphones","help":"A DS4 through a DS4Dongle plays on its own speaker when nothing is in its headphone jack. Changing it restarts the dongle for a moment."},
 {"key":"audio_gain","type":"int","min":0,"max":100,"default":100,"help":"Scales audio passing through. 100 is unchanged, not maximum, and it can only lower: louder would clip."},
 {"key":"audio_latency_ms","type":"int","min":0,"max":255,"default":60,"help":"Controller speaker jitter buffer, Bluetooth only. Below 20 is unusable; 20-60 trades responsiveness for reliability. Absent leaves the TV to decide."},
 {"key":"force_echo_cancel","type":"bool","default":false,"help":"Off makes the controller mute its own speaker as feedback protection."},

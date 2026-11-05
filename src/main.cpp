@@ -82,6 +82,8 @@ namespace {
 #include "config/device_config.inl"
 #include "audio/rumble_floor.inl"        // the weakest motor value a game can feel
 #include "audio/ds5_output_overrides.inl"
+#include "audio/ds4_rumble.inl"            // a DS4's motors: the rumble dials' bytes
+#include "audio/ds4_output_overrides.inl"  // needs device_section_for, from the line above it
 #include "input/gyro_calibration.inl"   // read before gyro_mouse.inl uses it
 // ⓘ gyro_mouse.inl gates on this, and it is defined in rebind.inl which comes
 // later -- so it is declared here, above its user.
@@ -95,6 +97,8 @@ bool ctm_rebind_config_mode_effective();
 static void mic_ring_push(const CtmBackend *owner, const uint8_t *data, size_t len);
 static void mic_ring_reset(const CtmBackend *owner);
 #include "backend/bridge.inl"
+#include "audio/ds4_dongle.inl"          // a DS4Dongle's settings reports; pure
+#include "app/ds4_dongle_keep.inl"       // keeps a DS4Dongle as its config says; needs CtmBackend
 #include "audio/mic_ring.inl"
 #include "audio/audio_gain.inl"
 #include "audio/audio_haptics.inl"     // PC sound as haptics: which pads, and when; before usbip/device.inl
