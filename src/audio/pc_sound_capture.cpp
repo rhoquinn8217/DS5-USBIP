@@ -29,6 +29,7 @@
 #include <vector>
 
 #include "pc_sound_capture.h"
+#include "controller_sound.inl"
 
 #pragma comment(lib, "ole32.lib")
 #pragma comment(lib, "cfgmgr32.lib")
@@ -86,13 +87,9 @@ bool container_of(IMMDevice *device, GUID *out)
     return found;
 }
 
-// A controller's own sound device, by the name Windows gives it: a
-// DualSense's is "DualSense Wireless Controller", an Edge's "DualSense Edge
-// Wireless Controller", a DS4's "Wireless Controller".
-bool is_controller(const std::wstring &name)
-{
-    return name.find(L"DualSense") != std::wstring::npos || name.find(L"Wireless Controller") != std::wstring::npos;
-}
+// A controller's own sound device, by the name Windows gives it
+// (controller_sound.inl, shared with the default speaker's watch).
+using controller_sound::is_controller;
 
 struct Format {
     unsigned channels = 0;
