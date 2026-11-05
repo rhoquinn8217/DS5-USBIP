@@ -216,6 +216,63 @@ int run_paired_tv_tests()
         CTM_CHECK(paired_tv::need_for(ip(203, 0, 113, 7), false, false) == Need::NotNeeded);
     }
 
+    section("paired tv: the home network proves it too unless set not to, and no proof or a forged one is refused");
+    {
+        using paired_tv::Need;
+        using Clock = paired_tv::Nonces::Clock;
+        // ⭐ Since 2026-11-02: a hotel's or a dorm's network is a home network by
+        // its addresses.
+        CTM_CHECK(paired_tv::kRequireAtHomeByDefault);
+        const uint32_t home = ip(192, 168, 1, 84);
+        const Need need = paired_tv::need_for(home, true, paired_tv::kRequireAtHomeByDefault);
+        CTM_CHECK(need == Need::Required);
+        // This PC never has to.
+        CTM_CHECK(paired_tv::need_for(ip(127, 0, 0, 1), true, paired_tv::kRequireAtHomeByDefault) == Need::NotNeeded);
+        const Clock::time_point t0 = Clock::now();
+        const std::vector<paired_tv::Device> devices = paired_tv::devices_from_state(state_file());
+        paired_tv::Nonces nonces;
+        std::string who;
+        CTM_CHECK(!paired_tv::lets_in(paired_tv::check(kCommand, home, &nonces, &devices, &who, t0), need));
+        const std::string forged = std::string(kCommand) + " PROOF=" + kNonce + ":" + kFpA + ":" + kSigByB;
+        nonces.issue(kNonce, home, t0);
+        CTM_CHECK(!paired_tv::lets_in(paired_tv::check(forged, home, &nonces, &devices, &who, t0), need));
+        const std::string good = std::string(kCommand) + " PROOF=" + kNonce + ":" + kFpA + ":" + kSigByA;
+        nonces.issue(kNonce, home, t0);
+        CTM_CHECK(paired_tv::lets_in(paired_tv::check(good, home, &nonces, &devices, &who, t0), need));
+    }
+
+    section("paired tv: the host's state file is looked for where its service says the host is installed");
+    {
+        using paired_tv::host_folder_from_image_path;
+        // This PC's own ImagePath, read 2026-11-02.
+        CTM_CHECK(host_folder_from_image_path(L"\"C:\\Program Files\\Apollo\\tools\\sunshinesvc.exe\" --service")
+                  == L"C:\\Program Files\\Apollo");
+        CTM_CHECK(host_folder_from_image_path(L"D:\\Games\\Vibepollo\\tools\\sunshinesvc.exe --service")
+                  == L"D:\\Games\\Vibepollo");
+        CTM_CHECK(host_folder_from_image_path(L"  \"E:\\Sunshine\\sunshine.exe\"  ") == L"E:\\Sunshine");
+        CTM_CHECK(host_folder_from_image_path(L"sunshinesvc.exe").empty());
+        CTM_CHECK(host_folder_from_image_path(L"").empty());
+
+        const std::wstring programFiles = L"C:\\Program Files";
+        // A file named in the config is the only one tried.
+        const std::vector<std::wstring> named =
+            paired_tv::state_file_candidates(L"F:\\x\\state.json", {L"D:\\Games\\Vibepollo"}, programFiles);
+        CTM_CHECK(named.size() == 1 && named[0] == L"F:\\x\\state.json");
+        // A host installed elsewhere is tried first, then Program Files'.
+        const std::vector<std::wstring> elsewhere =
+            paired_tv::state_file_candidates(L"", {L"D:\\Games\\Vibepollo"}, programFiles);
+        CTM_CHECK(elsewhere.size() == 3);
+        if (elsewhere.size() == 3) {
+            CTM_CHECK(elsewhere[0] == L"D:\\Games\\Vibepollo\\config\\sunshine_state.json");
+            CTM_CHECK(elsewhere[1] == L"C:\\Program Files\\Apollo\\config\\sunshine_state.json");
+            CTM_CHECK(elsewhere[2] == L"C:\\Program Files\\Sunshine\\config\\sunshine_state.json");
+        }
+        // The usual place is not tried twice, whatever its case or slashes.
+        CTM_CHECK(paired_tv::state_file_candidates(L"", {L"c:/program files/apollo"}, programFiles).size() == 2);
+        // No service found: Program Files' two, as before.
+        CTM_CHECK(paired_tv::state_file_candidates(L"", {}, programFiles).size() == 2);
+    }
+
     section("paired tv: the host's paired devices are read from its state file");
     {
         const std::vector<paired_tv::Device> devices = paired_tv::devices_from_state(state_file());
@@ -305,6 +362,19 @@ int run_paired_tv_tests()
         const std::string good = std::string(kCommand) + " PROOF=" + kNonce + ":" + kFpA + ":" + kSigByA;
         nonces.issue(kNonce, home, t0);
         CTM_CHECK(paired_tv::check(good, home, &nonces, &devices, &who, t0) == Verdict::Proven);
+    }
+
+    section("paired tv: the check is on unless it is set to log or off");
+    {
+        using paired_tv::Mode;
+        // ⭐ Nothing set is "on" (since 2026-10-13; "log" before).
+        CTM_CHECK(paired_tv::mode_from("") == Mode::On);
+        CTM_CHECK(paired_tv::mode_from("on") == Mode::On);
+        CTM_CHECK(paired_tv::mode_from("log") == Mode::Log);
+        CTM_CHECK(paired_tv::mode_from("off") == Mode::Off);
+        // A word it does not know is "on": a typo must not open the door.
+        CTM_CHECK(paired_tv::mode_from("false") == Mode::On);
+        CTM_CHECK(paired_tv::mode_from("of") == Mode::On);
     }
 
     section("paired tv: challenges are random, and the right length");

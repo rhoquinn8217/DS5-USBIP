@@ -11,7 +11,7 @@ some callers and why a TV calling from the internet proves who it is.
 |---|---|---|
 | `STATUS` | `OK CTM_AGENT_V1 level=<n> min_tv=<n>` | anyone: it is the TV's probe |
 | `PROOF_CHALLENGE` | `OK NONCE <32 hex>` | anyone: see "The pairing proof" |
-| `BRIDGE_START <kind> <port> <busid> [level=<n>] [PROOF=...]` | `OK bridge starting`; with port 0, `OK bridge starting port=<n>` | anyone on this PC or the home network; from the internet, a TV that proves it is paired (see below) |
+| `BRIDGE_START <kind> <port> <busid> [level=<n>] [PROOF=...]` | `OK bridge starting`; with port 0, `OK bridge starting port=<n>` | anyone on this PC; from the home network and from the internet, a TV that proves it is paired (see below) |
 | `BRIDGE_STOP <busid> [PROOF=...]` | `OK bridge stopped`, `OK no such bridge`, or `ERR that bridge belongs to another TV` | the same as `BRIDGE_START`, and only for its own bridges |
 | `USBIP_ATTACH <busid>` | `OK usbip attached` | this PC only |
 | `RESTART [hard]` | `OK bridges reset` | this PC only |
@@ -67,8 +67,11 @@ it runs with `--rest-lan`.
 
 ## Who needs a proof
 
-A TV on the home network (the private address ranges, Tailscale's included)
-or on this PC needs no proof. One it sends anyway is checked and logged.
+A caller on this PC needs no proof. A TV on the home network (the private
+address ranges, Tailscale's included) proves its pairing as one from the
+internet does, since 2026-11-02: a hotel's or a dorm's network has the same
+addresses as a home's. `paired_tv_proof_at_home = false` lets the home network
+in without one, as before; a proof sent anyway is then checked and logged.
 
 ⓘ An older listener answers `PROOF_CHALLENGE` with `ERR unknown command`, and
 the TV then sends its command plainly; one that does not know `PROOF=` reads
@@ -113,9 +116,10 @@ In `ctm-device-config.txt`, section `[global]`:
 
 | Setting | Meaning |
 |---|---|
-| `paired_tv_proof = log` | the default for now: proofs are checked and logged, and no TV is turned away |
-| `paired_tv_proof = on` | a TV calling from the internet without a good proof is refused |
+| `paired_tv_proof = on` | the default, and what any value but `log` or `off` means: a TV calling from the internet without a good proof is refused, except a stop with no proof of a bridge started from its own address |
+| `paired_tv_proof = log` | proofs are checked and logged, and no TV is turned away |
 | `paired_tv_proof = off` | nothing is checked, and a bridge port takes a connection from anywhere |
-| `paired_tv_proof_at_home = true` | the home network must prove it too |
-| `streaming_host_state_file = <path>` | where the host's state file is, when it is not Apollo's or Sunshine's in Program Files |
+| `paired_tv_proof_at_home = true` | the default: the home network proves it too |
+| `paired_tv_proof_at_home = false` | a TV on the home network needs no proof |
+| `streaming_host_state_file = <path>` | where the host's state file is, when it is not found by itself: the listener looks in the folder of Apollo's, Vibepollo's, Vibeshine's or Sunshine's Windows service, then in Program Files' Apollo and Sunshine |
 | `bridge_port_range = 48055-48074` | the ports the listener hands out for bridges, the default; at most 1000 of them |

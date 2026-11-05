@@ -152,10 +152,15 @@ inline bool same_tv(const std::string &sessionOwner, const std::string &owner)
 // that had kept its last input on Windows for 5 s. ⓘ A stranger elsewhere
 // still cannot; a second TV behind the same router can, as any stop without a
 // proof always could. Addresses in host byte order; 0 is none.
+// ⭐ addressOnly: a stop with no proof from the internet, under
+// paired_tv_proof = on (2026-10-13). The proof check lets it through only so
+// that the rule above still holds there, so it may stop a bridge started from
+// its own address and nothing else: not every unproven one, as an older app's
+// stop at home may.
 inline bool may_stop(const std::string &sessionOwner, uint32_t sessionPeer,
-                     const std::string &owner, uint32_t peer)
+                     const std::string &owner, uint32_t peer, bool addressOnly = false)
 {
-    if (same_tv(sessionOwner, owner)) return true;
+    if (!addressOnly && same_tv(sessionOwner, owner)) return true;
     return owner.empty() && sessionPeer != 0 && sessionPeer == peer;
 }
 

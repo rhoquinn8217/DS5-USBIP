@@ -39,6 +39,7 @@
 #include <array>
 #include <chrono>
 #include <cstdint>
+#include <cwctype>
 #include <map>
 #include <string>
 #include <vector>
@@ -112,6 +113,30 @@ inline Need need_for(uint32_t peer, bool requireAtAll, bool requireAtHome)
     if (is_this_pc(peer) || !requireAtAll) return Need::NotNeeded;
     if (is_home_network(peer)) return requireAtHome ? Need::Required : Need::NotNeeded;
     return Need::Required;
+}
+
+// [global] paired_tv_proof_at_home: whether the home network proves its
+// pairing too. ⭐ Yes unless it is set to false (rhoquinn8217, 2026-11-02): a
+// hotel's or a dorm's network has the same addresses as a home's, and anyone
+// on one could otherwise bridge to this PC with no proof at all. aurora-tv
+// sends the proof from home as it does from away.
+constexpr bool kRequireAtHomeByDefault = true;
+
+// [global] paired_tv_proof, as device_config_str() gives it (trimmed, lowered):
+//   on  -- the default: a TV calling from the internet without a good proof
+//          is refused;
+//   log -- checked and written down, nobody turned away;
+//   off -- not checked at all, and a bridge port takes a connection from
+//          anywhere, as it did before.
+// ⭐ Nothing set, or a word it does not know, is "on": a typo must not open
+// the door.
+enum class Mode { Off, Log, On };
+
+inline Mode mode_from(const std::string &lowered)
+{
+    if (lowered == "log") return Mode::Log;
+    if (lowered == "off") return Mode::Off;
+    return Mode::On; // "on", nothing set, or a word it does not know
 }
 
 // ----------------------------------------------------------------- nonces --
@@ -320,6 +345,76 @@ private:
 inline std::vector<Device> devices_from_state(const std::string &json)
 {
     return Json(json).named_devices();
+}
+
+// Where the host keeps that file. ⭐ Found the way the setup finds the host
+// (installer/ds5-usbip.iss, StreamHostFound): through the Windows service
+// Apollo, Vibepollo, Vibeshine or Sunshine installs, whose program sits in the
+// install folder or in its tools folder. Program Files' Apollo and Sunshine
+// come after, for a host with no service. ⛔ Until 2026-11-02 only those two
+// were tried, so a host installed anywhere else had no paired devices here,
+// and every TV that had to prove its pairing was refused.
+inline const wchar_t *const kHostServices[] = {
+    L"ApolloService", L"VibepolloService", L"VibeshineService", L"SunshineService",
+};
+
+inline std::wstring lowered(std::wstring text)
+{
+    for (wchar_t &c : text) c = static_cast<wchar_t>(std::towlower(c));
+    return text;
+}
+
+// The install folder from a service's ImagePath, read as the setup reads it:
+// the quoted path, or the path up to ".exe ", then its folder, and that
+// folder's parent when it is "tools". Empty when there is none.
+inline std::wstring host_folder_from_image_path(std::wstring path)
+{
+    while (!path.empty() && (path.front() == L' ' || path.front() == L'\t')) path.erase(path.begin());
+    while (!path.empty() && (path.back() == L' ' || path.back() == L'\t')) path.pop_back();
+    if (!path.empty() && path.front() == L'"') {
+        path.erase(path.begin());
+        const size_t quote = path.find(L'"');
+        if (quote != std::wstring::npos) path.resize(quote);
+    } else {
+        const size_t exe = lowered(path).find(L".exe ");
+        if (exe != std::wstring::npos) path.resize(exe + 4);
+    }
+    const size_t slash = path.find_last_of(L"\\/");
+    if (slash == std::wstring::npos) return std::wstring();
+    std::wstring folder = path.substr(0, slash);
+    const size_t up = folder.find_last_of(L"\\/");
+    if (up != std::wstring::npos && lowered(folder.substr(up + 1)) == L"tools") folder.resize(up);
+    return folder;
+}
+
+// The state files to try, in order: the one [global] streaming_host_state_file
+// names, alone; or each host folder's, then Program Files' Apollo and
+// Sunshine, each path once.
+inline std::vector<std::wstring> state_file_candidates(const std::wstring &named,
+                                                      const std::vector<std::wstring> &hostFolders,
+                                                      const std::wstring &programFiles)
+{
+    std::vector<std::wstring> out;
+    if (!named.empty()) {
+        out.push_back(named);
+        return out;
+    }
+    const auto add = [&out](const std::wstring &path) {
+        std::wstring key = lowered(path);
+        for (wchar_t &c : key) if (c == L'/') c = L'\\';
+        for (const std::wstring &have : out) {
+            std::wstring haveKey = lowered(have);
+            for (wchar_t &c : haveKey) if (c == L'/') c = L'\\';
+            if (haveKey == key) return;
+        }
+        out.push_back(path);
+    };
+    for (const std::wstring &folder : hostFolders) {
+        if (!folder.empty()) add(folder + L"\\config\\sunshine_state.json");
+    }
+    add(programFiles + L"\\Apollo\\config\\sunshine_state.json");
+    add(programFiles + L"\\Sunshine\\config\\sunshine_state.json");
+    return out;
 }
 
 // ----------------------------------------------------------- the crypto (CNG) --
