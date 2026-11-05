@@ -185,6 +185,7 @@ carry it; upstream's own history is unchanged.
 | 2026-11-03 | The quick config switch: while a finger holds Quick up, the right stick up or down steps the wheel too, one step a push, up the config above as the d-pad's up is, and the stick mouse stands aside meanwhile. Its box on the Overview is called "Two finger touchpad quick switch". Page 2.66.134. | `3fb4699`, `14b6462`, merge `2c56a2c` |
 | 2026-11-03 | Fixes from a review of the listener. A request on the control or settings port has one deadline for the whole of it, so a caller sending a byte at a time cannot hold the port. A bridge whose USB/IP attach failed ends, rather than staying "bridged" with nothing behind it. A config is written to a `.writing` file and moved into place whole, so a save cut short leaves the old file rather than half of one. And the Controller Configs window escapes quote marks, so one in a value no longer breaks the page, whose own comment no longer calls it a test client; its changelog has this as 2.66.131, and the page stays 2.66.134. | `4b4b2f2`, merge `15bdb11` |
 | 2026-11-03 | From the same review, the setup runs usbip-win2's own setup from its code, which reads the exit code, says on screen when the driver did not install, and installs it again when the driver is gone though `usbip.exe` is still there. And the setup keeps a log of its own, `Setup Log <date> #NNN.txt` in the installing account's `%TEMP%`, which says whether the driver's setup ran or was skipped, and whether a running DS5-USBIP was asked to quit and did. | `4b4b2f2`, `17563a9`, `99ff06d`, `d04d57e`, merge `15bdb11` |
+| 2026-11-04 | A second-model DS4 on a cable, or a device that answers as one, bridges its sound: Windows gets a 32 kHz stereo speaker and a 16 kHz mono headset microphone, on the wired path the cabled DualSense's sound takes. Where that path assumed a DualSense it now asks the device: the microphone's timing and its 200 ms ring follow the pad's own rate, and the gains and the amplitude log take the stream's channel count, so every other frame of a DS4's sound no longer takes the haptics gain, over Bluetooth as well. The DualSense's figures are the defaults, and a test pins them. | `f6de44b`, merge `ebdae61` |
 
 ## Files changed
 
@@ -199,9 +200,9 @@ ENet library, removed with the ENet transport).
  .github/ISSUE_TEMPLATE/config.yml             |     5 +
  .github/ISSUE_TEMPLATE/feature-request.yml    |    22 +
  .gitignore                                    |    43 +-
- CHANGES.md                                    |   448 +
+ CHANGES.md                                    |   459 +
  LINK                                          |     0
- README.md                                     |   329 +-
+ README.md                                     |   291 +-
  THIRD-PARTY-NOTICES.txt                       |   618 +
  app/compatibility.manifest                    |    27 +
  app/ctm-capture.vcxproj                       |    86 -
@@ -225,16 +226,26 @@ ENet library, removed with the ENet transport).
  docs/images/ds5usbip-advanced-overview.png    |   Bin 0 -> 313356 bytes
  docs/images/ds5usbip-advanced-touchpad.png    |   Bin 0 -> 725906 bytes
  docs/images/ds5usbip-keyboard-sizes.png       |   Bin 0 -> 431047 bytes
+ docs/images/ds5usbip-mode-advanced.png        |   Bin 0 -> 296414 bytes
+ docs/images/ds5usbip-mode-quick.png           |   Bin 0 -> 78275 bytes
+ docs/images/ds5usbip-mode-simple.png          |   Bin 0 -> 129085 bytes
+ docs/images/ds5usbip-preset-gyro.png          |   Bin 0 -> 103788 bytes
+ docs/images/ds5usbip-preset-touchpad.png      |   Bin 0 -> 127638 bytes
  docs/images/ds5usbip-quick-in-game.jpg        |   Bin 0 -> 516960 bytes
  docs/images/ds5usbip-quick.png                |   Bin 0 -> 51252 bytes
+ docs/images/ds5usbip-section-gyro.png         |   Bin 0 -> 384681 bytes
  docs/images/ds5usbip-simple-dualsense.png     |   Bin 0 -> 341360 bytes
  docs/images/ds5usbip-simple-xbox.png          |   Bin 0 -> 283054 bytes
+ docs/images/ds5usbip-tray-devices.png         |   Bin 0 -> 16332 bytes
  docs/images/ds5usbip-tray-menu.png            |   Bin 0 -> 25374 bytes
+ docs/images/ds5usbip-tray-tutorial.png        |   Bin 0 -> 11979 bytes
+ docs/images/ds5usbip-tutorial-quick.png       |   Bin 0 -> 86733 bytes
+ docs/images/ds5usbip-tutorial-simple.png      |   Bin 0 -> 149160 bytes
  docs/rest_api.md                              |   218 +
  docs/steam_puck_knowledge.md                  |     5 +-
  include/ctm/audio_volume.h                    |    40 +
  include/ctm/build_number.h                    |    23 +
- include/ctm/map/runtime.h                     |    42 +-
+ include/ctm/map/runtime.h                     |    51 +-
  include/ctm/product.h                         |    43 +
  include/ctm/protocol.h                        |    65 +-
  installer/build-ds5-installer.ps1             |   126 +
@@ -245,7 +256,7 @@ ENet library, removed with the ENet transport).
  installer/icon-source.png                     |   Bin 0 -> 100705 bytes
  installer/make-icon-ds5.ps1                   |   236 +
  installer/trace-silhouette.py                 |   368 +
- maps/ds4_usb_over_ds4_usb.map                 |    61 +
+ maps/ds4_usb_over_ds4_usb.map                 |   126 +
  maps/ds5_usb_over_ds5_usb.map                 |    61 +
  maps/virtual_keyboard.map                     |    46 +
  maps/virtual_mouse.map                        |    54 +
@@ -306,17 +317,17 @@ ENet library, removed with the ENet transport).
  src/app/window_move.inl                       |   250 +
  src/app/window_open_rule.inl                  |    32 +
  src/app/window_size_rule.inl                  |   101 +
- src/audio/audio_gain.inl                      |   151 +
+ src/audio/audio_gain.inl                      |   160 +
  src/audio/audio_haptics.inl                   |   299 +
  src/audio/audio_haptics_dsp.inl               |   346 +
  src/audio/ds5_apply_settings.inl              |   316 +
  src/audio/ds5_output_overrides.inl            |   699 +
- src/audio/iso_in_pacing.inl                   |   221 +
- src/audio/iso_in_test_tone.inl                |    95 +
- src/audio/mic_ring.inl                        |   202 +
+ src/audio/iso_in_pacing.inl                   |   223 +
+ src/audio/iso_in_test_tone.inl                |   103 +
+ src/audio/mic_ring.inl                        |   229 +
  src/audio/pc_sound_capture.cpp                |   349 +
  src/audio/pc_sound_capture.h                  |    52 +
- src/audio/pcm_amplitude_log.inl               |   162 +
+ src/audio/pcm_amplitude_log.inl               |   167 +
  src/audio/rumble_floor.inl                    |    58 +
  src/backend/backend.inl                       |    56 +
  src/backend/bridge.inl                        |   396 +-
@@ -356,13 +367,13 @@ ENet library, removed with the ENet transport).
  src/log/capped_log.inl                        |   117 +
  src/log/device_log.inl                        |   233 +
  src/main.cpp                                  |  1079 +-
- src/map/runtime.cpp                           |   203 +-
+ src/map/runtime.cpp                           |   205 +-
  src/usbdisplay/README.md                      |    13 +
- src/usbip/device.inl                          |  1068 +-
+ src/usbip/device.inl                          |  1095 +-
  src/usbip/fallback_serial.inl                 |    81 +
  src/usbip/fine_timer.inl                      |    54 +
  src/usbip/input_pace.inl                      |   131 +
- src/usbip/server.inl                          |   254 +-
+ src/usbip/server.inl                          |   257 +-
  src/usbip/submit_info.inl                     |    34 +
  src/usbip/submit_limits.inl                   |    54 +
  src/usbip/wire.inl                            |   103 +
@@ -375,7 +386,7 @@ ENet library, removed with the ENet transport).
  tests/control_caller_test.cpp                 |    73 +
  tests/device_capabilities_test.cpp            |    75 +
  tests/device_config_cache_test.cpp            |   148 +
- tests/device_config_test.cpp                  |   535 +
+ tests/device_config_test.cpp                  |   565 +
  tests/device_names_test.cpp                   |   110 +
  tests/device_type_test.cpp                    |    89 +
  tests/fallback_serial_test.cpp                |    79 +
@@ -386,14 +397,14 @@ ENet library, removed with the ENet transport).
  tests/home_folder_test.cpp                    |   178 +
  tests/host_audio_settings_test.cpp            |   152 +
  tests/input_pace_test.cpp                     |   184 +
- tests/iso_in_pacing_test.cpp                  |   118 +
+ tests/iso_in_pacing_test.cpp                  |   143 +
  tests/key_pulse_test.cpp                      |   148 +
  tests/keyboard_device_test.cpp                |   170 +
  tests/licence_files_test.cpp                  |    92 +
  tests/lock_screen_rule_test.cpp               |    36 +
- tests/map_defaults_test.cpp                   |   100 +
+ tests/map_defaults_test.cpp                   |   152 +
  tests/mic_report_test.cpp                     |    64 +
- tests/mic_ring_test.cpp                       |   181 +
+ tests/mic_ring_test.cpp                       |   226 +
  tests/mouse_held_test.cpp                     |   162 +
  tests/nickname_test.cpp                       |    98 +
  tests/old_devices_rule_test.cpp               |   131 +
@@ -431,7 +442,7 @@ ENet library, removed with the ENet transport).
  tests/units.h                                 |    54 +
  tests/usb_descriptors_test.cpp                |   213 +
  tests/usbip_limits_test.cpp                   |    73 +
- tests/usbip_server_test.cpp                   |   687 +
+ tests/usbip_server_test.cpp                   |   688 +
  tests/window_icon_rule_test.cpp               |   108 +
  tests/window_move_test.cpp                    |   136 +
  tests/window_open_rule_test.cpp               |    43 +
@@ -444,5 +455,5 @@ ENet library, removed with the ENet transport).
  tools/sbc-golden-gen/ffmpeg_side.cpp          |   117 +
  tools/sbc-golden-gen/ffmpeg_side.h            |    15 +
  tools/sbc-golden-gen/main.cpp                 |   131 +
- 250 files changed, 76309 insertions(+), 6161 deletions(-)
+ 260 files changed, 76621 insertions(+), 6132 deletions(-)
 ```
