@@ -1,5 +1,6 @@
-// A DS4's own settings (2026-11-04): the DS4Dongle's settings reports, and the
-// rumble dials on a DS4's motors.
+// A DS4's own settings (2026-11-04): the DS4Dongle's settings reports, the
+// rumble dials on a DS4's motors, and a dongle this listener restarted coming
+// back as itself.
 //
 // ⚠️ WHAT THESE CANNOT DO. They cannot reach a dongle or feel a motor. They pin
 // the bytes: that a request is the dongle's own protocol, that only the one
@@ -8,6 +9,7 @@
 
 #include "harness.h"
 
+#include <chrono>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -15,6 +17,9 @@
 #include "audio/rumble_floor.inl"
 #include "audio/ds4_rumble.inl"
 #include "audio/ds4_dongle.inl"
+#include "app/same_device.inl"
+#include "app/tv_sessions.inl"
+#include "app/ds4_dongle_return.inl"
 
 using namespace ctmtest;
 
@@ -154,6 +159,106 @@ int run_ds4_settings_tests()
         CTM_CHECK_EQ(nonZero, 0);
         const std::vector<uint8_t> get = ds4_dongle::get_request(ds4_dongle::kReportConfig);
         CTM_CHECK(get.size() == 64 && get[0] == 0xF7);
+    }
+
+    // ⭐ The C1's DS4 on its DS4Dongle, 2026-11-04, as the bridge names it.
+    using namespace ds4_dongle_return;
+    using std::chrono::seconds;
+    Who pad;
+    pad.owner = "30fec46a";
+    pad.vendorId = 0x054c;
+    pad.productId = 0x09cc;
+    pad.serial = "30:0e:d5:a9:69:51";
+    pad.product = "Sony Interactive Entertainment Wireless Controller";
+    Entry restarted;
+    restarted.who = pad;
+    restarted.linkedConfig = "touchpad_to_mouse_2";
+    restarted.nickname = "Rogue";
+    restarted.followJack = 1;
+    const Clock::time_point t0 = Clock::now();
+
+    section("ds4 dongle restart: the pad back takes its config, its name and what it was given, once");
+    {
+        List list;
+        list.expect(restarted, t0);
+        Entry back;
+        // ⓘ 6 s: the C1's DS4 was back in five, and named in one more.
+        CTM_CHECK(list.take(pad, t0 + seconds(6), &back));
+        CTM_CHECK(back.linkedConfig == "touchpad_to_mouse_2");
+        CTM_CHECK(back.nickname == "Rogue");
+        CTM_CHECK_EQ(back.followJack, 1);
+        CTM_CHECK(!list.take(pad, t0 + seconds(7), &back));
+        CTM_CHECK_EQ(static_cast<int>(list.size()), 0);
+    }
+
+    section("ds4 dongle restart: the shared section is carried too, as a choice");
+    {
+        List list;
+        Entry shared = restarted;
+        shared.linkedConfig.clear();
+        list.expect(shared, t0);
+        Entry back;
+        back.linkedConfig = "not cleared";
+        CTM_CHECK(list.take(pad, t0 + seconds(6), &back));
+        CTM_CHECK(back.linkedConfig.empty());
+    }
+
+    section("ds4 dongle restart: another TV's, another pad or another model takes nothing");
+    {
+        List list;
+        list.expect(restarted, t0);
+        Who otherTv = pad;
+        otherTv.owner = "9b2c1d00";
+        Who otherPad = pad;
+        otherPad.serial = "a4:ae:12:00:00:01";
+        Who otherModel = pad;
+        otherModel.productId = 0x05c4;
+        Who noSerial = pad;
+        noSerial.serial.clear();
+        CTM_CHECK(!list.take(otherTv, t0 + seconds(1), nullptr));
+        CTM_CHECK(!list.take(otherPad, t0 + seconds(1), nullptr));
+        CTM_CHECK(!list.take(otherModel, t0 + seconds(1), nullptr));
+        CTM_CHECK(!list.take(noSerial, t0 + seconds(1), nullptr));
+        CTM_CHECK_EQ(static_cast<int>(list.size()), 1);
+        CTM_CHECK(list.take(pad, t0 + seconds(1), nullptr));
+    }
+
+    section("ds4 dongle restart: nothing is kept past the window");
+    {
+        List list;
+        list.expect(restarted, t0);
+        CTM_CHECK(!list.take(pad, t0 + kWindow, nullptr));
+        CTM_CHECK_EQ(static_cast<int>(list.size()), 0);
+        list.expect(restarted, t0);
+        CTM_CHECK(list.take(pad, t0 + kWindow - seconds(1), nullptr));
+    }
+
+    section("ds4 dongle restart: a pad without a serial is known by its name");
+    {
+        List list;
+        Entry nameless = restarted;
+        nameless.who.serial.clear();
+        list.expect(nameless, t0);
+        Who renamed = nameless.who;
+        renamed.product = "Wireless Controller (2)";
+        CTM_CHECK(!list.take(renamed, t0 + seconds(1), nullptr));
+        CTM_CHECK(list.take(nameless.who, t0 + seconds(1), nullptr));
+    }
+
+    section("ds4 dongle restart: a second restart of the pad replaces the first");
+    {
+        List list;
+        list.expect(restarted, t0);
+        Entry again = restarted;
+        again.linkedConfig = "stick_to_mouse";
+        again.followJack = 0;
+        list.expect(again, t0 + seconds(10));
+        CTM_CHECK_EQ(static_cast<int>(list.size()), 1);
+        Entry back;
+        // ⓘ 25 s: past the first restart's window, inside the second's.
+        CTM_CHECK(list.take(pad, t0 + seconds(25), &back));
+        CTM_CHECK(back.linkedConfig == "stick_to_mouse");
+        CTM_CHECK_EQ(back.followJack, 0);
     }
 
     return 0;

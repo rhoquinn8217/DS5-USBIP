@@ -13,6 +13,9 @@
 // Run at a cabled DS4's bridge (agent.inl) and whenever a config changes (the
 // sweep). ⓘ Blocking: up to four feature requests to the TV, a third of a
 // second each at most, and only the first time, or when the setting changes.
+//
+// ⭐ It answers what it wrote when it asked for a restart, so the caller can
+// remember the pad until it is back (ds4_dongle_return.inl), and -1 otherwise.
 
 struct Ds4DongleState {
     std::mutex m;
@@ -20,18 +23,23 @@ struct Ds4DongleState {
     std::atomic<int> isDongle{-1};
     // Its audio_follow_jack as last read or written, -1 unknown.
     int followJack = -1;
+    // What was written before the restart this session is back from, -1 none
+    // (ds4_dongle_return.inl).
+    int wroteBeforeRestart = -1;
+    // A value it came back without, never written again in this bridge.
+    int notKept = -1;
     std::string version;
 };
 
-static void ds4_dongle_keep(CtmBackend *backend, const std::string &section,
-                            Ds4DongleState *state, const char *when)
+static int ds4_dongle_keep(CtmBackend *backend, const std::string &section,
+                           Ds4DongleState *state, const char *when)
 {
     if (backend == nullptr || state == nullptr) {
-        return;
+        return -1;
     }
     std::lock_guard<std::mutex> lock(state->m);
     if (state->isDongle.load() == 0) {
-        return;
+        return -1;
     }
     const unsigned int kWaitMs = 300;
     std::vector<uint8_t> reply;
@@ -44,7 +52,7 @@ static void ds4_dongle_keep(CtmBackend *backend, const std::string &section,
             state->isDongle.store(0);
             device_log::report(device_log::msg()
                 << section << ": not a DS4Dongle (no version from report 0xF8), its own settings left alone");
-            return;
+            return -1;
         }
         state->version = ds4_dongle::version_of(reply);
         state->isDongle.store(1);
@@ -55,7 +63,10 @@ static void ds4_dongle_keep(CtmBackend *backend, const std::string &section,
     const bool on = device_config_bool(section.c_str(), "speaker_without_headphones", true);
     const uint8_t want = ds4_dongle::follow_jack_for(on);
     if (state->followJack == static_cast<int>(want)) {
-        return;     // as last read or written: nothing to ask
+        return -1;  // as last read or written: nothing to ask
+    }
+    if (state->notKept == static_cast<int>(want)) {
+        return -1;  // it would not keep it (below): asked again only at the next bridge
     }
 
     reply.clear();
@@ -65,20 +76,35 @@ static void ds4_dongle_keep(CtmBackend *backend, const std::string &section,
         !ds4_dongle::body_of(reply, &body)) {
         device_log::report(device_log::msg()
             << section << ": DS4Dongle settings not read (report 0xF7), left as they are");
-        return;
+        return -1;
     }
     if (body[0] != ds4_dongle::kSchema) {
         device_log::report(device_log::msg()
             << section << ": DS4Dongle settings are schema " << static_cast<int>(body[0])
             << ", not " << static_cast<int>(ds4_dongle::kSchema) << ": left as they are");
-        return;
+        return -1;
     }
     state->followJack = body[ds4_dongle::kFollowJackAt];
+    const int wroteBefore = state->wroteBeforeRestart;
+    state->wroteBeforeRestart = -1;
     if (state->followJack == static_cast<int>(want)) {
         device_log::report(device_log::msg()
             << section << ": DS4Dongle speaker_without_headphones is " << (on ? "on" : "off")
             << " already (" << when << ")");
-        return;
+        return -1;
+    }
+    // ⛔ NEVER A SECOND RESTART FOR A SETTING THE DONGLE DID NOT KEEP. Back from
+    // the restart asked for a moment ago without the value written then, it
+    // would be written and restarted again at every bridge, for ever: a
+    // firmware that does not save it, say. ⓘ Nor at the next config change of
+    // this bridge, which may be any config's; the next bridge asks again.
+    if (wroteBefore >= 0 && state->followJack != wroteBefore) {
+        state->notKept = wroteBefore;
+        device_log::report(device_log::msg()
+            << section << ": DS4Dongle came back from its restart without the setting (audio_follow_jack "
+            << wroteBefore << " written, " << state->followJack
+            << " read): left as it is, and not restarted again");
+        return -1;
     }
 
     std::vector<uint8_t> none;
@@ -87,7 +113,7 @@ static void ds4_dongle_keep(CtmBackend *backend, const std::string &section,
                                            &none, kWaitMs)) {
         device_log::report(device_log::msg()
             << section << ": DS4Dongle speaker_without_headphones NOT changed: the dongle refused the write");
-        return;
+        return -1;
     }
     state->followJack = want;
     device_log::report(device_log::msg()
@@ -96,4 +122,5 @@ static void ds4_dongle_keep(CtmBackend *backend, const std::string &section,
     // ⓘ The dongle leaves USB as it obeys, so the answer may never come.
     (void)backend->remote_interface_feature(0, false, ds4_dongle::function_request(ds4_dongle::kFuncReconnect),
                                             &none, kWaitMs);
+    return want;
 }

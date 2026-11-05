@@ -4516,7 +4516,35 @@ function pollRates() {
   }).catch(function () {});
 }
 
+// ⭐ A TAB FOLLOWS ITS DEVICE BACK (2026-11-04). A DS4Dongle restarts when its
+// speaker_without_headphones changes, so the DS4 leaves for a few seconds and
+// returns as a new session under its old nickname (ds4_dongle_return.inl on
+// the listener). The window fell back to Overview when it left, and goes back
+// to it when it returns, unless the window was moved meanwhile. ⓘ The nickname
+// is the device here, as in groupDevices.
+var TAB_BACK = null;              // { name, to, until }: a tab its device took away
+var TAB_BACK_MS = 20000;
+
+function followTabBack(lostName) {
+  if (lostName) {
+    TAB_BACK = { name: lostName, to: ACTIVE, until: Date.now() + TAB_BACK_MS };
+    return;
+  }
+  if (!TAB_BACK) return;
+  if (Date.now() > TAB_BACK.until || ACTIVE !== TAB_BACK.to) { TAB_BACK = null; return; }
+  var back = DEVICE_LEADS.filter(function (d) { return d.nickname === TAB_BACK.name; })[0];
+  if (!back) return;
+  TAB_BACK = null;
+  showTab(back.ordinal);
+}
+
 function renderTabs(devices) {
+  // ⓘ Read before the list is replaced: the name of the device on the tab.
+  var nameBefore = '';
+  if (isControllerTab(ACTIVE)) {
+    var before = deviceByOrdinal(leadOf(ACTIVE));
+    nameBefore = (before && before.nickname) || '';
+  }
   LAST_DEVICES = devices || [];
   groupDevices(LAST_DEVICES);
   // The event, not an expiry: a device in the list means bridging works now.
@@ -4590,10 +4618,14 @@ function renderTabs(devices) {
   // nothing -- an unbridge should not leave a blank page.
   // ⓘ A tab's key moves to another part when its device gains one that takes a
   // config, so the part is followed to its device before the tab is given up.
+  var fellBack = false;
   if (TABS.indexOf(ACTIVE) < 0) {
-    showTab(TABS.indexOf(leadOf(ACTIVE)) >= 0 ? leadOf(ACTIVE) : 'overview');
+    fellBack = TABS.indexOf(leadOf(ACTIVE)) < 0;
+    showTab(fellBack ? 'overview' : leadOf(ACTIVE));
   }
   if (COMPACT) compactEnsureController();
+  // ⓘ After the compact views' own choice, which is where the window now is.
+  followTabBack(fellBack ? nameBefore : '');
 }
 
 // A SESSION kind ("ds5_usb") is not the kind a config is stored under ("ds5").
@@ -12714,6 +12746,48 @@ function selfTest() {
     ok('pane exists for ' + d.ordinal, !!pane);
     ok('header built for ' + d.ordinal, !!HEADS[d.ordinal]);
   });
+
+  // 4b. ⭐ A TAB FOLLOWS ITS DEVICE BACK (2026-11-04): a DS4Dongle restarted for
+  //     its speaker leaves for a few seconds and returns, a new session under
+  //     its old name. Made-up lists, and `fake` drawn again after. ⓘ Advanced
+  //     only: the compact views choose their own controller first.
+  if (!COMPACT) {
+    var savedTabBack = TAB_BACK;
+    var savedActive = ACTIVE;
+    var ds4 = function (ordinal, nickname) {
+      return [{ ordinal: ordinal, nickname: nickname, kind: 'ds4_usb', device_type: 'controller',
+                serial: '30:0e:d5:a9:69:51', linked_config: 'touchpad_to_mouse_2',
+                reads: 'touchpad_to_mouse_2', ready: true, supports_config: true }];
+    };
+    var threwBack = '';
+    try {
+      renderTabs(ds4('ds4_usb_3', 'Rogue'));
+      showTab('ds4_usb_3');
+      renderTabs([]);
+      ok('a tab whose device left falls back to Overview', ACTIVE === 'overview', 'got ' + ACTIVE);
+      renderTabs(ds4('ds4_usb_4', 'Rogue'));
+      ok('and goes back to it when it returns under its name', ACTIVE === 'ds4_usb_4', 'got ' + ACTIVE);
+      renderTabs([]);
+      renderTabs(ds4('ds4_usb_5', 'Mamba'));
+      ok('another device is not taken for it', ACTIVE === 'overview', 'got ' + ACTIVE);
+      TAB_BACK = null;
+      renderTabs(ds4('ds4_usb_6', 'Rogue'));
+      showTab('ds4_usb_6');
+      renderTabs([]);
+      showTab('editor');
+      renderTabs(ds4('ds4_usb_7', 'Rogue'));
+      ok('nor once the window was moved meanwhile', ACTIVE === 'editor', 'got ' + ACTIVE);
+      showTab('ds4_usb_7');
+      renderTabs([]);
+      if (TAB_BACK) TAB_BACK.until = Date.now() - 1;
+      renderTabs(ds4('ds4_usb_8', 'Rogue'));
+      ok('nor after its time', ACTIVE === 'overview', 'got ' + ACTIVE);
+    } catch (e) { threwBack = e.message; }
+    ok('a DS4 back from a restart draws without throwing', !threwBack, threwBack);
+    TAB_BACK = savedTabBack;
+    renderTabs(fake);
+    if (TABS.indexOf(savedActive) >= 0) showTab(savedActive);
+  }
 
   // 5. Names are assigned, distinct, and stable while the device is present.
   // ⓘ Names are the agent's now; these checked the browser's own generator.

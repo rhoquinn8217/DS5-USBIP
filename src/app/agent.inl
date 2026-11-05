@@ -54,6 +54,39 @@ static std::mutex g_agent_sessions_mutex;
 static std::vector<std::unique_ptr<AgentBridgeSession>> g_agent_sessions;
 static std::unique_ptr<CtmUsbipServer> g_agent_usbip_server;
 
+// ⭐ DS4Dongles this listener restarted, each until it is back or the window has
+// passed (ds4_dongle_return.inl). A leaf lock: nothing is taken under it.
+static std::mutex g_ds4_dongle_returns_mutex;
+static ds4_dongle_return::List g_ds4_dongle_returns;
+
+// Who a session's pad is, for the list above. ⓘ The device's fields are the
+// handshake's and the owner is set at the start, so neither needs a lock.
+static ds4_dongle_return::Who ds4_dongle_who_of(const AgentBridgeSession &session)
+{
+    ds4_dongle_return::Who who;
+    who.owner = session.owner;
+    if (session.device) {
+        who.vendorId = session.device->vendor_id();
+        who.productId = session.device->product_id();
+        who.serial = session.device->physical_serial();
+        who.product = session.device->product_name();
+    }
+    return who;
+}
+
+// Its dongle was asked to restart with `wrote`: keep the pad until it is back.
+static void ds4_dongle_expect_back(const ds4_dongle_return::Who &who, const std::string &linked,
+                                   const std::string &nickname, int wrote)
+{
+    ds4_dongle_return::Entry entry;
+    entry.who = who;
+    entry.linkedConfig = linked;
+    entry.nickname = nickname;
+    entry.followJack = wrote;
+    std::lock_guard<std::mutex> lock(g_ds4_dongle_returns_mutex);
+    g_ds4_dongle_returns.expect(entry, ds4_dongle_return::Clock::now());
+}
+
 #include "lock_screen_rule.inl"
 
 // ⭐⭐ WHILE WINDOWS IS LOCKED, EVERY CONTROLLER READS NO CONFIG, and its own
@@ -665,6 +698,57 @@ static void bridge_session_worker(AgentBridgeSession *session)
         }
     }
 
+    // ⭐ BACK FROM A RESTART THIS LISTENER ASKED FOR (ds4_dongle_return.inl): a
+    // DS4Dongle takes back the config it read, chosen by hand or not, and its
+    // name. ⛔ Without the config, one that turned its speaker off was lost with
+    // the restart, and the shared section turned it straight back on.
+    // ⓘ OUTSIDE session->mutex, as the nickname block above.
+    bool backFromRestart = false;
+    std::string linkBack;
+    if (session->kind == "ds4_usb" && session->device) {
+        ds4_dongle_return::Entry back;
+        bool found = false;
+        {
+            std::lock_guard<std::mutex> lock(g_ds4_dongle_returns_mutex);
+            found = g_ds4_dongle_returns.take(ds4_dongle_who_of(*session),
+                                              ds4_dongle_return::Clock::now(), &back);
+        }
+        if (found) {
+            backFromRestart = true;
+            linkBack = back.linkedConfig;
+            {
+                std::lock_guard<std::mutex> lock(session->dongle->m);
+                session->dongle->wroteBeforeRestart = back.followJack;
+            }
+            // ⓘ Its old name, unless another session took it meanwhile.
+            bool nameFree = !back.nickname.empty();
+            if (nameFree) {
+                std::lock_guard<std::mutex> guard(g_agent_sessions_mutex);
+                for (const auto &other : g_agent_sessions) {
+                    if (other.get() == session) continue;
+                    std::lock_guard<std::mutex> otherLock(other->mutex);
+                    if (other->nickname == back.nickname) {
+                        nameFree = false;
+                        break;
+                    }
+                }
+            }
+            std::string ordinalNow;
+            std::string previous;
+            {
+                std::lock_guard<std::mutex> lock(session->mutex);
+                ordinalNow = session->ordinal;
+                previous = session->nickname;
+                if (nameFree) session->nickname = back.nickname;
+            }
+            device_log::session(device_log::msg()
+                << ordinalNow << " is back from the restart this listener asked its DS4Dongle for: "
+                << (nameFree ? back.nickname + " again (was " + previous + ")"
+                             : "still " + previous + ", " + back.nickname + " being taken")
+                << ", reading " << (linkBack.empty() ? std::string("the shared section") : linkBack));
+        }
+    }
+
     // Per-controller config: pick up the physical serial, then auto-link if a
     // config claims it. A manual link made later overrides this for the life of
     // the session -- auto_link decides the starting point, not the whole story.
@@ -674,7 +758,16 @@ static void bridge_session_worker(AgentBridgeSession *session)
         std::lock_guard<std::mutex> lock(session->mutex);
         session->physicalSerial = serial;
         session->tvPath = myTvPath;
-        if (session->linkedConfig.empty()) {
+        if (backFromRestart) {
+            // ⓘ What it read before the restart, in place of the auto link. While
+            // Windows is locked it is held for the unlock, as any link is.
+            if (g_windows_locked.load() && config_store::kind_supports_config(session->kind)) {
+                session->heldForLock = true;
+                session->beforeLock = linkBack;
+            } else {
+                session->linkedConfig = linkBack;
+            }
+        } else if (session->linkedConfig.empty()) {
             const std::string autoLink = config_store::auto_link_for(serial, session->kind);
             // ⭐ NOT WHILE WINDOWS IS LOCKED (lock_screen_rule.inl): the auto link
             // waits for the unlock, and the controller's own buttons reach the
@@ -932,7 +1025,15 @@ static void bridge_session_worker(AgentBridgeSession *session)
             // headphones, as its config says (ds4_dongle_keep.inl). A change
             // restarts the dongle, and the TV bridges it again.
             if (session->kind == "ds4_usb") {
-                ds4_dongle_keep(backendPtr, section, session->dongle.get(), "at bridge");
+                const int wrote = ds4_dongle_keep(backendPtr, section, session->dongle.get(), "at bridge");
+                if (wrote >= 0) {
+                    std::string nickname;
+                    {
+                        std::lock_guard<std::mutex> lock(session->mutex);
+                        nickname = session->nickname;
+                    }
+                    ds4_dongle_expect_back(ds4_dongle_who_of(*session), linked, nickname, wrote);
+                }
             }
         }
     }

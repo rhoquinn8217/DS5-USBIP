@@ -351,6 +351,7 @@ inline void install_check(const std::wstring &exeFolder);
 #include "app/control_caller.inl"    // which control commands only this PC may send; agent.inl asks it
 #include "app/paired_tv.inl"         // the pairing proof a TV from the internet bridges with; agent.inl asks it
 #include "app/tv_sessions.inl"       // which TV a bridge session belongs to, and its port; agent.inl asks it
+#include "app/ds4_dongle_return.inl" // a DS4Dongle this listener restarted comes back as itself; agent.inl asks it
 #include "app/protocol_level.inl"    // whether this listener and a TV app can work together; agent.inl answers with it
 #include "app/open_on_bridge.inl"      // whether a bridge opens the settings window; agent.inl and the tray ask it
 #include "app/quick_switch.inl"        // the quick config switch: its setting, its swipe, its keys; pure
