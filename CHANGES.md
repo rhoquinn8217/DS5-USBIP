@@ -204,7 +204,7 @@ ENet library, removed with the ENet transport).
  .github/ISSUE_TEMPLATE/config.yml             |     5 +
  .github/ISSUE_TEMPLATE/feature-request.yml    |    22 +
  .gitignore                                    |    43 +-
- CHANGES.md                                    |   473 +
+ CHANGES.md                                    |   475 +
  LINK                                          |     0
  README.md                                     |   291 +-
  THIRD-PARTY-NOTICES.txt                       |   618 +
@@ -225,7 +225,7 @@ ENet library, removed with the ENet transport).
  build-tests.ps1                               |    86 +
  build.ps1                                     |   121 +-
  device-config.md                              |   195 +
- docs/control_port.md                          |   121 +
+ docs/control_port.md                          |   125 +
  docs/ctm-capture-controls.md                  |    70 -
  docs/images/ds5usbip-advanced-overview.png    |   Bin 0 -> 313356 bytes
  docs/images/ds5usbip-advanced-touchpad.png    |   Bin 0 -> 725906 bytes
@@ -250,7 +250,7 @@ ENet library, removed with the ENet transport).
  include/ctm/audio_volume.h                    |    40 +
  include/ctm/build_number.h                    |    23 +
  include/ctm/map/runtime.h                     |    51 +-
- include/ctm/product.h                         |    43 +
+ include/ctm/product.h                         |    44 +
  include/ctm/protocol.h                        |    65 +-
  installer/build-ds5-installer.ps1             |   126 +
  installer/build-icon.ps1                      |   238 +
@@ -269,7 +269,7 @@ ENet library, removed with the ENet transport).
  profiles/descriptors/virtual_keyboard.profile |    74 +
  profiles/descriptors/virtual_mouse.profile    |    59 +
  release.ps1                                   |   264 +
- src/app/agent.inl                             |  1379 +-
+ src/app/agent.inl                             |  1391 +-
  src/app/agent_session_sweep.inl               |   331 +
  src/app/cli.inl                               |    66 +-
  src/app/common.inl                            |   166 +-
@@ -291,7 +291,7 @@ ENet library, removed with the ENet transport).
  src/app/open_on_bridge.inl                    |    93 +
  src/app/open_ui.inl                           |   943 ++
  src/app/overlay_window.inl                    |  2472 ++++
- src/app/paired_tv.inl                         |   495 +
+ src/app/paired_tv.inl                         |   590 +
  src/app/protocol_level.inl                    |    86 +
  src/app/quick_switch.inl                      |   408 +
  src/app/quick_switch_session.inl              |   457 +
@@ -316,7 +316,7 @@ ENet library, removed with the ENet transport).
  src/app/tutorial_bubble.inl                   |  1305 ++
  src/app/tutorial_bubble_rule.inl              |   474 +
  src/app/tutorial_state.inl                    |    91 +
- src/app/tv_sessions.inl                       |   162 +
+ src/app/tv_sessions.inl                       |   167 +
  src/app/ui_page.inl                           |   140 +
  src/app/window_icon.inl                       |   242 +
  src/app/window_icon_rule.inl                  |    68 +
@@ -426,9 +426,9 @@ ENet library, removed with the ENet transport).
  tests/old_devices_rule_test.cpp               |   131 +
  tests/osk_test.cpp                            |    81 +
  tests/pad_press_test.cpp                      |   117 +
- tests/paired_tv_test.cpp                      |   319 +
+ tests/paired_tv_test.cpp                      |   389 +
  tests/polling_limits_test.cpp                 |   122 +
- tests/product_version_test.cpp                |    45 +
+ tests/product_version_test.cpp                |    46 +
  tests/protocol_level_test.cpp                 |   112 +
  tests/quick_switch_test.cpp                   |   383 +
  tests/quit_request_test.cpp                   |    86 +
@@ -454,7 +454,7 @@ ENet library, removed with the ENet transport).
  tests/trigger_click_test.cpp                  |   928 ++
  tests/trigger_effect_test.cpp                 |   529 +
  tests/tutorial_bubble_rule_test.cpp           |   372 +
- tests/tv_sessions_test.cpp                    |   191 +
+ tests/tv_sessions_test.cpp                    |   202 +
  tests/units.h                                 |    54 +
  tests/usb_descriptors_test.cpp                |   213 +
  tests/usbip_limits_test.cpp                   |    73 +
@@ -471,5 +471,5 @@ ENet library, removed with the ENet transport).
  tools/sbc-golden-gen/ffmpeg_side.cpp          |   117 +
  tools/sbc-golden-gen/ffmpeg_side.h            |    15 +
  tools/sbc-golden-gen/main.cpp                 |   131 +
- 272 files changed, 78347 insertions(+), 6132 deletions(-)
+ 272 files changed, 78548 insertions(+), 6132 deletions(-)
 ```
