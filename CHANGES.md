@@ -187,6 +187,7 @@ carry it; upstream's own history is unchanged.
 | 2026-11-03 | From the same review, the setup runs usbip-win2's own setup from its code, which reads the exit code, says on screen when the driver did not install, and installs it again when the driver is gone though `usbip.exe` is still there. And the setup keeps a log of its own, `Setup Log <date> #NNN.txt` in the installing account's `%TEMP%`, which says whether the driver's setup ran or was skipped, and whether a running DS5-USBIP was asked to quit and did. | `4b4b2f2`, `17563a9`, `99ff06d`, `d04d57e`, merge `15bdb11` |
 | 2026-11-04 | A second-model DS4 on a cable, or a device that answers as one, bridges its sound: Windows gets a 32 kHz stereo speaker and a 16 kHz mono headset microphone, on the wired path the cabled DualSense's sound takes. Where that path assumed a DualSense it now asks the device: the microphone's timing and its 200 ms ring follow the pad's own rate, and the gains and the amplitude log take the stream's channel count, so every other frame of a DS4's sound no longer takes the haptics gain, over Bluetooth as well. The DualSense's figures are the defaults, and a test pins them. | `f6de44b`, merge `ebdae61` |
 | 2026-11-04 | Windows' default speaker stays where it was when a controller with a speaker is bridged. Windows can make a bridged pad's sound device the default speaker the moment the pad arrives, in all three of its roles, as a cabled DS4's headset jack did: what played on the default then came out of the pad, and the streaming host, which streams whatever the default plays, sent it to the TV as well. The listener now gives the default back to the speaker that had it, role by role, when it goes to a controller within ten seconds of that controller arriving. A controller a person chooses as the default keeps it, through its next bridge too, until they choose a speaker that is not a controller. | `c5249f4`, `c24633a`, merge `e7926a8` |
+| 2026-11-04 | A DS4 gets the settings a DualSense's sound and rumble have, where they act on it: the Audio section's `speaker_volume`, `headset_volume` and `audio_gain`, which the TV sets on a cabled DS4's own sound card by its headphone jack, and the rumble dials, which scale a DS4's motors. On a DS4 the rows that do nothing are hidden, not greyed. A DS4Dongle (a Pico 2 W a DS4 pairs to, which a TV sees as a cabled DS4) plays its speaker without headphones: one found with it off at a bridge is set through the TV, saved and restarted once, the TV bridges it again, and it comes back under its name; a dongle that does not keep the setting is not restarted again. There is no switch for it, since every change of one restarted the dongle. A DS4's speaker plays only the right channel, so with nothing in its jack the PC's stereo is mixed to mono for it; a headset keeps stereo. The settings window goes back to a pad's tab when the pad returns under its name. | `1e8c27a`, `4780f61`, `545dcef`, `2e1d45f`, `b91fc5a`, merge `d4af0b7` |
 
 ## Files changed
 
@@ -201,13 +202,13 @@ ENet library, removed with the ENet transport).
  .github/ISSUE_TEMPLATE/config.yml             |     5 +
  .github/ISSUE_TEMPLATE/feature-request.yml    |    22 +
  .gitignore                                    |    43 +-
- CHANGES.md                                    |   465 +
+ CHANGES.md                                    |   473 +
  LINK                                          |     0
  README.md                                     |   291 +-
  THIRD-PARTY-NOTICES.txt                       |   618 +
  app/compatibility.manifest                    |    27 +
  app/ctm-capture.vcxproj                       |    86 -
- app/ctm-usbip-tests.vcxproj                   |   165 +
+ app/ctm-usbip-tests.vcxproj                   |   166 +
  app/ctm-usbip.ico                             |   Bin 156019 -> 30139 bytes
  app/ctm-usbip.rc                              |    26 +-
  app/ctm-usbip.vcxproj                         |    77 +-
@@ -266,16 +267,18 @@ ENet library, removed with the ENet transport).
  profiles/descriptors/virtual_keyboard.profile |    74 +
  profiles/descriptors/virtual_mouse.profile    |    59 +
  release.ps1                                   |   264 +
- src/app/agent.inl                             |  1285 +-
+ src/app/agent.inl                             |  1379 +-
  src/app/agent_session_sweep.inl               |   331 +
  src/app/cli.inl                               |    66 +-
  src/app/common.inl                            |   166 +-
  src/app/config_move.inl                       |  1561 +++
  src/app/console_attach.inl                    |    82 +
  src/app/control_caller.inl                    |    48 +
- src/app/device_capabilities.inl               |    75 +
+ src/app/device_capabilities.inl               |    78 +
  src/app/device_names.inl                      |    93 +
  src/app/device_type.inl                       |    70 +
+ src/app/ds4_dongle_keep.inl                   |   110 +
+ src/app/ds4_dongle_return.inl                 |    98 +
  src/app/favicon_version.inl                   |    58 +
  src/app/front_rule.inl                        |   123 +
  src/app/home_folder.inl                       |   130 +
@@ -325,6 +328,10 @@ ENet library, removed with the ENet transport).
  src/audio/default_speaker.cpp                 |   327 +
  src/audio/default_speaker.h                   |    24 +
  src/audio/default_speaker_rule.inl            |   104 +
+ src/audio/ds4_dongle.inl                      |   113 +
+ src/audio/ds4_output_overrides.inl            |    38 +
+ src/audio/ds4_rumble.inl                      |    68 +
+ src/audio/ds4_speaker.inl                     |    49 +
  src/audio/ds5_apply_settings.inl              |   316 +
  src/audio/ds5_output_overrides.inl            |   699 +
  src/audio/iso_in_pacing.inl                   |   223 +
@@ -371,10 +378,10 @@ ENet library, removed with the ENet transport).
  src/input/trigger_effect.inl                  |   637 +
  src/log/capped_log.inl                        |   117 +
  src/log/device_log.inl                        |   233 +
- src/main.cpp                                  |  1080 +-
+ src/main.cpp                                  |  1086 +-
  src/map/runtime.cpp                           |   205 +-
  src/usbdisplay/README.md                      |    13 +
- src/usbip/device.inl                          |  1095 +-
+ src/usbip/device.inl                          |  1124 +-
  src/usbip/fallback_serial.inl                 |    81 +
  src/usbip/fine_timer.inl                      |    54 +
  src/usbip/input_pace.inl                      |   131 +
@@ -390,11 +397,12 @@ ENet library, removed with the ENet transport).
  tests/config_store_test.cpp                   |  1044 ++
  tests/control_caller_test.cpp                 |    73 +
  tests/default_speaker_rule_test.cpp           |   197 +
- tests/device_capabilities_test.cpp            |    75 +
+ tests/device_capabilities_test.cpp            |    70 +
  tests/device_config_cache_test.cpp            |   148 +
  tests/device_config_test.cpp                  |   565 +
  tests/device_names_test.cpp                   |   110 +
  tests/device_type_test.cpp                    |    89 +
+ tests/ds4_settings_test.cpp                   |   312 +
  tests/fallback_serial_test.cpp                |    79 +
  tests/front_rule_test.cpp                     |   108 +
  tests/gyro_mouse_test.cpp                     |   828 ++
@@ -438,7 +446,7 @@ ENet library, removed with the ENet transport).
  tests/stop_wait_test.cpp                      |    93 +
  tests/stream_commands_test.cpp                |   118 +
  tests/taskbar_rule_test.cpp                   |    46 +
- tests/tests_main.cpp                          |   205 +
+ tests/tests_main.cpp                          |   207 +
  tests/touch_mouse_test.cpp                    |  2591 ++++
  tests/tray_menu_test.cpp                      |   247 +
  tests/trigger_click_test.cpp                  |   928 ++
@@ -453,7 +461,7 @@ ENet library, removed with the ENet transport).
  tests/window_move_test.cpp                    |   136 +
  tests/window_open_rule_test.cpp               |    43 +
  tests/window_size_rule_test.cpp               |   129 +
- tools/controller-config-test-client.html      | 16421 ++++++++++++++++++++++++
+ tools/controller-config-test-client.html      | 16532 ++++++++++++++++++++++++
  tools/create-desktop-shortcut.bat             |    46 +
  tools/create-desktop-shortcut.ps1             |   148 +
  tools/osk-mockups.py                          |   103 +
@@ -461,5 +469,5 @@ ENet library, removed with the ENet transport).
  tools/sbc-golden-gen/ffmpeg_side.cpp          |   117 +
  tools/sbc-golden-gen/ffmpeg_side.h            |    15 +
  tools/sbc-golden-gen/main.cpp                 |   131 +
- 265 files changed, 77310 insertions(+), 6132 deletions(-)
+ 272 files changed, 78347 insertions(+), 6132 deletions(-)
 ```
