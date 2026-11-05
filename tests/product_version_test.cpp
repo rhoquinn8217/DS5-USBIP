@@ -26,8 +26,9 @@ int run_product_version_tests()
     section("product version: the name is ours, not the relay's");
     {
         CTM_CHECK(std::string(PRODUCT_NAME) == "DS5-USBIP");
-        // ⓘ 0.x until a stranger can use it unaided (include/ctm/product.h).
-        CTM_CHECK(PRODUCT_VERSION_MAJOR == 0);
+        // ⓘ 1.0.0 was the first release a stranger can use unaided
+        // (include/ctm/product.h); the first number never goes back to 0.
+        CTM_CHECK(PRODUCT_VERSION_MAJOR >= 1);
     }
 
     section("product version: shown with the build number, as aurora-tv shows its own");

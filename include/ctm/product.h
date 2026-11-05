@@ -13,9 +13,10 @@
 // muddle a number that is not ours to bump. The settings page's 2.6x is a
 // changelog counter for one file.
 //
-// ⭐ SEMANTIC VERSIONING, 0.x FOR NOW: PATCH for fixes, MINOR when a capability
-// lands. 1.0.0 is the day a stranger can extract the zip and use it without
-// rhoquinn8217 in the room.
+// ⭐ SEMANTIC VERSIONING: PATCH for fixes, MINOR when a capability lands, MAJOR
+// only when a release breaks something people rely on (configs that no longer
+// load, a listener that no longer works with an older aurora-tv). 1.0.0 was the
+// day a stranger could install it and use it without rhoquinn8217 in the room.
 //
 // ONE PLACE, READ EVERYWHERE: the settings window's title (from /api/v1/status,
 // never a copy in the page), --version, the release zip's name (release.ps1
@@ -26,10 +27,10 @@
 // fails when they are not.
 
 #define PRODUCT_NAME          "DS5-USBIP"
-#define PRODUCT_VERSION_MAJOR 0
-#define PRODUCT_VERSION_MINOR 2
+#define PRODUCT_VERSION_MAJOR 1
+#define PRODUCT_VERSION_MINOR 0
 #define PRODUCT_VERSION_PATCH 0
-#define PRODUCT_VERSION       "0.2.0"
+#define PRODUCT_VERSION       "1.0.0"
 
 // ⭐ AND WHICH BUILD (2026-10-12): build_number.h, which every build rewrites.
 // The version with it is "0.1.0 (N)", aurora-tv's form, and that is what the
