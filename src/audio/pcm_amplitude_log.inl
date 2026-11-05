@@ -94,7 +94,7 @@ inline bool armed()
     return lastResult.load(std::memory_order_relaxed);
 }
 
-inline void log_chunk(const std::vector<uint8_t> &data)
+inline void log_chunk(const std::vector<uint8_t> &data, size_t channels = 4)
 {
     static std::ofstream logFile;
     static std::once_flag initFlag;
@@ -105,9 +105,14 @@ inline void log_chunk(const std::vector<uint8_t> &data)
         return;
     }
 
-    constexpr size_t kChannels = 4;
-    constexpr size_t kBytesPerFrame = kChannels * sizeof(int16_t);
-    const size_t frames = data.size() / kBytesPerFrame;
+    // The stream's own channels: four on a DualSense, two on a DS4. Only the
+    // first two, the sound, are measured.
+    if (channels == 0) {
+        channels = 4;
+    }
+    const size_t measured = channels < 2 ? channels : 2;
+    const size_t bytesPerFrame = channels * sizeof(int16_t);
+    const size_t frames = data.size() / bytesPerFrame;
     if (frames == 0) {
         return;
     }
@@ -120,8 +125,8 @@ inline void log_chunk(const std::vector<uint8_t> &data)
     size_t sampleCount = 0;
 
     for (size_t f = 0; f < frames; ++f) {
-        const uint8_t *frameStart = data.data() + f * kBytesPerFrame;
-        for (size_t ch = 0; ch < 2; ++ch) {
+        const uint8_t *frameStart = data.data() + f * bytesPerFrame;
+        for (size_t ch = 0; ch < measured; ++ch) {
             const int16_t sample = static_cast<int16_t>(
                 static_cast<uint16_t>(frameStart[ch * 2]) |
                 (static_cast<uint16_t>(frameStart[ch * 2 + 1]) << 8));
@@ -152,10 +157,10 @@ inline void log_chunk(const std::vector<uint8_t> &data)
 }
 
 // Single entry point, so the upstream call site is exactly one line.
-inline void maybe_log(const std::vector<uint8_t> &data)
+inline void maybe_log(const std::vector<uint8_t> &data, size_t channels = 4)
 {
     if (armed()) {
-        log_chunk(data);
+        log_chunk(data, channels);
     }
 }
 

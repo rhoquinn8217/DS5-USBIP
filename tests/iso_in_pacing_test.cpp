@@ -114,5 +114,30 @@ int run_iso_in_pacing_tests(int argc, char **argv)
         CTM_CHECK_EQ(kIsoInBytesPerSecond, 192000u);
     }
 
+    // --- Test 8: a device's own rate --------------------------------------
+    // ⭐ A cabled DS4's headset microphone is 1 channel x 2 bytes x 16000 Hz,
+    // 32000 bytes a second (its map, ds4_usb_over_ds4_usb.map), and the device
+    // passes that rate. Timed by the DualSense's figure, its 10 ms took 1.7.
+    section("a cabled DS4's microphone is timed by its own rate");
+    {
+        CTM_CHECK_EQ(IsoInPacer::duration_us_for_bytes(320u, 32000u), 10000u);
+        CTM_CHECK_EQ(IsoInPacer::duration_us_for_bytes(32u, 32000u), 1000u);
+        CTM_CHECK_EQ(IsoInPacer::duration_us_for_bytes(3200u, 32000u), 100000u);
+        CTM_CHECK_EQ(IsoInPacer::duration_us_for_bytes(320000u, 32000u), 100000u);   // the clamp
+        CTM_CHECK_EQ(IsoInPacer::duration_us_for_bytes(0u, 32000u), 0u);
+    }
+
+    // --- Test 9: no rate from the device is the DualSense's ----------------
+    // A device whose map says nothing gives the DualSense's figures, and the
+    // server's test device gives 0: both must time exactly as before.
+    section("a device with no rate of its own keeps the DualSense's");
+    {
+        CTM_CHECK_EQ(IsoInPacer::duration_us_for_bytes(1920u, 0u), 10000u);
+        CTM_CHECK_EQ(IsoInPacer::duration_us_for_bytes(1920u, 192000u), 10000u);
+        CTM_CHECK_EQ(IsoInPacer::duration_us_for_bytes(1u, 0u), 6u);
+        // Control: the same bytes at the two rates, six times apart.
+        CTM_CHECK_EQ(IsoInPacer::duration_us_for_bytes(1920u, 32000u), 60000u);
+    }
+
     return 0;   // main() in tests_main.cpp reports the combined summary
 }

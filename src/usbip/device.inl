@@ -110,6 +110,18 @@ public:
         return audioInputSampleRate_;
     }
 
+    // ⭐ The microphone stream's bytes a second, which each answer to Windows
+    // is timed by (usbip/server.inl, IsoInPacer). From the map: a DualSense's
+    // 2 channels at 48 kHz unless it says otherwise, a cabled DS4's 1 at
+    // 16 kHz. 0 for any other endpoint, and the pacer keeps its own figure.
+    uint32_t iso_in_bytes_per_second(uint8_t endpointAddress) const
+    {
+        if (endpointAddress != micIsoEndpoint_) {
+            return 0;
+        }
+        return micSampleRate_ * micChannels_ * static_cast<uint32_t>(sizeof(int16_t));
+    }
+
     bool attach_backend(CtmBackend *backend, std::wstring *error)
     {
         backend_ = backend;
@@ -1053,6 +1065,11 @@ private:
             audioChannels_,
             map_.intermediate_buffer_max_ms(),
             map_.intermediate_buffer_warmup_ms());
+        // The microphone: read once here, before any request, as the speaker's
+        // rate above is. ⓘ A zero in the map keeps the DualSense's figures.
+        micIsoEndpoint_ = map_.usb_iso_in_endpoint();
+        micSampleRate_ = map_.iso_in_sample_rate() != 0 ? map_.iso_in_sample_rate() : 48000;
+        micChannels_ = map_.iso_in_channels() != 0 ? map_.iso_in_channels() : 2;
         if (ctm_verbose_logs()) device_log::usb_s() << "audio pipeline"
                   << " usb_rate=" << audioInputSampleRate_
                   << " reservoir_rate=" << audioReservoirSampleRate_
@@ -1062,6 +1079,8 @@ private:
                   << " bt_pace_ms=" << std::fixed << std::setprecision(3) << map_.bt_audio_pace_ms()
                   << " builder_pace_ms=" << std::fixed << std::setprecision(3) << map_.audio_builder_pace_ms()
                   << std::defaultfloat
+                  << " mic_rate=" << micSampleRate_
+                  << " mic_channels=" << static_cast<unsigned int>(micChannels_)
                   << std::endl;
     }
 
@@ -2068,7 +2087,7 @@ private:
         std::vector<uint8_t> scaledCopy;
         if (ctm_audio_gain::active(gains)) {
             scaledCopy = input;
-            ctm_audio_gain::apply(scaledCopy, gains);
+            ctm_audio_gain::apply(scaledCopy, gains, audioChannels_);
         }
         const std::vector<uint8_t> &data = scaledCopy.empty() ? input : scaledCopy;
         if (audioChannels_ == 0 || audioInputSampleRate_ == 0 || audioReservoirSampleRate_ == 0) {
@@ -2148,12 +2167,12 @@ private:
         const ctm_audio_gain::Gains gains{ hapticsGain_.load(), soundGain_.load() };
         if (ctm_audio_gain::active(gains)) {
             std::vector<uint8_t> scaled(data);
-            ctm_audio_gain::apply(scaled, gains);
-            ctm_pcm_amp::maybe_log(scaled);
+            ctm_audio_gain::apply(scaled, gains, audioChannels_);
+            ctm_pcm_amp::maybe_log(scaled, audioChannels_);
             backend_->send_iso_audio(scaled, &err);
             return kStatusOk;
         }
-        ctm_pcm_amp::maybe_log(data);
+        ctm_pcm_amp::maybe_log(data, audioChannels_);
         backend_->send_iso_audio(data, &err);
         return kStatusOk;
     }
@@ -2228,8 +2247,12 @@ private:
             // it exists to prove the path without a real signal. Otherwise the
             // ring supplies what has arrived from the TV and pads the rest with
             // silence. Neither call ever waits: this is the URB read loop.
-            if (!iso_in_fill_test_tone(inData, transferLength)) {
-                mic_ring_pop_fill(backend_, inData, transferLength);
+            // ⭐ Both follow THIS pad's microphone (configure_audio_stream_
+            // from_map): a DualSense's 2 channels at 48 kHz, a cabled DS4's 1
+            // at 16 kHz, and the ring keeps about 200 ms of whichever it is.
+            if (!iso_in_fill_test_tone(inData, transferLength, micChannels_, micSampleRate_)) {
+                mic_ring_pop_fill(backend_, inData, transferLength,
+                                  mic_ring_capacity_for(iso_in_bytes_per_second(micIsoEndpoint_)));
             }
             return kStatusOk;
         }
@@ -2329,6 +2352,10 @@ private:
     uint8_t audioChannels_ = 4;
     uint16_t audioFrameSamples_ = 480;
     uint16_t audioExpectedLength_ = 3840;
+    // The microphone (ISO IN), set from the map with the figures above.
+    uint8_t micIsoEndpoint_ = 0x82;
+    uint32_t micSampleRate_ = 48000;
+    uint8_t micChannels_ = 2;
     CtmPcmReservoir audioReservoir_;
     std::mutex audioThreadMutex_;
     std::thread audioBuilderThread_;

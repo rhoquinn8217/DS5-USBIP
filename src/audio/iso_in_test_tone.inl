@@ -24,7 +24,9 @@
 //     CTM_MIC_TEST_TONE=1 CTM_USBIP_VERBOSE=1 ./start-listener-fork.bat
 //
 // FORMAT
-//   Matches the DualSense capture stream: S16_LE, 2 channels, 48000 Hz.
+//   The asking pad's microphone, from its map: a cabled DS4's is S16_LE,
+//   1 channel, 16000 Hz. By default the DualSense capture stream: S16_LE,
+//   2 channels, 48000 Hz.
 //   Measured from /proc/asound/card2/stream0 on an unrooted C1, and confirmed
 //   by Windows reporting the bridged endpoint as "2 channel, 16 bit,
 //   48000 Hz". Both 2026-08-02.
@@ -60,14 +62,20 @@ static bool iso_in_test_tone_enabled()
 // restarting every buffer (a restarting tone clicks and reads as broken).
 static std::atomic<uint64_t> g_isoInTestTonePhase{0};
 
-// Fill out with byteCount bytes of tone. Returns false when disarmed, in
-// which case the caller fills with silence exactly as before.
-static bool iso_in_fill_test_tone(std::vector<uint8_t> *out, uint32_t byteCount)
+// Fill out with byteCount bytes of tone, in the asking pad's own format
+// (device.inl passes its microphone's): the DualSense's below unless told.
+// Returns false when disarmed, in which case the caller fills with silence
+// exactly as before.
+static bool iso_in_fill_test_tone(std::vector<uint8_t> *out, uint32_t byteCount,
+                                  uint32_t channels = kIsoInTestToneChannels,
+                                  uint32_t rateHz = kIsoInTestToneRateHz)
 {
     if (!iso_in_test_tone_enabled() || out == nullptr) {
         return false;
     }
-    const uint32_t bytesPerFrame = kIsoInTestToneChannels * sizeof(int16_t);
+    if (channels == 0) channels = kIsoInTestToneChannels;
+    if (rateHz == 0) rateHz = kIsoInTestToneRateHz;
+    const uint32_t bytesPerFrame = channels * sizeof(int16_t);
     const uint32_t frames = byteCount / bytesPerFrame;
     out->assign(byteCount, 0);
     if (frames == 0) {
@@ -77,7 +85,7 @@ static bool iso_in_fill_test_tone(std::vector<uint8_t> *out, uint32_t byteCount)
 
     const uint64_t start = g_isoInTestTonePhase.fetch_add(frames);
     const double step = 2.0 * 3.14159265358979323846 * kIsoInTestToneHz /
-                        static_cast<double>(kIsoInTestToneRateHz);
+                        static_cast<double>(rateHz);
 
     uint8_t *cursor = out->data();
     for (uint32_t i = 0; i < frames; ++i) {
@@ -86,7 +94,7 @@ static bool iso_in_fill_test_tone(std::vector<uint8_t> *out, uint32_t byteCount)
             static_cast<int16_t>(kIsoInTestToneAmplitude * std::sin(angle));
         // Same sample in both channels: this is a path test, not a stereo
         // test, and identical channels make a wrong channel count obvious.
-        for (uint32_t ch = 0; ch < kIsoInTestToneChannels; ++ch) {
+        for (uint32_t ch = 0; ch < channels; ++ch) {
             std::memcpy(cursor, &sample, sizeof(sample));
             cursor += sizeof(sample);
         }

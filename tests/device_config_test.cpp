@@ -442,6 +442,36 @@ int run_device_config_tests()
         CTM_CHECK_EQ(units::ctm_audio_gain::read("ds5").sound, 100);     // lowered only, never boosted
     }
 
+    section("audio gain: a DS4's two channels are both sound, and take no haptics gain");
+    {
+        // ⭐ A DS4's stream is stereo, on a cable and over Bluetooth. Read as a
+        // DualSense's four, its second frame of every two took the haptics gain.
+        set_config("[ds4]\naudio_gain = 50\nmaster_rumble_gain = 0\n");
+        // Two stereo frames, 1000 in every sample.
+        std::vector<uint8_t> pcm = {0xe8, 0x03, 0xe8, 0x03, 0xe8, 0x03, 0xe8, 0x03};
+        units::ctm_audio_gain::apply(pcm, units::ctm_audio_gain::read("ds4"), 2);
+        bool allHalved = true;
+        for (size_t at = 0; at + 1 < pcm.size(); at += 2) {
+            const int16_t s = static_cast<int16_t>(
+                static_cast<uint16_t>(pcm[at]) | (static_cast<uint16_t>(pcm[at + 1]) << 8));
+            allHalved = allHalved && s == 500;
+        }
+        CTM_CHECK(allHalved);
+
+        // Control: the same bytes read as four channels silence the second
+        // pair, which is the fault this stops.
+        std::vector<uint8_t> asFour = {0xe8, 0x03, 0xe8, 0x03, 0xe8, 0x03, 0xe8, 0x03};
+        units::ctm_audio_gain::apply(asFour, units::ctm_audio_gain::read("ds4"));
+        CTM_CHECK_EQ(static_cast<int>(asFour[4] | (asFour[5] << 8)), 0);
+
+        // A haptics gain alone changes nothing in a stereo stream.
+        set_config("[ds4]\nmaster_rumble_gain = 0\n");
+        std::vector<uint8_t> untouched = {0xe8, 0x03, 0xe8, 0x03, 0xe8, 0x03, 0xe8, 0x03};
+        const std::vector<uint8_t> before = untouched;
+        units::ctm_audio_gain::apply(untouched, units::ctm_audio_gain::read("ds4"), 2);
+        CTM_CHECK(untouched == before);
+    }
+
     // --- Device log ---------------------------------------------------------
     section("device log: each wrapper writes its own tag");
     {

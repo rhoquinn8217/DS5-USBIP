@@ -922,6 +922,8 @@ bool CtmMapRuntime::parse_map(std::wstring *error)
         reservoirSampleRate_ = isoSampleRate_;
     }
     isoChannels_ = static_cast<uint8_t>(get_u32(ini, "path.iso.virtual_to_physical_stream", "channels", isoChannels_));
+    // The microphone's channels (ISO IN). Its rate is endpoint.0x82 above.
+    isoInChannels_ = static_cast<uint8_t>(get_u32(ini, "path.iso.physical_to_virtual_stream", "channels", isoInChannels_));
     isoFrameSamples_ = static_cast<uint16_t>(get_u32(ini, "path.iso.virtual_to_physical_stream", "frame_samples", isoFrameSamples_));
     hapticOutputRate_ = static_cast<uint16_t>(get_u32(ini, "path.iso.virtual_to_physical_stream", "haptic_output_rate", hapticOutputRate_));
     streamReportId_ = static_cast<uint8_t>(get_u32(ini, "path.iso.virtual_to_physical_stream", "physical_report_id", streamReportId_));
