@@ -189,6 +189,9 @@ std::string ui_tutorial_words_take_press();
 // its words for the page (quick_switch_session.inl). Defined below.
 void ui_tour_pad(bool on);
 std::string ui_tour_pad_take();
+// ⓘ The tour's window shrunk in place of a close: no place or size kept from
+// it (config_move.inl). Defined below.
+void ui_tour_shrunk(bool on);
 std::string ui_tutorial_words_side();
 bool ui_tutorial_words_moving();
 bool ui_tutorial_words_up();
@@ -517,6 +520,10 @@ void ui_tour_pad(bool on)
 std::string ui_tour_pad_take()
 {
     return quick_switch_session::take_mock_events();
+}
+void ui_tour_shrunk(bool on)
+{
+    config_move::set_tour_shrunk(on);
 }
 std::string ui_tutorial_words_take_press()
 {

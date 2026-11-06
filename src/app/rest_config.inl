@@ -821,6 +821,8 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
             // ⓘ The two finger press reported while the step shown asks
             // ("pad"), and only then (quick_switch::mock_report).
             ui_tour_pad(flag("show") && flag("pad"));
+            // ⓘ And the window shrunk for the tour ("shrunk"): nothing of it kept.
+            ui_tour_shrunk(flag("show") && flag("shrunk"));
             *out = rest_http_response(200, R"({"ok":true})");
             return true;
         }
@@ -1103,6 +1105,7 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
             // window may still be up for a moment; if it is, its place is
             // worth having.
             ui_view_remember_pos();
+            ui_tour_shrunk(false);
             ctm_rebind_set_config_mode(false);
             // ⭐ AND A FULL-SCREEN GAME GETS THE FRONT BACK (rhoquinn8217,
             // 2026-10-09), when the window had the front as it went -- the

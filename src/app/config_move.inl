@@ -425,10 +425,24 @@ inline bool rect_as_left(HWND h, RECT *out)
 
 // The window as it stands, dragged or not. Called while it still exists, on
 // the way out.
+// ⭐ THE TOUR'S SHRUNK WINDOW (rhoquinn8217, 2026-11-06: *"how about shrinking
+// the window to the smallest it can be"*). Simple's tour plays Close by making
+// the window as small as the browser lets it (the page's tutShrink), and its
+// words say so ("shrunk"). That size, and the place that comes with it, are
+// nobody's choice: a close meanwhile keeps what was remembered before.
+inline std::atomic_bool g_tourShrunk{false};
+inline void set_tour_shrunk(bool on) { g_tourShrunk.store(on); }
+
 inline void remember_pos_now()
 {
     HWND h = page_window();
     if (h == nullptr) return;
+    if (g_tourShrunk.load()) {
+        device_log::input(device_log::msg()
+            << "ui/pos-remember: refused -- the tour has the window shrunk, "
+               "not a place or a size anyone chose");
+        return;
+    }
     const bool minimised = IsIconic(h) != 0;
     RECT rc;
     if (!rect_as_left(h, &rc)) return;

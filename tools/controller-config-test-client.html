@@ -2,7 +2,7 @@
 <!--
   DS5-USBIP's Controller Configs page, served by the listener.
 
-  VERSION 2.66.140 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.141 -- see the changelog at the bottom of this comment.
 
   WHAT IT STARTED AS. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -24,6 +24,23 @@
   not a tidy message about it.
 
   CHANGELOG
+    2.66.141 Simple's tour shrinks the window in place of closing it, and the
+             two finger press brings up the real Quick Mode (rhoquinn8217,
+             2026-11-06: "lets remove the tray icon tutorial steps", "just
+             minimize the window when the user click the "Close" button.
+             Bring up the quick mode up on the gesture and minimize it again
+             when the touchpad is not being touched. The user should see quick
+             mode and be able to switch configs while touching the touchpad",
+             then "how about shrinking the window to the smallest it can
+             be"): Close in the tour makes the window as small as the browser
+             lets it, still in front, so the real switch stands aside as for
+             any window in front and the words stay up; the press DS5-USBIP
+             reports brings it back in Quick, its wheel stepped by the swipe
+             beside a resting thumb, and it shrinks again as the last finger
+             lifts; pressed twice, it comes back in Simple. The pretend
+             taskbar, its tray steps and the pretend Quick window are gone,
+             and the listener keeps no place or size from a window the tour
+             has shrunk (the words' `shrunk`). Thirty-five steps.
     2.66.140 Skip, on a tour step whose action only a controller can do
              (rhoquinn8217, 2026-11-06: "If a bridged DualSense/Edge or DS5
              controller is not bridge during the 2 finger press quick switch
@@ -3143,30 +3160,6 @@
      pointer through; the window's own capture listeners decide what a
      click may reach. */
   #tutRoot { position:fixed; inset:0; z-index:1000; pointer-events:none; }
-  /* ⭐ THE TOUR'S PRETEND DESKTOP (2.66.139): under the tour's own layer, so
-     its dim and its click rules hold here too. A light taskbar, as Windows'
-     light mode has, so the app's icon reads on it. */
-  #tutDesk { position:fixed; inset:0; z-index:900; background:linear-gradient(160deg,#25405a 0%,#0d1520 75%); }
-  #tutDesk .tdBar { position:absolute; left:0; right:0; bottom:0; height:8vh; background:#ececef;
-    border-top:1px solid #c9c9cf; display:flex; align-items:center; justify-content:flex-end; gap:1.5vw;
-    padding:0 2vw; }
-  #tutDesk .tdTray { width:6vh; height:6vh; padding:0.5vh; border:1px solid transparent; border-radius:6px;
-    background:none; cursor:pointer; }
-  #tutDesk .tdTray:hover { background:#d9d9de; }
-  #tutDesk .tdTray img { width:100%; height:100%; }
-  #tutDesk .tdClock { color:#222; font-size:2.6vh; }
-  #tutDesk .tdMenu { position:absolute; right:2vw; bottom:9.5vh; min-width:30vw; padding:0.8vh 0;
-    background:#2b2b30; border:1px solid #4a4a52; border-radius:8px; box-shadow:0 8px 24px #000a; }
-  #tutDesk .tdMenu button { display:block; width:100%; text-align:left; background:none; border:none;
-    color:#ececf0; font-size:2.8vh; padding:1vh 1.6vw; }
-  #tutDesk .tdMenu button[disabled] { color:#7a7a82; }
-  #tutDesk .tdMenu button:not([disabled]):hover { background:#3d3f4a; }
-  #tutDesk .tdQuick { position:absolute; left:50%; bottom:14vh; transform:translateX(-50%); width:46vw;
-    padding:2vh 2vw; background:#181a20; border:1px solid #5865f2; border-radius:10px; text-align:center;
-    color:#ececf0; box-shadow:0 10px 30px #000c; }
-  #tutDesk .tdQuick .tdQuickT { color:#f0c419; letter-spacing:0.1em; font-weight:700; font-size:2.6vh; }
-  #tutDesk .tdQuick .tdQuickN { font-size:5vh; font-weight:700; margin-top:0.6vh; }
-  #tutDesk .tdQuick .tdQuickC { font-size:3vh; color:#b9bac4; }
   #tutDim { position:absolute; inset:0; width:100%; height:100%; }
   /* ⭐ AND BETWEEN STEPS IT FADES (rhoquinn8217, 2026-10-29: "when the the
      bubble move to it's next spot remove the darkening completely then fade
@@ -3375,7 +3368,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.66.140</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.66.141</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -11015,9 +11008,10 @@ function compactEnsureController() {
 // settings" are the ways back, and the listener remembers what it was
 // showing, so the next one opens where this one left off.
 function closeWindow() {
-  // ⭐ PRETEND IN THE TOUR'S CLOSE STEPS (2.66.139): the window stays open.
+  // ⭐ PRETEND IN THE TOUR'S CLOSE STEP (2.66.139): the window stays open,
+  // shrunk since 2.66.141 (tutShrink).
   var s = typeof tutStep === 'function' ? tutStep() : null;
-  if (s && s.fakeClose) { tutFakeClose(); return; }
+  if (s && s.fakeClose) { tutShrink(); return; }
   fetch(base() + '/api/v1/ui/close', { method: 'POST' }).catch(function () {});
 }
 
@@ -13419,8 +13413,8 @@ function selfTest() {
     var simpleWords = TUT_SIMPLE.map(function (st) { return st.words(); });
     TUT = keepTutS;
     TUT_MOCK = keepMockS;
-    ok('the tutorial: Simple has thirty-seven steps, each with words, the last ending it',
-       TUT_SIMPLE.length === 37 && TUT_SIMPLE[36].act === 'end' &&
+    ok('the tutorial: Simple has thirty-five steps, each with words, the last ending it',
+       TUT_SIMPLE.length === 35 && TUT_SIMPLE[34].act === 'end' &&
        simpleWords.every(function (w) { return !!w && w.indexOf('undefined') < 0; }),
        simpleWords.join(' / '));
     ok('the tutorial: Simple makes a practice config from a pre-set, auto links it and archives it',
@@ -13540,7 +13534,7 @@ function selfTest() {
     // ⓘ And Advanced's 34, Close shown and locked, none since 2.66.139, where
     // Simple's Close is pressed and played.
     var advPairs = [[5, 1], [11, 11], [14, 14], [15, 15], [16, 17], [17, 18], [31, 22],
-                    [33, 30], [35, 37]];
+                    [33, 30], [35, 35]];
     var advUnlike = advPairs.filter(function (n) {
       var a = TUT_ADVANCED[n[0] - 1], b = TUT_SIMPLE[n[1] - 1];
       return advSame(a) !== advSame(b) || advKind(a) !== advKind(b);
@@ -13788,7 +13782,7 @@ function selfTest() {
     // each its own legend's marks, and Simple visits each mode through the
     // selector Quick's opens and leaves: those do not pair.
     var bothSteps = [[1, 1], [3, 3], [4, 4], [14, 5], [15, 6], [17, 7], [18, 8], [21, 10],
-                     [22, 11], [30, 13], [37, 15]];
+                     [22, 11], [30, 13], [35, 15]];
     var unlike = bothSteps.filter(function (n) {
       var a = TUT_SIMPLE[n[0] - 1], b = TUT_QUICK[n[1] - 1];
       return bothWords(a) !== bothWords(b) || bothKind(a) !== bothKind(b);
@@ -13853,63 +13847,74 @@ function selfTest() {
       }).map(function (p) { return p[0]; });
     ok('the tutorial: Simple\'s steps that change the mode say which modes they span, and Go back undoes them',
        modeShape.length === 0, modeShape.join(', ') || 'all as set');
-    // ⭐ The pretend desktop (2.66.139): Close plays it, the tray's menu takes it
-    // away, and the two finger press as DS5-USBIP reports it opens and shuts
-    // the pretend Quick, a second press ignored on the step to try and keeping
-    // the window on the next. On made-up steps, put back after.
-    var keepDesk = [TUT, TUT_MOCK, TUT_DESK];
-    TUT = { kind: 'simple', phase: 'step', at: 33, done: [], mem: [], busy: false, focus: null, made: '' };
-    TUT_MOCK = tutMockMake('simple');
-    var deskSeen = [];
-    tutFakeClose();
-    deskSeen.push(!!tutById('tutDesk'));
-    tutDeskMenu();
-    deskSeen.push(!tutById('tutDeskMenu').hidden);
+    // ⭐ The tour's Close shrinks the window (2.66.141): the two finger press as
+    // DS5-USBIP reports it brings Quick up and shrinks it again as the fingers
+    // lift, a second press ignored on the step to try, and Simple back on the
+    // next. On made-up steps, with no real window moved (TUT_SIZING) and the
+    // mode only noted, all put back after.
+    var keepShrink = [TUT, TUT_SHRUNK, TUT_SIZING, setMode, tutViewKind];
+    var shrinkView = 'simple', modes = [];
+    TUT_SIZING = false;
+    setMode = function (m) { modes.push(m); shrinkView = m; };
+    tutViewKind = function () { return shrinkView; };
+    TUT = { kind: 'simple', phase: 'step', at: 30, done: [], mem: [], busy: false, focus: null, made: '' };
+    TUT_SHRUNK = false;
+    var shrinkSeen = [];
+    closeWindow();
+    shrinkSeen.push(TUT_SHRUNK);
+    TUT.at = 31;
+    tutPadEnter();
     tutPadEvent('open');
-    deskSeen.push(!tutById('tutDeskQuick').hidden);
+    shrinkSeen.push(!TUT_SHRUNK && shrinkView === 'quick');
     tutPadEvent('keep');
-    deskSeen.push(!!tutById('tutDesk') && !TUT.padKept);
+    shrinkSeen.push(!TUT_SHRUNK && !TUT.padKept && shrinkView === 'quick');
     tutPadEvent('lift');
-    deskSeen.push(tutById('tutDeskQuick').hidden);
-    TUT.at = 34;
+    shrinkSeen.push(TUT_SHRUNK && shrinkView === 'quick');
+    TUT.at = 32;
+    tutPadEnter();
     tutPadEvent('open');
     tutPadEvent('keep');
-    deskSeen.push(!tutById('tutDesk') && TUT.padKept === true);
-    var deskSteps = [31, 32, 33].every(function (n) { return TUT_SIMPLE[n - 1].act === true; }) &&
-                    TUT_SIMPLE[30].fakeClose === true && TUT_SIMPLE[32].fakeClose === true &&
-                    TUT_SIMPLE[33].pad === 'try' && TUT_SIMPLE[34].pad === 'keep';
-    if (TUT_DESK) tutFakeOpen();
-    TUT = keepDesk[0];
-    TUT_MOCK = keepDesk[1];
-    TUT_DESK = keepDesk[2];
-    ok('the tutorial: Close plays a pretend desktop, its tray brings the window back, and the two finger ' +
-       'press opens Quick, kept only on the step that asks',
-       deskSeen.join(',') === 'true,true,true,true,true,true' && deskSteps, deskSeen.join(','));
+    shrinkSeen.push(!TUT_SHRUNK && TUT.padKept === true && shrinkView === 'simple');
+    tutPadEvent('lift');
+    shrinkSeen.push(!TUT_SHRUNK && modes.join(',') === 'quick,simple');
+    var shrinkSteps = TUT_SIMPLE[30].fakeClose === true && TUT_SIMPLE[31].pad === 'try' &&
+                      TUT_SIMPLE[32].pad === 'keep' && TUT_SIMPLE[31].views.join(',') === 'simple,quick' &&
+                      TUT_SIMPLE[32].views.join(',') === 'simple,quick' &&
+                      [30, 31, 32].every(function (i) { return !/tray/i.test(TUT_SIMPLE[i].words()); });
+    TUT = keepShrink[0];
+    TUT_SHRUNK = keepShrink[1];
+    TUT_SIZING = keepShrink[2];
+    setMode = keepShrink[3];
+    tutViewKind = keepShrink[4];
+    ok('the tutorial: Close shrinks the window, the two finger press brings Quick up and the lift puts it ' +
+       'away, and pressing twice brings Simple back',
+       shrinkSeen.join(',') === 'true,true,true,true,true,true' && shrinkSteps,
+       shrinkSeen.join(',') + ' / ' + modes.join(','));
     // ⭐ Skip (2.66.140): on the two finger steps, Continue is Skip with no
     // DualSense, Edge or DS4 really bridged or the switch unticked; with one
     // and the switch on, the step to try keeps Continue and the double
     // press's step has none. And no other step in the three tours needs
     // anything. On made-up state, put back after.
     var keepSkip = [TUT, TUT_REAL, QUICK_SWITCH];
-    TUT = { kind: 'simple', phase: 'step', at: 33, done: [], mem: [], busy: false, focus: null, made: '' };
+    TUT = { kind: 'simple', phase: 'step', at: 31, done: [], mem: [], busy: false, focus: null, made: '' };
     var skipSeen = [];
     var bar = function (n) { TUT.at = n - 1; return tutStepButtons(TUT_SIMPLE[n - 1]).split('|')[0]; };
     TUT_REAL = [];
     QUICK_SWITCH = true;
-    skipSeen.push(/^next:Skip:go/.test(bar(34)), /^next:Skip:go/.test(bar(35)),
-                  tutCanContinue(TUT_SIMPLE[34]) === true);
+    skipSeen.push(/^next:Skip:go/.test(bar(32)), /^next:Skip:go/.test(bar(33)),
+                  tutCanContinue(TUT_SIMPLE[32]) === true);
     TUT_REAL = [{ ordinal: 'x1', kind: 'xbox' }];
-    skipSeen.push(/^next:Skip:go/.test(bar(35)));
+    skipSeen.push(/^next:Skip:go/.test(bar(33)));
     TUT_REAL = [{ ordinal: 'd1', kind: 'ds4_usb' }];
-    skipSeen.push(/^next:Continue:go/.test(bar(34)), /^next:Continue:off/.test(bar(35)),
-                  tutCanContinue(TUT_SIMPLE[34]) === false);
+    skipSeen.push(/^next:Continue:go/.test(bar(32)), /^next:Continue:off/.test(bar(33)),
+                  tutCanContinue(TUT_SIMPLE[32]) === false);
     TUT_REAL = [{ ordinal: 'e1', kind: 'ds5_edge' }];
-    skipSeen.push(/^next:Continue:off/.test(bar(35)));
+    skipSeen.push(/^next:Continue:off/.test(bar(33)));
     QUICK_SWITCH = false;
-    skipSeen.push(/^next:Skip:go/.test(bar(35)));
+    skipSeen.push(/^next:Skip:go/.test(bar(33)));
     var needOnly = [TUT_SIMPLE, TUT_QUICK, TUT_ADVANCED].every(function (list) {
       return list.every(function (s, i) {
-        return !s.needs || (list === TUT_SIMPLE && (i === 33 || i === 34) && s.needs === 'touchpad');
+        return !s.needs || (list === TUT_SIMPLE && (i === 31 || i === 32) && s.needs === 'touchpad');
       });
     });
     TUT = keepSkip[0];
@@ -14707,91 +14712,62 @@ function tutModeStep(from, to, side, words) {
            done: function () { return tutViewKind() === to; },
            undo: function () { tutSetView(from); } };
 }
-// ⭐⭐ THE TOUR'S PRETEND DESKTOP (2.66.139; rhoquinn8217, 2026-11-06: *"I don't
-// want you to change any of the functionality. I only want to mock it during
-// the tutorial."*): Close puts the window away, the tray brings it back, and
-// the two finger quick switch opens Quick and keeps the window, all played
-// inside this window, which never really closes, so the words and the tour
-// go on. A picture of the taskbar with DS5-USBIP's tray icon and its menu,
-// and a Quick window the real two-finger press opens and closes: DS5-USBIP
-// reports the press while a step asks (`pad`), and does nothing else with it
-// (quick_switch::mock_report).
-var TUT_DESK = null;   // { menu, quick } while the pretend desktop is up
-function tutFakeClose() {
-  if (!TUT_DESK) {
-    TUT_DESK = { menu: false, quick: false };
-    var link = document.querySelector('link[rel="icon"]');
-    var icon = link ? link.getAttribute('href') : '/favicon.ico';
-    var now = new Date();
-    var clock = ('0' + now.getHours()).slice(-2) + ':' + ('0' + now.getMinutes()).slice(-2);
-    var desk = document.createElement('div');
-    desk.id = 'tutDesk';
-    desk.innerHTML =
-      '<div class="tdQuick" id="tutDeskQuick" hidden><div class="tdQuickT">QUICK MODE</div>' +
-      '<div class="tdQuickN">' + esc(tutNick()) + '</div><div class="tdQuickC">' +
-      esc(tutDeskConfig()) + '</div></div>' +
-      '<div class="tdMenu" id="tutDeskMenu" hidden>' +
-      '<button disabled>Select Devices</button>' +
-      '<button id="tutDeskOpen" data-tut="desk-open" onclick="tutFakeOpen()">Open Controller Configs</button>' +
-      '<button disabled>Open Virtual Keyboard</button><button disabled>Start Tutorial</button>' +
-      '<button disabled>Quit</button></div>' +
-      '<div class="tdBar"><button class="tdTray" id="tutDeskTray" data-tut="desk-tray" ' +
-      'onclick="tutDeskMenu()" title="DS5-USBIP"><img alt="DS5-USBIP" src="' + esc(icon) + '"></button>' +
-      '<span class="tdClock">' + clock + '</span></div>';
-    document.body.appendChild(desk);
+// ⭐⭐ THE TOUR'S CLOSE SHRINKS THE WINDOW (2.66.141; rhoquinn8217, 2026-11-06:
+// *"just minimize the window when the user click the "Close" button. Bring up
+// the quick mode up on the gesture and minimize it again when the touchpad is
+// not being touched. The user should see quick mode and be able to switch
+// configs while touching the touchpad"*, then *"how about shrinking the
+// window to the smallest it can be"*). Close in the tour makes this window as
+// small as the browser lets it (178 x 100 in Chrome), about its middle, and it
+// stays in front: so the real switch stands aside, as it does for a window in
+// front, the words stay up, and the swipe beside a resting thumb steps Quick's
+// wheel, as it does in front. The two finger press DS5-USBIP reports (`pad`)
+// brings it back in Quick, and the last finger lifting shrinks it again;
+// pressed twice, it comes back in Simple. ⓘ Never a real minimise: a window
+// out of the front is replaced by the switch's own, and the tour would end
+// with it. ⓘ The listener keeps no place or size from it (the words'
+// `shrunk`, config_move.inl).
+var TUT_SHRUNK = false;
+var TUT_SIZING = true;        // ⓘ false while the self-test plays it: no real window moves
+function tutShrink() {
+  if (TUT_SHRUNK) return;
+  TUT_SHRUNK = true;
+  if (TUT_SIZING) {
+    var cx = window.screenX + window.outerWidth / 2, cy = window.screenY + window.outerHeight / 2;
+    window.resizeTo(1, 1);
+    // ⓘ resizeTo is asynchronous: centred where the window was once the
+    // browser has made it as small as it goes.
+    setTimeout(function () {
+      if (TUT_SHRUNK) {
+        window.moveTo(Math.round(cx - window.outerWidth / 2), Math.round(cy - window.outerHeight / 2));
+      }
+    }, 300);
   }
-  tutCollect();
+  tutSendWords();
 }
-function tutFakeOpen() {
-  var desk = tutById('tutDesk');
-  if (desk && desk.parentNode) desk.parentNode.removeChild(desk);
-  TUT_DESK = null;
-  if (TUT) tutCollect();
+// Back at the layout's own size and place, in `mode` when it names one.
+function tutUnshrink(mode) {
+  var was = TUT_SHRUNK;
+  TUT_SHRUNK = false;
+  if (mode && tutViewKind() !== mode) setMode(mode);
+  else if (was && TUT_SIZING) sizeForMode();
+  tutSendWords();
 }
-function tutDeskMenu() {
-  if (!TUT_DESK) return;
-  TUT_DESK.menu = !TUT_DESK.menu;
-  var menu = tutById('tutDeskMenu');
-  if (menu) menu.hidden = !TUT_DESK.menu;
-}
-function tutDeskQuick(on) {
-  if (!TUT_DESK) return;
-  TUT_DESK.quick = on;
-  var quick = tutById('tutDeskQuick');
-  if (quick) quick.hidden = !on;
-}
-// The config the practice controller uses, for the pretend Quick window.
-function tutDeskConfig() {
-  var pad = TUT_MOCK && TUT_MOCK.pads && TUT_MOCK.pads[0];
-  var linked = pad && TUT_MOCK.links ? TUT_MOCK.links[pad.ordinal] : '';
-  return linked || '(no config)';
-}
-// Where the halo goes on the tray's step: the icon, or the menu's item.
-function tutDeskFocus() {
-  return TUT_DESK && TUT_DESK.menu ? tutById('tutDeskOpen') : tutById('tutDeskTray');
-}
-function tutDeskFocusTick() {
-  var want = tutDeskFocus();
-  if (want && TUT && TUT.focus !== want) { TUT.focus = want; tutCollect(); }
-}
-// A step with the pretend desktop up, its Quick window shut, the press unread.
+// ⓘ A step to try the press in: the window put away, as Close left it.
 function tutPadEnter() {
-  if (!TUT_DESK) tutFakeClose();
-  tutDeskQuick(false);
   TUT.padKept = false;
+  tutShrink();
 }
-// ⓘ The two finger press as DS5-USBIP reports it (tutPollPress): `try` opens
-// and shuts the pretend Quick, a second press there ignored (*"I don't want
-// the user to accidentally activate the function when you press twice, so
-// ignore it during this step"*); `keep` brings the window back on it.
+// ⓘ The two finger press as DS5-USBIP reports it (tutPollPress): `try`
+// brings Quick up and puts it away again, a second press there ignored
+// (*"ignore it during this step"*); `keep` brings Simple back on it.
 function tutPadEvent(word) {
   var s = tutStep();
-  if (!s || !s.pad || !TUT_DESK) return;
-  if (word === 'open') tutDeskQuick(true);
-  else if (word === 'lift') tutDeskQuick(false);
-  else if (word === 'keep' && s.pad === 'keep') { TUT.padKept = true; tutFakeOpen(); }
+  if (!s || !s.pad) return;
+  if (word === 'open') tutUnshrink('quick');
+  else if (word === 'lift' && !TUT.padKept) tutShrink();
+  else if (word === 'keep' && s.pad === 'keep') { TUT.padKept = true; tutUnshrink('simple'); }
 }
-// ⓘ The switch's own box in the Overview, when it is unticked.
 // ⭐⭐ SKIP, ON A STEP ONLY A CONTROLLER CAN DO (2.66.140; rhoquinn8217,
 // 2026-11-06: *"If a bridged DualSense/Edge or DS5 controller is not bridge
 // during the 2 finger press quick switch tutorial steps, add a skip button to
@@ -14839,14 +14815,15 @@ function tutPadSkip() {
 function tutWordsPadTry() {
   var s = tutSteps()[TUT ? TUT.at : 0];
   return 'Now the two finger quick switch, on a DualSense or DS4: press the touchpad with two fingers ' +
-         'and keep one finger on it. Quick Mode opens as the press comes up, and closes when you stop ' +
-         'touching the touchpad.' +
+         'and keep one finger on it. Quick Mode comes up as the press comes up: swipe another finger up ' +
+         'or down to switch configs. It goes away when you stop touching the touchpad.' +
          (tutCanDo(s) ? ' Try it, then choose ' + tutHl('Continue') + '.' : tutPadSkip());
 }
 function tutWordsPadKeep() {
   var s = tutSteps()[TUT ? TUT.at : 0];
-  return 'Press the touchpad with two fingers again, and press it a second time before you stop ' +
-         'touching it: the window comes back, in the mode you used last.' + (tutCanDo(s) ? '' : tutPadSkip());
+  return 'Now press the touchpad twice with two fingers, keeping a finger on it in between: Quick Mode ' +
+         'comes up at the first press, and the second brings this window back in Simple Mode, the mode ' +
+         'you used last.' + (tutCanDo(s) ? '' : tutPadSkip());
 }
 function tutWordsCircle() { return 'Press ' + tutKey('close') + ' to see where it takes you.'; }
 function tutWordsClose() {
@@ -15079,7 +15056,7 @@ var TUT_QUICK = [
   { lit: function () { return []; }, act: 'end', words: tutWordsEnd }
 ];
 
-// ⭐⭐ SIMPLE'S THIRTY-SEVEN (thirty-three until 2.66.139, twenty-four until 2.66.138; rhoquinn8217, 2026-10-26, the list they went
+// ⭐⭐ SIMPLE'S THIRTY-FIVE (thirty-seven in 2.66.139 and 2.66.140, thirty-three until 2.66.139, twenty-four until 2.66.138; rhoquinn8217, 2026-10-26, the list they went
 // through: *"Based on how we did the quick mode tutorial, build a list a of
 // steps for me to review for a simple view tutorial"*). Simple's own: the
 // controllers either side of its panel, the button column beside the wheel,
@@ -15325,49 +15302,36 @@ var TUT_SIMPLE = [
     done: function () { return !!TUT.circled; } },
   // 31 (rhoquinn8217, 2026-11-06: *"replace the close button step with a step
   // to actually "close" the DS5-USBIP but it doesn't have to be really
-  // closed"*): Close pressed, and the pretend desktop up (tutFakeClose); the
-  // window itself stays open.
+  // closed"*, and since 2.66.141 *"how about shrinking the window to the
+  // smallest it can be"*): Close pressed, and the window shrunk (tutShrink).
   { side: 'right', act: true, fakeClose: true, focus: '.cbar > button.cclose',
     lit: function () { return tutQ('.cbar > button.cclose'); },
     words: function () {
       return tutKey('close') + ' takes you to ' + tutHl('Close') + '. Press ' + tutHl('Close') +
-             ': it puts this window away, and your controller goes back to your game.';
+             ': it puts this window away, and your controller goes back to your game. For this tour, ' +
+             'the window only shrinks.';
     },
-    done: function () { return !!TUT_DESK; },
-    undo: tutFakeOpen },
-  // 32 (*"I want a step to show the user how to open the DS5-USBIP with the
-  // tray"*): the pretend taskbar's icon, its menu, Open Controller Configs.
-  { side: 'left', act: true, enter: function () { if (!TUT_DESK) tutFakeClose(); },
-    focus: tutDeskFocus, tick: tutDeskFocusTick,
-    lit: function () { return [tutById('tutDeskTray'), TUT_DESK && TUT_DESK.menu ? tutById('tutDeskMenu') : null]; },
-    hits: function () { return [tutById('tutDeskTray'), tutById('tutDeskOpen')]; },
-    words: function () {
-      return 'For this tour, the window shows a picture of your taskbar. To bring the window back, click ' +
-             "DS5-USBIP's icon in the tray, then choose " + tutHl('Open Controller Configs') + '.';
-    },
-    done: function () { return !TUT_DESK; },
-    undo: tutFakeClose },
-  // 33 (*"Then add a step to close it again"*)
-  { side: 'right', act: true, fakeClose: true, focus: '.cbar > button.cclose',
-    lit: function () { return tutQ('.cbar > button.cclose'); },
-    words: function () { return 'Close it again: press ' + tutHl('Close') + '.'; },
-    done: function () { return !!TUT_DESK; },
-    undo: tutFakeOpen },
-  // 34 (*"another step that lets the user try the 2 finger press hold to bring
-  // up quick mode and let it close when they let go"*): the real press opens
-  // and shuts the pretend Quick, its second press ignored here.
-  { side: 'left', free: true, pad: 'try', needs: 'touchpad', enter: tutPadEnter,
-    lit: function () { var q = tutById('tutDeskQuick'); return [q && !q.hidden ? q : tutById('tutDesk')]; },
+    done: function () { return TUT_SHRUNK; },
+    undo: function () { tutUnshrink('simple'); } },
+  // 32 (*"another step that lets the user try the 2 finger press hold to bring
+  // up quick mode and let it close when they let go"*; since 2.66.141 *"The
+  // user should see quick mode and be able to switch configs while touching
+  // the touchpad"*): the real press brings the real Quick up, its wheel
+  // stepped as in front, and puts it away again; a second press ignored here.
+  { side: 'above', free: true, pad: 'try', needs: 'touchpad', views: ['simple', 'quick'],
+    enter: tutPadEnter, keyAim: '#cpick', keys: tutUpDownKeys,
+    lit: function () { return TUT_SHRUNK ? [] : tutQ('.cwheel'); },
     words: tutWordsPadTry },
-  // 35 (*"instruct the user to press it twice to bring back the config window
-  // that was opened last"*): the second press keeps it, and the window is back
-  // in Simple. ⭐ That press is what moves it on (`must`), and Skip does with
-  // no DualSense or DS4 bridged (2.66.140).
-  { side: 'left', free: true, pad: 'keep', needs: 'touchpad', must: true, enter: tutPadEnter,
-    tick: function () { if (TUT.padKept) tutShow(TUT.at + 1); },
-    lit: function () { var q = tutById('tutDeskQuick'); return [q && !q.hidden ? q : tutById('tutDesk')]; },
+  // 33 (*"Moving on to the next step, instructs the user double press with two
+  // fingers to bring back simple mode"*): the second press keeps it, and the
+  // window is back in Simple. ⭐ That press is what moves it on (`must`), and
+  // Skip does with no DualSense or DS4 bridged (2.66.140).
+  { side: 'above', free: true, pad: 'keep', needs: 'touchpad', must: true, views: ['simple', 'quick'],
+    enter: tutPadEnter, keyAim: '#cpick', keys: tutUpDownKeys,
+    tick: function () { if (TUT.padKept && tutViewKind() === 'simple') tutShow(TUT.at + 1); },
+    lit: function () { return TUT_SHRUNK ? [] : tutQ('.cwheel'); },
     words: tutWordsPadKeep },
-  // 36 (*"Need a step to show the hint and how to click it to see the next
+  // 34 (*"Need a step to show the hint and how to click it to see the next
   // one"*, and the last before the end since 2026-10-28): a click is the
   // way, or L3, and Continue stays. ⭐ The words and the
   // arrow go by the tip's ROW, which keeps its size, not by the tip, which
@@ -15376,15 +15340,16 @@ var TUT_SIMPLE = [
   // new place for the words, at times across the window.
   // ⭐ And L3 does it too, H on a keyboard (rhoquinn8217, 2026-10-28: *"L3 in
   // simple mode cycles through hints."*): its press goes through to the page.
-  // ⓘ The window back, however the step before was left (2.66.139).
+  // ⓘ The window back in Simple at its size, however the step before was
+  // left: Skip, or the double press (2.66.141).
   { side: 'left', free: true, lit: function () { return tutQ('.cinfo'); }, anchorBox: tutTipRow,
-    enter: function () { if (TUT_DESK) tutFakeOpen(); },
+    enter: function () { if (TUT_SHRUNK || tutViewKind() !== 'simple') tutUnshrink('simple'); },
     keys: function (code, gated, plain) { return (gated || plain) && code === 'KeyH'; },
     words: function () {
       return 'This line is a tip, and a new one comes every 30 seconds. Click it or press ' +
              tutKey('tip') + ' to see the next one, then choose ' + tutHl('Continue') + '.';
     } },
-  // 37
+  // 35
   { lit: function () { return []; }, act: 'end', words: tutWordsEnd }
 ];
 
@@ -16237,6 +16202,8 @@ function tutSendWords() {
     }
     body.show = true;
     body.focus = focus;
+    // ⓘ The window as small as it goes, for the tour: no place or size to keep.
+    if (TUT_SHRUNK) body.shrunk = true;
     // ⭐ What the step lights and what is on the window, for the listener to
     // stand the words beside the one and off the other (tutLayout).
     if (TUT.phase === 'step' && body.side !== 'center' && TUT_ANCHOR.target) {
@@ -16431,7 +16398,11 @@ function tutKeepGoing() {
 function tutFinish() {
   if (!TUT) return;
   tutCloseOpen();
-  if (TUT_DESK) tutFakeOpen();
+  // ⓘ The window back at its size, and in Simple when the press's steps had
+  // Quick up (2.66.141).
+  var here = tutSteps()[TUT.at];
+  if (here && here.pad && tutViewKind() === 'quick') tutUnshrink('simple');
+  else if (TUT_SHRUNK) tutUnshrink(null);
   var saved = TUT.saved, kind = TUT.kind;
   TUT = null;
   TUT_REAL = null;
