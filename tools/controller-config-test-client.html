@@ -2,7 +2,7 @@
 <!--
   DS5-USBIP's Controller Configs page, served by the listener.
 
-  VERSION 2.66.134 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.135 -- see the changelog at the bottom of this comment.
 
   WHAT IT STARTED AS. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -24,6 +24,17 @@
   not a tidy message about it.
 
   CHANGELOG
+    2.66.135 Left from the 🗗 in Simple lands on the wheel (rhoquinn8217:
+             "left on the resize button in simple mode should land you on
+             the wheel"): it is the bar's first control, so left from it
+             went nowhere; a self-test check says so. And the help under
+             the Overview's "Two finger touchpad quick switch" is cut
+             down and names the DualSense, the Edge and the DS4 ("Need to
+             cut this down. Also it doesn't work on every controller. Only
+             DS4 and DualSense have touchpads that we've confirmed work."),
+             in rhoquinn8217's words, corrected only where the listener
+             does otherwise: any press while a finger is still down keeps
+             the window, not a two-finger double press.
     2.66.134 The Overview's box is "Two finger touchpad quick switch"
              ("rename the setting in the overview to 'Two finger touchpad
              quick switch'"), in Advanced's tour as well; and its help and
@@ -3232,7 +3243,7 @@
          (data-gp-focus), as Open on bridge has. -->
     <label class="ovcheck ovnext" id="quickSwitchLabel"
       title="Unticked: the touchpad does what the config says. Tick it to switch configs by pressing the touchpad with two fingers."><input type="checkbox" id="quickSwitch" data-gp-focus="1" onchange="toggleQuickSwitch()">Two finger touchpad quick switch</label>
-    <div class="ovhelp">Every controller: Quick view opens as the press comes up and stays while a finger rests on the touchpad; a press held four seconds is the TV's release, and opens nothing. Each swipe of another finger up or down, or each push of the right stick up or down, changes the config, and pressing again keeps the window, in the layout you had open last. Until then the touchpad reaches neither Windows nor the game. In Simple and Quick, the same swipe beside a resting thumb moves the wheel, with no press.</div>
+    <div class="ovhelp">DualSense, DualSense Edge and DS4: press the touchpad with two fingers and keep one finger on the touchpad to keep the Quick mode window up. Swipe up/down with the other finger, or use the d-pad or right stick, to switch configs. Stop touching the touchpad to close the Quick mode window. To keep the window open, press the touchpad again before you stop touching it; it stays open in the mode you used last.</div>
   </div>
   <div class="ovcard conn">
     <!-- ⓘ The light is this card's own (paintConnLight). The line beside
@@ -3302,7 +3313,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.66.134</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.66.135</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -9435,6 +9446,10 @@ function compactMove(dx, dy) {
       return focusElement(unlinkBtn || col[0]);
     }
     if (cur === wheelSel && dx < 0) return true;
+    // ⭐ LEFT FROM THE 🗗 LANDS ON THE WHEEL (rhoquinn8217, 2026-11-05: "left
+    // on the resize button in simple mode should land you on the wheel"): it
+    // is the bar's first control, so left from it went nowhere.
+    if (dx < 0 && cur && cur.classList && cur.classList.contains('csize')) return focusElement(wheelSel);
     // ⭐ UP FROM THE FOOTER LANDS ON ARCHIVE (2026-10-22: "up from the mode
     // selector or close should bring you to "archive""), the column's foot,
     // over them, greyed or not: a greyed button is reachable (explainGreyed).
@@ -12533,6 +12548,45 @@ function selfTest() {
   ].forEach(function(n) {
     ok('function ' + n, typeof window[n] === 'function');
   });
+
+  // ⭐ LEFT FROM THE 🗗 IN SIMPLE LANDS ON THE WHEEL (2.66.135). Worked on a
+  // made-up Simple box (the wheel, its column, the bar's 🗗 and Mode picker),
+  // the page's own ids lent to it and given back; nothing is sent.
+  {
+    var lentIds = ['compactBox', 'cpick'];
+    var lent = lentIds.map(function (id) {
+      var e = document.getElementById(id);
+      if (e) e.id = id + '-lent';
+      return e;
+    });
+    var fake = document.createElement('div');
+    fake.id = 'compactBox';
+    fake.style.cssText = 'position:fixed;left:-9999px;top:0;width:600px';
+    fake.innerHTML =
+      '<div class="cselrow"><select id="cpick"><option>a</option></select></div>' +
+      '<div class="csbtns"><button>New</button><button class="cunlink-btn">Unlink</button>' +
+      '<button>Archive</button></div>' +
+      '<div class="cbar"><span class="cgroup"><button class="csize">size</button>' +
+      '<select><option>Simple</option></select></span></div>';
+    document.body.appendChild(fake);
+    var keepNav = { c: COMPACT, q: QUICK, f: GP_FOCUS, i: GP_INDEX, w: GP_WANT };
+    var landed = null;
+    try {
+      COMPACT = true; QUICK = false;
+      GP_FOCUS = Array.prototype.slice.call(fake.querySelectorAll('select, button'));
+      GP_INDEX = GP_FOCUS.indexOf(fake.querySelector('button.csize'));
+      compactMove(-1, 0);
+      landed = GP_FOCUS[GP_INDEX];
+    } finally {
+      COMPACT = keepNav.c; QUICK = keepNav.q; GP_FOCUS = keepNav.f; GP_INDEX = keepNav.i;
+      GP_WANT = keepNav.w;
+      fake.remove();
+      lent.forEach(function (e, k) { if (e) e.id = lentIds[k]; });
+      gpPaint();
+    }
+    ok('Simple: left from the resize button lands on the wheel',
+       !!landed && landed.id === 'cpick', landed ? (landed.id || landed.textContent) : 'nothing');
+  }
 
   // 3. ⓘ The name pool moved to the agent 2026-09-01, so the checks that it
   //    parsed and held unique names went with it -- they live in
