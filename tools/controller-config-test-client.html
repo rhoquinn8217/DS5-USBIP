@@ -2,7 +2,7 @@
 <!--
   DS5-USBIP's Controller Configs page, served by the listener.
 
-  VERSION 2.66.136 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.135 -- see the changelog at the bottom of this comment.
 
   WHAT IT STARTED AS. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -24,12 +24,6 @@
   not a tidy message about it.
 
   CHANGELOG
-    2.66.136 The window's title bar icon follows Windows' light or dark
-             mode (rhoquinn8217, 2026-11-05: an icon for light
-             backgrounds and one for dark): the page puts the dark one's
-             address, which the listener writes into the ds5-favicon-dark
-             meta tag, on its icon link while the browser says the colour
-             scheme is dark, and the light one back when it is light.
     2.66.135 Left from the 🗗 in Simple lands on the wheel (rhoquinn8217:
              "left on the resize button in simple mode should land you on
              the wheel"): it is the bar's first control, so left from it
@@ -1704,7 +1698,6 @@
      fingerprint (favicon_version.inl): a new icon is a new address. Keep
      the href exactly as it is, or the replacement finds nothing. -->
 <link rel="icon" href="/favicon.ico?v=1">
-<meta name="ds5-favicon-dark" content="/favicon-dark.ico?v=1">
 <style>
   /* ⭐ THE COMPACT VIEWS' HEIGHT UNIT (2.66.87): every height-based size in
      them is a number of --vh, which is 1vh, and in Quick the old window's
@@ -3320,7 +3313,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.66.136</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.66.135</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -10386,35 +10379,6 @@ function toggleQuickSwitch() {
 window.addEventListener('load', loadQuickSwitch);
 window.addEventListener('focus', loadQuickSwitch);
 
-// ⭐ THE TITLE BAR'S ICON FOLLOWS WINDOWS' LIGHT OR DARK MODE (2.66.136;
-// rhoquinn8217, 2026-11-05: an icon for light backgrounds and one for dark).
-// The browser draws this window's title bar in the apps' mode, which reaches
-// the page as prefers-color-scheme. The two addresses are the listener's,
-// each with its icon's fingerprint in it (favicon_version.inl): the light
-// one on the icon link as served, the dark one in the meta tag beside it.
-// ⓘ The tray and the taskbar button follow the TASKBAR's mode, which the
-// listener reads itself (icon_theme.inl); the two can be set apart.
-var FAVICON_LIGHT = null;
-function faviconFor(dark) {
-  var link = document.querySelector('link[rel="icon"]');
-  var meta = document.querySelector('meta[name="ds5-favicon-dark"]');
-  if (FAVICON_LIGHT === null && link) FAVICON_LIGHT = link.getAttribute('href');
-  return (dark && meta) ? meta.getAttribute('content') : FAVICON_LIGHT;
-}
-function paintFavicon() {
-  var link = document.querySelector('link[rel="icon"]');
-  if (!link || !window.matchMedia) return;
-  var want = faviconFor(window.matchMedia('(prefers-color-scheme: dark)').matches);
-  if (want && link.getAttribute('href') !== want) link.setAttribute('href', want);
-}
-(function () {
-  if (!window.matchMedia) return;
-  var scheme = window.matchMedia('(prefers-color-scheme: dark)');
-  if (scheme.addEventListener) scheme.addEventListener('change', paintFavicon);
-  else if (scheme.addListener) scheme.addListener(paintFavicon);
-  paintFavicon();
-})();
-
 document.addEventListener('keydown', function (ev) {
   if (STOPPED) return;
   if (ev.ctrlKey || ev.altKey || ev.shiftKey || ev.metaKey) return;   // the gate's keys
@@ -12580,24 +12544,10 @@ function selfTest() {
    'openConfig','applyPick','newConfigFor','preserveScroll','setDown','gpCollect',
    'rateTag','rateTags','refreshRates','setRateLimit','pollRates',
    'toggleTokenShown','paintConnLight','archiveConfigBtn','autoLinkBtnHtml',
-   'explainGreyed','clearGreyedNote','faviconFor','paintFavicon'
+   'explainGreyed','clearGreyedNote'
   ].forEach(function(n) {
     ok('function ' + n, typeof window[n] === 'function');
   });
-
-  // ⭐ THE TITLE BAR'S ICON FOLLOWS THE COLOUR SCHEME (2.66.136): the dark
-  // icon's address beside the icon link, and each mode given its own.
-  {
-    var iconLink = document.querySelector('link[rel="icon"]');
-    var darkMeta = document.querySelector('meta[name="ds5-favicon-dark"]');
-    var darkHref = darkMeta ? (darkMeta.getAttribute('content') || '') : '';
-    ok('favicon: the page carries the dark icon\'s address',
-       /^\/favicon-dark\.ico\?v=/.test(darkHref), darkHref);
-    ok('favicon: dark gets the dark icon, light the light one',
-       !!iconLink && faviconFor(true) === darkHref &&
-       /^\/favicon\.ico\?v=/.test(faviconFor(false) || ''),
-       faviconFor(true) + ' / ' + faviconFor(false));
-  }
 
   // ⭐ LEFT FROM THE 🗗 IN SIMPLE LANDS ON THE WHEEL (2.66.135). Worked on a
   // made-up Simple box (the wheel, its column, the bar's 🗗 and Mode picker),

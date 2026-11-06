@@ -1,34 +1,24 @@
-# Builds the app's two icons: a DualSense on a flat-panel television, once for
-# light backgrounds and once for dark ones.
+# Builds app\ctm-usbip.ico: a DualSense on a flat-panel television.
 #
 # ---------------------------------------------------------------------------
 # THE PIPELINE. Both halves live in this folder and either can be re-run:
 #
 #     icon-source.png  --[ trace-silhouette.py ]-->  controller-path.txt
 #     controller-path.txt  --[ this script ]-->  ..\app\ctm-usbip.ico
-#                                                ..\app\ctm-usbip-dark.ico
 #
-# TWO FILES DRESS THE WHOLE APP (rhoquinn8217, 2026-11-05: a white base on a
-# dark background, a black one on a light background, and the light one's
-# colours swapped for the dark one):
+# IMPORTANT: ONE FILE DRESSES THE WHOLE APP. app\ctm-usbip.rc links the .ico as
+# `1 ICON` for the exe, taskbar and Alt-Tab, and AGAIN as `101 RCDATA` so the
+# identical bytes are served at /favicon.ico -- which is where the Controller
+# Configs window's title bar gets its icon. Both .iss files aim SetupIconFile
+# at it, and the tray and window load it from the exe's own resources. Replace
+# this file and every surface follows; there is nowhere else to edit.
 #
-#   ctm-usbip.ico       FOR LIGHT BACKGROUNDS: a black television, a black
-#                       controller outlined in white, white inner handles, and
-#                       a glare across the glass. It is the exe's own icon
-#                       (`1 ICON` in app\ctm-usbip.rc), so it is what File
-#                       Explorer, the Start menu, shortcuts and Alt-Tab show,
-#                       and both .iss files aim SetupIconFile at it (their
-#                       word: "bottom", the light-background one, for every
-#                       place that can only show one).
-#   ctm-usbip-dark.ico  FOR DARK BACKGROUNDS: the same with its two colours
-#                       swapped, and no glare. `2 ICON`.
-#
-# Both are linked a second time as raw bytes, `101 RCDATA` and `102 RCDATA`,
-# and served at /favicon.ico for the Controller Configs window's title bar. The
-# listener picks between them by Windows' light or dark mode
-# (src\app\icon_theme.inl): the tray and the window's taskbar button follow the
-# taskbar's mode, the title bar the apps' mode. Replace these two files and
-# every surface follows; there is nowhere else to edit.
+# ONE ICON, ON EVERY BACKGROUND (rhoquinn8217, 2026-11-05). A second icon for
+# dark backgrounds was drawn, with the tray and the windows following
+# Windows' light or dark mode, and set aside before it shipped at their word:
+# "can we use the light back ground one all the time". This is the version
+# for light backgrounds: a black television with a glare across the glass,
+# the controller black and outlined in white, its inner handles white.
 #
 # WARNING: make-icon-ds5.ps1 AND make-icon.ps1 ARE RETIRED and must not be run.
 # They build the icon from installer\brand.png, which is Ciprian's bridge art,
@@ -36,15 +26,15 @@
 # no diff anyone would read. They are kept only because brand.png is upstream's
 # and the history is worth preserving.
 #
-# -Png <folder> WRITES TWO PICTURES AND NOTHING ELSE: each version as one PNG
-# at -PngSize (512 by default), for the TV app's webOS icon, which aurora-tv
+# -Png <folder> WRITES ONE PICTURE AND NOTHING ELSE: the icon as a PNG at
+# -PngSize (512 by default), for the TV app's webOS icon, which aurora-tv
 # draws its badge from (rhoquinn8217, 2026-11-05: "Pass the icon to
-# aurora-rhqn to update the app icon on webOS"). The .ico files are untouched.
+# aurora-rhqn to update the app icon on webOS"). The .ico is untouched.
 #
-# -Check WRITES NOTHING. It builds both icons in memory and compares each with
-# the committed file byte for byte, exiting 1 if either differs. That is the
-# whole of "a generated file must have a generator": the claim is only true
-# while this passes.
+# -Check WRITES NOTHING. It builds the icon in memory and compares it with the
+# committed file byte for byte, exiting 1 if they differ. That is the whole of
+# "a generated file must have a generator": the claim is only true while this
+# passes.
 # ---------------------------------------------------------------------------
 #
 # WHY THE FRAMES ARE SUPERSAMPLED. Filling a Bezier path straight into a 16x16
@@ -61,8 +51,7 @@ $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
 
 $pathFile = Join-Path $PSScriptRoot 'controller-path.txt'
-$dstLight = Join-Path $PSScriptRoot '..\app\ctm-usbip.ico'
-$dstDark = Join-Path $PSScriptRoot '..\app\ctm-usbip-dark.ico'
+$dst = Join-Path $PSScriptRoot '..\app\ctm-usbip.ico'
 
 # ONE FRAME FOR EVERY SIZE WINDOWS ASKS FOR, at every stock display scale from
 # 100% to 300%. Windows has a small icon, 16 units, and a big one, 32 units,
@@ -87,7 +76,7 @@ $SS = 4                     # supersample factor
 # it, then a third thinner; the controller with a line over the touchpad, its
 # touchpad and stick area dark, its inner handles in a band of their own and
 # shoulder buttons on top; a straight glare through the middle, slanted 15
-# degrees from upright; then the two versions above.
+# degrees from upright; then the version for light backgrounds, alone.
 # NOTE: the touchpad's shape is back at their word. The first icon left it out
 # on purpose, as the most recognisable part of the controller's design.
 $WHITE = [System.Drawing.Color]::White
@@ -266,11 +255,10 @@ function New-PadPath([double]$K, [double]$YEnd) {
     return $p
 }
 
-# One frame. $Light: the version for light backgrounds.
+# One frame.
 function New-Frame {
-    param([int]$Size, [bool]$Light)
-    # The light-background version's colours; the dark one has them swapped.
-    if ($Light) { $cMain = $DARK; $cLine = $WHITE } else { $cMain = $WHITE; $cLine = $DARK }
+    param([int]$Size)
+    $cMain = $DARK; $cLine = $WHITE
 
     $big = $Size * $SS
     $k = $big / 100.0
@@ -336,10 +324,10 @@ function New-Frame {
                   (ToPt -X 57.0 -Y $PAD_RISE -K $k), (ToPt -X 71.0 -Y $yEnd -K $k))
     $pen.Dispose(); $ctrl.Dispose()
 
-    # The glare, last and over everything on the glass, on the light-background
-    # version only: a straight edge through the middle of the screen, 15
-    # degrees from upright, the left side lit and fading out.
-    if ($Light -and $Size -ge $GLARE_MIN) {
+    # The glare, last and over everything on the glass: a straight edge
+    # through the middle of the screen, 15 degrees from upright, the left side
+    # lit and fading out.
+    if ($Size -ge $GLARE_MIN) {
         $iL = $SCREEN_X + $OUTLINE; $iT = $SCREEN_Y + $OUTLINE
         $iW = $SCREEN_W - 2 * $OUTLINE; $iH = $SCREEN_H - 2 * $OUTLINE
         $glass = New-RoundedRect $iL $iT $iW $iH ($SCREEN_R - $OUTLINE) $k
@@ -379,11 +367,11 @@ function New-Frame {
     return $out
 }
 
-# One .ico, every size, PNG frames.
-function Build-Ico([bool]$Light) {
+# The .ico, every size, PNG frames.
+function Build-Ico {
     $frames = @()
     foreach ($s in $sizes) {
-        $bmp = New-Frame -Size $s -Light $Light
+        $bmp = New-Frame -Size $s
         $ms = New-Object System.IO.MemoryStream
         $bmp.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
         $bmp.Dispose()
@@ -418,19 +406,15 @@ function Build-Ico([bool]$Light) {
 
 if ($Png) {
     New-Item -ItemType Directory -Force -Path $Png | Out-Null
-    foreach ($v in @(@{ light = $true; name = 'ds5-usbip-icon-light' }, @{ light = $false; name = 'ds5-usbip-icon-dark' })) {
-        $bmp = New-Frame -Size $PngSize -Light $v.light
-        $file = Join-Path $Png ('{0}-{1}.png' -f $v.name, $PngSize)
-        $bmp.Save($file, [System.Drawing.Imaging.ImageFormat]::Png)
-        $bmp.Dispose()
-        Write-Host ('Wrote {0}' -f $file)
-    }
+    $bmp = New-Frame -Size $PngSize
+    $file = Join-Path $Png ('ds5-usbip-icon-{0}.png' -f $PngSize)
+    $bmp.Save($file, [System.Drawing.Imaging.ImageFormat]::Png)
+    $bmp.Dispose()
+    Write-Host ('Wrote {0}' -f $file)
     exit 0
 }
 
-$made = @(
-    @{ name = 'for light backgrounds'; path = $dstLight; bytes = (Build-Ico -Light $true) },
-    @{ name = 'for dark backgrounds'; path = $dstDark; bytes = (Build-Ico -Light $false) })
+$made = @(@{ name = 'the app icon'; path = $dst; bytes = (Build-Ico) })
 
 if ($Check) {
     $drift = $false

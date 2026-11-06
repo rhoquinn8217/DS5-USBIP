@@ -9,7 +9,6 @@
 
 #include "app/window_icon_rule.inl"
 #include "app/favicon_version.inl"
-#include "app/icon_theme_rule.inl"
 
 using namespace ctmtest;
 
@@ -103,41 +102,6 @@ int run_window_icon_rule_tests()
         CTM_CHECK(with_fingerprint(page, a) == "<link rel=\"icon\" href=\"/favicon.ico?v=" + a + "\">");
         CTM_CHECK(with_fingerprint(page, "") == page);               // no icon in the exe: left alone
         CTM_CHECK(with_fingerprint("<p>no link</p>", a) == std::string("<p>no link</p>"));
-    }
-
-    section("window icon: the dark-background icon's address carries its own fingerprint");
-    {
-        // ⭐ Two icons since 2026-11-05: the page puts the dark one's address
-        // on its icon link while the window is dark, so it needs its own.
-        using favicon_version::fingerprint;
-        using favicon_version::with_fingerprints;
-        const unsigned char light[] = { 1 };
-        const unsigned char dark[] = { 2 };
-        const std::string a = fingerprint(light, sizeof light);
-        const std::string b = fingerprint(dark, sizeof dark);
-        const std::string page = "<link rel=\"icon\" href=\"/favicon.ico?v=1\">"
-                                 "<meta name=\"ds5-favicon-dark\" content=\"/favicon-dark.ico?v=1\">";
-        CTM_CHECK(with_fingerprints(page, a, b) ==
-                  "<link rel=\"icon\" href=\"/favicon.ico?v=" + a + "\">"
-                  "<meta name=\"ds5-favicon-dark\" content=\"/favicon-dark.ico?v=" + b + "\">");
-        // ⛔ Neither mark holds the other, so each is swapped in its own place.
-        CTM_CHECK(std::string(favicon_version::kDarkMark).find(favicon_version::kMark) == std::string::npos);
-        CTM_CHECK(std::string(favicon_version::kMark).find(favicon_version::kDarkMark) == std::string::npos);
-        // No dark icon in the exe: its address is left as the page had it.
-        CTM_CHECK(with_fingerprints(page, a, "") ==
-                  "<link rel=\"icon\" href=\"/favicon.ico?v=" + a + "\">"
-                  "<meta name=\"ds5-favicon-dark\" content=\"/favicon-dark.ico?v=1\">");
-    }
-
-    section("icons: which of the two Windows' light or dark mode gets");
-    {
-        using namespace icon_theme_rule;
-        CTM_CHECK(is_light(true, 1));          // light
-        CTM_CHECK(!is_light(true, 0));         // dark
-        CTM_CHECK(is_light(false, 0));         // never written: Windows shows light
-        CTM_CHECK(is_light(false, 1));
-        CTM_CHECK_EQ(icon_for(true), 1);       // the exe's own: 1 ICON in app\ctm-usbip.rc
-        CTM_CHECK_EQ(icon_for(false), 2);
     }
 
     return 0;

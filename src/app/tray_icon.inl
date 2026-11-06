@@ -579,9 +579,6 @@ inline NOTIFYICONDATAW g_nid = {};
 inline const wchar_t *g_iconSource = L"";
 inline const UINT_PTR kAddRetryTimer = 1;
 inline int g_addRetriesLeft = 0;
-// Which of the listener's two icons the tray shows (icon_theme_rule.inl), or
-// 0 when it fell back to one of Windows' own.
-inline int g_trayIconId = 0;
 
 // ⓘ "tray: icon added" is matched by the ctm-usbip-windows skill's
 // live-start.ps1, so every success says those words.
@@ -600,34 +597,6 @@ inline bool add_icon(bool again, const wchar_t *why)
     return false;
 }
 
-// ⭐⭐ THE ICON FOLLOWS THE TASKBAR'S LIGHT OR DARK MODE (rhoquinn8217,
-// 2026-11-05: an icon for light backgrounds and one for dark).
-// Windows tells every top-level window that a mode changed, with
-// WM_SETTINGCHANGE and "ImmersiveColorSet"; this window is hidden but
-// top-level, so it hears it. The mode is read again rather than taken
-// from the message, which also comes for an accent colour.
-inline void follow_mode()
-{
-    if (g_trayIconId == 0) return;          // one of Windows' icons: not ours to swap
-    const int id = icon_theme::taskbar_icon();
-    if (id == g_trayIconId) return;
-    const HICON icon = static_cast<HICON>(LoadImageW(
-        GetModuleHandleW(nullptr), MAKEINTRESOURCEW(id), IMAGE_ICON,
-        GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_DEFAULTCOLOR));
-    if (icon == nullptr) return;
-    const HICON old = g_nid.hIcon;
-    g_nid.hIcon = icon;
-    g_trayIconId = id;
-    NOTIFYICONDATAW change = g_nid;
-    change.uFlags = NIF_ICON;
-    const bool shown = Shell_NotifyIconW(NIM_MODIFY, &change) != FALSE;
-    // ⛔ The old handle goes only once the shell has the new one.
-    if (old != nullptr) DestroyIcon(old);
-    device_log::session_w() << L"tray: the taskbar's mode changed, so its icon is now "
-                            << icon_theme::icon_words(id)
-                            << (shown ? L"" : L" (the shell did not take it yet)");
-}
-
 inline LRESULT CALLBACK tray_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 {
     if (g_quitMessage != 0 && msg == g_quitMessage) {
@@ -644,11 +613,6 @@ inline LRESULT CALLBACK tray_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         if (add_icon(true, L"a retry") || --g_addRetriesLeft <= 0) {
             KillTimer(hwnd, kAddRetryTimer);
         }
-        return 0;
-    }
-    if (msg == WM_SETTINGCHANGE && lp != 0 &&
-        lstrcmpiW(reinterpret_cast<LPCWSTR>(lp), L"ImmersiveColorSet") == 0) {
-        follow_mode();
         return 0;
     }
     if (msg == WM_CTM_TRAY) {
@@ -762,24 +726,11 @@ inline void thread_main()
     // the 32 px frame and lets the shell shrink it, which throws that drawn
     // 16 px frame away. Not LR_SHARED, so the handle is ours and is destroyed
     // with the rest below.
-    // ⭐ THE ONE FOR THE TASKBAR'S MODE (rhoquinn8217, 2026-11-05), read from
-    // Windows (icon_theme.inl); follow_mode() swaps it when the mode changes.
-    // ⓘ The light-background one, resource 1, if the other will not load.
-    int ownIconId = icon_theme::taskbar_icon();
+    const wchar_t *iconSource = L"the listener's own icon";
     nid.hIcon = static_cast<HICON>(LoadImageW(
-        GetModuleHandleW(nullptr), MAKEINTRESOURCEW(ownIconId), IMAGE_ICON,
+        GetModuleHandleW(nullptr), MAKEINTRESOURCEW(1), IMAGE_ICON,
         GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_DEFAULTCOLOR));
-    if (nid.hIcon == nullptr && ownIconId != icon_theme_rule::kIconLight) {
-        ownIconId = icon_theme_rule::kIconLight;
-        nid.hIcon = static_cast<HICON>(LoadImageW(
-            GetModuleHandleW(nullptr), MAKEINTRESOURCEW(ownIconId), IMAGE_ICON,
-            GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_DEFAULTCOLOR));
-    }
-    const wchar_t *iconSource = ownIconId == icon_theme_rule::kIconDark
-        ? L"the listener's own icon, the one for a dark taskbar"
-        : L"the listener's own icon, the one for a light taskbar";
     if (nid.hIcon == nullptr) {
-        ownIconId = 0;
         nid.hIcon = extract_system_icon(L"ddores.dll", 108);
         iconSource = L"ddores.dll #108 (a controller, the fallback)";
     }
@@ -813,7 +764,6 @@ inline void thread_main()
     wcscpy_s(nid.szTip, kTip);
     g_nid = nid;
     g_iconSource = iconSource;
-    g_trayIconId = ownIconId;
     if (!add_icon(false, L"at start")) {
         // ⓘ The broadcast covers a taskbar that does not exist yet; this
         // covers a shell that exists but turned the add down. Every two
@@ -828,11 +778,10 @@ inline void thread_main()
         DispatchMessageW(&m);
     }
 
-    // ⓘ g_nid, not the copy above: follow_mode() may have swapped its icon.
-    Shell_NotifyIconW(NIM_DELETE, &g_nid);
+    Shell_NotifyIconW(NIM_DELETE, &nid);
     // ⓘ ExtractIcon hands back a handle we own. LoadIcon's shared one must NOT
     // be destroyed, so only the extracted one is.
-    if (extracted && g_nid.hIcon != nullptr) DestroyIcon(g_nid.hIcon);
+    if (extracted && nid.hIcon != nullptr) DestroyIcon(nid.hIcon);
     if (g_hwnd != nullptr) {
         DestroyWindow(g_hwnd);
         g_hwnd = nullptr;
