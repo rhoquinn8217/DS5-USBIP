@@ -187,6 +187,43 @@ inline Held while_held(bool pressEdge, int fingers, int steps)
     return Held::Stay;
 }
 
+// ⭐ THE TOUR'S STAND-IN (rhoquinn8217, 2026-11-06: the tutorial plays the
+// switch in a pretend window, "I only want to mock it during the tutorial",
+// then "C": the real press drives it). The same press as the real switch,
+// read the same way: armed by two fingers going in, open as the press comes
+// up in time with a finger still down, kept by a second press, and the last
+// finger lifting ends it, kept or not. Nothing is opened or closed: each is a
+// word for the page ("open", "keep", "lift"), which plays it.
+struct Mock {
+    Armed armed;
+    bool open = false;
+    bool kept = false;
+};
+
+inline const char *mock_report(Mock &m, bool pressEdge, bool pressed, int fingers, long long nowMs)
+{
+    if (m.open) {
+        if (fingers == 0) {
+            m = Mock();
+            return "lift";
+        }
+        if (pressEdge && !m.kept) {
+            m.kept = true;
+            return "keep";
+        }
+        return nullptr;
+    }
+    if (pressEdge && fingers == 2) {
+        arm(m.armed, nowMs);
+        return nullptr;
+    }
+    if (armed_report(m.armed, pressed, fingers, nowMs) == Up::Open) {
+        m.open = true;
+        return "open";
+    }
+    return nullptr;
+}
+
 // ⭐ A FINGER SWIPED UP OR DOWN, WHILE THE WINDOW IS OPEN, ANOTHER RESTING OR
 // NOT (rhoquinn8217, 2026-10-23: "after pressing the touchpad with two finders,
 // 1 finger will not move and the other will swipe up and down.  For example

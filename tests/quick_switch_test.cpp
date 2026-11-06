@@ -379,5 +379,33 @@ int run_quick_switch_tests()
         CTM_CHECK_EQ(stick_steps(s, 0.7f, -0.7f), -1);   // as far up as across: a step
     }
 
+    section("quick switch: the tour's stand-in says open, keep and lift as the switch would act");
+    {
+        // ⭐ 2026-11-06: the tutorial's pretend window, driven by the real press.
+        auto word = [](const char *w) { return std::string(w ? w : ""); };
+        Mock m;
+        // Two fingers in: armed, nothing yet; up in time with a finger down: open.
+        CTM_CHECK(word(mock_report(m, true, true, 2, 1000)) == "");
+        CTM_CHECK(word(mock_report(m, false, true, 2, 1100)) == "");
+        CTM_CHECK(word(mock_report(m, false, false, 1, 1200)) == "open");
+        // Resting: nothing; the last finger up: lift.
+        CTM_CHECK(word(mock_report(m, false, false, 1, 1300)) == "");
+        CTM_CHECK(word(mock_report(m, false, false, 0, 1400)) == "lift");
+        // Again, pressed a second time while open: keep, once; then lift.
+        mock_report(m, true, true, 2, 2000);
+        CTM_CHECK(word(mock_report(m, false, false, 1, 2100)) == "open");
+        CTM_CHECK(word(mock_report(m, true, true, 1, 2200)) == "keep");
+        CTM_CHECK(word(mock_report(m, false, false, 1, 2300)) == "");
+        CTM_CHECK(word(mock_report(m, true, true, 1, 2400)) == "");    // kept: a third press says nothing
+        CTM_CHECK(word(mock_report(m, false, false, 0, 2500)) == "lift");
+        // One finger pressing arms nothing; two held past the TV's release open nothing.
+        CTM_CHECK(word(mock_report(m, true, true, 1, 3000)) == "");
+        CTM_CHECK(word(mock_report(m, false, false, 1, 3100)) == "");
+        mock_report(m, true, true, 2, 4000);
+        CTM_CHECK(word(mock_report(m, false, true, 2, 4000 + kReleaseGestureMs + 1)) == "");
+        CTM_CHECK(word(mock_report(m, false, false, 1, 4000 + kReleaseGestureMs + 100)) == "");
+        CTM_CHECK(word(mock_report(m, false, false, 0, 4000 + kReleaseGestureMs + 200)) == "");
+    }
+
     return 0;
 }

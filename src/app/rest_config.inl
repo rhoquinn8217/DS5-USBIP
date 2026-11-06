@@ -818,6 +818,9 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
             } else {
                 ui_tutorial_words_hide();
             }
+            // ⓘ The two finger press reported while the step shown asks
+            // ("pad"), and only then (quick_switch::mock_report).
+            ui_tour_pad(flag("show") && flag("pad"));
             *out = rest_http_response(200, R"({"ok":true})");
             return true;
         }
@@ -829,7 +832,7 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
             *out = rest_http_response(200, std::string(R"({"press":")") + ui_tutorial_words_take_press() +
                                            R"(","side":")" + ui_tutorial_words_side() +
                                            R"(","moving":)" + (ui_tutorial_words_moving() ? "true" : "false") +
-                                           "}");
+                                           R"(,"pad":")" + ui_tour_pad_take() + R"("})");
             return true;
         }
 
@@ -1095,6 +1098,7 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
                 << "ui/closed: the page reported its own teardown");
             // ⓘ The tutorial's words have nothing left to stand beside.
             ui_tutorial_words_hide();
+            ui_tour_pad(false);
             // The other way out -- the X, or the browser going away. The
             // window may still be up for a moment; if it is, its place is
             // worth having.

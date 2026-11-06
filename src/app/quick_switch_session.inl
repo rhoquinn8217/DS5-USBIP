@@ -85,6 +85,7 @@ struct PadState {
     quick_switch::Swipes swipes;    // each finger's swipe while the window is open
     quick_switch::Swipes front;     // the same, with the wheel in front and both fingers down
     quick_switch::Stick stick;      // the right stick's pushes while the window is open
+    quick_switch::Mock mock;        // the tour's stand-in, while a step asks (g_mockOn)
 };
 
 inline std::mutex g_mutex;
@@ -94,6 +95,12 @@ inline unsigned g_nextId = 1;
 // How many times a page has asked which layout to show (GET ui/view): once as
 // each window opens.
 inline std::atomic<unsigned> g_pageAsked{0};
+// ⭐ THE TOUR'S STAND-IN (2026-11-06; quick_switch::mock_report): on only while
+// a tour step asks, by the tutorial-bubble's "pad" flag, and its words kept for
+// the page's tutorial-press poll. ⓘ It does nothing else: the real switch goes
+// on exactly as it would.
+inline std::atomic_bool g_mockOn{false};
+inline std::string g_mockEvents;   // under g_mutex: "open,lift,..." since the page last asked
 
 inline long long now_ms()
 {
@@ -215,6 +222,17 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
         const bool pressEdge = quick_switch::press_edge(ps.press, pressed);
         const bool arms = pressEdge && fingers == 2;
         const int swipe = quick_switch::front_steps(ps.front, wheelInFront, touch);
+        // ⓘ The tour's stand-in reads the same edge, beside the switch.
+        if (g_mockOn.load()) {
+            if (const char *word = quick_switch::mock_report(ps.mock, pressEdge, pressed, fingers, now_ms())) {
+                if (g_mockEvents.size() < 256) {
+                    if (!g_mockEvents.empty()) g_mockEvents += ",";
+                    g_mockEvents += word;
+                }
+            }
+        } else {
+            ps.mock = quick_switch::Mock();
+        }
         if (mine && s.pressed && !s.ending) {
             // ⓘ Each finger by itself, not the two together: a thumb swiping
             // beside a resting one moves their midpoint as well, and would
@@ -412,6 +430,23 @@ inline bool holds_stick(const void *deviceKey)
     std::lock_guard<std::mutex> lock(g_mutex);
     const Session &s = g_session;
     return s.active && s.device == deviceKey && s.pressed && !s.ending;
+}
+
+// The tour's stand-in, on and off, and its words since the page last asked.
+inline void mock_on(bool on)
+{
+    g_mockOn.store(on);
+    if (!on) {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        g_mockEvents.clear();
+    }
+}
+inline std::string take_mock_events()
+{
+    std::lock_guard<std::mutex> lock(g_mutex);
+    std::string out;
+    out.swap(g_mockEvents);
+    return out;
 }
 
 }  // namespace quick_switch_session
