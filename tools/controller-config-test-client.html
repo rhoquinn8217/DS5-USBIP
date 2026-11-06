@@ -2,7 +2,7 @@
 <!--
   DS5-USBIP's Controller Configs page, served by the listener.
 
-  VERSION 2.66.139 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.140 -- see the changelog at the bottom of this comment.
 
   WHAT IT STARTED AS. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -24,6 +24,17 @@
   not a tidy message about it.
 
   CHANGELOG
+    2.66.140 Skip, on a tour step whose action only a controller can do
+             (rhoquinn8217, 2026-11-06: "If a bridged DualSense/Edge or DS5
+             controller is not bridge during the 2 finger press quick switch
+             tutorial steps, add a skip button to the step. For any step
+             requiring an action that is exclusive to a controller or a
+             touchpad add a skip step."): Simple's two finger steps, the only
+             such steps in the three tours, every other having a key or a
+             click. With no DualSense, Edge or DS4 really bridged, or the
+             switch unticked, Continue is Skip there; with one, the double
+             press is what moves its step on. The real controllers are read
+             past the practice ones while those steps are up (`needs`).
     2.66.139 Simple's tour puts the window away and brings it back, all
              pretend (rhoquinn8217, 2026-11-06: "I don't want you to change
              any of the functionality. I only want to mock it during the
@@ -3364,7 +3375,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.66.139</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.66.140</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -13874,6 +13885,40 @@ function selfTest() {
     ok('the tutorial: Close plays a pretend desktop, its tray brings the window back, and the two finger ' +
        'press opens Quick, kept only on the step that asks',
        deskSeen.join(',') === 'true,true,true,true,true,true' && deskSteps, deskSeen.join(','));
+    // ⭐ Skip (2.66.140): on the two finger steps, Continue is Skip with no
+    // DualSense, Edge or DS4 really bridged or the switch unticked; with one
+    // and the switch on, the step to try keeps Continue and the double
+    // press's step has none. And no other step in the three tours needs
+    // anything. On made-up state, put back after.
+    var keepSkip = [TUT, TUT_REAL, QUICK_SWITCH];
+    TUT = { kind: 'simple', phase: 'step', at: 33, done: [], mem: [], busy: false, focus: null, made: '' };
+    var skipSeen = [];
+    var bar = function (n) { TUT.at = n - 1; return tutStepButtons(TUT_SIMPLE[n - 1]).split('|')[0]; };
+    TUT_REAL = [];
+    QUICK_SWITCH = true;
+    skipSeen.push(/^next:Skip:go/.test(bar(34)), /^next:Skip:go/.test(bar(35)),
+                  tutCanContinue(TUT_SIMPLE[34]) === true);
+    TUT_REAL = [{ ordinal: 'x1', kind: 'xbox' }];
+    skipSeen.push(/^next:Skip:go/.test(bar(35)));
+    TUT_REAL = [{ ordinal: 'd1', kind: 'ds4_usb' }];
+    skipSeen.push(/^next:Continue:go/.test(bar(34)), /^next:Continue:off/.test(bar(35)),
+                  tutCanContinue(TUT_SIMPLE[34]) === false);
+    TUT_REAL = [{ ordinal: 'e1', kind: 'ds5_edge' }];
+    skipSeen.push(/^next:Continue:off/.test(bar(35)));
+    QUICK_SWITCH = false;
+    skipSeen.push(/^next:Skip:go/.test(bar(35)));
+    var needOnly = [TUT_SIMPLE, TUT_QUICK, TUT_ADVANCED].every(function (list) {
+      return list.every(function (s, i) {
+        return !s.needs || (list === TUT_SIMPLE && (i === 33 || i === 34) && s.needs === 'touchpad');
+      });
+    });
+    TUT = keepSkip[0];
+    TUT_REAL = keepSkip[1];
+    QUICK_SWITCH = keepSkip[2];
+    ok('the tutorial: the two finger steps say Skip with no DualSense, Edge or DS4 bridged or the switch off, ' +
+       'and the double press moves its own step on otherwise',
+       skipSeen.join(',') === 'true,true,true,true,true,true,true,true,true' && needOnly,
+       skipSeen.join(',') + (needOnly ? '' : ', a step elsewhere needs something'));
     PRESET_INFO_OPEN = keepInfo[0];
     infoTables.innerHTML = keepInfo[1];
     ok('the tutorial: Simple lights each section of the pre-set page on a step of its own, ' +
@@ -14747,18 +14792,61 @@ function tutPadEvent(word) {
   else if (word === 'keep' && s.pad === 'keep') { TUT.padKept = true; tutFakeOpen(); }
 }
 // ⓘ The switch's own box in the Overview, when it is unticked.
-function tutPadOff() {
-  return QUICK_SWITCH ? '' : ' ' + tutHl('Two finger touchpad quick switch') + ' is off in the ' +
-         'Overview, so this works once it is ticked.';
+// ⭐⭐ SKIP, ON A STEP ONLY A CONTROLLER CAN DO (2.66.140; rhoquinn8217,
+// 2026-11-06: *"If a bridged DualSense/Edge or DS5 controller is not bridge
+// during the 2 finger press quick switch tutorial steps, add a skip button to
+// the step. For any step requiring an action that is exclusive to a
+// controller or a touchpad add a skip step."*). A step says what its action
+// needs (`needs`); without it, its Continue is Skip. ⓘ Only Simple's two
+// finger steps need anything: every other step in the three tours has a key
+// or a click for what it asks.
+// ⓘ The REAL controllers, read past the practice ones (callListener, which
+// the tour's stand-in does not answer): at the start, then each second while
+// such a step is up, so a controller bridged or released then counts.
+var TUT_REAL = null;          // the listener's own devices, while a tour runs
+var TUT_REAL_ASKED = 0;
+function tutRealRead() {
+  TUT_REAL_ASKED = Date.now();
+  callListener('GET', '/api/v1/devices', undefined, true).then(function (d) {
+    if (!TUT) return;
+    var could = tutCanDo(tutStep());
+    TUT_REAL = (d && d.devices) || [];
+    // ⓘ Drawn again only when Skip comes or goes.
+    if (tutCanDo(tutStep()) !== could) tutRender();
+  }).catch(function () {});
+}
+// A DualSense, an Edge or a DS4 bridged: the touchpads the switch reads.
+function tutTouchpadBridged() {
+  return (TUT_REAL || []).some(function (d) {
+    return ['ds5', 'ds5_edge', 'ds4'].indexOf(settingsKindOf(d.kind)) >= 0;
+  });
+}
+// Whether a step's own action can be done here: the two finger press needs
+// one of those, and the switch ticked.
+function tutCanDo(s) {
+  if (!s || !s.needs) return true;
+  if (s.needs === 'touchpad') return QUICK_SWITCH && tutTouchpadBridged();
+  return true;
+}
+// ⓘ What the words say in place of trying, when Skip is up.
+function tutPadSkip() {
+  if (!QUICK_SWITCH) {
+    return ' ' + tutHl('Two finger touchpad quick switch') + ' is off in the Overview, so choose ' +
+           tutHl('Skip') + '.';
+  }
+  return ' With no DualSense or DS4 bridged, choose ' + tutHl('Skip') + '.';
 }
 function tutWordsPadTry() {
+  var s = tutSteps()[TUT ? TUT.at : 0];
   return 'Now the two finger quick switch, on a DualSense or DS4: press the touchpad with two fingers ' +
          'and keep one finger on it. Quick Mode opens as the press comes up, and closes when you stop ' +
-         'touching the touchpad. Try it, then choose ' + tutHl('Continue') + '.' + tutPadOff();
+         'touching the touchpad.' +
+         (tutCanDo(s) ? ' Try it, then choose ' + tutHl('Continue') + '.' : tutPadSkip());
 }
 function tutWordsPadKeep() {
+  var s = tutSteps()[TUT ? TUT.at : 0];
   return 'Press the touchpad with two fingers again, and press it a second time before you stop ' +
-         'touching it: the window comes back, in the mode you used last.' + tutPadOff();
+         'touching it: the window comes back, in the mode you used last.' + (tutCanDo(s) ? '' : tutPadSkip());
 }
 function tutWordsCircle() { return 'Press ' + tutKey('close') + ' to see where it takes you.'; }
 function tutWordsClose() {
@@ -15268,13 +15356,14 @@ var TUT_SIMPLE = [
   // 34 (*"another step that lets the user try the 2 finger press hold to bring
   // up quick mode and let it close when they let go"*): the real press opens
   // and shuts the pretend Quick, its second press ignored here.
-  { side: 'left', free: true, pad: 'try', enter: tutPadEnter,
+  { side: 'left', free: true, pad: 'try', needs: 'touchpad', enter: tutPadEnter,
     lit: function () { var q = tutById('tutDeskQuick'); return [q && !q.hidden ? q : tutById('tutDesk')]; },
     words: tutWordsPadTry },
   // 35 (*"instruct the user to press it twice to bring back the config window
   // that was opened last"*): the second press keeps it, and the window is back
-  // in Simple. ⓘ Continue goes on without it, for a controller with no touchpad.
-  { side: 'left', free: true, pad: 'keep', enter: tutPadEnter,
+  // in Simple. ⭐ That press is what moves it on (`must`), and Skip does with
+  // no DualSense or DS4 bridged (2.66.140).
+  { side: 'left', free: true, pad: 'keep', needs: 'touchpad', must: true, enter: tutPadEnter,
     tick: function () { if (TUT.padKept) tutShow(TUT.at + 1); },
     lit: function () { var q = tutById('tutDeskQuick'); return [q && !q.hidden ? q : tutById('tutDesk')]; },
     words: tutWordsPadKeep },
@@ -15934,6 +16023,10 @@ function tutBegin(kind) {
   // closed on it, it does not start by itself again.
   if (TUT_SEEN) TUT_SEEN[kind] = true;
   call('POST', '/api/v1/ui/tutorial', { seen: kind }, true).catch(function () {});
+  // ⓘ The real controllers as the tour starts, before the practice ones
+  // take their place (tutCanDo).
+  TUT_REAL = (LAST_DEVICES || []).slice();
+  TUT_REAL_ASKED = 0;
   tutMockOn(kind);
   var root = document.createElement('div');
   root.id = 'tutRoot';
@@ -15990,7 +16083,11 @@ function tutStepButtons(s) {
   // tutorial", "Go back" stays the same, and "End Tutorial" should be
   // enabled."*): R2 finishes, with the card (tutNext), and End tutorial is
   // as on every step, ending the tour at once there (tutEndPressed).
+  // ⭐ Skip in Continue's place, R2 and all, where the step's action cannot
+  // be done here (2.66.140, tutCanDo).
+  var skip = !!s.needs && !tutCanDo(s);
   var btns = [s.act === 'end' ? 'next:Finish tutorial:go:' + tutBarMark('next')
+              : skip ? 'next:Skip:go:' + tutBarMark('next')
               : 'next:Continue:' + (tutCanContinue(s) ? 'go' : 'off') + ':' + tutBarMark('next')];
   if (TUT.at > 0) btns.push('prev:Go back:plain:' + tutBarMark('prev'));
   btns.push('end:End tutorial:plain' + (s.keys === tutCircleKeys ? '' : ':' + tutBarMark('close')));
@@ -16173,6 +16270,9 @@ function tutPollPress() {
     }
     // ⓘ The two finger press, while a step asks for it (2.66.139).
     if (TUT && d && d.pad) d.pad.split(',').forEach(tutPadEvent);
+    // ⓘ And the real controllers, each second while a step needs one.
+    var needing = tutStep();
+    if (needing && needing.needs && Date.now() - TUT_REAL_ASKED > 1000) tutRealRead();
     if (!TUT || !d || !d.press) return;
     var phase = TUT.phase, p = d.press;
     if (phase === 'intro' && p === 'begin') tutShow(0);
@@ -16211,8 +16311,13 @@ function tutRender() {
 
 // Whether a step's Continue can be pressed: always, but on a step that waits
 // for something, only once it stays done.
+// ⭐ And Skip, on a step whose action needs what is not here (2.66.140); a
+// step its own action moves on (`must`) has none while that can be done.
 function tutCanContinue(s) {
-  return !!s && (!s.act || (s.stay === true && !!TUT.done[TUT.at]));
+  if (!s) return false;
+  if (s.needs && !tutCanDo(s)) return true;
+  if (s.must) return false;
+  return !s.act || (s.stay === true && !!TUT.done[TUT.at]);
 }
 
 // ⭐ ANYTHING OPEN SHUTS when the tour changes step, goes back or ends
@@ -16329,6 +16434,7 @@ function tutFinish() {
   if (TUT_DESK) tutFakeOpen();
   var saved = TUT.saved, kind = TUT.kind;
   TUT = null;
+  TUT_REAL = null;
   TUT_FADE = null;
   if (TUT_PRESS_TIMER) { clearInterval(TUT_PRESS_TIMER); TUT_PRESS_TIMER = null; }
   if (TUT_TICK_TIMER) { clearInterval(TUT_TICK_TIMER); TUT_TICK_TIMER = null; }
