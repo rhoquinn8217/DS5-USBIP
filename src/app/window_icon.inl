@@ -17,8 +17,8 @@
 //
 // ➡️ So the listener gives the window its icons directly. WM_SETICON is an
 // ordinary message, a window takes it from any program running at its own
-// privilege level, and the picture is then the frame installer\make-icon-ds5.ps1
-// drew for exactly that many pixels.
+// privilege level, and the picture is then the frame installer\build-icon.ps1
+// draws for exactly that many pixels.
 // ⓘ The TITLE BAR is not touched by this. The browser paints its own title bar
 // from the favicon, at a size the favicon is good for.
 //

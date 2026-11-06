@@ -726,7 +726,7 @@ inline void thread_main()
     // the 32 px frame and lets the shell shrink it, which throws that drawn
     // 16 px frame away. Not LR_SHARED, so the handle is ours and is destroyed
     // with the rest below.
-    const wchar_t *iconSource = L"the listener's own icon (the black bridge)";
+    const wchar_t *iconSource = L"the listener's own icon";
     nid.hIcon = static_cast<HICON>(LoadImageW(
         GetModuleHandleW(nullptr), MAKEINTRESOURCEW(1), IMAGE_ICON,
         GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_DEFAULTCOLOR));

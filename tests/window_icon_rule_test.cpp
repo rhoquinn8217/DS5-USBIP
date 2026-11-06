@@ -18,7 +18,7 @@ int run_window_icon_rule_tests()
 
     section("window icon: the pixels Windows wants at each display scale");
     {
-        // ⭐ EVERY ANSWER HERE IS A FRAME installer\make-icon-ds5.ps1 DRAWS.
+        // ⭐ EVERY ANSWER HERE IS A FRAME installer\build-icon.ps1 DRAWS.
         // If one of these changes, that script's size list changes with it.
         CTM_CHECK_EQ(big_px(96), 32);    CTM_CHECK_EQ(small_px(96), 16);     // 100%
         CTM_CHECK_EQ(big_px(120), 40);   CTM_CHECK_EQ(small_px(120), 20);    // 125%

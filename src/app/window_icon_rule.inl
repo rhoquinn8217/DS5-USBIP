@@ -25,7 +25,7 @@ namespace window_icon_rule {
 // and the settings window may be sitting on another one at another scale.
 //
 // ⚠️ EVERY SIZE THIS CAN ANSWER FOR A STOCK SCALE IS A FRAME IN THE ICON,
-// drawn for that size by installer\make-icon-ds5.ps1. Take a frame out there
+// drawn for that size by installer\build-icon.ps1. Take a frame out there
 // and Windows quietly stretches a neighbour to fit, which is the blur again at
 // that one scale and nowhere else.
 inline const int kBigAt96 = 32;
