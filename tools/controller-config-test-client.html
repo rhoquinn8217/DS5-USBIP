@@ -33,6 +33,8 @@
              it and said, Advanced, Quick, then Simple again. A step says
              which modes are its (`views`), and the tour ends only when the
              window leaves those, where it ended on any change of mode.
+             Quick's tour says its legend in a step of its own too (*"1.
+             yes"*): fifteen steps.
     2.66.137 Simple with no controller bridged says how to bridge one, under
              "Bridge a controller to start." (rhoquinn8217: "Add underneath
              that, ..."): two fingers held on the touchpad of a DualSense or
@@ -13340,8 +13342,8 @@ function selfTest() {
        lateCfg.configs.length === 5 && lateCfg.configs[0].name === 'shared',
        JSON.stringify(mockDevs[0]));
     var tourWords = TUT_QUICK.map(function (s) { return s.words(); });
-    ok('the tutorial: Quick has fourteen steps, each with words, the last ending it',
-       TUT_QUICK.length === 14 && TUT_QUICK[13].act === 'end' &&
+    ok('the tutorial: Quick has fifteen steps, each with words, the last ending it',
+       TUT_QUICK.length === 15 && TUT_QUICK[14].act === 'end' &&
        tourWords.every(function (w) { return !!w && w.indexOf('undefined') < 0; }),
        tourWords.join(' / '));
     TUT_MOCK = keepMock;
@@ -13732,11 +13734,11 @@ function selfTest() {
       return /^Press [^:]*: /.test(w) ? w.replace(/^Press [^:]*: /, '').split('.')[0] : w;
     };
     var bothKind = function (st) { return String(st.act || '') + !!st.free + !!st.stay; };
-    // ⓘ Since 2.66.138 Simple says the legend in a step before the position's,
-    // and visits each mode through the selector Quick's opens and leaves:
-    // neither of those pairs with Quick's any more.
-    var bothSteps = [[1, 1], [3, 3], [4, 4], [14, 5], [15, 6], [17, 7], [18, 8], [22, 10],
-                     [30, 12], [31, 13], [33, 14]];
+    // ⓘ Since 2.66.138 both say the legend in a step before the position's,
+    // each its own legend's marks, and Simple visits each mode through the
+    // selector Quick's opens and leaves: those do not pair.
+    var bothSteps = [[1, 1], [3, 3], [4, 4], [14, 5], [15, 6], [17, 7], [18, 8], [21, 10],
+                     [22, 11], [30, 13], [31, 14], [33, 15]];
     var unlike = bothSteps.filter(function (n) {
       var a = TUT_SIMPLE[n[0] - 1], b = TUT_QUICK[n[1] - 1];
       return bothWords(a) !== bothWords(b) || bothKind(a) !== bothKind(b);
@@ -13763,7 +13765,7 @@ function selfTest() {
        /Tap \[\[\*.*hold it and steer with the left stick/.test(posPad) &&
        posKey.indexOf('On a controller, holding its position button') > 0 &&
        TUT_SIMPLE[21].free === true && !TUT_SIMPLE[21].act && !!TUT_SIMPLE[21].focus &&
-       TUT_QUICK[9].free === true && !TUT_QUICK[9].act && !!TUT_QUICK[9].focus &&
+       TUT_QUICK[10].free === true && !TUT_QUICK[10].act && !!TUT_QUICK[10].focus &&
        tutWordsResize().indexOf('two sizes') > 0,
        posPad + ' / ' + posKey);
   }
@@ -14555,7 +14557,15 @@ function tutWordsMode(mode) {
 // two steps. One that describes the whole legend. Another step that lets you
 // try re-position button"): what each button does in Simple, in the order
 // the legend reads, drawn as it draws them.
-function tutWordsLegend() {
+// ⓘ `quick`: Quick's legend, which has three: the rest have places of their
+// own beside what they act on (rhoquinn8217, 2026-11-06: Quick's tour split
+// as Simple's, *"1. yes"*).
+function tutWordsLegend(quick) {
+  if (quick) {
+    return 'The legend says what each button does in this window: ' + tutKey('position') +
+           ' positions the window, ' + tutKey('resize') + ' resizes it, and ' + tutKey('close') +
+           ' takes you to the footer, onto ' + tutHl('Close') + '.';
+  }
   return 'The legend says what each button does in this window: ' + tutKey('shoulders') +
          ' switch controllers, ' + tutKey('select') + ' selects, ' + tutKey('dpad') + ' moves, ' +
          tutKey('unlink') + ' unlinks, ' + tutKey('autolink') + ' auto links, ' + tutKey('position') +
@@ -14695,7 +14705,8 @@ function tutSizeStep(legend) {
            words: tutWordsResize };
 }
 
-// ⭐ QUICK'S FOURTEEN, as rhoquinn8217 went through the tour three times and
+// ⭐ QUICK'S FIFTEEN (fourteen until 2.66.138 said its legend in a step of its
+// own), as rhoquinn8217 went through the tour three times and
 // asked for it changed (2026-10-23), then lined up with Simple's (above), and
 // in Simple's order since 2026-10-28 (*"switch 3 and 4"*: R3's limit before
 // the wheel; the presses beside the wheel top to bottom, Unlink then auto
@@ -14778,15 +14789,18 @@ var TUT_QUICK = [
     done: tutAutoLinkDone },
   // 8: the mark auto link leaves.
   tutMarkStep(),
-  // 9 (*"Move bubble to bottom side of window, Enable the "Continue" button
+  // 9 (2.66.138, as Simple's: *"Split 18 into two steps. One that describes
+  // the whole legend"*): Quick's legend, all of it, to read.
+  { side: 'below', lit: function () { return tutQ('.clegend'); }, words: function () { return tutWordsLegend(true); } },
+  // 10 (*"Move bubble to bottom side of window, Enable the "Continue" button
   // and allow the user to press both buttons until they are done"*, the
   // position alone since 2026-10-28). Options reaches the listener from the
-  // pad's own report, and P passes.
+  // pad's own report, and P passes. ⓘ The legend said the step before.
   { side: 'below', free: true, lit: function () { return tutQ('.clegend .lgi:nth-child(1)'); },
-    words: tutWordsPosition },
-  // 10: the size, to try, the legend's and 🗗's.
+    words: function () { return tutWordsPosition(false, true); } },
+  // 11: the size, to try, the legend's and 🗗's.
   tutSizeStep('.clegend .lgi:nth-child(2)'),
-  // 11 (*"Direct the user to expand the mode selector but don't allow the user
+  // 12 (*"Direct the user to expand the mode selector but don't allow the user
   // to select a different mode."*): Continue lights once the list is open,
   // and nothing in it can be picked, by key or by mouse.
   { side: 'below', act: true, stay: true, noPick: true, focus: '#cselMode',
@@ -14794,21 +14808,21 @@ var TUT_QUICK = [
     pointer: function () { return GP_SELECTING !== tutById('cselMode'); },
     words: function () { return tutWordsMode('QUICK MODE'); },
     done: function () { return GP_SELECTING === tutById('cselMode'); } },
-  // 12: Circle, lit alone in the legend; it takes the pad into the footer,
+  // 13: Circle, lit alone in the legend; it takes the pad into the footer,
   // onto Close. The words beside the window, by the legend, as in Simple's.
   { side: 'left', arrowDir: 'down', act: true,
     lit: function () { return tutQ('.clegend .lgi:nth-child(3)'); },
     keys: tutCircleKeys, words: tutWordsCircle,
     done: function () { return !!FOOTER_MODE; },
     undo: function () { if (FOOTER_MODE) setFooterMode(false); } },
-  // 13 (*"add a step after this that describes the close button but don't let
+  // 14 (*"add a step after this that describes the close button but don't let
   // the use press it"*): where Circle took you, and what Close does.
   { lit: function () { return tutQ('.cbar > button.cclose'); }, words: tutWordsClose },
-  // 14
+  // 15
   { lit: function () { return []; }, act: 'end', words: tutWordsEnd }
 ];
 
-// ⭐⭐ SIMPLE'S TWENTY-FOUR (rhoquinn8217, 2026-10-26, the list they went
+// ⭐⭐ SIMPLE'S THIRTY-THREE (twenty-four until 2.66.138; rhoquinn8217, 2026-10-26, the list they went
 // through: *"Based on how we did the quick mode tutorial, build a list a of
 // steps for me to review for a simple view tutorial"*). Simple's own: the
 // controllers either side of its panel, the button column beside the wheel,
@@ -14996,7 +15010,7 @@ var TUT_SIMPLE = [
     done: function () { return !!TUT.made && TUT_MOCK.configs.indexOf(TUT.made) < 0; } },
   // 20 (*"Split 18 into two steps. One that describes the whole legend"*):
   // the legend, all of it, to read.
-  { side: 'left', lit: function () { return tutQ('.clegend'); }, words: tutWordsLegend },
+  { side: 'left', lit: function () { return tutQ('.clegend'); }, words: function () { return tutWordsLegend(false); } },
   // 21 (*"Another step that lets you try re-position button"*): the window's
   // position, a tap or a hold, as in Quick's. Options reaches the listener
   // from the pad's own report, and P passes.
