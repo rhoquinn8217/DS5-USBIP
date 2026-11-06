@@ -193,6 +193,7 @@ carry it; upstream's own history is unchanged.
 | 2026-11-05 | A DS4's speaker hears both channels over Bluetooth too: with nothing in its jack, the PC's stereo is mixed to mono for it, as on a cable, where it played only the right channel. A headset keeps stereo. Over Bluetooth the jack is read from the pad's report 0x11, and the mix follows the same jack bit the Bluetooth route already follows, so the sound is mixed exactly when it goes to the speaker. A DualSense never mixes. | `47456a7`, merge `40a98eb` |
 | 2026-11-05 | In Simple, left from the resize button lands on the wheel: the button is the first control in the bar along the bottom, so left from it went nowhere. The help under the Overview's two finger touchpad quick switch is shorter and names the controllers whose touchpads are known to work, the DualSense, the DualSense Edge and the DS4. Page 2.66.135. | `731db46`, `97aecea`, merge `965fa95` |
 | 2026-11-05 | The app's icon is redrawn: a DualSense on a television, with a dark edge round the television and a base close under it, the controller outlined in white with a line over its touchpad, a white band inside each handle and shoulder buttons on top, and a glare across the glass. One icon for every background (a second one for dark backgrounds, switched with Windows' light or dark mode, was tried and set aside before the release). `installer/build-icon.ps1` draws it, `-Check` compares it byte for byte, and `-Png` writes it as one picture for the TV app's icon. | `54a7fb5`, `e2e4874`, `fcc4ae0`, merge `b23d30f` |
+| 2026-11-05 | Simple with no controller bridged says how to bridge one, under "Bridge a controller to start.": two fingers held on the touchpad of a DualSense or DS4, or the USB Bridge in aurora-tv's overlay. Quick keeps the one line. Page 2.66.137. | `d0ac929`, merge `dd77c10` |
 
 ## Files changed
 
@@ -207,7 +208,7 @@ ENet library, removed with the ENet transport).
  .github/ISSUE_TEMPLATE/config.yml             |     5 +
  .github/ISSUE_TEMPLATE/feature-request.yml    |    22 +
  .gitignore                                    |    43 +-
- CHANGES.md                                    |   478 +
+ CHANGES.md                                    |   479 +
  LINK                                          |     0
  README.md                                     |   291 +-
  THIRD-PARTY-NOTICES.txt                       |   618 +
@@ -466,7 +467,7 @@ ENet library, removed with the ENet transport).
  tests/window_move_test.cpp                    |   136 +
  tests/window_open_rule_test.cpp               |    43 +
  tests/window_size_rule_test.cpp               |   129 +
- tools/controller-config-test-client.html      | 16586 ++++++++++++++++++++++++
+ tools/controller-config-test-client.html      | 16598 ++++++++++++++++++++++++
  tools/create-desktop-shortcut.bat             |    46 +
  tools/create-desktop-shortcut.ps1             |   148 +
  tools/osk-mockups.py                          |   103 +
@@ -474,5 +475,5 @@ ENet library, removed with the ENet transport).
  tools/sbc-golden-gen/ffmpeg_side.cpp          |   117 +
  tools/sbc-golden-gen/ffmpeg_side.h            |    15 +
  tools/sbc-golden-gen/main.cpp                 |   131 +
- 272 files changed, 78878 insertions(+), 6132 deletions(-)
+ 272 files changed, 78891 insertions(+), 6132 deletions(-)
 ```
