@@ -691,7 +691,8 @@ static std::string rest_route(const RestRequest &req, uint16_t agentPort)
     // page could not load at all -- and the page is where the token is typed
     // in. Neither holds anything private; every /api/ route still asks for it.
     const bool pageOrIcon = req.method == "GET" &&
-        (req.path == "/" || req.path == "/index.html" || req.path == "/favicon.ico");
+        (req.path == "/" || req.path == "/index.html" || req.path == "/favicon.ico" ||
+         req.path == "/favicon-dark.ico");
     if (!g_rest_token.empty() && !pageOrIcon) {
         const auto authIt = req.headers.find("authorization");
         if (authIt == req.headers.end() || !rest_bearer_matches(authIt->second, g_rest_token)) {

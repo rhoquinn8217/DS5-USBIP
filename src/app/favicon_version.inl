@@ -55,4 +55,26 @@ inline std::string with_fingerprint(std::string html, const std::string &print)
     return html;
 }
 
+// ⭐ AND THE ONE FOR DARK BACKGROUNDS (rhoquinn8217, 2026-11-05: two icons).
+// The page carries its address in a meta tag and puts it on its icon link
+// while the window is dark (page 2.66.136), so it is fingerprinted the same
+// way. ⛔ The page must keep exactly this too, and neither mark may come
+// earlier in the page than the tag it is meant for: the first one is swapped.
+inline const char *const kDarkMark = "/favicon-dark.ico?v=1";
+
+inline std::string with_dark_fingerprint(std::string html, const std::string &print)
+{
+    if (print.empty()) return html;
+    const size_t at = html.find(kDarkMark);
+    if (at == std::string::npos) return html;
+    html.replace(at, std::char_traits<char>::length(kDarkMark), std::string("/favicon-dark.ico?v=") + print);
+    return html;
+}
+
+// Both, as the page is served.
+inline std::string with_fingerprints(std::string html, const std::string &light, const std::string &dark)
+{
+    return with_dark_fingerprint(with_fingerprint(std::move(html), light), dark);
+}
+
 }  // namespace favicon_version

@@ -17,8 +17,8 @@
 //
 // ➡️ So the listener gives the window its icons directly. WM_SETICON is an
 // ordinary message, a window takes it from any program running at its own
-// privilege level, and the picture is then the frame installer\make-icon-ds5.ps1
-// drew for exactly that many pixels.
+// privilege level, and the picture is then the frame installer\build-icon.ps1
+// draws for exactly that many pixels.
 // ⓘ The TITLE BAR is not touched by this. The browser paints its own title bar
 // from the favicon, at a size the favicon is good for.
 //
@@ -65,6 +65,7 @@ inline HWND g_last = nullptr;       // where the window was found last pass
 inline HWND g_wearing = nullptr;    // the window that has been given them
 inline int g_putBack = 0;           // times the browser replaced them, on that window
 inline bool g_saidNoIcon = false;
+inline int g_iconId = 0;            // which of the two icons they are (icon_theme_rule.inl)
 
 inline bool has_app_title(HWND hwnd)
 {
@@ -105,10 +106,10 @@ inline bool ask(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, DWORD_PTR *answer = n
 
 // ⓘ LoadImage at the exact size, as the tray does and for the same reason: it
 // answers with the frame drawn for that size when the icon carries one.
-// Resource 1 is the exe's own icon (app\ctm-usbip.rc).
-inline HICON load(int px)
+// Resource 1 or 2: the icon for a light or a dark taskbar (app\ctm-usbip.rc).
+inline HICON load(int id, int px)
 {
-    return static_cast<HICON>(LoadImageW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(1),
+    return static_cast<HICON>(LoadImageW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(id),
                                          IMAGE_ICON, px, px, LR_DEFAULTCOLOR));
 }
 
@@ -128,12 +129,17 @@ inline void keep()
     const int bigPx = window_icon_rule::big_px(dpi);
     const int smallPx = window_icon_rule::small_px(dpi);
 
+    // ⭐ AND THE TASKBAR'S MODE (rhoquinn8217, 2026-11-05): a light taskbar
+    // gets the icon drawn for light backgrounds, a dark one the other, and a
+    // change of mode is a change of icon at the next pass (icon_theme.inl).
+    const int iconId = icon_theme::taskbar_icon();
+    const bool themed = (iconId != g_iconId);
     HICON staleBig = nullptr, staleSmall = nullptr;
     const bool resized = (bigPx != g_bigPx || smallPx != g_smallPx);
-    if (resized || g_big == nullptr || g_small == nullptr) {
+    if (resized || themed || g_big == nullptr || g_small == nullptr) {
         // ⚠️ Not `small`: the Windows headers define that word as a type.
-        const HICON newBig = load(bigPx);
-        const HICON newSmall = load(smallPx);
+        const HICON newBig = load(iconId, bigPx);
+        const HICON newSmall = load(iconId, smallPx);
         if (newBig == nullptr || newSmall == nullptr) {
             // ⓘ A build with no icon resource. The browser's own stays, which
             // is what the window had before any of this existed.
@@ -154,6 +160,7 @@ inline void keep()
         g_small = newSmall;
         g_bigPx = bigPx;
         g_smallPx = smallPx;
+        g_iconId = iconId;
     }
 
     DWORD_PTR hasBig = 0, hasSmall = 0;
@@ -167,14 +174,14 @@ inline void keep()
         // risks a redraw that still shows the old big one.
         const bool set = ask(hwnd, WM_SETICON, ICON_BIG, reinterpret_cast<LPARAM>(g_big)) &&
                          ask(hwnd, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(g_small));
-        if (set && (hwnd != g_wearing || resized)) {
+        if (set && (hwnd != g_wearing || resized || themed)) {
             g_wearing = hwnd;
             g_putBack = 0;
             device_log::session_w() << L"settings window: icon set, " << bigPx << L" and "
                                     << smallPx << L" px for a display at "
                                     << ((dpi != 0 ? dpi : window_icon_rule::kDpiAt100) * 100 /
                                         window_icon_rule::kDpiAt100)
-                                    << L"%";
+                                    << L"%, " << icon_theme::icon_words(iconId);
         } else if (set) {
             // ⓘ The first few and then every hundredth: enough to see that the
             // browser does this and how often, without a line four times a
@@ -236,6 +243,7 @@ inline void stop()
     g_small = nullptr;
     g_bigPx = 0;
     g_smallPx = 0;
+    g_iconId = 0;
     g_wearing = nullptr;
 }
 

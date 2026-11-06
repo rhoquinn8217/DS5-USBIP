@@ -52,11 +52,14 @@ inline std::string current(bool *fromDisk)
 }
 
 inline const int kFaviconResourceId = 101;   // ⚠️ the same number as in the .rc
+inline const int kFaviconDarkResourceId = 102;   // the one for dark backgrounds, likewise
 
-// The icon's bytes, as the exe carries them (RCDATA 101, app/ctm-usbip.rc).
-inline bool favicon_bytes(const void **bytes, DWORD *size)
+// An icon's bytes, as the exe carries them (RCDATA 101 for light backgrounds,
+// 102 for dark ones, app/ctm-usbip.rc).
+inline bool favicon_bytes(bool dark, const void **bytes, DWORD *size)
 {
-    HRSRC found = FindResourceW(nullptr, MAKEINTRESOURCEW(kFaviconResourceId), RT_RCDATA);
+    HRSRC found = FindResourceW(nullptr, MAKEINTRESOURCEW(dark ? kFaviconDarkResourceId : kFaviconResourceId),
+                                RT_RCDATA);
     if (found == nullptr) return false;
     HGLOBAL loaded = LoadResource(nullptr, found);
     *bytes = (loaded != nullptr) ? LockResource(loaded) : nullptr;
@@ -66,14 +69,17 @@ inline bool favicon_bytes(const void **bytes, DWORD *size)
 
 // The icon's fingerprint, worked out once: favicon_version.inl says why the
 // page's icon address carries it.
-inline const std::string &favicon_print()
+inline std::string favicon_print_of(bool dark)
 {
-    static const std::string print = []() {
-        const void *bytes = nullptr;
-        DWORD size = 0;
-        return favicon_bytes(&bytes, &size) ? favicon_version::fingerprint(bytes, size) : std::string();
-    }();
-    return print;
+    const void *bytes = nullptr;
+    DWORD size = 0;
+    return favicon_bytes(dark, &bytes, &size) ? favicon_version::fingerprint(bytes, size) : std::string();
+}
+inline const std::string &favicon_print(bool dark)
+{
+    static const std::string light = favicon_print_of(false);
+    static const std::string darkPrint = favicon_print_of(true);
+    return dark ? darkPrint : light;
 }
 
 // The HTTP response. Not JSON, so it does not go through rest_http_response.
@@ -86,7 +92,8 @@ inline const std::string &favicon_print()
 inline std::string http_response()
 {
     bool fromDisk = false;
-    const std::string body = favicon_version::with_fingerprint(current(&fromDisk), favicon_print());
+    const std::string body = favicon_version::with_fingerprints(current(&fromDisk), favicon_print(false),
+                                                                favicon_print(true));
     std::ostringstream out;
     out << "HTTP/1.1 200 OK\r\n"
         << "Content-Type: text/html; charset=utf-8\r\n"
@@ -120,11 +127,11 @@ inline std::string http_response()
 // the browser keeps a favicon by its address and does not ask again, so the
 // window kept the black bridge after the icon changed. What brings a new icon
 // through is the fingerprint in the address (favicon_version.inl).
-inline bool favicon_response(std::string *out)
+inline bool favicon_response(std::string *out, bool dark)
 {
     const void *bytes = nullptr;
     DWORD size = 0;
-    if (!favicon_bytes(&bytes, &size)) return false;
+    if (!favicon_bytes(dark, &bytes, &size)) return false;
 
     std::ostringstream head;
     head << "HTTP/1.1 200 OK\r\n"

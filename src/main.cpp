@@ -422,6 +422,8 @@ static bool ctm_window_steering(const void *deviceKey) { return window_move::ste
 #include "app/stream_start.inl"    // start, stop and stream-commands, which Vibepollo and the installer run
 #include "app/old_devices_rule.inl" // which of Windows' old device records are ours; pure
 #include "app/old_devices.inl"     // ...listed and removed: old-devices, remove-old-devices
+#include "app/icon_theme_rule.inl" // which of the two icons Windows' light or dark mode gets; pure
+#include "app/icon_theme.inl"      // ...and the mode, read from Windows
 #include "app/tray_icon.inl"       // the notification-area icon
 #include "app/window_icon_rule.inl" // the settings window's icon: which sizes, which window
 // ⛔ AFTER open_ui.inl, whose title marker says which window is ours.
