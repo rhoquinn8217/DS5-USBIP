@@ -2,7 +2,7 @@
 <!--
   DS5-USBIP's Controller Configs page, served by the listener.
 
-  VERSION 2.66.137 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.138 -- see the changelog at the bottom of this comment.
 
   WHAT IT STARTED AS. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -24,6 +24,15 @@
   not a tidy message about it.
 
   CHANGELOG
+    2.66.138 Simple's tour, thirty-three steps where it had twenty-four
+             (rhoquinn8217, 2026-11-06): Edit is pressed and the tour goes
+             on in Advanced, where the mode selector brings it back to
+             Simple; after (no config), the wheel goes back to the config
+             made; the legend is a step of its own before the position's;
+             and the mode selector is said, then each mode visited through
+             it and said, Advanced, Quick, then Simple again. A step says
+             which modes are its (`views`), and the tour ends only when the
+             window leaves those, where it ended on any change of mode.
     2.66.137 Simple with no controller bridged says how to bridge one, under
              "Bridge a controller to start." (rhoquinn8217: "Add underneath
              that, ..."): two fingers held on the touchpad of a DualSense or
@@ -3319,7 +3328,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.66.137</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.66.138</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -13360,8 +13369,8 @@ function selfTest() {
     var simpleWords = TUT_SIMPLE.map(function (st) { return st.words(); });
     TUT = keepTutS;
     TUT_MOCK = keepMockS;
-    ok('the tutorial: Simple has twenty-four steps, each with words, the last ending it',
-       TUT_SIMPLE.length === 24 && TUT_SIMPLE[23].act === 'end' &&
+    ok('the tutorial: Simple has thirty-three steps, each with words, the last ending it',
+       TUT_SIMPLE.length === 33 && TUT_SIMPLE[32].act === 'end' &&
        simpleWords.every(function (w) { return !!w && w.indexOf('undefined') < 0; }),
        simpleWords.join(' / '));
     ok('the tutorial: Simple makes a practice config from a pre-set, auto links it and archives it',
@@ -13476,8 +13485,10 @@ function selfTest() {
       return /^Press [^:]*: /.test(w) ? w.replace(/^Press [^:]*: /, '').split('.')[0] : w;
     };
     var advKind = function (st) { return String(st.act || '') + !!st.free + !!st.stay; };
-    var advPairs = [[5, 1], [11, 11], [14, 13], [15, 14], [16, 15], [17, 16], [31, 19], [32, 20],
-                    [33, 21], [34, 22], [35, 24]];
+    // ⓘ Advanced's 32, the selector opened and not used, has no twin in Simple
+    // since 2.66.138, which visits each mode through it.
+    var advPairs = [[5, 1], [11, 11], [14, 14], [15, 15], [16, 17], [17, 18], [31, 22],
+                    [33, 30], [34, 31], [35, 33]];
     var advUnlike = advPairs.filter(function (n) {
       var a = TUT_ADVANCED[n[0] - 1], b = TUT_SIMPLE[n[1] - 1];
       return advSame(a) !== advSame(b) || advKind(a) !== advKind(b);
@@ -13721,8 +13732,11 @@ function selfTest() {
       return /^Press [^:]*: /.test(w) ? w.replace(/^Press [^:]*: /, '').split('.')[0] : w;
     };
     var bothKind = function (st) { return String(st.act || '') + !!st.free + !!st.stay; };
-    var bothSteps = [[1, 1], [3, 3], [4, 4], [13, 5], [14, 6], [15, 7], [16, 8], [18, 9], [19, 10],
-                     [20, 11], [21, 12], [22, 13], [24, 14]];
+    // ⓘ Since 2.66.138 Simple says the legend in a step before the position's,
+    // and visits each mode through the selector Quick's opens and leaves:
+    // neither of those pairs with Quick's any more.
+    var bothSteps = [[1, 1], [3, 3], [4, 4], [14, 5], [15, 6], [17, 7], [18, 8], [22, 10],
+                     [30, 12], [31, 13], [33, 14]];
     var unlike = bothSteps.filter(function (n) {
       var a = TUT_SIMPLE[n[0] - 1], b = TUT_QUICK[n[1] - 1];
       return bothWords(a) !== bothWords(b) || bothKind(a) !== bothKind(b);
@@ -13748,7 +13762,7 @@ function selfTest() {
     ok('the tutorial: the position step tells a tap from a hold, and the size is a step to try',
        /Tap \[\[\*.*hold it and steer with the left stick/.test(posPad) &&
        posKey.indexOf('On a controller, holding its position button') > 0 &&
-       TUT_SIMPLE[18].free === true && !TUT_SIMPLE[18].act && !!TUT_SIMPLE[18].focus &&
+       TUT_SIMPLE[21].free === true && !TUT_SIMPLE[21].act && !!TUT_SIMPLE[21].focus &&
        TUT_QUICK[9].free === true && !TUT_QUICK[9].act && !!TUT_QUICK[9].focus &&
        tutWordsResize().indexOf('two sizes') > 0,
        posPad + ' / ' + posKey);
@@ -13775,6 +13789,18 @@ function selfTest() {
         .map(function (h) { return h.textContent; }).join('+') + ' ' + parts.length;
     });
     var infoFirst = TUT_SIMPLE[5].lit()[0];
+    // ⭐ And Simple's steps that change the mode (2.66.138): each says the two
+    // modes it spans, ends when the window is in the second, and puts the
+    // first back on Go back; the steps between are in the mode visited.
+    var modeShape = [[12, 'simple,advanced'], [13, 'advanced,simple'], [24, 'simple,advanced'],
+                     [25, 'advanced'], [26, 'advanced,quick'], [27, 'quick'], [28, 'quick,simple']]
+      .filter(function (p) {
+        var st = TUT_SIMPLE[p[0] - 1];
+        return !st.views || st.views.join(',') !== p[1] ||
+               (p[1].indexOf(',') > 0 && (st.act !== true || !st.done || !st.undo));
+      }).map(function (p) { return p[0]; });
+    ok('the tutorial: Simple\'s steps that change the mode say which modes they span, and Go back undoes them',
+       modeShape.length === 0, modeShape.join(', ') || 'all as set');
     PRESET_INFO_OPEN = keepInfo[0];
     infoTables.innerHTML = keepInfo[1];
     ok('the tutorial: Simple lights each section of the pre-set page on a step of its own, ' +
@@ -14492,9 +14518,11 @@ function tutWordsNoConfig() {
 // only taps (position_tap), so with a keyboard the hold is a controller's.
 // `one`: Advanced's one place, the middle of the screen, where a tap puts
 // it; its legend for a keyboard is a line of words without P.
-function tutWordsPosition(one) {
+// `noLead`: without the sentence on the legend, which Simple's tour says in a
+// step of its own (2.66.138).
+function tutWordsPosition(one, noLead) {
   var kb = padLegend() === KEY_LEGEND;
-  var lead = one && kb ? '' : 'The legend says what each button does here. ';
+  var lead = (one && kb) || noLead ? '' : 'The legend says what each button does here. ';
   var tail = ' Try it, then choose ' + tutHl('Continue') + '.';
   if (kb) {
     return lead + tutKey('position') + (one ? ' puts this window back in the middle of the screen'
@@ -14522,6 +14550,36 @@ function tutWordsMode(mode) {
          'config selector and config manager. Advanced Mode customizes your rebinds for your configs. ' +
          'Quick Mode is for quick switching between configs, which is handy mid-game. For this tour, ' +
          'the mode stays as it is.';
+}
+// ⭐ THE LEGEND, ALL OF IT (2.66.138; rhoquinn8217, 2026-11-06: "Split 18 into
+// two steps. One that describes the whole legend. Another step that lets you
+// try re-position button"): what each button does in Simple, in the order
+// the legend reads, drawn as it draws them.
+function tutWordsLegend() {
+  return 'The legend says what each button does in this window: ' + tutKey('shoulders') +
+         ' switch controllers, ' + tutKey('select') + ' selects, ' + tutKey('dpad') + ' moves, ' +
+         tutKey('unlink') + ' unlinks, ' + tutKey('autolink') + ' auto links, ' + tutKey('position') +
+         ' positions the window, ' + tutKey('resize') + ' resizes it, ' + tutKey('close') +
+         ' goes to ' + tutHl('Close') + ', and ' + tutKey('tip') + ' shows the next tip.';
+}
+// ⭐ A STEP THAT CHANGES THE WINDOW'S MODE (2.66.138; rhoquinn8217,
+// 2026-11-06): the mode selector opened and a mode picked in it, by the
+// d-pad and Cross or by the mouse, and the tour going on in the mode
+// picked. `from` is the mode the step starts in and `to` the one it ends
+// in: both are the step's while it lasts (`views`, tutTick), and Go back
+// puts `from` back (undo). Advanced's selector is its footer's, Simple's
+// and Quick's their bar's.
+function tutModePick(from) { return tutById(from === 'advanced' ? 'modePick' : 'cselMode'); }
+function tutSetView(kind) { if (tutViewKind() !== kind) setMode(kind); }
+function tutModeStep(from, to, side, words) {
+  var pick = function () { return tutModePick(from); };
+  return { side: side, act: true, views: [from, to], focus: pick,
+           lit: function () { return [pick()]; },
+           pointer: function () { return GP_SELECTING !== pick(); },
+           keys: function () { return !!GP_SELECTING; },
+           words: words,
+           done: function () { return tutViewKind() === to; },
+           undo: function () { tutSetView(from); } };
 }
 function tutWordsCircle() { return 'Press ' + tutKey('close') + ' to see where it takes you.'; }
 function tutWordsClose() {
@@ -14859,15 +14917,26 @@ var TUT_SIMPLE = [
              ' uses it now.';
     } },
   // 12 (*"separate steps for describing Edit button and describing and
-  // instructing to press the Archive button"*): Edit, shown and locked.
-  { side: 'right', lit: function () { return tutQ('.csbtns > button:nth-child(2)'); },
+  // instructing to press the Archive button"*), pressed since 2.66.138
+  // (rhoquinn8217, 2026-11-06: *"Update step 12 to click the "Edit" button so
+  // we transition to Advance Mode"*): the tour goes on in Advanced.
+  { side: 'right', act: true, views: ['simple', 'advanced'], focus: '.csbtns > button:nth-child(2)',
+    lit: function () { return tutQ('.csbtns > button:nth-child(2)'); },
     words: function () {
       // ⓘ Their words (rhoquinn8217, 2026-10-28: *"Edit brings you to Advance
       // Mode where you can customize your this config."*), the mode as the
       // picker names it.
-      return tutHl('Edit') + ' brings you to Advanced Mode, where you can customize this config.';
-    } },
-  // 13 (*"direct to press the button on the page but note the same can be
+      return 'Press ' + tutHl('Edit') + ': it brings you to Advanced Mode, where you can customize this config.';
+    },
+    done: function () { return !COMPACT; },
+    undo: function () { tutSetView('simple'); } },
+  // 13 (*"Add a step after 12 click the Mode selector and select Simple Mode
+  // again"*): back to Simple through Advanced's mode selector.
+  tutModeStep('advanced', 'simple', 'right', function () {
+    return 'This is Advanced Mode. Open the mode selector and choose ' + tutHl('SIMPLE MODE') +
+           ' to come back.';
+  }),
+  // 14 (*"direct to press the button on the page but note the same can be
   // done with a controller button"*): Square does it on the wheel, and its
   // mark in the legend is lit too, with no arrow (2026-10-28: *"feather
   // highlight on the corresponding square buttons in the legend but don't
@@ -14882,10 +14951,20 @@ var TUT_SIMPLE = [
     enter: tutEnsureLinked,
     words: function () { return tutWordsUnlink(tutHl('Unlink'), tutAlso('unlink')); },
     done: tutUnlinkDone },
-  // 14
+  // 15
   { side: 'left', lit: function () { return tutQ('.cwheel'); }, enter: tutEnsureUnlinked,
     words: tutWordsNoConfig },
-  // 15 (*"direct to press the button on the page but note the same can be
+  // 16 (*"After step 14 add a step to move the wheel back to
+  // stick-to-mouse"*): the config made, picked on the wheel again, by its
+  // up and down (the halo taken there for each, keyAim) or by the mouse.
+  { side: 'left', act: true, keyAim: '#cpick', lit: function () { return tutQ('.cwheel'); },
+    keys: tutUpDownKeys,
+    words: function () {
+      return 'Move the wheel back to ' + tutHl(TUT.made || 'the new config') + ' with ' + tutKey('updown') +
+             ', or click it. ' + tutNick() + ' uses it again once the wheel stops.';
+    },
+    done: function () { var w = tutById('cpick'); return !!w && !!TUT.made && w.value === TUT.made; } },
+  // 17 (*"direct to press the button on the page but note the same can be
   // done with a controller button"*): Triangle does it on the wheel, and its
   // mark in the legend is lit too, with no arrow (2026-10-28: *"feather
   // highlight on the corresponding triangle buttons in the legend but don't
@@ -14901,9 +14980,9 @@ var TUT_SIMPLE = [
     enter: tutEnsureLinked,
     words: function () { return tutWordsAutoLink(tutHl('Auto link'), tutAlso('autolink')); },
     done: tutAutoLinkDone },
-  // 16: the mark auto link leaves.
+  // 18: the mark auto link leaves.
   tutMarkStep(),
-  // 17 (*"do a step for archive"*)
+  // 19 (*"do a step for archive"*)
   { side: 'right', act: true, focus: '.csbtns .carchive-btn', split: true,
     lit: function () { return tutQ('.csbtns .carchive-btn').concat(tutConfirmCard()); },
     anchors: function () { return tutQ('.csbtns .carchive-btn'); },
@@ -14915,19 +14994,51 @@ var TUT_SIMPLE = [
              ' has no config again.';
     },
     done: function () { return !!TUT.made && TUT_MOCK.configs.indexOf(TUT.made) < 0; } },
-  // 18: the window's position, a tap or a hold, as in Quick's. Options
-  // reaches the listener from the pad's own report, and P passes.
+  // 20 (*"Split 18 into two steps. One that describes the whole legend"*):
+  // the legend, all of it, to read.
+  { side: 'left', lit: function () { return tutQ('.clegend'); }, words: tutWordsLegend },
+  // 21 (*"Another step that lets you try re-position button"*): the window's
+  // position, a tap or a hold, as in Quick's. Options reaches the listener
+  // from the pad's own report, and P passes.
   { side: 'left', free: true, lit: function () { return tutQ('.clegend .lgi:nth-child(6)'); },
-    words: tutWordsPosition },
-  // 19: its size, to try, the legend's and 🗗's, as in Quick's.
+    words: function () { return tutWordsPosition(false, true); } },
+  // 22: its size, to try, the legend's and 🗗's, as in Quick's.
   tutSizeStep('.clegend .lgi:nth-child(7)'),
-  // 20: the mode picker, opened and not used, as in Quick's.
-  { side: 'right', act: true, stay: true, noPick: true, focus: '#cselMode',
-    lit: function () { return tutQ('#cselMode'); },
-    pointer: function () { return GP_SELECTING !== tutById('cselMode'); },
-    words: function () { return tutWordsMode('SIMPLE MODE'); },
-    done: function () { return GP_SELECTING === tutById('cselMode'); } },
-  // 21: Circle, lit alone in the legend, as in Quick's. ⛔ Close takes the
+  // 23 to 29 (rhoquinn8217, 2026-11-06: *"Split 20 into 7 steps"*): the mode
+  // selector said, then each mode visited through it and said in their
+  // words, Advanced, Quick, and Simple again. Quick's and Advanced's tours
+  // keep the selector opened and not used.
+  { side: 'right', lit: function () { return tutQ('#cselMode'); },
+    words: function () {
+      return 'The mode selector picks how this window works: Simple, Quick or Advanced. The next ' +
+             'steps visit each one.';
+    } },
+  tutModeStep('simple', 'advanced', 'right', function () {
+    return 'Open the mode selector and choose ' + tutHl('ADVANCED MODE') + '.';
+  }),
+  { side: 'above', views: ['advanced'], lit: function () { return tutA('#tabs'); },
+    words: function () {
+      return 'Advanced Mode is the device overview and manager, and the config customizer: ' +
+             tutHl('Overview') + ' lists every bridged controller, each controller has a tab of its own, ' +
+             'and the ' + tutHl('Editor') + ' customizes every rebind and setting of your configs.';
+    } },
+  tutModeStep('advanced', 'quick', 'right', function () {
+    return 'Open the mode selector and choose ' + tutHl('QUICK MODE') + '.';
+  }),
+  { side: 'below', views: ['quick'], lit: function () { return tutQ('.cwheel'); },
+    words: function () {
+      return 'Quick Mode is for quick config switching, between mouse modes or your own game configs. ' +
+             "It's useful when you start a game, or need to switch mid-game.";
+    } },
+  tutModeStep('quick', 'simple', 'below', function () {
+    return 'Open the mode selector and choose ' + tutHl('SIMPLE MODE') + '.';
+  }),
+  { side: 'left', lit: function () { return tutQ('.cwheel', '.csbtns'); },
+    words: function () {
+      return 'Simple Mode is where to get started: where you create your own configs or ones from ' +
+             'presets, and manage them.';
+    } },
+  // 30: Circle, lit alone in the legend, as in Quick's. ⛔ Close takes the
   // halo first (keyAim): Simple's Circle closes the window when it finds no
   // Close to go to. The words at the window's lower left, by the legend, and
   // the arrow still above the mark (rhoquinn8217, 2026-10-28: *"step 21 should
@@ -14941,9 +15052,9 @@ var TUT_SIMPLE = [
     pressed: function () { TUT.circled = true; },
     words: tutWordsCircle,
     done: function () { return !!TUT.circled; } },
-  // 22: where Circle took you, and what Close does, Close itself locked.
+  // 31: where Circle took you, and what Close does, Close itself locked.
   { side: 'right', lit: function () { return tutQ('.cbar > button.cclose'); }, words: tutWordsClose },
-  // 23 (*"Need a step to show the hint and how to click it to see the next
+  // 32 (*"Need a step to show the hint and how to click it to see the next
   // one"*, and the last before the end since 2026-10-28): a click is the
   // way, or L3, and Continue stays. ⭐ The words and the
   // arrow go by the tip's ROW, which keeps its size, not by the tip, which
@@ -14958,7 +15069,7 @@ var TUT_SIMPLE = [
       return 'This line is a tip, and a new one comes every 30 seconds. Click it or press ' +
              tutKey('tip') + ' to see the next one, then choose ' + tutHl('Continue') + '.';
     } },
-  // 24
+  // 33
   { lit: function () { return []; }, act: 'end', words: tutWordsEnd }
 ];
 
@@ -16243,9 +16354,18 @@ function tutTick() {
   // practice controllers, or the listener stopped answering. The real
   // controllers come back either way. ⓘ Advanced's Overview and Editor are
   // the tour's too.
+  // ⭐ A STEP MAY TAKE THE WINDOW TO ANOTHER MODE (2.66.138): Simple's tour
+  // goes to Advanced by Edit and visits Advanced and Quick through the mode
+  // selector, so a step says which modes are its (`views`); one that says
+  // none is in the tour's own. ⓘ Advanced's Overview and Editor are the
+  // tour's in Advanced, whichever tour it is.
+  var view = tutViewKind();
+  var here = TUT.phase === 'step' ? tutSteps()[TUT.at] : null;
+  var views = (here && here.views) || [TUT.kind];
   var onTab = !!tutMockPad(ACTIVE) ||
-              (TUT.kind === 'advanced' && (ACTIVE === 'overview' || ACTIVE === 'editor'));
-  if (STOPPED || IS_DOWN || tutViewKind() !== TUT.kind || !onTab) {
+              ((TUT.kind === 'advanced' || view === 'advanced') &&
+               (ACTIVE === 'overview' || ACTIVE === 'editor'));
+  if (STOPPED || IS_DOWN || views.indexOf(view) < 0 || !onTab) {
     tutFinish();
     return;
   }
