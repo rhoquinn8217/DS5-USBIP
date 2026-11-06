@@ -191,6 +191,8 @@ carry it; upstream's own history is unchanged.
 | 2026-11-04 | Windows' default speaker stays where it was when a controller with a speaker is bridged. Windows can make a bridged pad's sound device the default speaker the moment the pad arrives, in all three of its roles, as a cabled DS4's headset jack did: what played on the default then came out of the pad, and the streaming host, which streams whatever the default plays, sent it to the TV as well. The listener now gives the default back to the speaker that had it, role by role, when it goes to a controller within ten seconds of that controller arriving. A controller a person chooses as the default keeps it, through its next bridge too, until they choose a speaker that is not a controller. | `c5249f4`, `c24633a`, merge `e7926a8` |
 | 2026-11-04 | A DS4 gets the settings a DualSense's sound and rumble have, where they act on it: the Audio section's `speaker_volume`, `headset_volume` and `audio_gain`, which the TV sets on a cabled DS4's own sound card by its headphone jack, and the rumble dials, which scale a DS4's motors. On a DS4 the rows that do nothing are hidden, not greyed. A DS4Dongle (a Pico 2 W a DS4 pairs to, which a TV sees as a cabled DS4) plays its speaker without headphones: one found with it off at a bridge is set through the TV, saved and restarted once, the TV bridges it again, and it comes back under its name; a dongle that does not keep the setting is not restarted again. There is no switch for it, since every change of one restarted the dongle. A DS4's speaker plays only the right channel, so with nothing in its jack the PC's stereo is mixed to mono for it; a headset keeps stereo. The settings window goes back to a pad's tab when the pad returns under its name. | `1e8c27a`, `4780f61`, `545dcef`, `2e1d45f`, `b91fc5a`, merge `d4af0b7` |
 | 2026-11-05 | A DS4's speaker hears both channels over Bluetooth too: with nothing in its jack, the PC's stereo is mixed to mono for it, as on a cable, where it played only the right channel. A headset keeps stereo. Over Bluetooth the jack is read from the pad's report 0x11, and the mix follows the same jack bit the Bluetooth route already follows, so the sound is mixed exactly when it goes to the speaker. A DualSense never mixes. | `47456a7`, merge `40a98eb` |
+| 2026-11-05 | In Simple, left from the resize button lands on the wheel: the button is the first control in the bar along the bottom, so left from it went nowhere. The help under the Overview's two finger touchpad quick switch is shorter and names the controllers whose touchpads are known to work, the DualSense, the DualSense Edge and the DS4. Page 2.66.135. | `731db46`, `97aecea`, merge `965fa95` |
+| 2026-11-05 | The app's icon is redrawn: a DualSense on a television, with a dark edge round the television and a base close under it, the controller outlined in white with a line over its touchpad, a white band inside each handle and shoulder buttons on top, and a glare across the glass. One icon for every background (a second one for dark backgrounds, switched with Windows' light or dark mode, was tried and set aside before the release). `installer/build-icon.ps1` draws it, `-Check` compares it byte for byte, and `-Png` writes it as one picture for the TV app's icon. | `54a7fb5`, `e2e4874`, `fcc4ae0`, merge `b23d30f` |
 
 ## Files changed
 
@@ -205,14 +207,14 @@ ENet library, removed with the ENet transport).
  .github/ISSUE_TEMPLATE/config.yml             |     5 +
  .github/ISSUE_TEMPLATE/feature-request.yml    |    22 +
  .gitignore                                    |    43 +-
- CHANGES.md                                    |   476 +
+ CHANGES.md                                    |   478 +
  LINK                                          |     0
  README.md                                     |   291 +-
  THIRD-PARTY-NOTICES.txt                       |   618 +
  app/compatibility.manifest                    |    27 +
  app/ctm-capture.vcxproj                       |    86 -
  app/ctm-usbip-tests.vcxproj                   |   166 +
- app/ctm-usbip.ico                             |   Bin 156019 -> 30139 bytes
+ app/ctm-usbip.ico                             |   Bin 156019 -> 68226 bytes
  app/ctm-usbip.rc                              |    26 +-
  app/ctm-usbip.vcxproj                         |    77 +-
  attic/README.md                               |    24 +
@@ -254,7 +256,7 @@ ENet library, removed with the ENet transport).
  include/ctm/product.h                         |    44 +
  include/ctm/protocol.h                        |    65 +-
  installer/build-ds5-installer.ps1             |   126 +
- installer/build-icon.ps1                      |   238 +
+ installer/build-icon.ps1                      |   446 +
  installer/controller-path.txt                 |    68 +
  installer/ctm-usbip.iss                       |     3 +-
  installer/ds5-usbip.iss                       |   864 ++
@@ -464,7 +466,7 @@ ENet library, removed with the ENet transport).
  tests/window_move_test.cpp                    |   136 +
  tests/window_open_rule_test.cpp               |    43 +
  tests/window_size_rule_test.cpp               |   129 +
- tools/controller-config-test-client.html      | 16532 ++++++++++++++++++++++++
+ tools/controller-config-test-client.html      | 16586 ++++++++++++++++++++++++
  tools/create-desktop-shortcut.bat             |    46 +
  tools/create-desktop-shortcut.ps1             |   148 +
  tools/osk-mockups.py                          |   103 +
@@ -472,5 +474,5 @@ ENet library, removed with the ENet transport).
  tools/sbc-golden-gen/ffmpeg_side.cpp          |   117 +
  tools/sbc-golden-gen/ffmpeg_side.h            |    15 +
  tools/sbc-golden-gen/main.cpp                 |   131 +
- 272 files changed, 78614 insertions(+), 6132 deletions(-)
+ 272 files changed, 78878 insertions(+), 6132 deletions(-)
 ```
