@@ -11,6 +11,8 @@
 
 #include <chrono>
 #include <cstdint>
+#include <fstream>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -40,6 +42,21 @@ std::vector<uint8_t> motors(uint8_t soft, uint8_t heavy, uint8_t flags = 0x01)
 // The C1's DS4Dongle's body on 2026-11-04, read with its jack setting at 1.
 const ds4_dongle::Body kBody = {0x06, 0x00, 0x00, 0x80, 0x3f, 0x64, 0x64, 0x02, 0x1e, 0x00, 0x00,
                                 0x40, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01};
+
+// A file of the repo, found from wherever the suite runs, as the SBC suite
+// finds the same map.
+std::string repo_text(const std::string &path)
+{
+    const char *prefixes[] = {"", "../", "../../", "../../../", "../../../../"};
+    for (const char *prefix : prefixes) {
+        std::ifstream in(prefix + path, std::ios::binary);
+        if (!in) continue;
+        std::stringstream buffer;
+        buffer << in.rdbuf();
+        return buffer.str();
+    }
+    return std::string();
+}
 
 } // namespace
 
@@ -177,11 +194,41 @@ int run_ds4_settings_tests()
         CTM_CHECK_EQ(ds4_speaker::jack_in(r.data(), r.size()), 1);
         r[30] = 0x1f;       // charging, full: the cable bit is not the jack
         CTM_CHECK_EQ(ds4_speaker::jack_in(r.data(), r.size()), 0);
-        r[0] = 0x11;        // a Bluetooth report: not this layout
+        r[0] = 0x02;        // no other report says it
         CTM_CHECK_EQ(ds4_speaker::jack_in(r.data(), r.size()), -1);
         r[0] = 0x01;
         CTM_CHECK_EQ(ds4_speaker::jack_in(r.data(), 30), -1);
         CTM_CHECK_EQ(ds4_speaker::jack_in(nullptr, 64), -1);
+    }
+
+    section("ds4 speaker: on Bluetooth the jack is byte 32 of report 0x11, the bit the map routes on");
+    {
+        // ⓘ The rooted monitor's DS4 on Bluetooth, 2026-11-05: report 0x11 is
+        // the cabled report two bytes later (the map copies source[3..65]).
+        std::vector<uint8_t> r(78, 0);
+        r[0] = 0x11;
+        r[1] = 0xc0;
+        r[32] = 0x08;       // a battery level, nothing in the jack
+        CTM_CHECK_EQ(ds4_speaker::jack_in(r.data(), r.size()), 0);
+        r[32] = 0x48;       // the bit the map sends the sound to the headphones on
+        CTM_CHECK_EQ(ds4_speaker::jack_in(r.data(), r.size()), 1);
+        r[32] = 0x68;       // a headset with its mic
+        CTM_CHECK_EQ(ds4_speaker::jack_in(r.data(), r.size()), 1);
+        r[32] = 0x28;       // the other bit alone: the map keeps the speaker, so the mix stays
+        CTM_CHECK_EQ(ds4_speaker::jack_in(r.data(), r.size()), 0);
+        r[30] = 0x60;       // byte 30 is not the jack in this report
+        r[32] = 0x08;
+        CTM_CHECK_EQ(ds4_speaker::jack_in(r.data(), r.size()), 0);
+        CTM_CHECK_EQ(ds4_speaker::jack_in(r.data(), 32), -1);
+        // A DS4's short Bluetooth report, before the TV asks for the full one.
+        std::vector<uint8_t> s(10, 0);
+        s[0] = 0x01;
+        CTM_CHECK_EQ(ds4_speaker::jack_in(s.data(), s.size()), -1);
+        // ⭐ The byte and the bit are the map's own, so the two cannot drift apart.
+        const std::string map = repo_text("maps/ds4_usb_over_ds4_bt.map");
+        CTM_CHECK(!map.empty());
+        CTM_CHECK(map.find("\nauto_route_input_offset = 32") != std::string::npos);
+        CTM_CHECK(map.find("\nauto_route_input_mask = 0x40") != std::string::npos);
     }
 
     section("ds4 speaker: each frame becomes half of each channel, on both");

@@ -2105,9 +2105,14 @@ private:
         // ⭐ The same two gains as the wired path (audio_gain.inl): until
         // 2026-10-13 nothing scaled a Bluetooth pad's haptics or its sound.
         const ctm_audio_gain::Gains gains{ hapticsGain_.load(), soundGain_.load() };
+        // ⭐ And the same mono mix (ds4_speaker.inl): a DS4's speaker plays
+        // only the right channel on Bluetooth too (2026-11-05). ⓘ ds4Jack_ is
+        // set for a DS4 alone, so a DualSense never mixes.
+        const bool mono = audioChannels_ == 2 && ds4Jack_.load(std::memory_order_relaxed) == 0;
         std::vector<uint8_t> scaledCopy;
-        if (ctm_audio_gain::active(gains)) {
+        if (mono || ctm_audio_gain::active(gains)) {
             scaledCopy = input;
+            if (mono) ds4_speaker::mix_to_mono(scaledCopy);
             ctm_audio_gain::apply(scaledCopy, gains, audioChannels_);
         }
         const std::vector<uint8_t> &data = scaledCopy.empty() ? input : scaledCopy;

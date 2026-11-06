@@ -9,8 +9,13 @@
 // headphone jack, the two channels are mixed into both, half of each so
 // nothing clips; a headset keeps its stereo.
 //
+// ⭐ ON BLUETOOTH TOO (2026-11-05). The same Test on the rooted monitor's DS4
+// over Bluetooth: "on the speaker, left is silent and right is heard", and on
+// a headset each chime in its own ear. The map's comment that the speaker
+// takes channel 0 there is not what the pad does.
+//
 // ⓘ Pure. device.inl reads the jack off the pad's reports and mixes its
-// sound stream with these.
+// sound stream with these, on the wired path and on the Bluetooth one.
 
 #include <cstddef>
 #include <cstdint>
@@ -20,12 +25,20 @@ namespace ds4_speaker {
 
 // A cabled DS4's input report 0x01 says what is in its jack in byte 30: 0x20
 // headphones, 0x40 a microphone, both for a headset. 1 when either is, 0 when
-// neither, -1 when this is not that report. ⓘ The TV core reads the same bits
-// for its volume by jack.
+// neither. ⓘ The TV core reads the same bits for its volume by jack.
+//
+// A DS4 on Bluetooth sends report 0x11, the same state two bytes later, so its
+// jack is byte 32. There only 0x40 counts: it is the bit the Bluetooth map's
+// own route follows (auto_route_input_mask in ds4_usb_over_ds4_bt.map),
+// sending the sound to the headphones in stereo with it and to the speaker
+// without, so the mix follows where the sound goes. -1 for any other report,
+// a DS4's short Bluetooth report 0x01 included.
 inline int jack_in(const uint8_t *report, size_t length)
 {
-    if (report == nullptr || length < 31 || report[0] != 0x01) return -1;
-    return (report[30] & 0x60) ? 1 : 0;
+    if (report == nullptr) return -1;
+    if (report[0] == 0x01 && length >= 31) return (report[30] & 0x60) ? 1 : 0;
+    if (report[0] == 0x11 && length >= 33) return (report[32] & 0x40) ? 1 : 0;
+    return -1;
 }
 
 // 16-bit little-endian stereo, each frame made (left + right) / 2 on both
