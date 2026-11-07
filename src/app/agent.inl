@@ -748,7 +748,7 @@ static void bridge_session_worker(AgentBridgeSession *session)
         const std::string serial = session->device ? session->device->physical_serial()
                                                    : std::string();
         // ⭐ The first controller after a fresh install is auto linked to
-        // default-config first, unless a config auto links it already
+        // default_windows_config first, unless a config auto links it already
         // (default_config.inl); the look-up below then finds it. ⓘ Before the
         // session's lock, since it writes two files; the ordinal and the kind
         // never change. What it returns is a link for this bridge alone, when
@@ -1684,8 +1684,8 @@ static int run_agent(uint16_t port)
         // ⓘ And the first start after an install puts the window in Simple
         // and lets every tutorial start again (tutorial_state.inl).
         config_move::install_check(module_directory());
-        // ⭐ And default-config, made from its preset at the first start after
-        // an install when there is none (default_config.inl).
+        // ⭐ And default_windows_config, made from its preset at the first
+        // start after an install when there is none (default_config.inl).
         if (config_move::installed_now()) default_config::ensure();
     }
 

@@ -991,12 +991,10 @@ inline std::atomic_int  g_tutorialAsked{tutorial_state::None};
 inline std::mutex g_stampMutex;
 inline std::string g_installStamp;
 
-// ⭐ default-config's first controller (config/default_config_rule.inl): its
-// turn waits from a fresh install's first start until a controller has had it,
-// kept in window-state.txt meanwhile. ⓘ A fresh install is told from the rest
-// by window-state.txt too: there is none when this person has never run
-// DS5-USBIP.
-inline std::atomic_bool g_stateFileFound{false};
+// ⭐ default_windows_config's first controller (config/default_config_rule.inl):
+// its turn waits from a fresh install's first start until a controller has had
+// it, kept in window-state.txt meanwhile. ⓘ Whether an install was fresh is
+// the installer's word, in install-stamp.txt (install_check, below).
 inline std::atomic_bool g_installedNow{false};
 inline std::atomic_bool g_firstController{false};
 inline bool installed_now() { return g_installedNow.load(); }
@@ -1100,7 +1098,6 @@ inline void state_load()
 {
     std::ifstream f(state_file());
     if (!f) return;
-    g_stateFileFound.store(true);
     std::string line;
     // ⓘ Advanced's index is used after the whole file is read: only the whole
     // file says whether it counted three sizes or two.
@@ -1257,15 +1254,20 @@ inline void install_check(const std::wstring &exeFolder)
     std::string line;
     std::getline(f, line);
     const std::string stamp = tutorial_state::stamp_from_file(line);
+    // ⓘ And the line after it: whether the installer found no copy installed
+    // (default_config_rule.inl).
+    std::string kindLine;
+    std::getline(f, kindLine);
+    const bool installerFresh = default_config::installer_says_fresh(kindLine);
     {
         std::lock_guard<std::mutex> lock(g_stampMutex);
         if (!tutorial_state::fresh_install(stamp, g_installStamp)) return;
         g_installStamp = stamp;
     }
-    // ⭐ default-config's: made after this (agent.inl), and after a fresh install
-    // the first controller's turn to be auto linked to it.
+    // ⭐ default_windows_config's: made after this (agent.inl), and after a
+    // fresh install the first controller's turn to be auto linked to it.
     g_installedNow.store(true);
-    const bool firstEver = default_config::fresh(true, g_stateFileFound.load());
+    const bool firstEver = default_config::fresh(true, installerFresh);
     if (firstEver) g_firstController.store(true);
     g_compact.store(true);
     g_quick.store(false);
@@ -1277,7 +1279,9 @@ inline void install_check(const std::wstring &exeFolder)
     device_log::input(device_log::msg()
         << "ui/install: the first start after an install (" << stamp
         << "): the window opens in Simple, and every tutorial will start by itself again"
-        << (firstEver ? "; a fresh one: the first controller bridged is auto linked to default-config" : ""));
+        << (firstEver ? "; a fresh one: the first controller bridged is auto linked to "
+                      : "; an upgrade")
+        << (firstEver ? default_config::kName : ""));
 }
 
 // The "Open on bridge" switch: read by the bridge, set by the settings page,

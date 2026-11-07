@@ -337,7 +337,7 @@ bool ctm_polling_limit_set(const std::string &serial, const std::string &value);
 #include "config/config_store.inl"   // per-controller config files; needs device_log + g_device_config
 #include "config/polling_limits.inl" // each controller's own polling limit, by its serial
 #include "config/config_presets.inl"  // what a new config can start from; needs nothing but strings
-#include "config/default_config_rule.inl"  // default-config and the first controller's turn; strings alone
+#include "config/default_config_rule.inl"  // default_windows_config and the first controller's turn; strings alone
 #include "app/device_capabilities.inl" // what a pad can use, from its settings kind; pure
 #include "config/config_watcher.inl" // follows config_store: apply_change refreshes it too
 #include "app/read_deadline.inl"     // one deadline for a whole request; rest.inl and agent.inl read by it
@@ -367,13 +367,13 @@ void synthetic_devices_stop();
 namespace config_move {
 inline void state_load();
 inline void install_check(const std::wstring &exeFolder);
-// ⓘ default-config's (app/default_config.inl): the install seen this start, and
-// the first controller's turn after a fresh one.
+// ⓘ default_windows_config's (app/default_config.inl): the install seen this
+// start, and the first controller's turn after a fresh one.
 inline bool installed_now();
 inline bool first_controller_waiting();
 inline bool take_first_controller();
 }
-#include "app/default_config.inl"   // default-config made at an install, the first controller's auto link
+#include "app/default_config.inl"   // default_windows_config made at an install, the first controller's auto link
 #include "input/gyro_calibration_fetch.inl"   // needs CtmBackend; agent.inl calls it
 #include "app/nickname.inl"      // controller nicknames; agent.inl assigns one per session
 #include "app/same_controller.inl"   // which older session a new bridge retires; agent.inl asks it

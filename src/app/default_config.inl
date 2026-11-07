@@ -1,5 +1,5 @@
-// default-config made at an install's first start, and the first controller's
-// auto link to it: what and why are in config/default_config_rule.inl.
+// default_windows_config made at an install's first start, and the first
+// controller's auto link to it: what and why are in config/default_config_rule.inl.
 // ⓘ agent.inl calls both: ensure() once the install has been checked, and
 // first_controller_bridged() at every bridge, before the auto link is looked up.
 #pragma once
@@ -36,13 +36,13 @@ inline void ensure()
     device_log::config(device_log::msg() << kName << ": made from its preset, at the first start after an install");
 }
 
-// ⭐ THE FIRST CONTROLLER AFTER A FRESH INSTALL: auto linked to default-config,
-// unless a config auto links it already, by the config's own auto_link line,
+// ⭐ THE FIRST CONTROLLER AFTER A FRESH INSTALL: auto linked to
+// default_windows_config, unless a config auto links it already, by the config's own auto_link line,
 // so it holds at every bridge after; the auto link this bridge looks up next
 // finds it. ⓘ The turn is taken atomically, so two controllers bridged
 // together cannot both have it. ⓘ Returns the config to link THIS bridge to
-// when no claim could be kept (no identity to keep one by): default-config for
-// this bridge, the turn over all the same; empty otherwise.
+// when no claim could be kept (no identity to keep one by):
+// default_windows_config for this bridge, the turn over all the same; empty otherwise.
 inline std::string first_controller_bridged(const std::string &ordinal, const std::string &serial,
                                             const std::string &kind)
 {
