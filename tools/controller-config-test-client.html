@@ -41,6 +41,20 @@
              should come back however it was ticked"). And a two-finger
              press with this window in front closes it, as the press comes
              up. The help under the boxes says both.
+    2.66.147 The tours' last steps, at rhoquinn8217's word (2026-11-06): the
+             gesture for the way back out of Quick's and Advanced's ("yes,
+             remove it from both"), the tray icon left, and each tour's last
+             step says the tutorials are in DS5-USBIP's tray icon menu ("The
+             step right before finishing should tell that the tutorials can
+             be found in the DS5-USBIP tray icon menu"). In Simple's: the tip
+             last ("move step 22 to after 35"), L3 lit in the legend with it
+             ("also feather spotlight on the L3 symbol in the legend"), the
+             quick switch encouraged on the step before; Simple back from
+             Quick with the mode selector lit ("step 30 should feather
+             spotlight the mode selector"); Close's step without the shrink
+             ("don't mention that you are shrinking the window"); and the
+             two finger try's words open on the way back ("Now we will learn
+             how to bring back the window."). Thirty-five steps.
     2.66.146 Simple's tour without its step for the way back to the window,
              two fingers resting and Options (rhoquinn8217, 2026-11-06:
              "remove step 23. I will probably get rid of that gesture or make
@@ -13655,8 +13669,8 @@ function selfTest() {
     // Simple's Close is pressed and played.
     // ⓘ And not the last steps since 2.66.144: Simple's way back is a step of
     // its own after the window's position, and its last says only to finish.
-    var advPairs = [[5, 1], [11, 11], [14, 14], [15, 15], [16, 17], [17, 18], [31, 23],
-                    [33, 31]];
+    var advPairs = [[5, 1], [11, 11], [14, 14], [15, 15], [16, 17], [17, 18], [31, 22],
+                    [33, 30]];
     var advUnlike = advPairs.filter(function (n) {
       var a = TUT_ADVANCED[n[0] - 1], b = TUT_SIMPLE[n[1] - 1];
       return advSame(a) !== advSame(b) || advKind(a) !== advKind(b);
@@ -13905,7 +13919,7 @@ function selfTest() {
     // selector Quick's opens and leaves: those do not pair.
     // ⓘ Nor the last steps since 2.66.144, as Advanced's (above).
     var bothSteps = [[1, 1], [3, 3], [4, 4], [14, 5], [15, 6], [17, 7], [18, 8], [21, 10],
-                     [23, 11], [31, 13]];
+                     [22, 11], [30, 13]];
     var unlike = bothSteps.filter(function (n) {
       var a = TUT_SIMPLE[n[0] - 1], b = TUT_QUICK[n[1] - 1];
       return bothWords(a) !== bothWords(b) || bothKind(a) !== bothKind(b);
@@ -13931,7 +13945,7 @@ function selfTest() {
     ok('the tutorial: the position step tells a tap from a hold, and the size is a step to try',
        /Tap \[\[\*.*hold it and steer with the left stick/.test(posPad) &&
        posKey.indexOf('On a controller, holding its position button') > 0 &&
-       TUT_SIMPLE[22].free === true && !TUT_SIMPLE[22].act && !!TUT_SIMPLE[22].focus &&
+       TUT_SIMPLE[21].free === true && !TUT_SIMPLE[21].act && !!TUT_SIMPLE[21].focus &&
        TUT_QUICK[10].free === true && !TUT_QUICK[10].act && !!TUT_QUICK[10].focus &&
        tutWordsResize().indexOf('two sizes') > 0,
        posPad + ' / ' + posKey);
@@ -13961,8 +13975,8 @@ function selfTest() {
     // ⭐ And Simple's steps that change the mode (2.66.138): each says the two
     // modes it spans, ends when the window is in the second, and puts the
     // first back on Go back; the steps between are in the mode visited.
-    var modeShape = [[12, 'simple,advanced'], [13, 'advanced,simple'], [25, 'simple,advanced'],
-                     [26, 'advanced'], [27, 'advanced,quick'], [28, 'quick'], [29, 'quick,simple']]
+    var modeShape = [[12, 'simple,advanced'], [13, 'advanced,simple'], [24, 'simple,advanced'],
+                     [25, 'advanced'], [26, 'advanced,quick'], [27, 'quick'], [28, 'quick,simple']]
       .filter(function (p) {
         var st = TUT_SIMPLE[p[0] - 1];
         return !st.views || st.views.join(',') !== p[1] ||
@@ -13980,12 +13994,12 @@ function selfTest() {
     TUT_SIZING = false;
     setMode = function (m) { modes.push(m); shrinkView = m; };
     tutViewKind = function () { return shrinkView; };
-    TUT = { kind: 'simple', phase: 'step', at: 31, done: [], mem: [], busy: false, focus: null, made: '' };
+    TUT = { kind: 'simple', phase: 'step', at: 30, done: [], mem: [], busy: false, focus: null, made: '' };
     TUT_SHRUNK = false;
     var shrinkSeen = [];
     closeWindow();
     shrinkSeen.push(TUT_SHRUNK);
-    TUT.at = 32;
+    TUT.at = 31;
     tutPadEnter();
     tutPadEvent('open');
     shrinkSeen.push(!TUT_SHRUNK && shrinkView === 'quick');
@@ -13993,17 +14007,17 @@ function selfTest() {
     shrinkSeen.push(!TUT_SHRUNK && !TUT.padKept && shrinkView === 'quick');
     tutPadEvent('lift');
     shrinkSeen.push(TUT_SHRUNK && shrinkView === 'quick');
-    TUT.at = 33;
+    TUT.at = 32;
     tutPadEnter();
     tutPadEvent('open');
     tutPadEvent('keep');
     shrinkSeen.push(!TUT_SHRUNK && TUT.padKept === true && shrinkView === 'simple');
     tutPadEvent('lift');
     shrinkSeen.push(!TUT_SHRUNK && modes.join(',') === 'quick,simple');
-    var shrinkSteps = TUT_SIMPLE[31].fakeClose === true && TUT_SIMPLE[32].pad === 'try' &&
-                      TUT_SIMPLE[33].pad === 'keep' && TUT_SIMPLE[32].views.join(',') === 'simple,quick' &&
-                      TUT_SIMPLE[33].views.join(',') === 'simple,quick' &&
-                      [31, 32, 33].every(function (i) { return !/tray/i.test(TUT_SIMPLE[i].words()); });
+    var shrinkSteps = TUT_SIMPLE[30].fakeClose === true && TUT_SIMPLE[31].pad === 'try' &&
+                      TUT_SIMPLE[32].pad === 'keep' && TUT_SIMPLE[31].views.join(',') === 'simple,quick' &&
+                      TUT_SIMPLE[32].views.join(',') === 'simple,quick' &&
+                      [30, 31, 32].every(function (i) { return !/tray/i.test(TUT_SIMPLE[i].words()); });
     TUT = keepShrink[0];
     TUT_SHRUNK = keepShrink[1];
     TUT_SIZING = keepShrink[2];
@@ -14069,13 +14083,14 @@ function selfTest() {
     TUT_SHRUNK = false;
     padSeen.push(tutPadKeys('KeyJ', true, false) && tutPadKeys('KeyK', true, false) &&
                  tutPadKeys('KeyS', true, false) && !tutPadKeys('KeyJ', false, true) &&
-                 tutWordsSide(TUT_SIMPLE[32]) === 'above');
+                 tutWordsSide(TUT_SIMPLE[31]) === 'above');
     TUT_SHRUNK = true;
     padSeen.push(!tutPadKeys('KeyJ', true, false) && !tutPadKeys('KeyS', true, false) &&
-                 tutWordsSide(TUT_SIMPLE[32]) === 'center' && tutWordsSide(TUT_SIMPLE[33]) === 'center');
+                 tutWordsSide(TUT_SIMPLE[31]) === 'center' && tutWordsSide(TUT_SIMPLE[32]) === 'center');
     TUT_SHRUNK = keepPad;
-    padSeen.push(TUT_SIMPLE[32].keys === tutPadKeys && TUT_SIMPLE[33].keys === tutPadKeys &&
-                 tutWordsSide(TUT_SIMPLE[34]) === 'center' && tutWordsSide(TUT_SIMPLE[0]) === 'left');
+    padSeen.push(TUT_SIMPLE[31].keys === tutPadKeys && TUT_SIMPLE[32].keys === tutPadKeys &&
+                 tutWordsSide(TUT_SIMPLE[33]) === 'center' && tutWordsSide(TUT_SIMPLE[34]) === 'left' &&
+                 tutWordsSide(TUT_SIMPLE[0]) === 'left');
     // ⭐ Simple's mode steps (2.66.145): only the mode asked for to choose,
     // the words over Advanced's middle and above Quick's window, and the last
     // step's words. On made-up state, put back after.
@@ -14096,21 +14111,27 @@ function selfTest() {
       /value="advanced">/.test(modeHtml) && /value="quick" disabled>/.test(modeHtml) &&
         /value="simple" selected disabled>/.test(modeHtml),
       modeSet.join(',') === 'advanced',
-      stepAdv === 24 && tutWordsSide(TUT_SIMPLE[stepAdv]) === TUT_SIMPLE[stepAdv].side];
+      stepAdv === 23 && tutWordsSide(TUT_SIMPLE[stepAdv]) === TUT_SIMPLE[stepAdv].side];
     modeView = 'advanced';
-    modeSeen.push(tutWordsSide(TUT_SIMPLE[25]) === 'center' && tutModeTo() === '');
+    modeSeen.push(tutWordsSide(TUT_SIMPLE[24]) === 'center' && tutModeTo() === '');
     modeView = 'quick';
-    modeSeen.push(tutWordsSide(TUT_SIMPLE[27]) === 'above' && tutWordsOverQuick());
+    modeSeen.push(tutWordsSide(TUT_SIMPLE[26]) === 'above' && tutWordsOverQuick());
     TUT.at = 0;
     modeView = 'simple';
     modeSeen.push(modePickerHtml('tutModeTest').indexOf('value="quick">') >= 0);
     TUT = keepMode[0]; COMPACT = keepMode[1]; QUICK = keepMode[2];
     setMode = keepMode[3]; tutViewKind = keepMode[4]; TUT_SHRUNK = keepMode[5];
-    modeSeen.push(tutWordsFinish().indexOf('two finger quick switch') >= 0 &&
-                  tutWordsFinish().indexOf(tutHl('Finish tutorial')) >= 0 && TUT_SIMPLE[34].words === tutWordsFinish &&
+    var lastWords = TUT_SIMPLE[34].words();
+    modeSeen.push(tutWordsTrySwitch().indexOf('two finger quick switch') >= 0 &&
+                  TUT_SIMPLE[33].words === tutWordsTrySwitch && TUT_SIMPLE[34].act === 'end' &&
+                  lastWords.indexOf(tutWordsTutorials()) >= 0 && lastWords.indexOf(tutHl('Finish tutorial')) >= 0 &&
+                  tutWordsEnd().indexOf(tutWordsTutorials()) >= 0 && !/two fingers/.test(tutWordsEnd()) &&
+                  /^Now we will learn how to bring back the window\. /.test(tutWordsPadTry()) &&
+                  !/shrink/.test(TUT_SIMPLE[30].words()) && String(TUT_SIMPLE[28].lit).indexOf('#cselMode') >= 0 &&
                   !TUT_SIMPLE.some(function (st) { return st.words === tutWordsBack; }));
     ok('the tutorial: a mode step lets only its mode be chosen, the words stand over Advanced\'s middle and ' +
-       'above Quick\'s window, and the last step encourages the two finger quick switch',
+       'above Quick\'s window, the step before the last encourages the two finger quick switch, and the ' +
+       'last, the tip, says where the tutorials are',
        modeSeen.join(',') === 'true,true,true,true,true,true,true', modeSeen.join(','));
     ok('the tutorial: on the two finger steps the switch\'s steps step Quick\'s wheel, nothing does while ' +
        'the window is put away, and the words cover it then',
@@ -14127,25 +14148,25 @@ function selfTest() {
     // press's step has none. And no other step in the three tours needs
     // anything. On made-up state, put back after.
     var keepSkip = [TUT, TUT_REAL, QUICK_SWITCH];
-    TUT = { kind: 'simple', phase: 'step', at: 32, done: [], mem: [], busy: false, focus: null, made: '' };
+    TUT = { kind: 'simple', phase: 'step', at: 31, done: [], mem: [], busy: false, focus: null, made: '' };
     var skipSeen = [];
     var bar = function (n) { TUT.at = n - 1; return tutStepButtons(TUT_SIMPLE[n - 1]).split('|')[0]; };
     TUT_REAL = [];
     QUICK_SWITCH = true;
-    skipSeen.push(/^next:Skip:go/.test(bar(33)), /^next:Skip:go/.test(bar(34)),
-                  tutCanContinue(TUT_SIMPLE[33]) === true);
+    skipSeen.push(/^next:Skip:go/.test(bar(32)), /^next:Skip:go/.test(bar(33)),
+                  tutCanContinue(TUT_SIMPLE[32]) === true);
     TUT_REAL = [{ ordinal: 'x1', kind: 'xbox' }];
-    skipSeen.push(/^next:Skip:go/.test(bar(34)));
+    skipSeen.push(/^next:Skip:go/.test(bar(33)));
     TUT_REAL = [{ ordinal: 'd1', kind: 'ds4_usb' }];
-    skipSeen.push(/^next:Continue:go/.test(bar(33)), /^next:Continue:off/.test(bar(34)),
-                  tutCanContinue(TUT_SIMPLE[33]) === false);
+    skipSeen.push(/^next:Continue:go/.test(bar(32)), /^next:Continue:off/.test(bar(33)),
+                  tutCanContinue(TUT_SIMPLE[32]) === false);
     TUT_REAL = [{ ordinal: 'e1', kind: 'ds5_edge' }];
-    skipSeen.push(/^next:Continue:off/.test(bar(34)));
+    skipSeen.push(/^next:Continue:off/.test(bar(33)));
     QUICK_SWITCH = false;
-    skipSeen.push(/^next:Skip:go/.test(bar(34)));
+    skipSeen.push(/^next:Skip:go/.test(bar(33)));
     var needOnly = [TUT_SIMPLE, TUT_QUICK, TUT_ADVANCED].every(function (list) {
       return list.every(function (s, i) {
-        return !s.needs || (list === TUT_SIMPLE && (i === 32 || i === 33) && s.needs === 'touchpad');
+        return !s.needs || (list === TUT_SIMPLE && (i === 31 || i === 32) && s.needs === 'touchpad');
       });
     });
     TUT = keepSkip[0];
@@ -15118,8 +15139,11 @@ function tutPadSkip() {
 }
 function tutWordsPadTry() {
   var s = tutSteps()[TUT ? TUT.at : 0];
-  return 'Now the two finger quick switch, on a DualSense or DS4: press the touchpad with two fingers ' +
-         'and keep one finger on it. Quick Mode comes up as the press comes up: swipe a finger up or ' +
+  // ⓘ Opening on the way back (2.66.147; rhoquinn8217, 2026-11-06: *"step 33
+  // should start with "Now we we learn who to bring back the window.""*).
+  return 'Now we will learn how to bring back the window. With the two finger quick switch on a ' +
+         'DualSense or DS4, press the touchpad with two fingers and keep one finger on it. Quick Mode ' +
+         'comes up as the press comes up: swipe a finger up or ' +
          'down, or push the right stick up or down, to switch configs. It goes away when you stop ' +
          'touching the touchpad.' +
          (tutCanDo(s) ? ' Try it, then choose ' + tutHl('Continue') + '.' : tutPadSkip());
@@ -15135,25 +15159,28 @@ function tutWordsClose() {
   return tutKey('close') + ' takes you to ' + tutHl('Close') + '. ' + tutHl('Close') + ' puts this ' +
          'window away, and your controller goes back to your game.';
 }
-// ⓘ The way back, the end of Quick's and Advanced's tours, and a step of
-// its own in Simple's since 2.66.144 (tutWordsBack), where the last step only
-// says to finish (tutWordsFinish).
+// ⓘ The way back, at the end of Quick's and Advanced's tours (a step of its
+// own in Simple's in 2.66.144 and 2.66.145). ⭐ The tray icon alone since
+// 2.66.147 (rhoquinn8217, 2026-11-06: *"yes, remove it from both"*): the
+// gesture, two fingers resting and Options, may go or become optional
+// (*"Haven't decided."*). And where the tutorials are, as every tour's last
+// step says it (*"The step right before finishing should tell that the
+// tutorials can be found in the DS5-USBIP tray icon menu."*).
 function tutWordsBack() {
-  return padLegend() === PAD_LEGEND_PS
-    ? 'To bring this window back, even mid-game, rest two fingers on the touchpad and press ' +
-      tutMark(PAD_LEGEND_PS.position) + '. The tray icon opens it too.'
-    : "To bring this window back, even mid-game, use DS5-USBIP's icon in the tray.";
+  return "To bring this window back, even mid-game, use DS5-USBIP's icon in the tray.";
 }
+function tutWordsTutorials() { return 'The tutorials can be found in the DS5-USBIP tray icon menu.'; }
 function tutWordsEnd() {
-  return tutWordsBack() + ' Choose ' + tutHl('Finish tutorial') + '.';
+  return tutWordsBack() + ' ' + tutWordsTutorials() + ' Choose ' + tutHl('Finish tutorial') + '.';
 }
-// ⭐ AND IT ENCOURAGES THE TWO FINGER QUICK SWITCH (2.66.145; rhoquinn8217,
+// ⭐ THE TWO FINGER QUICK SWITCH ENCOURAGED (2.66.145; rhoquinn8217,
 // 2026-11-06: *"The last step before Finishing the tutorial needs to
-// encourage using the two finger touchpad quick switch."*).
-function tutWordsFinish() {
+// encourage using the two finger touchpad quick switch."*), on the step
+// before the tip since 2.66.147 put the tip last.
+function tutWordsTrySwitch() {
   return 'In your next game, try the two finger quick switch on a DualSense or DS4: press the touchpad ' +
          'with two fingers to bring up Quick Mode, swipe a finger or push the right stick to switch ' +
-         'configs, and lift your fingers to go back to your game. Choose ' + tutHl('Finish tutorial') + '.';
+         'configs, and lift your fingers to go back to your game.';
 }
 
 // ⓘ Auto link and Unlink act on the config the controller uses: one is
@@ -15404,9 +15431,10 @@ var TUT_QUICK = [
 // before the wheel; the button column top to bottom, New with its pre-set,
 // Edit, Unlink, Auto link, Archive; the position (kept before the size), the
 // size, the mode list, Circle and Close; the tip last, before the card that
-// ends the tour. ⭐ Since 2.66.144 the tip comes after the position (*"Move
+// ends the tour. ⭐ The tip after the position in 2.66.144 to 2.66.146 (*"Move
 // step 34 and 35 after step 21"*), the way back with it until 2.66.146 took
-// it out, and the last step encourages the two finger quick switch.
+// it out, and last again since 2.66.147, after the two finger quick switch
+// is encouraged.
 var TUT_SIMPLE = [
   // 1
   { side: 'left', lit: function () { return tutQ('.cname .devemo', '.cname .batt'); },
@@ -15581,29 +15609,15 @@ var TUT_SIMPLE = [
   // from the pad's own report, and P passes.
   { side: 'left', free: true, lit: function () { return tutQ('.clegend .lgi:nth-child(6)'); },
     words: function () { return tutWordsPosition(false, true); } },
-  // 22 (*"Need a step to show the hint and how to click it to see the next
-  // one"*; after the position since 2.66.144, rhoquinn8217, 2026-11-06: *"Move
-  // step 34 and 35 after step 21"*, the last before the end until then): a
-  // click is the way, or L3, and Continue stays. ⭐ The words and the
-  // arrow go by the tip's ROW, which keeps its size, not by the tip, which
-  // is as wide as its words (rhoquinn8217, 2026-10-28: *"when cycling through
-  // hints, the shouldn't move around for no reason"*): each tip's width was a
-  // new place for the words, at times across the window.
-  // ⭐ And L3 does it too, H on a keyboard (rhoquinn8217, 2026-10-28: *"L3 in
-  // simple mode cycles through hints."*): its press goes through to the page.
-  { side: 'left', free: true, lit: function () { return tutQ('.cinfo'); }, anchorBox: tutTipRow,
-    keys: function (code, gated, plain) { return (gated || plain) && code === 'KeyH'; },
-    words: function () {
-      return 'This line is a tip, and a new one comes every 30 seconds. Click it or press ' +
-             tutKey('tip') + ' to see the next one, then choose ' + tutHl('Continue') + '.';
-    } },
+  // ⓘ The tip was a step here in 2.66.144 to 2.66.146; the last since
+  // 2.66.147 (below).
   // ⓘ The way back to this window, two fingers resting and Options, was a
   // step here in 2.66.144 and 2.66.145, gone since (rhoquinn8217, 2026-11-06:
   // *"remove step 23. I will probably get rid of that gesture or make it
   // optional."*).
-  // 23: its size, to try, the legend's and 🗗's, as in Quick's.
+  // 22: its size, to try, the legend's and 🗗's, as in Quick's.
   tutSizeStep('.clegend .lgi:nth-child(7)'),
-  // 24 to 30 (rhoquinn8217, 2026-11-06: *"Split 20 into 7 steps"*): the mode
+  // 23 to 29 (rhoquinn8217, 2026-11-06: *"Split 20 into 7 steps"*): the mode
   // selector said, then each mode visited through it and said in their
   // words, Advanced, Quick, and Simple again. Quick's and Advanced's tours
   // keep the selector opened and not used. ⭐ Simple Mode said with the
@@ -15636,9 +15650,11 @@ var TUT_SIMPLE = [
   tutModeStep('quick', 'simple', 'below', function () {
     return 'Open the mode selector and choose ' + tutHl('SIMPLE MODE') + '.';
   }),
-  { side: 'left', lit: function () { return tutQ('.cwheel', '.csbtns'); },
+  // ⓘ The mode selector lit, which says it (2.66.147; rhoquinn8217,
+  // 2026-11-06: *"step 30 should feather spotlight the mode selector"*).
+  { side: 'right', lit: function () { return tutQ('#cselMode'); },
     words: function () { return "You're back in Simple Mode."; } },
-  // 31: Circle, lit alone in the legend, as in Quick's. ⛔ Close takes the
+  // 30: Circle, lit alone in the legend, as in Quick's. ⛔ Close takes the
   // halo first (keyAim): Simple's Circle closes the window when it finds no
   // Close to go to. The words at the window's lower left, by the legend, and
   // the arrow still above the mark (rhoquinn8217, 2026-10-28: *"step 21 should
@@ -15652,7 +15668,7 @@ var TUT_SIMPLE = [
     pressed: function () { TUT.circled = true; },
     words: tutWordsCircle,
     done: function () { return !!TUT.circled; } },
-  // 32 (rhoquinn8217, 2026-11-06: *"replace the close button step with a step
+  // 31 (rhoquinn8217, 2026-11-06: *"replace the close button step with a step
   // to actually "close" the DS5-USBIP but it doesn't have to be really
   // closed"*, and since 2.66.141 *"how about shrinking the window to the
   // smallest it can be"*): Close pressed, and the window shrunk (tutShrink).
@@ -15660,12 +15676,11 @@ var TUT_SIMPLE = [
     lit: function () { return tutQ('.cbar > button.cclose'); },
     words: function () {
       return tutKey('close') + ' takes you to ' + tutHl('Close') + '. Press ' + tutHl('Close') +
-             ': it puts this window away, and your controller goes back to your game. For this tour, ' +
-             'the window only shrinks.';
+             ': it puts this window away, and your controller goes back to your game.';
     },
     done: function () { return TUT_SHRUNK; },
     undo: function () { tutUnshrink('simple'); } },
-  // 33 (*"another step that lets the user try the 2 finger press hold to bring
+  // 32 (*"another step that lets the user try the 2 finger press hold to bring
   // up quick mode and let it close when they let go"*; since 2.66.141 *"The
   // user should see quick mode and be able to switch configs while touching
   // the touchpad"*): the real press brings the real Quick up, its wheel
@@ -15674,7 +15689,7 @@ var TUT_SIMPLE = [
     enter: tutPadEnter, keyAim: '#cpick', keys: tutPadKeys,
     lit: function () { return TUT_SHRUNK ? [] : tutQ('.cwheel'); },
     words: tutWordsPadTry },
-  // 34 (*"Moving on to the next step, instructs the user double press with two
+  // 33 (*"Moving on to the next step, instructs the user double press with two
   // fingers to bring back simple mode"*): the second press keeps it, and the
   // window is back in Simple. ⭐ That press is what moves it on (`must`), and
   // Skip does with no DualSense or DS4 bridged (2.66.140).
@@ -15683,11 +15698,33 @@ var TUT_SIMPLE = [
     tick: function () { if (TUT.padKept && tutViewKind() === 'simple') tutShow(TUT.at + 1); },
     lit: function () { return TUT_SHRUNK ? [] : tutQ('.cwheel'); },
     words: tutWordsPadKeep },
-  // 35: the end, encouraging the two finger quick switch since 2.66.145.
-  // ⓘ The window back in Simple at its size,
-  // however the step before was left: Skip, or the double press (2.66.141).
-  { lit: function () { return []; }, act: 'end', words: tutWordsFinish,
-    enter: function () { if (TUT_SHRUNK || tutViewKind() !== 'simple') tutUnshrink('simple'); } }
+  // 34: the two finger quick switch encouraged (2.66.145), the last step until
+  // 2.66.147 put the tip after it, over the window's middle as it was.
+  // ⓘ The window back in Simple at its size, however the step before was
+  // left: Skip, or the double press (2.66.141).
+  { side: 'center', lit: function () { return []; }, words: tutWordsTrySwitch,
+    enter: function () { if (TUT_SHRUNK || tutViewKind() !== 'simple') tutUnshrink('simple'); } },
+  // 35 (*"Need a step to show the hint and how to click it to see the next
+  // one"*): the tip, last since 2.66.147 (rhoquinn8217, 2026-11-06: *"also
+  // move step 22 to after 35"*), L3 lit in the legend with it, with no arrow
+  // (*"step 22, also feather spotlight on the L3 symbol in the legend."*), and
+  // where the tutorials are said (*"The step right before finishing should
+  // tell that the tutorials can be found in the DS5-USBIP tray icon menu."*).
+  // A click is the way, or L3. ⭐ The words and the arrow go by the tip's
+  // ROW, which keeps its size, not by the tip, which is as wide as its words
+  // (rhoquinn8217, 2026-10-28: *"when cycling through hints, the shouldn't
+  // move around for no reason"*): each tip's width was a new place for the
+  // words, at times across the window.
+  // ⭐ And L3 does it too, H on a keyboard (rhoquinn8217, 2026-10-28: *"L3 in
+  // simple mode cycles through hints."*): its press goes through to the page.
+  { side: 'left', free: true, act: 'end', split: true, anchorBox: tutTipRow,
+    lit: function () { return tutQ('.cinfo', '.clegend .lgi:nth-child(9)'); },
+    keys: function (code, gated, plain) { return (gated || plain) && code === 'KeyH'; },
+    words: function () {
+      return 'This line is a tip, and a new one comes every 30 seconds. Click it or press ' +
+             tutKey('tip') + ' to see the next one. ' + tutWordsTutorials() + ' Choose ' +
+             tutHl('Finish tutorial') + '.';
+    } }
 ];
 
 // ⓘ The tip line's row: as wide as the footer's column of text, and as tall
@@ -16583,7 +16620,7 @@ function tutSendWords() {
 // it: the words are larger than the browser's smallest window, and stay over
 // it. With Quick up, beside it as the step says.
 function tutWordsSide(s) {
-  if (TUT_SHRUNK || s.act === 'end') return 'center';
+  if (TUT_SHRUNK || (s.act === 'end' && !s.side)) return 'center';
   // ⭐ And Simple's tour in the modes it visits (2.66.145; rhoquinn8217,
   // 2026-11-06: *"After jumping to the advance mode, put the tutorial in the
   // middle of the config window. When jumping to the quick mode move the
