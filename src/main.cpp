@@ -148,6 +148,10 @@ void ui_set_open_on_bridge(bool on);
  * after config_move.inl. */
 bool ui_quick_switch();
 void ui_set_quick_switch(bool on);
+/* The d-pad's app switcher beside it (quick_switch.inl): its own tick, kept
+ * while the switch is off, and set by the settings page. */
+bool ui_app_switcher();
+void ui_set_app_switcher(bool on);
 /* ...and at work (quick_switch_session.inl, after rebind.inl, which feeds it
  * every report of a pad with a touchpad and sends its keys): whether two
  * fingers up and down are the switch's right now, so the config's own swipes
@@ -162,6 +166,11 @@ bool quick_switch_holds_touchpad(const void *deviceKey, int fingers, bool presse
  * stands aside (stick_mouse.inl). */
 bool quick_switch_holds_stick(const void *deviceKey);
 const char *quick_switch_key(const void *deviceKey);
+/* ...and the d-pad's app switcher: the buttons it takes from a report, to be
+ * blanked before the gate and the bindings read them, and the Alt and Tab it
+ * holds on the pad's keys, asked once a report. */
+uint32_t quick_switch_app_buttons(const void *deviceKey, bool left, bool right, bool cross);
+void quick_switch_app_keys(const void *deviceKey, bool *alt, int *tab);
 bool quick_switch_has_vertical_swipes();
 void quick_switch_page_asked_view();
 /* ...and whether the window up now is the switch's own (config_move.inl):
@@ -479,6 +488,14 @@ bool ui_quick_switch()
 void ui_set_quick_switch(bool on)
 {
     config_move::set_quick_switch(on);
+}
+bool ui_app_switcher()
+{
+    return config_move::app_switcher_ticked();
+}
+void ui_set_app_switcher(bool on)
+{
+    config_move::set_app_switcher(on);
 }
 bool ui_quick_view_on()
 {

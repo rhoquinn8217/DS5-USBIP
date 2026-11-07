@@ -72,6 +72,12 @@ inline BOOL CALLBACK find_window_proc(HWND hwnd, LPARAM param)
     return FALSE;                                   // stop at the first match
 }
 
+// ⭐ A PAD'S APP SWITCHER HOLDS ALT DOWN (quick_switch_session.inl, app_keys):
+// Windows' window switcher is up, and it picks as Alt is let go. So nothing
+// here presses Alt meanwhile: the dance below lets its Alt go, and Windows
+// would take that as the pick.
+inline std::atomic_bool g_appSwitcherAlt{false};
+
 // Brings an already-open page forward. Returns false when there is none.
 //
 // ⓘ The Alt-key dance is not superstition: Windows refuses SetForegroundWindow
@@ -82,6 +88,7 @@ inline bool focus_existing()
     FindState state;
     EnumWindows(find_window_proc, reinterpret_cast<LPARAM>(&state));
     if (state.found == nullptr) return false;
+    if (g_appSwitcherAlt.load()) return true;   // a pad's switcher has Alt: see above
 
     if (IsIconic(state.found)) {
         ShowWindow(state.found, SW_RESTORE);
@@ -311,6 +318,9 @@ inline bool window_exists()
 // over everything else forever, which would be its own annoyance.
 inline void raise_now(HWND hwnd)
 {
+    // ⓘ Not while a pad's app switcher holds Alt (g_appSwitcherAlt): Windows'
+    // switcher is in front, and the window would go over it.
+    if (g_appSwitcherAlt.load()) return;
     SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0,
                  SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
     SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0,
@@ -439,6 +449,27 @@ inline void give_front_back(bool hadFront)
         SendInput(1, &alt, sizeof(alt));
         device_log::input_w() << L"ui: the window closed; gave the front back to " << exe_of(game);
     }).detach();
+}
+
+// ⭐ A PAD'S APP SWITCHER PICKED A WINDOW, a finger still holding Quick up
+// (quick_switch_session.inl, raise_after_pick): the window picked, game or
+// not, is the one the front goes back to as the window closes, and the window
+// comes back in front of it. Returns the picked window's program for the log,
+// or nothing when the window has gone.
+inline std::wstring front_after_pick()
+{
+    FindState ours;
+    EnumWindows(find_window_proc, reinterpret_cast<LPARAM>(&ours));
+    if (ours.found == nullptr) return std::wstring();
+    const HWND picked = GetForegroundWindow();
+    std::wstring name;
+    if (picked != nullptr && picked != ours.found) {
+        name = exe_of(picked);
+        std::lock_guard<std::mutex> lock(g_gameMutex);
+        g_raisedOverGame = picked;
+    }
+    raise_now(ours.found);
+    return name;
 }
 
 // ⭐ FOLLOW THE LAST GAME (rhoquinn8217, 2026-10-09: *"follow the last game I

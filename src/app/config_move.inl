@@ -959,6 +959,11 @@ inline std::atomic_bool g_openOnBridge{open_on_bridge::kDefault};
 // 2026-10-30.
 inline std::atomic_bool g_quickSwitch{quick_switch::kDefault};
 
+// ⭐ THE D-PAD'S APP SWITCHER (rhoquinn8217, 2026-11-06), kept beside it;
+// quick_switch.inl says what it is. Its own tick, kept while the switch is
+// off; it acts only while the switch is on too (app_switcher_on).
+inline std::atomic_bool g_appSwitcher{quick_switch::kAppSwitcherDefault};
+
 // ⭐ ITS WINDOW IS QUICK, FOR ITSELF ALONE (rhoquinn8217, 2026-10-23: "always
 // use quick view for quick config select button/gesture"). While the window
 // it opened is up, the layout and the controller the shortcut and the tray
@@ -1027,6 +1032,7 @@ inline void state_save()
         << "size_quick = " << sizeQuick << "\n";
     out << open_on_bridge::default_line() << open_on_bridge::line(g_openOnBridge.load());
     out << quick_switch::default_line() << quick_switch::line(g_quickSwitch.load());
+    out << quick_switch::app_switcher_line(g_appSwitcher.load());
     out << tutorial_state::seen_line(tutorial_state::kSimpleSeenKey, g_tutorialSimpleSeen.load())
         << tutorial_state::seen_line(tutorial_state::kQuickSeenKey, g_tutorialQuickSeen.load())
         << tutorial_state::seen_line(tutorial_state::kAdvancedSeenKey, g_tutorialAdvancedSeen.load());
@@ -1088,6 +1094,8 @@ inline void state_load()
     bool quickSeen = false;
     bool quickOn = false;
     bool quickDefaultSeen = false;
+    bool appSeen = false;
+    bool appOn = false;
     while (std::getline(f, line)) {
         if (line.empty() || line[0] == '#') continue;
         const size_t eq = line.find('=');
@@ -1121,6 +1129,11 @@ inline void state_load()
         }
         if (key == quick_switch::kDefaultKey) {
             quickDefaultSeen = true;
+            continue;
+        }
+        if (key == quick_switch::kAppSwitcherKey) {
+            appSeen = true;
+            appOn = quick_switch::parse(val);
             continue;
         }
         if (key == tutorial_state::kSimpleSeenKey) {
@@ -1184,6 +1197,7 @@ inline void state_load()
     }
     g_openOnBridge.store(open_on_bridge::loaded(openSeen, openOn, openDefaultSeen));
     g_quickSwitch.store(quick_switch::loaded(quickSeen, quickOn, quickDefaultSeen));
+    g_appSwitcher.store(quick_switch::app_switcher_loaded(appSeen, appOn));
     if (advancedRaw >= 0) {
         // ⭐ The small size went on 2026-10-02 (kSizes). An index saved under
         // three sizes is one too high under two -- medium was 1 and is 0 now
@@ -1202,6 +1216,7 @@ inline void state_load()
         << " " << g_posQuick.x << "," << g_posQuick.y
         << " open_on_bridge=" << (g_openOnBridge.load() ? 1 : 0)
         << " quick_config_switch=" << (g_quickSwitch.load() ? 1 : 0)
+        << " " << quick_switch::kAppSwitcherKey << "=" << (g_appSwitcher.load() ? 1 : 0)
         << " tutorial_simple_seen=" << (g_tutorialSimpleSeen.load() ? 1 : 0)
         << " tutorial_quick_seen=" << (g_tutorialQuickSeen.load() ? 1 : 0)
         << " tutorial_advanced_seen=" << (g_tutorialAdvancedSeen.load() ? 1 : 0));
@@ -1251,6 +1266,17 @@ inline bool quick_switch_on() { return g_quickSwitch.load(); }
 inline void set_quick_switch(bool on)
 {
     g_quickSwitch.store(on);
+    state_save();
+}
+
+// The d-pad's app switcher: its own tick, which the page shows while the
+// switch is on and keeps while it is off, and whether it acts, which it does
+// only while both are on. Set by the settings page, and written at once.
+inline bool app_switcher_ticked() { return g_appSwitcher.load(); }
+inline bool app_switcher_on() { return g_quickSwitch.load() && g_appSwitcher.load(); }
+inline void set_app_switcher(bool on)
+{
+    g_appSwitcher.store(on);
     state_save();
 }
 

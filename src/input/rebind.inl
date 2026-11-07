@@ -387,6 +387,10 @@ inline void apply(const void *deviceKey,
     // touch-packet count, whose high bit is always clear, so "finger 1 down"
     // would have been true forever. ⓘ On hardware (2026-09-15) the chord simply
     // did nothing on a DS4, because the guard kept it out.
+    // ⭐ THE D-PAD'S APP SWITCHER'S KEYS on this report (quick_switch_session.inl,
+    // app_keys): Alt, and a Tab, added below to whichever key set goes out.
+    bool appAlt = false;
+    int appTab = 0;
     const InputPad chordPad = device_input_pad_for(descriptor);
     if (chordPad.layout != nullptr && chordPad.layout->touch.present &&
         len >= ctm_rebind::touch_min_len(*chordPad.layout)) {
@@ -417,6 +421,23 @@ inline void apply(const void *deviceKey,
                 at2, ctm_rebind::touch_finger_id(chordLayout, data, len, 1),
                 static_cast<float>(x2), static_cast<float>(y2),
                 stick, rx, ry);
+        }
+
+        // ⭐ AND THE D-PAD'S APP SWITCHER (rhoquinn8217, 2026-11-06;
+        // quick_switch.inl): while the switch holds the window up, left and
+        // right are Windows' window switcher, Alt held, and Cross its pick.
+        // ⓘ Unlike the switch above, this does change the report: the buttons
+        // it takes are blanked here, before the gate and the bindings below
+        // read them, so neither the page nor the game sees them.
+        {
+            const uint32_t taken = quick_switch_app_buttons(deviceKey,
+                ctm_rebind::is_pressed(chordLayout, data, len, ctm_rebind::kBtnDpadLeft),
+                ctm_rebind::is_pressed(chordLayout, data, len, ctm_rebind::kBtnDpadRight),
+                ctm_rebind::is_pressed(chordLayout, data, len, ctm_rebind::kBtnFaceDown));
+            for (int i = 0; taken != 0 && i < ctm_rebind::kButtonCount; ++i) {
+                if ((taken & (1u << i)) != 0) ctm_rebind::clear_button(chordLayout, data, len, i);
+            }
+            quick_switch_app_keys(deviceKey, &appAlt, &appTab);
         }
 
         // ⛔ EDGE, not level. Options is held for about 300ms and this runs at
@@ -774,6 +795,20 @@ inline void apply(const void *deviceKey,
             if (k != nullptr && k->usage != 0 && gateCount < 6) {
                 gateKeys[gateCount++] = k->usage;
                 gateMods = static_cast<uint8_t>(gateMods | CTM_GATE_MODS);
+            }
+        }
+
+        // ⭐ THE D-PAD'S APP SWITCHER'S ALT AND TAB (app_keys, above): Alt
+        // alone (0x04), Shift with it for Shift+Tab. ⛔ And nothing of the
+        // page's while Alt is down: its keys ride on Ctrl, Shift and Alt, and
+        // would reach Windows' switcher too.
+        if (appAlt) {
+            gateCount = 0;
+            gateMods = 0x04;
+            if (appTab != 0) {
+                const KeyName *tk = key_for("Tab");
+                if (tk != nullptr && tk->usage != 0) gateKeys[gateCount++] = tk->usage;
+                if (appTab < 0) gateMods = static_cast<uint8_t>(gateMods | 0x02);
             }
         }
 
@@ -1170,11 +1205,23 @@ inline void apply(const void *deviceKey,
         if ((triggerPressed & (1u << i)) != 0) set_button(*layout, data, len, i);
     }
 
+    // ⭐ THE D-PAD'S APP SWITCHER'S ALT AND TAB (app_keys, above), with what
+    // the bindings hold. ⓘ Here as well as in the gate: Windows' switcher
+    // takes the front from the window, and the gate lets go of the pad then.
+    if (appAlt) {
+        modifiers = static_cast<uint8_t>(modifiers | 0x04);
+        if (appTab != 0) {
+            const KeyName *tk = key_for("Tab");
+            if (tk != nullptr && tk->usage != 0 && keyCount < 6) keys[keyCount++] = tk->usage;
+            if (appTab < 0) modifiers = static_cast<uint8_t>(modifiers | 0x02);
+        }
+    }
+
     // ⭐ AND WHILE THIS PAD STILL HOLDS SOMETHING, bound or not (code review,
     // 2026-10-05). Publishing only while a binding exists left a key down for
     // good once its last binding was taken away mid-press, or when the gate's
     // keys were still down as the window dropped behind.
-    if (anyBound || ctm_keyboard_device::holds_for(deviceKey)) {
+    if (anyBound || appAlt || ctm_keyboard_device::holds_for(deviceKey)) {
         ctm_keyboard_device::set_state_for(deviceKey, modifiers, keys, keyCount);
     }
     // ⓘ This once ran only when something was bound to a mouse button, so a
