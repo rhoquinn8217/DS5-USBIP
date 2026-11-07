@@ -696,6 +696,9 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
         // ⭐ THE QUICK CONFIG SWITCH (rhoquinn8217, 2026-10-23), the same
         // shape as Open on bridge: GET says it, POST {"on": bool} sets it.
         // ⓘ quick_switch.inl says what it is.
+        // ⭐ AND THE D-PAD'S APP SWITCHER BESIDE IT (2026-11-06), in the same
+        // answer as "app_switcher": its own tick, kept while the switch is
+        // off; POST {"app_switcher": bool} sets it, with "on" or alone.
         if (what == "quick-switch") {
             if (req.method == "POST") {
                 RestJson json;
@@ -705,19 +708,29 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
                     return true;
                 }
                 auto on = json.bools.find("on");
-                if (on == json.bools.end()) {
-                    *out = rest_error_response(400, "say on, true or false");
+                auto app = json.bools.find("app_switcher");
+                if (on == json.bools.end() && app == json.bools.end()) {
+                    *out = rest_error_response(400, "say on or app_switcher, true or false");
                     return true;
                 }
-                ui_set_quick_switch(on->second);
-                device_log::session_w() << L"settings page: the quick config switch is "
-                                        << (on->second ? L"on" : L"off") << L" now";
+                if (on != json.bools.end()) {
+                    ui_set_quick_switch(on->second);
+                    device_log::session_w() << L"settings page: the quick config switch is "
+                                            << (on->second ? L"on" : L"off") << L" now";
+                }
+                if (app != json.bools.end()) {
+                    ui_set_app_switcher(app->second);
+                    device_log::session_w() << L"settings page: the d-pad's app switcher is "
+                                            << (app->second ? L"ticked" : L"unticked") << L" now";
+                }
             } else if (req.method != "GET") {
                 *out = rest_error_response(405, "method not allowed", "Allow: GET, POST, OPTIONS\r\n");
                 return true;
             }
             *out = rest_http_response(200, std::string(R"({"on":)") +
-                                           (ui_quick_switch() ? "true" : "false") + "}");
+                                           (ui_quick_switch() ? "true" : "false") +
+                                           R"(,"app_switcher":)" +
+                                           (ui_app_switcher() ? "true" : "false") + "}");
             return true;
         }
 

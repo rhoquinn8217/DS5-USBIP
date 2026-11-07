@@ -195,6 +195,14 @@ void ctm_chord_show_ui(const std::string &)
 void quick_switch_report(const void *, bool, bool, int, float, float, bool, int, float, float,
                          bool, float, float) {}
 const char *quick_switch_key(const void *) { return nullptr; }
+// ...nor its d-pad app switcher: it takes no button and holds no Alt here.
+uint32_t quick_switch_app_buttons(const void *, bool, bool, bool, bool, float, float) { return 0; }
+void quick_switch_forget_pad(const void *) {}
+void quick_switch_app_keys(const void *, bool *alt, int *tab)
+{
+    *alt = false;
+    *tab = 0;
+}
 
 uint32_t g_triggerPresses = 0;
 uint32_t trigger_click_pad_buttons(const void *) { return g_triggerPresses; }

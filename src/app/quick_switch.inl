@@ -61,6 +61,7 @@
 // install. ⓘ For an existing install too, once: see loaded() below.
 #pragma once
 
+#include <deque>
 #include <string>
 
 namespace quick_switch {
@@ -471,6 +472,253 @@ inline bool close_now(long long nowMs, long long liftedAt, bool coming, bool hea
     if (!heard) return false;
     const long long from = heardAt > liftedAt ? heardAt : liftedAt;
     return nowMs - from >= kDrainMs;
+}
+
+// ⭐ A PRESS WITH THE WINDOW IN FRONT CLOSES IT (rhoquinn8217, 2026-11-06:
+// "When the window is up, when pressing the two finger press once, close the
+// config window"), whoever opened it. ⭐ As the press comes up, as the press
+// that opens Quick does: two fingers pressed and held about four seconds are
+// the TV's release, and a window that closed as they went in would close at
+// every release. Armed by two fingers pressing in with the window in front;
+// true on the report the press comes up in time, a finger still down or not.
+inline bool close_up(Armed &a, bool pressed, long long nowMs)
+{
+    if (!a.on) return false;
+    const bool inTime = nowMs - a.since < kReleaseGestureMs;
+    if (pressed) {
+        if (!inTime) a.spent = true;
+        return false;
+    }
+    const bool close = !a.spent && inTime;
+    a = Armed();
+    return close;
+}
+
+// ⭐⭐ THE D-PAD'S APP SWITCHER (rhoquinn8217, 2026-11-06: "specific function
+// for d-pad left and right when holding the two finger press quick switch.
+// The first time you press left or right alt is held down also if right is
+// pressed, they press tab while alt is still pressed. If left was pressed,
+// press shift+tab. Then don't let go of alt until either of two things
+// happen. cross/A is pressed or the config window closes(you stop touching
+// the touchpad)"). Windows' own window switcher, from the pad: while two
+// fingers hold the Quick window up, right holds Alt down and presses Tab,
+// left presses Shift+Tab, and Alt stays down until Cross picks the window or
+// the last finger lifts. ⭐ After Cross, a finger still down, the Quick window
+// comes back in front of the window picked and is as it was: lifting closes
+// it, a press keeps it (quick_switch_session.inl).
+// ⭐ LEFT, RIGHT AND CROSS ARE ALL IT TAKES (2026-11-06: "left, right and
+// cross|A are the only buttons disabled"): left and right while the window is
+// held up, Cross while Alt is down and until the press that picked is let go,
+// so it reaches neither the page nor the window picked.
+// ⭐ AND ONCE THE SWITCHER IS UP, THE RIGHT STICK AND THE TOUCHPAD TOO
+// (rhoquinn8217, 2026-11-06, on 141: "when app switching with left and right
+// arrows, allow R-stick left and right to also move the selector. also allow
+// pressing the touchpad to select the app"): a push of the stick left or
+// right is a press of the d-pad's (app_switch_stick), and a press of the
+// touchpad picks as Cross does (app_switch_press), Quick coming back in front
+// after it the same way.
+// ⭐ AND THE STICK OPENS IT AS THE D-PAD DOES (rhoquinn8217, 2026-11-06, on
+// 143: "I want R-stick left/right to start the app switch like the d-pad not
+// just be able to select the app"), while the switch holds the window up
+// (`canOpen`, asked by quick_switch_session.inl).
+// ⛔ NOT IN QUICK OPENED ANY OTHER WAY. Built at their word the same evening
+// ("add d-pad app switch functionality to regular quick mode not using two
+// finger touchpad quick switch"), Quick in front opening it and the window
+// back after every pick, and taken out again at their word ("Revert the app
+// switcher in regular quick mode.").
+// ⓘ A swipe, and the stick up or down, still do nothing while Alt is down:
+// the switcher is over the wheel.
+// ⓘ Its own box beside the switch's, on until it is turned off. It acts only
+// while the switch is on, and keeps its own tick while the switch is off
+// (2026-11-06: "It should come back however it was ticked when quick switch
+// was turned off"). Kept in window-state.txt as "quick_switch_app_switcher".
+inline const char *const kAppSwitcherKey = "quick_switch_app_switcher";
+inline constexpr bool kAppSwitcherDefault = true;
+
+inline std::string app_switcher_line(bool on)
+{
+    return std::string(kAppSwitcherKey) + " = " + (on ? "1" : "0") + "\n";
+}
+
+// A file without the line is the default, on: every file written before it.
+inline bool app_switcher_loaded(bool sawLine, bool lineOn)
+{
+    return sawLine ? lineOn : kAppSwitcherDefault;
+}
+
+struct AppSwitch {
+    bool alt = false;           // Alt is down: Windows' switcher is up
+    bool letGo = false;         // Alt goes up once the Tabs on their way have gone
+    bool picked = false;        // ...because Cross or the touchpad picked, not because the window went
+    bool byPress = false;       // ...the touchpad's press, not Cross
+    Stick stick;                // the right stick, read sideways
+    std::deque<int> tabs;       // presses waiting: +1 Tab, -1 Shift+Tab
+    int current = 0;            // the Tab down now: +1, -1, or 0
+    bool inGap = false;         // Alt alone, after a Tab or before the first
+    long long until = 0;        // when the Tab, or the gap, ends
+    bool left = false;          // the buttons on the report before, for their edges
+    bool right = false;
+    bool cross = false;
+    bool crossTaken = false;    // the press that picked, held back until it is let go
+};
+
+// What the switcher takes from a report.
+struct AppTakes {
+    bool leftRight = false;
+    bool cross = false;
+};
+
+// Opens the switcher: Alt down alone, and the first Tab a moment after.
+inline void app_switch_open(AppSwitch &a, long long nowMs)
+{
+    if (a.alt) return;
+    a.alt = true;
+    a.current = 0;
+    a.inGap = true;
+    a.until = nowMs + kKeyGapMs;
+}
+
+// Every report of a pad with a touchpad: its d-pad left and right and Cross.
+// `canOpen`: the switcher may open now, the app switcher on and the switch
+// holding the window up for this pad. Once it is open, left and right move it
+// whatever is in front.
+inline AppTakes app_switch_buttons(AppSwitch &a, bool canOpen, bool left, bool right, bool cross,
+                                   long long nowMs)
+{
+    const bool leftEdge = left && !a.left;
+    const bool rightEdge = right && !a.right;
+    const bool crossEdge = cross && !a.cross;
+    a.left = left;
+    a.right = right;
+    a.cross = cross;
+    if ((a.alt || canOpen) && !a.letGo && (leftEdge || rightEdge)) {
+        app_switch_open(a, nowMs);
+        if (rightEdge) a.tabs.push_back(1);
+        if (leftEdge) a.tabs.push_back(-1);
+    }
+    if (crossEdge && a.alt && !a.letGo) {
+        a.letGo = true;
+        a.picked = true;
+        a.byPress = false;
+        a.crossTaken = true;
+    }
+    if (!cross) a.crossTaken = false;
+    AppTakes t;
+    t.leftRight = canOpen || a.alt;
+    t.cross = a.alt || a.crossTaken;
+    return t;
+}
+
+// The window went (the last finger lifted, or the switch was turned off): Alt
+// goes up once the Tabs on their way have gone, and Windows switches to the
+// window its switcher shows.
+inline void app_switch_end(AppSwitch &a)
+{
+    if (a.alt && !a.letGo) {
+        a.letGo = true;
+        a.picked = false;
+        a.byPress = false;
+    }
+}
+
+// ⭐ A press of the touchpad while Alt is down picks, as Cross does. True when
+// it did: the press is the switcher's then, and keeps nothing.
+inline bool app_switch_press(AppSwitch &a)
+{
+    if (!a.alt || a.letGo) return false;
+    a.letGo = true;
+    a.picked = true;
+    a.byPress = true;
+    return true;
+}
+
+// The right stick's push left or right: -1 left, +1 right, 0 none. One a push,
+// judged as stick_steps judges up and down, the other way about: past
+// kStickStepAt sideways and further than it went up or down, and nothing more
+// until it has come back within kStickRearmAt of the middle.
+inline int stick_sideways(Stick &s, float x, float y)
+{
+    const float ax = x < 0 ? -x : x;
+    const float ay = y < 0 ? -y : y;
+    if (!s.armed) {
+        if (ax < kStickRearmAt && ay < kStickRearmAt) s.armed = true;
+        return 0;
+    }
+    if (ax >= kStickStepAt && ax > ay) {
+        s.armed = false;
+        return x < 0 ? -1 : 1;
+    }
+    return 0;
+}
+
+// ⭐ Each report's right stick: a push left or right is a press of the d-pad's,
+// opening the switcher as it does (`canOpen`, as above) or a Tab once it is
+// open. ⓘ From the middle: a stick already pushed as it may first
+// act moves nothing until it has come back.
+inline void app_switch_stick(AppSwitch &a, bool canOpen, float x, float y, long long nowMs)
+{
+    if ((!a.alt && !canOpen) || a.letGo) {
+        a.stick = Stick();
+        return;
+    }
+    const int side = stick_sideways(a.stick, x, y);
+    if (side == 0) return;
+    app_switch_open(a, nowMs);
+    a.tabs.push_back(side);
+}
+
+struct AppKeys {
+    bool alt = false;       // Alt down on this report
+    int tab = 0;            // +1 Tab, -1 Shift+Tab, 0 none
+    bool wentUp = false;    // Alt has just gone up
+    bool picked = false;    // ...because Cross or the touchpad picked
+    bool byPress = false;   // ...the touchpad's press, not Cross
+};
+
+// The keys this pad's report holds for the switcher, asked once a report. Each
+// Tab is down kKeyDownMs and up kKeyGapMs before the next, Alt down throughout;
+// Alt goes up on a report of its own, after the last Tab's gap.
+inline AppKeys app_switch_keys(AppSwitch &a, long long nowMs)
+{
+    AppKeys k;
+    if (!a.alt) return k;
+    if (a.current != 0) {
+        if (nowMs < a.until) {
+            k.alt = true;
+            k.tab = a.current;
+            return k;
+        }
+        a.current = 0;
+        a.inGap = true;
+        a.until = nowMs + kKeyGapMs;
+    }
+    if (a.inGap) {
+        if (nowMs < a.until) {
+            k.alt = true;
+            return k;
+        }
+        a.inGap = false;
+    }
+    if (!a.tabs.empty()) {
+        a.current = a.tabs.front();
+        a.tabs.pop_front();
+        a.until = nowMs + kKeyDownMs;
+        k.alt = true;
+        k.tab = a.current;
+        return k;
+    }
+    if (a.letGo) {
+        k.wentUp = true;
+        k.picked = a.picked;
+        k.byPress = a.byPress;
+        a.alt = false;
+        a.letGo = false;
+        a.picked = false;
+        a.byPress = false;
+        return k;
+    }
+    k.alt = true;
+    return k;
 }
 
 }  // namespace quick_switch
