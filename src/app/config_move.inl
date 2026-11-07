@@ -351,6 +351,34 @@ inline bool last_pos(int *x, int *y)
 struct CustomSize { int wThou = 0; int hThou = 0; bool have = false; };
 inline CustomSize g_customAdvanced, g_customSimple, g_customQuick;
 
+// ⭐ THE TOUR'S LARGE SIZE (rhoquinn8217, 2026-11-06: *"when tutorial starts,
+// resize the window to its large mode"*): a tour borrows its layout's large
+// size as it starts, and gives back the size that was there as it ends
+// (tour_size_borrow and tour_size_give_back, below). While it has it, the
+// file keeps the size from before (state_save) and no place or size is taken
+// from the window's last look (remember_pos_now): nothing of the tour's is
+// kept, the 🗗 presses on its size step included. ⓘ Under g_posMutex.
+struct TourSize {
+    bool on = false;
+    bool compact = false, quick = false;   // the layout it was borrowed from
+    int slot = 0;                          // that layout's size as it was
+    CustomSize custom;                     // and a size someone had dragged
+    RECT rect{};                           // the window as it stood
+    bool haveRect = false;
+};
+inline TourSize g_tourSize;
+
+// A layout's size slot and dragged size, named rather than the current one's
+// (size_slot, custom_slot): the tour gives back to the layout it borrowed from.
+inline std::atomic_int &size_slot_of(bool compact, bool quick)
+{
+    return !compact ? g_size : (quick ? g_sizeQuick : g_sizeCompact);
+}
+inline CustomSize &custom_of(bool compact, bool quick)
+{
+    return !compact ? g_customAdvanced : (quick ? g_customQuick : g_customSimple);
+}
+
 // ⓘ Guarded by g_posMutex, the same lock as the places: the two are written
 // together on the way out and saved by the same function.
 inline CustomSize &custom_slot()
@@ -425,10 +453,35 @@ inline bool rect_as_left(HWND h, RECT *out)
 
 // The window as it stands, dragged or not. Called while it still exists, on
 // the way out.
+// ⭐ THE TOUR'S SHRUNK WINDOW (rhoquinn8217, 2026-11-06: *"how about shrinking
+// the window to the smallest it can be"*). Simple's tour plays Close by making
+// the window as small as the browser lets it (the page's tutShrink), and its
+// words say so ("shrunk"). That size, and the place that comes with it, are
+// nobody's choice: a close meanwhile keeps what was remembered before.
+inline std::atomic_bool g_tourShrunk{false};
+inline void set_tour_shrunk(bool on) { g_tourShrunk.store(on); }
+
 inline void remember_pos_now()
 {
     HWND h = page_window();
     if (h == nullptr) return;
+    if (g_tourShrunk.load()) {
+        device_log::input(device_log::msg()
+            << "ui/pos-remember: refused -- the tour has the window shrunk, "
+               "not a place or a size anyone chose");
+        return;
+    }
+    bool borrowed = false;
+    {
+        std::lock_guard<std::mutex> lock(g_posMutex);
+        borrowed = g_tourSize.on;
+    }
+    if (borrowed) {
+        device_log::input(device_log::msg()
+            << "ui/pos-remember: refused -- a tour has the window at its large size, "
+               "not a place or a size anyone chose");
+        return;
+    }
     const bool minimised = IsIconic(h) != 0;
     RECT rc;
     if (!rect_as_left(h, &rc)) return;
@@ -951,15 +1004,27 @@ inline void state_save()
         view.quick = g_quick.load();
         view.known = g_known.load();
     }
+    // ⓘ A size a tour has borrowed is written as it was before the tour
+    // (g_tourSize): the file holds only what a person chose.
+    TourSize tour;
+    {
+        std::lock_guard<std::mutex> lock(g_posMutex);
+        tour = g_tourSize;
+    }
+    int sizeAdvanced = g_size.load(), sizeSimple = g_sizeCompact.load(), sizeQuick = g_sizeQuick.load();
+    if (tour.on) {
+        int *mine = !tour.compact ? &sizeAdvanced : tour.quick ? &sizeQuick : &sizeSimple;
+        *mine = tour.slot;
+    }
     out << "compact = " << (view.compact ? 1 : 0) << "\n"
         << "quick = " << (view.quick ? 1 : 0) << "\n"
         << "known = " << (view.known ? 1 : 0) << "\n"
         // ⓘ Marks a file that counts Advanced's TWO sizes (2026-10-02); one
         // without it counted three, and state_load() moves its index down.
         << "advanced_sizes = 2\n"
-        << "size_advanced = " << g_size.load() << "\n"
-        << "size_simple = " << g_sizeCompact.load() << "\n"
-        << "size_quick = " << g_sizeQuick.load() << "\n";
+        << "size_advanced = " << sizeAdvanced << "\n"
+        << "size_simple = " << sizeSimple << "\n"
+        << "size_quick = " << sizeQuick << "\n";
     out << open_on_bridge::default_line() << open_on_bridge::line(g_openOnBridge.load());
     out << quick_switch::default_line() << quick_switch::line(g_quickSwitch.load());
     out << tutorial_state::seen_line(tutorial_state::kSimpleSeenKey, g_tutorialSimpleSeen.load())
@@ -987,9 +1052,14 @@ inline void state_save()
         // ⓘ T-253: thousandths of the work area, and only when someone
         // actually dragged. Same rule as the places above -- no line at all
         // means "never resized by hand", which is not the same as any size.
-        if (g_customAdvanced.have) out << "size_custom_advanced = " << g_customAdvanced.wThou << "," << g_customAdvanced.hThou << "\n";
-        if (g_customSimple.have)   out << "size_custom_simple = "   << g_customSimple.wThou   << "," << g_customSimple.hThou   << "\n";
-        if (g_customQuick.have)    out << "size_custom_quick = "    << g_customQuick.wThou    << "," << g_customQuick.hThou    << "\n";
+        CustomSize cAdvanced = g_customAdvanced, cSimple = g_customSimple, cQuick = g_customQuick;
+        if (g_tourSize.on) {
+            CustomSize *mine = !g_tourSize.compact ? &cAdvanced : g_tourSize.quick ? &cQuick : &cSimple;
+            *mine = g_tourSize.custom;
+        }
+        if (cAdvanced.have) out << "size_custom_advanced = " << cAdvanced.wThou << "," << cAdvanced.hThou << "\n";
+        if (cSimple.have)   out << "size_custom_simple = "   << cSimple.wThou   << "," << cSimple.hThou   << "\n";
+        if (cQuick.have)    out << "size_custom_quick = "    << cQuick.wThou    << "," << cQuick.hThou    << "\n";
     }
     // ⓘ Best effort, and deliberately silent. A window place is not worth a
     // log line on every move, and a read-only directory must not stop the
@@ -1474,6 +1544,68 @@ inline void position_tap()
 inline void size_next()
 {
     if (HWND h = page_window()) resize_next(h);
+}
+
+// ⭐ A TOUR'S LARGE SIZE, BORROWED (g_tourSize above): the layout's size as it
+// is, and a size someone dragged, put aside, and the window at its large size,
+// about its centre as R3 sizes it. ⓘ The page sizes the modes the tour
+// switches to itself, at their large sizes; it tells the listener no switch
+// while a tour runs, so this layout stays the one borrowed from.
+inline void tour_size_borrow()
+{
+    HWND h = page_window();
+    const bool compact = g_compact.load();
+    const bool quick = compact && g_quick.load();
+    bool already = false;
+    {
+        std::lock_guard<std::mutex> lock(g_posMutex);
+        already = g_tourSize.on;
+        if (!already) {
+            g_tourSize.on = true;
+            g_tourSize.compact = compact;
+            g_tourSize.quick = quick;
+            g_tourSize.slot = size_slot_of(compact, quick).load();
+            g_tourSize.custom = custom_of(compact, quick);
+            g_tourSize.haveRect = h != nullptr && !IsIconic(h) && GetWindowRect(h, &g_tourSize.rect) != 0;
+            custom_of(compact, quick).have = false;
+        }
+    }
+    if (!already) size_slot_of(compact, quick).store(1);
+    if (h != nullptr) apply_size(h);
+    device_log::input(device_log::msg()
+        << "ui/tour-size: " << (already ? "borrowed already; " : "")
+        << "the large size, idx 1, for the tour"
+        << (compact ? (quick ? " (quick)" : " (simple)") : " (advanced)"));
+}
+
+// ⭐ AND GIVEN BACK, as the tour ends or the window goes: the size from before,
+// a dragged one with it, and with `place` the window where and as it stood,
+// for a tour that ends in the layout it started in. ⓘ Without a window, or
+// without `place`, only what the next window opens at.
+inline void tour_size_give_back(bool place)
+{
+    TourSize was;
+    {
+        std::lock_guard<std::mutex> lock(g_posMutex);
+        if (!g_tourSize.on) return;
+        was = g_tourSize;
+        g_tourSize.on = false;
+        custom_of(was.compact, was.quick) = was.custom;
+    }
+    size_slot_of(was.compact, was.quick).store(was.slot);
+    HWND h = page_window();
+    const bool put = place && h != nullptr && was.haveRect;
+    if (put) {
+        int x = (int)was.rect.left, y = (int)was.rect.top;
+        int w = (int)(was.rect.right - was.rect.left), hh = (int)(was.rect.bottom - was.rect.top);
+        clamp_into(work_area(), w, hh, x, y);
+        SetWindowPos(h, nullptr, x, y, w, hh, SWP_NOZORDER | SWP_NOACTIVATE);
+    }
+    state_save();
+    device_log::input(device_log::msg()
+        << "ui/tour-size: given back, idx " << was.slot
+        << (was.custom.have ? " and the size someone dragged" : "")
+        << (put ? ", the window where it stood" : ""));
 }
 
 inline void nudge(HWND hwnd, int dx, int dy)

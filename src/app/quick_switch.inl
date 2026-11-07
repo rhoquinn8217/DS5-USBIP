@@ -187,6 +187,43 @@ inline Held while_held(bool pressEdge, int fingers, int steps)
     return Held::Stay;
 }
 
+// ⭐ THE TOUR'S STAND-IN (rhoquinn8217, 2026-11-06: the tutorial plays the
+// switch in a pretend window, "I only want to mock it during the tutorial",
+// then "C": the real press drives it). The same press as the real switch,
+// read the same way: armed by two fingers going in, open as the press comes
+// up in time with a finger still down, kept by a second press, and the last
+// finger lifting ends it, kept or not. Nothing is opened or closed: each is a
+// word for the page ("open", "keep", "lift"), which plays it.
+struct Mock {
+    Armed armed;
+    bool open = false;
+    bool kept = false;
+};
+
+inline const char *mock_report(Mock &m, bool pressEdge, bool pressed, int fingers, long long nowMs)
+{
+    if (m.open) {
+        if (fingers == 0) {
+            m = Mock();
+            return "lift";
+        }
+        if (pressEdge && !m.kept) {
+            m.kept = true;
+            return "keep";
+        }
+        return nullptr;
+    }
+    if (pressEdge && fingers == 2) {
+        arm(m.armed, nowMs);
+        return nullptr;
+    }
+    if (armed_report(m.armed, pressed, fingers, nowMs) == Up::Open) {
+        m.open = true;
+        return "open";
+    }
+    return nullptr;
+}
+
 // ⭐ A FINGER SWIPED UP OR DOWN, WHILE THE WINDOW IS OPEN, ANOTHER RESTING OR
 // NOT (rhoquinn8217, 2026-10-23: "after pressing the touchpad with two finders,
 // 1 finger will not move and the other will swipe up and down.  For example
@@ -308,6 +345,37 @@ inline int stick_steps(Stick &s, float x, float y)
         return y < 0 ? -1 : 1;
     }
     return 0;
+}
+
+// ⭐ AND THE TOUR'S QUICK STEPS AS A REAL ONE DOES (rhoquinn8217, 2026-11-06:
+// *"swiping up or down with one finger or the R-stick up/down aren't
+// working"*): while the stand-in's Quick is up (Mock above: open, not kept),
+// each finger's swipe, another resting or not, and the right stick's pushes
+// are its steps, as while_held and stick_steps make them for a window the
+// press opened. ⓘ From the report after it came up, both starting afresh
+// then, as at a real open; until the last finger lifts or a second press
+// keeps it. `wasUp`: up on the report before. +1 for the next config, -1 for
+// the one before, 0 for none; `byStick` says the stick made it.
+inline bool mock_up(const Mock &m)
+{
+    return m.open && !m.kept;
+}
+
+inline int mock_steps(const Mock &m, bool wasUp, Swipes &swipes, Stick &stick,
+                      const Touch (&touch)[2], bool haveStick, float rx, float ry, bool *byStick)
+{
+    if (byStick != nullptr) *byStick = false;
+    if (!mock_up(m)) return 0;
+    if (!wasUp) {
+        swipes = Swipes();
+        stick = Stick();
+        return 0;
+    }
+    const int swiped = swipe_steps(swipes, touch);
+    const int pushed = haveStick ? stick_steps(stick, rx, ry) : 0;
+    if (swiped != 0) return swiped;
+    if (byStick != nullptr) *byStick = pushed != 0;
+    return pushed;
 }
 
 // ⭐ THE PAGE HEARS A STEP AS A KEY: KeyJ for the next config, KeyK for the

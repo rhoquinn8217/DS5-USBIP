@@ -185,6 +185,16 @@ void ui_tutorial_words_show(const std::string &title, const std::string &count, 
                             const std::string &target, const std::string &obstacles, int clear, int big);
 void ui_tutorial_words_hide();
 std::string ui_tutorial_words_take_press();
+// ⓘ The tour's stand-in for the two finger switch: on while a step asks, and
+// its words for the page (quick_switch_session.inl). Defined below.
+void ui_tour_pad(bool on);
+std::string ui_tour_pad_take();
+// ⓘ The tour's window shrunk in place of a close: no place or size kept from
+// it (config_move.inl). Defined below.
+void ui_tour_shrunk(bool on);
+// ⓘ A tour's large size, borrowed as it starts and given back as it ends
+// (config_move.inl). Defined below.
+void ui_tour_size(bool large, bool place);
 std::string ui_tutorial_words_side();
 bool ui_tutorial_words_moving();
 bool ui_tutorial_words_up();
@@ -505,6 +515,23 @@ void ui_tutorial_words_show(const std::string &title, const std::string &count, 
 void ui_tutorial_words_hide()
 {
     tutorial_bubble::hide();
+}
+void ui_tour_pad(bool on)
+{
+    quick_switch_session::mock_on(on);
+}
+std::string ui_tour_pad_take()
+{
+    return quick_switch_session::take_mock_events();
+}
+void ui_tour_shrunk(bool on)
+{
+    config_move::set_tour_shrunk(on);
+}
+void ui_tour_size(bool large, bool place)
+{
+    if (large) config_move::tour_size_borrow();
+    else config_move::tour_size_give_back(place);
 }
 std::string ui_tutorial_words_take_press()
 {

@@ -818,6 +818,11 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
             } else {
                 ui_tutorial_words_hide();
             }
+            // ⓘ The two finger press reported while the step shown asks
+            // ("pad"), and only then (quick_switch::mock_report).
+            ui_tour_pad(flag("show") && flag("pad"));
+            // ⓘ And the window shrunk for the tour ("shrunk"): nothing of it kept.
+            ui_tour_shrunk(flag("show") && flag("shrunk"));
             *out = rest_http_response(200, R"({"ok":true})");
             return true;
         }
@@ -829,7 +834,7 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
             *out = rest_http_response(200, std::string(R"({"press":")") + ui_tutorial_words_take_press() +
                                            R"(","side":")" + ui_tutorial_words_side() +
                                            R"(","moving":)" + (ui_tutorial_words_moving() ? "true" : "false") +
-                                           "}");
+                                           R"(,"pad":")" + ui_tour_pad_take() + R"("})");
             return true;
         }
 
@@ -1069,6 +1074,26 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
             *out = rest_http_response(200, R"({"ok":true})");
             return true;
         }
+        // ⭐ A TOUR'S LARGE SIZE (rhoquinn8217, 2026-11-06: *"when tutorial
+        // starts, resize the window to its large mode"*): {"large": true} as a
+        // tour starts borrows the layout's large size; {"large": false,
+        // "place": true or false} as it ends gives back the size from before,
+        // and the window's place with it when the page is in the layout the
+        // tour started in (config_move.inl).
+        if (what == "tour-size") {
+            RestJson json;
+            std::string parseError;
+            if (!rest_parse_flat_json(req.body, &json, &parseError)) {
+                *out = rest_error_response(400, parseError);
+                return true;
+            }
+            auto large = json.bools.find("large");
+            auto place = json.bools.find("place");
+            ui_tour_size(large != json.bools.end() && large->second,
+                         place != json.bools.end() && place->second);
+            *out = rest_http_response(200, R"({"ok":true})");
+            return true;
+        }
 
         // ⭐ CLOSE: Circle, in Simple or Quick. The window ENDS -- it does not
         // hide behind the game (rhoquinn8217, 2026-09-09, reversing that
@@ -1095,10 +1120,14 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
                 << "ui/closed: the page reported its own teardown");
             // ⓘ The tutorial's words have nothing left to stand beside.
             ui_tutorial_words_hide();
+            ui_tour_pad(false);
             // The other way out -- the X, or the browser going away. The
             // window may still be up for a moment; if it is, its place is
             // worth having.
             ui_view_remember_pos();
+            ui_tour_shrunk(false);
+            // ⓘ And a size a tour borrowed, for the next window.
+            ui_tour_size(false, false);
             ctm_rebind_set_config_mode(false);
             // ⭐ AND A FULL-SCREEN GAME GETS THE FRONT BACK (rhoquinn8217,
             // 2026-10-09), when the window had the front as it went -- the
