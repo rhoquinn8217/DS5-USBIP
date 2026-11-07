@@ -514,6 +514,8 @@ static std::string rest_keys_json()
 "ControlLeft","ShiftLeft","AltLeft","MetaLeft",
 "ControlRight","ShiftRight","AltRight","MetaRight",
 "Win+Tab",
+"AudioVolumeUp","AudioVolumeDown","AudioVolumeMute",
+"MediaPlayPause","MediaStop","MediaTrackPrevious","MediaTrackNext",
 "MouseLeft","MouseRight","MouseMiddle","MouseWheelUp","MouseWheelDown",
 "KeyboardDS5_USBIP","KeyboardSteam","KeyboardWindows",
 "button_cross","button_circle","button_square","button_triangle",

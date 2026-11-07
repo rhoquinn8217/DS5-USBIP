@@ -71,6 +71,36 @@ std::vector<std::string> offered_names(bool *found)
     return names;
 }
 
+// One profile's bytes, by section, out of the source the same way.
+std::vector<unsigned> profile_bytes(const char *profile, const char *sectionName, bool *found)
+{
+    *found = false;
+    std::vector<unsigned> bytes;
+    const std::string rel = std::string("profiles/descriptors/") + profile;
+    const char *ups[] = { "", "../", "../../", "../../../", "../../../../" };
+    std::string text;
+    for (const char *up : ups) {
+        std::ifstream in((std::string(up) + rel).c_str(), std::ios::binary);
+        if (!in) continue;
+        std::stringstream buffer;
+        buffer << in.rdbuf();
+        text = buffer.str();
+        break;
+    }
+    if (text.empty()) return bytes;
+    const std::string header = std::string("[") + sectionName + "]";
+    const size_t at = text.find(header);
+    if (at == std::string::npos) return bytes;
+    const size_t line = text.find("\nbytes = ", at);
+    if (line == std::string::npos) return bytes;
+    const size_t end = text.find('\n', line + 1);
+    std::istringstream list(text.substr(line + 9, end == std::string::npos ? std::string::npos : end - line - 9));
+    std::string token;
+    while (list >> token) bytes.push_back(static_cast<unsigned>(std::stoul(token, nullptr, 16)));
+    *found = !bytes.empty();
+    return bytes;
+}
+
 } // namespace
 
 int run_binding_names_tests()
@@ -112,6 +142,37 @@ int run_binding_names_tests()
         CTM_CHECK_EQ(static_cast<int>(wt.modifier), 0x08);
         CTM_CHECK_EQ(static_cast<int>(parse("win+tab").usage), 0x2B);
         CTM_CHECK_EQ(static_cast<int>(parse("win+tab").modifier), 0x08);
+    }
+
+    section("binding: a media key is a key whose usage marks it, for the keyboard to send as a consumer's");
+    {
+        // ⭐ rhoquinn8217, 2026-11-07: volume up, down and mute, and play or
+        // pause, stop, previous and next, offered to every button.
+        const struct { const char *name; uint8_t marker; uint16_t consumer; } media[] = {
+            { "AudioVolumeUp", media_keys::kVolumeUp, 0x00E9 },
+            { "AudioVolumeDown", media_keys::kVolumeDown, 0x00EA },
+            { "AudioVolumeMute", media_keys::kVolumeMute, 0x00E2 },
+            { "MediaPlayPause", media_keys::kPlayPause, 0x00CD },
+            { "MediaStop", media_keys::kStop, 0x00B7 },
+            { "MediaTrackPrevious", media_keys::kPrevious, 0x00B6 },
+            { "MediaTrackNext", media_keys::kNext, 0x00B5 },
+        };
+        for (const auto &m : media) {
+            const binding::Target t = parse(m.name);
+            CTM_CHECK_EQ(static_cast<int>(t.kind), static_cast<int>(binding::kKey));
+            CTM_CHECK_EQ(static_cast<int>(t.usage), static_cast<int>(m.marker));
+            CTM_CHECK_EQ(static_cast<int>(t.modifier), 0);
+            CTM_CHECK_EQ(static_cast<int>(media_keys::consumer_for(t.usage)), static_cast<int>(m.consumer));
+        }
+        // ⛔ The config reader lowercases, and the marks survive it too.
+        CTM_CHECK_EQ(static_cast<int>(parse("mediaplaypause").usage), static_cast<int>(media_keys::kPlayPause));
+        CTM_CHECK_EQ(static_cast<int>(parse("audiovolumemute").usage), static_cast<int>(media_keys::kVolumeMute));
+        // ⓘ Above every usage the keyboard report can carry (0x00-0x65), so no
+        // mark is ever sent as a keystroke.
+        for (const auto &m : media) CTM_CHECK(m.marker > 0x65);
+        // An ordinary key stands for no media key.
+        CTM_CHECK_EQ(static_cast<int>(media_keys::consumer_for(0x04)), 0);
+        CTM_CHECK_EQ(static_cast<int>(media_keys::consumer_for(0)), 0);
     }
 
     section("binding: the config reader's lowercase names the same thing");
@@ -205,6 +266,40 @@ int run_binding_names_tests()
         CTM_CHECK_EQ(keyboards, 3);
         CTM_CHECK_EQ(buttons, static_cast<int>(ctm_rebind::kButtonCount));
         CTM_CHECK(keys > 90);
+    }
+
+    section("virtual keyboard: its descriptors agree on the report descriptor's length, and the endpoint holds a report");
+    {
+        // ⛔ A wrong length here is a keyboard Windows cannot read at all, and
+        // the media keys made both longer (2026-11-07).
+        bool haveConfig = false, haveReport = false;
+        const std::vector<unsigned> config =
+            profile_bytes("virtual_keyboard.profile", "configuration_descriptor", &haveConfig);
+        const std::vector<unsigned> report =
+            profile_bytes("virtual_keyboard.profile", "hid_report_descriptor", &haveReport);
+        CTM_CHECK(haveConfig && haveReport);
+        if (config.size() == 34 && !report.empty()) {
+            CTM_CHECK_EQ(static_cast<int>(config[2] | (config[3] << 8)), 34);      // wTotalLength
+            CTM_CHECK_EQ(static_cast<int>(config[25] | (config[26] << 8)),
+                         static_cast<int>(report.size()));                         // the HID descriptor's
+            CTM_CHECK_EQ(static_cast<int>(report.size()), 72);
+            // The endpoint's wMaxPacketSize holds the keyboard's 9 bytes.
+            CTM_CHECK(static_cast<size_t>(config[31] | (config[32] << 8)) >= media_keys::kKeyboardReportLen);
+            // ⓘ No boot interface: a boot keyboard's report has no report ID.
+            CTM_CHECK_EQ(static_cast<int>(config[15]), 0);
+            CTM_CHECK_EQ(static_cast<int>(config[16]), 0);
+            // Both report IDs are declared, 1 then 2.
+            int ids = 0;
+            for (size_t i = 0; i + 1 < report.size(); ++i) {
+                if (report[i] == 0x85) {
+                    ++ids;
+                    CTM_CHECK_EQ(static_cast<int>(report[i + 1]), ids);
+                }
+            }
+            CTM_CHECK_EQ(ids, 2);
+        } else {
+            CTM_CHECK(false);
+        }
     }
 
     return 0;
