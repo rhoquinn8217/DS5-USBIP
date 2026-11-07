@@ -636,19 +636,26 @@ end;
   of why is best to do it this way"). Lines of the list with no box of their
   own, lined up with the box's words, so a click on them ticks nothing. The box is the list's last
   (the last of [Tasks]); the lines go once, as the list may still hold them
-  when the page comes back. }
+  when the page comes back.
+  ⭐ Headed "Why use this:", each reason a bullet under it (rhoquinn8217,
+  2026-11-06: "Before giving the 3 reasons to add the vibepollo startup
+  option, Say, "Why use this: " then bullet the 3 reasons."). The bullet is
+  written as its character code, #$2022, so the file's encoding cannot
+  change it. }
 procedure ShowStreamCommandsWhy();
 var
   List: TNewCheckListBox;
-  Last: String;
+  Bullet, Last: String;
 begin
   if not StreamHostFound() then Exit;
   List := WizardForm.TasksList;
-  Last := 'Allows the webOS TV to give temporary rebinds for logging into Windows.';
+  Bullet := #$2022 + ' ';
+  Last := Bullet + 'Allows the webOS TV to give temporary rebinds for logging into Windows.';
   if List.Items.Count = 0 then Exit;
   if List.ItemCaption[List.Items.Count - 1] = Last then Exit;
-  List.AddGroup('Automatic bridging when the stream starts.', '', 1, nil);
-  List.AddGroup('Prevents bridging when the stream has stopped.', '', 1, nil);
+  List.AddGroup('Why use this:', '', 1, nil);
+  List.AddGroup(Bullet + 'Automatic bridging when the stream starts.', '', 1, nil);
+  List.AddGroup(Bullet + 'Prevents bridging when the stream has stopped.', '', 1, nil);
   List.AddGroup(Last, '', 1, nil);
 end;
 
