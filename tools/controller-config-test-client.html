@@ -2,7 +2,7 @@
 <!--
   DS5-USBIP's Controller Configs page, served by the listener.
 
-  VERSION 2.66.141 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.142 -- see the changelog at the bottom of this comment.
 
   WHAT IT STARTED AS. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -24,6 +24,20 @@
   not a tidy message about it.
 
   CHANGELOG
+    2.66.142 Every tour at its window's large size, and Archive's step moves
+             on with whichever config is archived (rhoquinn8217, 2026-11-06:
+             "when tutorial starts, resize the window to its large mode",
+             and "The tutorail got stuck on step 19"): a tour borrows its
+             mode's large size from DS5-USBIP as it starts (ui/tour-size),
+             each mode it switches to takes its own large size, and as it
+             ends the size from before comes back, with the window's place
+             when it ends in the mode it started in; nothing of it is kept.
+             Step 19 waited for the config the tour made, and Go back onto
+             auto link's step could leave another on the wheel, the one the
+             wheel had stopped on before it: Archive put that one away and
+             the step never moved on. A wheel step still on its way is linked
+             now before Go back's snapshot is taken, and Archive's steps, in
+             Simple's tour and Advanced's, move on with the config archived.
     2.66.141 Simple's tour shrinks the window in place of closing it, and the
              two finger press brings up the real Quick Mode (rhoquinn8217,
              2026-11-06: "lets remove the tray icon tutorial steps", "just
@@ -3368,7 +3382,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.66.141</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.66.142</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -10850,6 +10864,8 @@ function quickSize() {
 }
 
 function sizeForMode() {
+  // ⓘ While a tour runs, at this mode's large size (tutLargeSize, 2.66.142).
+  if (TUT) { tutLargeSize(); return; }
   if (QUICK) quickSize(); else compactSize();
 }
 
@@ -10970,7 +10986,7 @@ function setCompact(on, restore) {
     document.body.classList.remove('quick');
     saveMode();
     if (COMPACT_HOLD_RESTORE) { COMPACT_HOLD_RESTORE = false; setGateHold(true); }
-    if (!restore) fitWindow();
+    if (!restore) { if (TUT) tutLargeSize(); else fitWindow(); }
     gpCollect();
     GP_INDEX = 0;
     // ⭐ On the controller's config picker after a switch (MODE_FOCUS_CONFIG).
@@ -13890,6 +13906,59 @@ function selfTest() {
        'away, and pressing twice brings Simple back',
        shrinkSeen.join(',') === 'true,true,true,true,true,true' && shrinkSteps,
        shrinkSeen.join(',') + ' / ' + modes.join(','));
+    // ⭐ Archive's steps (2.66.142): on with whichever config is archived, and
+    // a wheel step on its way linked before a snapshot is taken.
+    var keepArch = [TUT, TUT_MOCK, QUICK_WANT, QUICK_WANT_TIMER];
+    TUT = { kind: 'simple', phase: 'step', at: 18, done: [], mem: [], busy: false, focus: null,
+            made: 'stick_to_mouse' };
+    TUT_MOCK = tutMockMake('simple');
+    TUT_MOCK.configs.push('stick_to_mouse');
+    TUT_MOCK.links.tutorial_1 = 'touchpad-to-mouse';
+    var archSeen = [];
+    TUT_SIMPLE[18].enter();
+    archSeen.push(TUT_SIMPLE[18].done() === false);
+    tutMockCall('POST', '/api/v1/configs/touchpad-to-mouse/archive', {});
+    archSeen.push(TUT_SIMPLE[18].done() === true && TUT_MOCK.configs.indexOf('stick_to_mouse') >= 0);
+    TUT_SIMPLE[18].enter();
+    archSeen.push(TUT_SIMPLE[18].done() === false);
+    QUICK_WANT = { ordinal: 'tutorial_1', config: 'stick_to_mouse', at: Date.now() };
+    QUICK_WANT_TIMER = setTimeout(function () {}, 600000);
+    var archSnap = JSON.parse(tutSnapshot());
+    archSeen.push(archSnap.links.tutorial_1 === 'stick_to_mouse' && !QUICK_WANT_TIMER);
+    var archAdv = TUT_ADVANCED.filter(function (s) { return s.done === tutArchivedDone; }).length;
+    clearTimeout(QUICK_WANT_TIMER);
+    TUT = keepArch[0];
+    TUT_MOCK = keepArch[1];
+    QUICK_WANT = keepArch[2];
+    QUICK_WANT_TIMER = keepArch[3];
+    ok('the tutorial: Archive\'s step moves on with whichever config is archived, and Go back\'s snapshot ' +
+       'has a wheel step on its way linked first',
+       archSeen.join(',') === 'true,true,true,true' && TUT_SIMPLE[18].done === tutArchivedDone && archAdv === 1,
+       archSeen.join(',') + ' / Advanced ' + archAdv);
+    // ⭐ The tour's sizes (2.66.142): each mode at its large, as the listener's
+    // tables have them, and sizeForMode at it only while a tour runs.
+    var keepSize = [TUT, COMPACT, QUICK, compactHome, TUT_SIZING];
+    var homes = [];
+    compactHome = function (w, h) { homes.push(w + 'x' + h); };
+    TUT_SIZING = true;
+    COMPACT = true; QUICK = false;
+    var shares = [JSON.stringify(tutLargeShare())];
+    TUT = { kind: 'simple', phase: 'step', at: 0, done: [], mem: [], busy: false, focus: null };
+    sizeForMode();
+    TUT = null;
+    sizeForMode();
+    QUICK = true;
+    shares.push(JSON.stringify(tutLargeShare()));
+    COMPACT = false; QUICK = false;
+    shares.push(JSON.stringify(tutLargeShare()));
+    TUT = keepSize[0]; COMPACT = keepSize[1]; QUICK = keepSize[2];
+    compactHome = keepSize[3]; TUT_SIZING = keepSize[4];
+    var aw = screen.availWidth, ah = screen.availHeight;
+    ok('the tutorial: each mode the tour shows is at its large size, and only while a tour runs',
+       shares.join(' ') === '{"w":0.611,"h":0.4819} {"w":0.429,"h":0.246} {"w":0.9,"h":0.94}' &&
+       homes.join(' ') === Math.round(aw * 0.611) + 'x' + Math.round(ah * 0.4819) + ' ' +
+                           Math.round(aw * 0.49) + 'x' + Math.round(ah * 0.3879),
+       shares.join(' ') + ' / ' + homes.join(' '));
     // ⭐ Skip (2.66.140): on the two finger steps, Continue is Skip with no
     // DualSense, Edge or DS4 really bridged or the switch unticked; with one
     // and the switch on, the step to try keeps Continue and the double
@@ -14234,6 +14303,11 @@ function tutAutoOf(ordinal) {
 
 // What Go back puts back: the practice controllers as a step found them.
 function tutSnapshot() {
+  // ⭐ A WHEEL STEP STILL ON ITS WAY IS LINKED FIRST (2.66.142): the wheel
+  // links what it stops on a moment later (QUICK_LINK_MS), and a step that
+  // began in that moment kept the config the wheel had stopped on before,
+  // which Go back then put back, the wheel and all.
+  quickLinkNow();
   var m = TUT_MOCK;
   return JSON.stringify({ configs: m.configs, links: m.links, limits: m.limits, auto: m.auto,
                          settings: m.settings, made: (TUT && TUT.made) || '' });
@@ -14369,6 +14443,8 @@ function tutMockCall(method, path, body) {
     // controller that read it reads no config.
     if (method === 'POST' && hit[2] === 'archive') {
       m.configs = m.configs.filter(function (c) { return c !== name; });
+      // ⓘ For Archive's step, whichever config it was (tutArchivedDone).
+      if (TUT) TUT.archived = name;
       delete m.auto[name];
       delete m.settings[name];
       m.pads.forEach(function (pad) {
@@ -14768,6 +14844,46 @@ function tutPadEvent(word) {
   else if (word === 'lift' && !TUT.padKept) tutShrink();
   else if (word === 'keep' && s.pad === 'keep') { TUT.padKept = true; tutUnshrink('simple'); }
 }
+// ⭐⭐ THE TOUR AT ITS WINDOW'S LARGE SIZE (2.66.142; rhoquinn8217, 2026-11-06:
+// *"when tutorial starts, resize the window to its large mode"*): a tour
+// borrows its mode's large size from DS5-USBIP as it starts (ui/tour-size,
+// config_move.inl), each mode it switches to takes its own large size here,
+// and as it ends the size from before comes back, with the window's place
+// when it ends in the mode it started in (tutSizeBack). ⓘ Nothing of it is
+// kept: the listener writes the size from before while the tour has it, and
+// takes no place or size from the window meanwhile.
+// ⓘ The large of each mode's two sizes, as the listener's tables have them
+// (kSizes, kCompactSizes and kQuickSizes in config_move.inl): this is the
+// other placer, and moves with them.
+function tutLargeShare() {
+  return !COMPACT ? { w: 0.90, h: 0.94 } : QUICK ? { w: 0.429, h: 0.246 } : { w: 0.611, h: 0.4819 };
+}
+function tutLargeSize() {
+  if (!TUT_SIZING) return;
+  var s = tutLargeShare();
+  var w = Math.round(screen.availWidth * s.w), h = Math.round(screen.availHeight * s.h);
+  if (COMPACT) { compactHome(w, h); return; }
+  window.resizeTo(w, h);
+  window.moveTo(Math.round((screen.availWidth - w) / 2), Math.round((screen.availHeight - h) / 2));
+}
+function tutSizeAsk(body) {
+  if (!TUT_SIZING) return Promise.resolve();
+  return callListener('POST', '/api/v1/ui/tour-size', body, true).catch(function () {});
+}
+// ⓘ A moment after the page's last resize has landed, so the two do not
+// cross; in a mode the tour did not start in, that mode's own size, as a
+// switch to it gives, and the listener told the mode.
+function tutSizeBack(startMode) {
+  if (!TUT_SIZING || !startMode) return;
+  var same = tutViewKind() === startMode;
+  setTimeout(function () {
+    tutSizeAsk({ large: false, place: same }).then(function () {
+      if (same || TUT) return;
+      postView(false);
+      if (COMPACT) sizeForMode(); else fitWindow();
+    });
+  }, 150);
+}
 // ⭐⭐ SKIP, ON A STEP ONLY A CONTROLLER CAN DO (2.66.140; rhoquinn8217,
 // 2026-11-06: *"If a bridged DualSense/Edge or DS5 controller is not bridge
 // during the 2 finger press quick switch tutorial steps, add a skip button to
@@ -14912,6 +15028,17 @@ function tutPresetStep(names, words, withText) {
              parts[parts.length - 1].scrollIntoView({ block: 'nearest' });
              parts[0].scrollIntoView({ block: 'nearest' });
            } };
+}
+
+// ⭐ ARCHIVE'S STEP MOVES ON WITH THE CONFIG ARCHIVED, WHICHEVER IT WAS
+// (2.66.142; rhoquinn8217, 2026-11-06: *"The tutorail got stuck on step
+// 19"*): its words say the selected config, and Archive puts away the one on
+// the wheel. It waited for the config the tour made, so with another on the
+// wheel, as Go back onto auto link's step could leave it, that one went and
+// the step stayed, Archive greyed and Continue too. Advanced's the same.
+function tutArchiveEnter() { if (TUT) TUT.archived = ''; }
+function tutArchivedDone() {
+  return !!TUT && !!TUT.archived && !!TUT_MOCK && TUT_MOCK.configs.indexOf(TUT.archived) < 0;
 }
 
 // ⓘ The mark's step, the same in both (rhoquinn8217, 2026-10-27: *"add a step
@@ -15231,7 +15358,7 @@ var TUT_SIMPLE = [
   // 18: the mark auto link leaves.
   tutMarkStep(),
   // 19 (*"do a step for archive"*)
-  { side: 'right', act: true, focus: '.csbtns .carchive-btn', split: true,
+  { side: 'right', act: true, focus: '.csbtns .carchive-btn', split: true, enter: tutArchiveEnter,
     lit: function () { return tutQ('.csbtns .carchive-btn').concat(tutConfirmCard()); },
     anchors: function () { return tutQ('.csbtns .carchive-btn'); },
     hits: function () { return tutQ('.csbtns .carchive-btn'); },
@@ -15241,7 +15368,7 @@ var TUT_SIMPLE = [
              tutHl('Archive') + ', then choose ' + tutHl('OK') + ', and ' + tutNick() +
              ' has no config again.';
     },
-    done: function () { return !!TUT.made && TUT_MOCK.configs.indexOf(TUT.made) < 0; } },
+    done: tutArchivedDone },
   // 20 (*"Split 18 into two steps. One that describes the whole legend"*):
   // the legend, all of it, to read.
   { side: 'left', lit: function () { return tutQ('.clegend'); }, words: function () { return tutWordsLegend(false); } },
@@ -15816,6 +15943,7 @@ var TUT_ADVANCED = [
   }, true),
   // 26: Archive Config, as Simple's Archive.
   { side: 'right', act: true, split: true, focus: function () { return tutAdvButton('archive'); },
+    enter: tutArchiveEnter,
     lit: function () { return [tutAdvButton('archive')].concat(tutConfirmCard()); },
     anchors: function () { return [tutAdvButton('archive')]; },
     hits: function () { return [tutAdvButton('archive')]; },
@@ -15823,7 +15951,7 @@ var TUT_ADVANCED = [
       return tutHl('Archive Config') + ' puts the selected config away: press ' + tutHl('Archive Config') +
              ', then choose ' + tutHl('OK') + ', and ' + tutNick() + ' has no config again.';
     },
-    done: function () { return !!TUT.made && TUT_MOCK.configs.indexOf(TUT.made) < 0; } },
+    done: tutArchivedDone },
   // 27: the Editor, in a line (*"just briefly state allow you to work on a
   // config with nothing bridged"*): its tab, shown and locked.
   { side: 'right', lit: function () { return tutA('#tabs button[data-tab="editor"]'); },
@@ -15977,6 +16105,9 @@ function tutBegin(kind) {
   kind = kind === 'simple' || kind === 'advanced' ? kind : 'quick';
   TUT = { kind: kind, phase: 'intro', at: 0, done: [], mem: [], busy: false, focus: null,
           saved: ACTIVE };
+  // ⭐ At this mode's large size, borrowed from DS5-USBIP (tutLargeSize).
+  TUT.startMode = tutViewKind();
+  tutSizeAsk({ large: true });
   TUT_LAST_HOLES = '';
   TUT_LAST_ARROWS = '';
   TUT_ANCHOR_STEP = '';
@@ -16398,12 +16529,13 @@ function tutKeepGoing() {
 function tutFinish() {
   if (!TUT) return;
   tutCloseOpen();
-  // ⓘ The window back at its size, and in Simple when the press's steps had
-  // Quick up (2.66.141).
+  // ⓘ In Simple when the press's steps had Quick up (2.66.141), and unshrunk,
+  // at no size of the page's: the size from before the tour comes back below
+  // (tutSizeBack, 2.66.142).
   var here = tutSteps()[TUT.at];
-  if (here && here.pad && tutViewKind() === 'quick') tutUnshrink('simple');
-  else if (TUT_SHRUNK) tutUnshrink(null);
-  var saved = TUT.saved, kind = TUT.kind;
+  if (here && here.pad && tutViewKind() === 'quick') setMode('simple', true);
+  TUT_SHRUNK = false;
+  var saved = TUT.saved, kind = TUT.kind, startMode = TUT.startMode;
   TUT = null;
   TUT_REAL = null;
   TUT_FADE = null;
@@ -16414,6 +16546,7 @@ function tutFinish() {
   if (root && root.parentNode) root.parentNode.removeChild(root);
   tutMockOff(saved, kind);
   gpCollect();
+  tutSizeBack(startMode);
 }
 
 // ---- the pad and the keys -----------------------------------------------------

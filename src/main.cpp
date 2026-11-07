@@ -192,6 +192,9 @@ std::string ui_tour_pad_take();
 // ⓘ The tour's window shrunk in place of a close: no place or size kept from
 // it (config_move.inl). Defined below.
 void ui_tour_shrunk(bool on);
+// ⓘ A tour's large size, borrowed as it starts and given back as it ends
+// (config_move.inl). Defined below.
+void ui_tour_size(bool large, bool place);
 std::string ui_tutorial_words_side();
 bool ui_tutorial_words_moving();
 bool ui_tutorial_words_up();
@@ -524,6 +527,11 @@ std::string ui_tour_pad_take()
 void ui_tour_shrunk(bool on)
 {
     config_move::set_tour_shrunk(on);
+}
+void ui_tour_size(bool large, bool place)
+{
+    if (large) config_move::tour_size_borrow();
+    else config_move::tour_size_give_back(place);
 }
 std::string ui_tutorial_words_take_press()
 {
