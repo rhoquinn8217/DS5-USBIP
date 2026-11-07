@@ -2,7 +2,7 @@
 <!--
   DS5-USBIP's Controller Configs page, served by the listener.
 
-  VERSION 2.66.144 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.145 -- see the changelog at the bottom of this comment.
 
   WHAT IT STARTED AS. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -24,6 +24,17 @@
   not a tidy message about it.
 
   CHANGELOG
+    2.66.145 Simple's tour in the modes it visits, at rhoquinn8217's word
+             (2026-11-06): a step that asks for a mode lets only that one be
+             chosen in the mode selector ("restrict selecting any other
+             mode"), the others greyed as the one it is in is, and refused if
+             picked anyway; Advanced, switched to, at its small size ("activate
+             the resize to the small version"); the words over Advanced's
+             middle ("put the tutorial in the middle of the config window"),
+             and above Quick's window, centred; and the last step encourages
+             the two finger quick switch ("The last step before Finishing the
+             tutorial needs to encourage using the two finger touchpad quick
+             switch").
     2.66.144 Simple's tour in a new order, at rhoquinn8217's word
              (2026-11-06): the legend's step says only that it shows what the
              buttons do in Simple Mode ("No need to go over each button in
@@ -3405,7 +3416,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.66.144</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.66.145</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -10748,9 +10759,13 @@ function modePickerHtml(id) {
   // mode selector change and just gray out the mode that it is currently
   // in"), where 2.66.97 left it out of the open list: it stays in the list,
   // and a click on it does nothing.
+  // ⭐ And in a tour's step that asks for a mode, every other one greyed too
+  // (tutModeTo, 2.66.145).
+  var only = typeof tutModeTo === 'function' ? tutModeTo() : '';
   var opts = [['advanced', 'Advanced Mode'], ['simple', 'Simple Mode'], ['quick', 'Quick Mode']]
     .map(function (m) {
-      return '<option value="' + m[0] + '"' + (m[0] === cur ? ' selected disabled' : '') +
+      var off = m[0] === cur || (!!only && m[0] !== only);
+      return '<option value="' + m[0] + '"' + (m[0] === cur ? ' selected' : '') + (off ? ' disabled' : '') +
              '>' + m[1] + '</option>';
     }).join('');
   return '<select class="modepick" id="' + id + '" size="1" ' +
@@ -10792,6 +10807,9 @@ function schedulePaintModePickers() {
 // the compact box underneath the select that called it.
 function pickMode(v) {
   if (!v || v === modeName()) return;
+  // ⓘ In a tour's step that asks for a mode, that one alone (tutModeTo).
+  var only = typeof tutModeTo === 'function' ? tutModeTo() : '';
+  if (only && v !== only) { schedulePaintModePickers(); return; }
   setMode(v);
 }
 
@@ -11009,7 +11027,8 @@ function setCompact(on, restore) {
     document.body.classList.remove('quick');
     saveMode();
     if (COMPACT_HOLD_RESTORE) { COMPACT_HOLD_RESTORE = false; setGateHold(true); }
-    if (!restore) { if (TUT) tutLargeSize(); else fitWindow(); }
+    // ⓘ At its small size in a tour too, since 2.66.145 (tutLargeShare).
+    if (!restore) fitWindow();
     gpCollect();
     GP_INDEX = 0;
     // ⭐ On the controller's config picker after a switch (MODE_FOCUS_CONFIG).
@@ -13996,11 +14015,47 @@ function selfTest() {
     TUT_SHRUNK = keepPad;
     padSeen.push(TUT_SIMPLE[33].keys === tutPadKeys && TUT_SIMPLE[34].keys === tutPadKeys &&
                  tutWordsSide(TUT_SIMPLE[35]) === 'center' && tutWordsSide(TUT_SIMPLE[0]) === 'left');
+    // ⭐ Simple's mode steps (2.66.145): only the mode asked for to choose,
+    // the words over Advanced's middle and above Quick's window, and the last
+    // step's words. On made-up state, put back after.
+    var keepMode = [TUT, COMPACT, QUICK, setMode, tutViewKind, TUT_SHRUNK];
+    var modeView = 'simple', modeSet = [];
+    setMode = function (m) { modeSet.push(m); };
+    tutViewKind = function () { return modeView; };
+    TUT_SHRUNK = false;
+    COMPACT = true; QUICK = false;
+    var stepAdv = TUT_SIMPLE.indexOf(TUT_SIMPLE.filter(function (st) {
+      return st.modeFrom === 'simple' && st.modeTo === 'advanced';
+    })[0]);
+    TUT = { kind: 'simple', phase: 'step', at: stepAdv, done: [], mem: [], busy: false, focus: null, made: '' };
+    var modeHtml = modePickerHtml('tutModeTest');
+    pickMode('quick');
+    pickMode('advanced');
+    var modeSeen = [
+      /value="advanced">/.test(modeHtml) && /value="quick" disabled>/.test(modeHtml) &&
+        /value="simple" selected disabled>/.test(modeHtml),
+      modeSet.join(',') === 'advanced',
+      stepAdv === 25 && tutWordsSide(TUT_SIMPLE[stepAdv]) === TUT_SIMPLE[stepAdv].side];
+    modeView = 'advanced';
+    modeSeen.push(tutWordsSide(TUT_SIMPLE[26]) === 'center' && tutModeTo() === '');
+    modeView = 'quick';
+    modeSeen.push(tutWordsSide(TUT_SIMPLE[28]) === 'above' && tutWordsOverQuick());
+    TUT.at = 0;
+    modeView = 'simple';
+    modeSeen.push(modePickerHtml('tutModeTest').indexOf('value="quick">') >= 0);
+    TUT = keepMode[0]; COMPACT = keepMode[1]; QUICK = keepMode[2];
+    setMode = keepMode[3]; tutViewKind = keepMode[4]; TUT_SHRUNK = keepMode[5];
+    modeSeen.push(tutWordsFinish().indexOf('two finger quick switch') >= 0 &&
+                  tutWordsFinish().indexOf(tutHl('Finish tutorial')) >= 0 && TUT_SIMPLE[35].words === tutWordsFinish);
+    ok('the tutorial: a mode step lets only its mode be chosen, the words stand over Advanced\'s middle and ' +
+       'above Quick\'s window, and the last step encourages the two finger quick switch',
+       modeSeen.join(',') === 'true,true,true,true,true,true,true', modeSeen.join(','));
     ok('the tutorial: on the two finger steps the switch\'s steps step Quick\'s wheel, nothing does while ' +
        'the window is put away, and the words cover it then',
        padSeen.join(',') === 'true,true,true', padSeen.join(','));
-    ok('the tutorial: each mode the tour shows is at its large size, and only while a tour runs',
-       shares.join(' ') === '{"w":0.611,"h":0.4819} {"w":0.429,"h":0.246} {"w":0.9,"h":0.94}' &&
+    ok('the tutorial: Simple and Quick, shown in a tour, at their large sizes, Advanced at its small, ' +
+       'and only while a tour runs',
+       shares.join(' ') === '{"w":0.611,"h":0.4819} {"w":0.429,"h":0.246} null' &&
        homes.join(' ') === Math.round(aw * 0.611) + 'x' + Math.round(ah * 0.4819) + ' ' +
                            Math.round(aw * 0.49) + 'x' + Math.round(ah * 0.3879),
        shares.join(' ') + ' / ' + homes.join(' '));
@@ -14836,13 +14891,26 @@ function tutModePick(from) { return tutById(from === 'advanced' ? 'modePick' : '
 function tutSetView(kind) { if (tutViewKind() !== kind) setMode(kind); }
 function tutModeStep(from, to, side, words) {
   var pick = function () { return tutModePick(from); };
-  return { side: side, act: true, views: [from, to], focus: pick,
+  return { side: side, act: true, views: [from, to], focus: pick, modeFrom: from, modeTo: to,
            lit: function () { return [pick()]; },
            pointer: function () { return GP_SELECTING !== pick(); },
            keys: function () { return !!GP_SELECTING; },
+           // ⓘ The selector open, its choice kept on the mode asked for: the
+           // pad's up and down would land on the greyed ones (tutModeTo).
+           tick: function () { var el = pick(); if (el && GP_SELECTING === el && el.value !== to) el.value = to; },
            words: words,
            done: function () { return tutViewKind() === to; },
            undo: function () { tutSetView(from); } };
+}
+// ⭐ A MODE STEP LETS ONLY ITS MODE BE CHOSEN (2.66.145; rhoquinn8217,
+// 2026-11-06: *"when instructed to choose a different mode, restrict selecting
+// any other mode."*): the selector's other modes greyed, as the one it is in
+// is (modePickerHtml), for the mouse and the pad, and a pick of one refused
+// (pickMode). The mode the step asks for, while the window is in the mode it
+// starts in; '' on any other step and with no tour.
+function tutModeTo() {
+  var s = tutStep();
+  return s && s.modeTo && tutViewKind() === s.modeFrom ? s.modeTo : '';
 }
 // ⭐⭐ THE TOUR'S CLOSE SHRINKS THE WINDOW (2.66.141; rhoquinn8217, 2026-11-06:
 // *"just minimize the window when the user click the "Close" button. Bring up
@@ -14908,19 +14976,21 @@ function tutPadEvent(word) {
 // when it ends in the mode it started in (tutSizeBack). ⓘ Nothing of it is
 // kept: the listener writes the size from before while the tour has it, and
 // takes no place or size from the window meanwhile.
-// ⓘ The large of each mode's two sizes, as the listener's tables have them
-// (kSizes, kCompactSizes and kQuickSizes in config_move.inl): this is the
-// other placer, and moves with them.
+// ⓘ The large of Simple's and Quick's two sizes, as the listener's tables
+// have them (kCompactSizes and kQuickSizes in config_move.inl): this is the
+// other placer, and moves with them. ⭐ Advanced, switched to, at its small
+// size since 2.66.145 (rhoquinn8217, 2026-11-06: *"When advance mode is
+// switched two, activate the resize to the small version."*), as a switch to
+// it gives with no tour (fitWindow): null. ⓘ A tour that starts in Advanced
+// still borrows its large size (ui/tour-size).
 function tutLargeShare() {
-  return !COMPACT ? { w: 0.90, h: 0.94 } : QUICK ? { w: 0.429, h: 0.246 } : { w: 0.611, h: 0.4819 };
+  return !COMPACT ? null : QUICK ? { w: 0.429, h: 0.246 } : { w: 0.611, h: 0.4819 };
 }
 function tutLargeSize() {
   if (!TUT_SIZING) return;
   var s = tutLargeShare();
-  var w = Math.round(screen.availWidth * s.w), h = Math.round(screen.availHeight * s.h);
-  if (COMPACT) { compactHome(w, h); return; }
-  window.resizeTo(w, h);
-  window.moveTo(Math.round((screen.availWidth - w) / 2), Math.round((screen.availHeight - h) / 2));
+  if (!s) { fitWindow(); return; }
+  compactHome(Math.round(screen.availWidth * s.w), Math.round(screen.availHeight * s.h));
 }
 function tutSizeAsk(body) {
   if (!TUT_SIZING) return Promise.resolve();
@@ -15015,7 +15085,14 @@ function tutWordsBack() {
 function tutWordsEnd() {
   return tutWordsBack() + ' Choose ' + tutHl('Finish tutorial') + '.';
 }
-function tutWordsFinish() { return 'Choose ' + tutHl('Finish tutorial') + '.'; }
+// ⭐ AND IT ENCOURAGES THE TWO FINGER QUICK SWITCH (2.66.145; rhoquinn8217,
+// 2026-11-06: *"The last step before Finishing the tutorial needs to
+// encourage using the two finger touchpad quick switch."*).
+function tutWordsFinish() {
+  return 'In your next game, try the two finger quick switch on a DualSense or DS4: press the touchpad ' +
+         'with two fingers to bring up Quick Mode, swipe a finger or push the right stick to switch ' +
+         'configs, and lift your fingers to go back to your game. Choose ' + tutHl('Finish tutorial') + '.';
+}
 
 // ⓘ Auto link and Unlink act on the config the controller uses: one is
 // linked for them when none is. After Unlink, the one it used (`was`); else
@@ -16413,6 +16490,13 @@ function tutSendWords() {
       body.obstacles = TUT_ANCHOR.obstacles;
       body.clear = TUT_ANCHOR.clear;
     }
+    // ⓘ Above Quick's window, centred, in Simple's tour: the whole page is
+    // what they stand by, with nothing on it to keep off (tutWordsOverQuick).
+    if (TUT.phase === 'step' && body.side === 'above' && tutWordsOverQuick()) {
+      body.target = '0,0,1000,1000';
+      body.obstacles = '';
+      body.clear = 0;
+    }
     body.ax = TUT_ANCHOR.ax;
     body.ay = TUT_ANCHOR.ay;
   }
@@ -16433,7 +16517,20 @@ function tutSendWords() {
 // it: the words are larger than the browser's smallest window, and stay over
 // it. With Quick up, beside it as the step says.
 function tutWordsSide(s) {
-  return TUT_SHRUNK || s.act === 'end' ? 'center' : (s.side || '');
+  if (TUT_SHRUNK || s.act === 'end') return 'center';
+  // ⭐ And Simple's tour in the modes it visits (2.66.145; rhoquinn8217,
+  // 2026-11-06: *"After jumping to the advance mode, put the tutorial in the
+  // middle of the config window. When jumping to the quick mode move the
+  // config above the config window centered."*): over Advanced's middle,
+  // and above Quick's window, centred (tutWordsOverQuick).
+  if (TUT && TUT.kind === 'simple' && tutViewKind() === 'advanced') return 'center';
+  if (tutWordsOverQuick()) return 'above';
+  return s.side || '';
+}
+// ⓘ Simple's tour in Quick, the window not put away: its words stand above
+// the window, centred, the whole page what they stand by (tutSendWords).
+function tutWordsOverQuick() {
+  return !!TUT && TUT.kind === 'simple' && tutViewKind() === 'quick' && !TUT_SHRUNK;
 }
 
 // A click on the words' buttons, by its id, for the phase that showed it.
@@ -16538,6 +16635,8 @@ function tutShow(i, keep) {
   var s = steps[i];
   if (s.enter) s.enter();
   if (s.tick) s.tick();
+  // ⓘ The mode selector, with only the mode a step asks for (tutModeTo).
+  schedulePaintModePickers();
   // ⓘ Advanced's tab, section and scroll as a step first left them, for Go
   // back to put back: what the window shows decides where the words stand,
   // and later steps leave the Editor, or Face buttons, on screen.
@@ -16627,6 +16726,7 @@ function tutFinish() {
   if (root && root.parentNode) root.parentNode.removeChild(root);
   tutMockOff(saved, kind);
   gpCollect();
+  schedulePaintModePickers();
   tutSizeBack(startMode);
 }
 
