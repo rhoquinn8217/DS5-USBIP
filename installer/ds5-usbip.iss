@@ -631,8 +631,38 @@ begin
       + IntToStr(GActionPage.SurfaceHeight) + ' high');
 end;
 
+{ WHY VIBEPOLLO SHOULD START IT, under its box (rhoquinn8217, 2026-11-06:
+  "Under the checkbox to add the vibepollo start up command add a description
+  of why is best to do it this way"). Lines of the list with no box of their
+  own, lined up with the box's words, so a click on them ticks nothing. The box is the list's last
+  (the last of [Tasks]); the lines go once, as the list may still hold them
+  when the page comes back.
+  ⭐ Headed "Setting this up enables the following:", each reason a bullet
+  under it (rhoquinn8217, 2026-11-06: "Before giving the 3 reasons to add the
+  vibepollo startup option, Say, "Why use this: " then bullet the 3
+  reasons.", then the heading's words: "Change, "why use this" to "Setting
+  this up enables the following""). The bullet is written as its character
+  code, #$2022, so the file's encoding cannot change it. }
+procedure ShowStreamCommandsWhy();
+var
+  List: TNewCheckListBox;
+  Bullet, Last: String;
+begin
+  if not StreamHostFound() then Exit;
+  List := WizardForm.TasksList;
+  Bullet := #$2022 + ' ';
+  Last := Bullet + 'Allows the webOS TV to give temporary rebinds for logging into Windows.';
+  if List.Items.Count = 0 then Exit;
+  if List.ItemCaption[List.Items.Count - 1] = Last then Exit;
+  List.AddGroup('Setting this up enables the following:', '', 1, nil);
+  List.AddGroup(Bullet + 'Automatic bridging when the stream starts.', '', 1, nil);
+  List.AddGroup(Bullet + 'Prevents bridging when the stream has stopped.', '', 1, nil);
+  List.AddGroup(Last, '', 1, nil);
+end;
+
 procedure CurPageChanged(CurPageID: Integer);
 begin
+  if CurPageID = wpSelectTasks then ShowStreamCommandsWhy();
   { One test at a time, so nothing is read off a page that was never made. }
   if GActionPage = nil then Exit;
   if CurPageID <> GActionPage.ID then Exit;
