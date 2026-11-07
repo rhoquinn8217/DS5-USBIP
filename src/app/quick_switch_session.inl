@@ -86,6 +86,8 @@ struct PadState {
     quick_switch::Swipes front;     // the same, with the wheel in front and both fingers down
     quick_switch::Stick stick;      // the right stick's pushes while the window is open
     quick_switch::Mock mock;        // the tour's stand-in, while a step asks (g_mockOn)
+    quick_switch::Swipes mockSwipes;   // its Quick's swipes, while it is up (mock_steps)
+    quick_switch::Stick mockStick;     // and its right stick's pushes
 };
 
 inline std::mutex g_mutex;
@@ -210,6 +212,7 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
     Did did = Did::Nothing;
     int step = 0;
     bool byStick = false;
+    bool byMock = false;
     unsigned closer = 0;
     unsigned opened = 0;
     unsigned kept = 0;
@@ -221,18 +224,28 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
         const bool mine = s.active && s.device == deviceKey;
         const bool pressEdge = quick_switch::press_edge(ps.press, pressed);
         const bool arms = pressEdge && fingers == 2;
-        const int swipe = quick_switch::front_steps(ps.front, wheelInFront, touch);
-        // ⓘ The tour's stand-in reads the same edge, beside the switch.
+        // ⓘ The tour's stand-in reads the same edge, beside the switch; while
+        // its Quick is up, its swipes and the right stick are its steps, sent
+        // as the switch's keys below (quick_switch::mock_steps).
+        int mockStep = 0;
+        bool mockByStick = false;
         if (g_mockOn.load()) {
+            const bool wasUp = quick_switch::mock_up(ps.mock);
             if (const char *word = quick_switch::mock_report(ps.mock, pressEdge, pressed, fingers, now_ms())) {
                 if (g_mockEvents.size() < 256) {
                     if (!g_mockEvents.empty()) g_mockEvents += ",";
                     g_mockEvents += word;
                 }
             }
+            mockStep = quick_switch::mock_steps(ps.mock, wasUp, ps.mockSwipes, ps.mockStick, touch,
+                                                haveStick, rx, ry, &mockByStick);
         } else {
             ps.mock = quick_switch::Mock();
         }
+        // ⓘ Its swipes are its own while it is up: the in-front swipe stands
+        // aside, as it would step a second time.
+        const bool mockUp = g_mockOn.load() && quick_switch::mock_up(ps.mock);
+        const int swipe = quick_switch::front_steps(ps.front, wheelInFront && !mockUp, touch);
         if (mine && s.pressed && !s.ending) {
             // ⓘ Each finger by itself, not the two together: a thumb swiping
             // beside a resting one moves their midpoint as well, and would
@@ -321,6 +334,25 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
                 step = swipe;
                 did = Did::Stepped;
             }
+        } else if (mockStep != 0) {
+            // ⭐ The tour's Quick, stepped: the page hears it as the switch's
+            // keys, as it hears the in-front swipe's, above.
+            if (s.active && s.device != deviceKey && !s.ending) {
+                did = Did::SomeoneElse;
+            } else {
+                if (!mine) {
+                    s = Session();
+                    s.active = true;
+                    s.device = deviceKey;
+                    s.id = g_nextId++;
+                }
+                s.ending = true;
+                quick_switch::queue(s.keys, mockStep);
+                step = mockStep;
+                byStick = mockByStick;
+                byMock = true;
+                did = Did::Stepped;
+            }
         }
     }
     if (closer != 0) close_when_sent(closer);
@@ -369,6 +401,7 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
     }
     device_log::msg line;
     line << "quick switch: " << ordinal << " -- ";
+    if (byMock) line << "the tour's Quick, ";
     if (did == Did::Opened) line << "two fingers pressed and let go after " << heldMs << " ms: ";
     device_log::input(line
         << (did == Did::Opened ? "the window opening in Quick" :
@@ -415,6 +448,9 @@ inline bool holds_touchpad(const void *deviceKey, int fingers, bool pressed)
     std::lock_guard<std::mutex> lock(g_mutex);
     const auto pad = g_pads.find(deviceKey);
     if (pad != g_pads.end() && pad->second.armed.on) return true;
+    // ⭐ And while the tour's Quick is up, as a window the press opened holds
+    // it: its swipes are the tour's, and no cursor moves.
+    if (pad != g_pads.end() && g_mockOn.load() && quick_switch::mock_up(pad->second.mock)) return true;
     const Session &s = g_session;
     return s.active && s.device == deviceKey && s.pressed && !s.ending;
 }
@@ -428,6 +464,9 @@ inline bool holds_stick(const void *deviceKey)
 {
     if (!config_move::quick_switch_on()) return false;
     std::lock_guard<std::mutex> lock(g_mutex);
+    // ⓘ The tour's Quick too, while it is up (holds_touchpad).
+    const auto pad = g_pads.find(deviceKey);
+    if (pad != g_pads.end() && g_mockOn.load() && quick_switch::mock_up(pad->second.mock)) return true;
     const Session &s = g_session;
     return s.active && s.device == deviceKey && s.pressed && !s.ending;
 }

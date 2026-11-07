@@ -2,7 +2,7 @@
 <!--
   DS5-USBIP's Controller Configs page, served by the listener.
 
-  VERSION 2.66.142 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.143 -- see the changelog at the bottom of this comment.
 
   WHAT IT STARTED AS. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -24,6 +24,18 @@
   not a tidy message about it.
 
   CHANGELOG
+    2.66.143 On Simple's two finger steps the window put away sits behind the
+             tour's words, and Quick's wheel steps by a swipe and by the right
+             stick (rhoquinn8217, 2026-11-06: "hide the minimized config but
+             not the quick mode window when the user does the gesture", and
+             "swiping up or down with one finger or the R-stick up/down aren't
+             working"): shrunk, the words stand over the window's middle and
+             cover it; with Quick up they stand beside it as before. While the
+             press has Quick up, DS5-USBIP holds the touchpad and the right
+             stick as for a window the press opened, and sends each finger's
+             swipe and the stick's pushes as the switch's own steps (KeyJ,
+             KeyK), which the steps now take; while the window is put away,
+             nothing steps its wheel. The try step's words name the stick.
     2.66.142 Every tour at its window's large size, and Archive's step moves
              on with whichever config is archived (rhoquinn8217, 2026-11-06:
              "when tutorial starts, resize the window to its large mode",
@@ -3382,7 +3394,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.66.142</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.66.143</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -13954,6 +13966,24 @@ function selfTest() {
     TUT = keepSize[0]; COMPACT = keepSize[1]; QUICK = keepSize[2];
     compactHome = keepSize[3]; TUT_SIZING = keepSize[4];
     var aw = screen.availWidth, ah = screen.availHeight;
+    // ⭐ The two finger steps (2.66.143): the switch's steps and up and down
+    // step Quick's wheel, nothing while the window is put away, and the words
+    // cover the window then.
+    var keepPad = TUT_SHRUNK;
+    var padSeen = [];
+    TUT_SHRUNK = false;
+    padSeen.push(tutPadKeys('KeyJ', true, false) && tutPadKeys('KeyK', true, false) &&
+                 tutPadKeys('KeyS', true, false) && !tutPadKeys('KeyJ', false, true) &&
+                 tutWordsSide(TUT_SIMPLE[31]) === 'above');
+    TUT_SHRUNK = true;
+    padSeen.push(!tutPadKeys('KeyJ', true, false) && !tutPadKeys('KeyS', true, false) &&
+                 tutWordsSide(TUT_SIMPLE[31]) === 'center' && tutWordsSide(TUT_SIMPLE[32]) === 'center');
+    TUT_SHRUNK = keepPad;
+    padSeen.push(TUT_SIMPLE[31].keys === tutPadKeys && TUT_SIMPLE[32].keys === tutPadKeys &&
+                 tutWordsSide(TUT_SIMPLE[34]) === 'center' && tutWordsSide(TUT_SIMPLE[0]) === 'left');
+    ok('the tutorial: on the two finger steps the switch\'s steps step Quick\'s wheel, nothing does while ' +
+       'the window is put away, and the words cover it then',
+       padSeen.join(',') === 'true,true,true', padSeen.join(','));
     ok('the tutorial: each mode the tour shows is at its large size, and only while a tour runs',
        shares.join(' ') === '{"w":0.611,"h":0.4819} {"w":0.429,"h":0.246} {"w":0.9,"h":0.94}' &&
        homes.join(' ') === Math.round(aw * 0.611) + 'x' + Math.round(ah * 0.4819) + ' ' +
@@ -14624,6 +14654,17 @@ function tutUpDownKeys(code, gated, plain) {
   return (gated && (code === 'KeyW' || code === 'KeyS')) ||
          (plain && (code === 'ArrowUp' || code === 'ArrowDown'));
 }
+// ⭐ THE TWO FINGER STEPS' PRESSES (2.66.143; rhoquinn8217, 2026-11-06:
+// *"swiping up or down with one finger or the R-stick up/down aren't
+// working"*): up and down, and the switch's own steps, KeyJ and KeyK, which
+// DS5-USBIP sends for a swipe and for the right stick while the press has
+// Quick up (quick_switch::mock_steps); they step the wheel as with no tour
+// (CONFIG_MODE_KEYS). ⓘ None while the window is put away: it has no wheel
+// to step then.
+function tutPadKeys(code, gated, plain) {
+  if (TUT_SHRUNK) return false;
+  return tutUpDownKeys(code, gated, plain) || (gated && (code === 'KeyJ' || code === 'KeyK'));
+}
 
 // ⭐⭐ ONE LIST FOR BOTH TOURS (rhoquinn8217, 2026-10-27: *"compare the steps
 // in simple and quick mode tutorials. similar steps need to be consistent
@@ -14931,8 +14972,9 @@ function tutPadSkip() {
 function tutWordsPadTry() {
   var s = tutSteps()[TUT ? TUT.at : 0];
   return 'Now the two finger quick switch, on a DualSense or DS4: press the touchpad with two fingers ' +
-         'and keep one finger on it. Quick Mode comes up as the press comes up: swipe another finger up ' +
-         'or down to switch configs. It goes away when you stop touching the touchpad.' +
+         'and keep one finger on it. Quick Mode comes up as the press comes up: swipe a finger up or ' +
+         'down, or push the right stick up or down, to switch configs. It goes away when you stop ' +
+         'touching the touchpad.' +
          (tutCanDo(s) ? ' Try it, then choose ' + tutHl('Continue') + '.' : tutPadSkip());
 }
 function tutWordsPadKeep() {
@@ -15446,7 +15488,7 @@ var TUT_SIMPLE = [
   // the touchpad"*): the real press brings the real Quick up, its wheel
   // stepped as in front, and puts it away again; a second press ignored here.
   { side: 'above', free: true, pad: 'try', needs: 'touchpad', views: ['simple', 'quick'],
-    enter: tutPadEnter, keyAim: '#cpick', keys: tutUpDownKeys,
+    enter: tutPadEnter, keyAim: '#cpick', keys: tutPadKeys,
     lit: function () { return TUT_SHRUNK ? [] : tutQ('.cwheel'); },
     words: tutWordsPadTry },
   // 33 (*"Moving on to the next step, instructs the user double press with two
@@ -15454,7 +15496,7 @@ var TUT_SIMPLE = [
   // window is back in Simple. ⭐ That press is what moves it on (`must`), and
   // Skip does with no DualSense or DS4 bridged (2.66.140).
   { side: 'above', free: true, pad: 'keep', needs: 'touchpad', must: true, views: ['simple', 'quick'],
-    enter: tutPadEnter, keyAim: '#cpick', keys: tutUpDownKeys,
+    enter: tutPadEnter, keyAim: '#cpick', keys: tutPadKeys,
     tick: function () { if (TUT.padKept && tutViewKind() === 'simple') tutShow(TUT.at + 1); },
     lit: function () { return TUT_SHRUNK ? [] : tutQ('.cwheel'); },
     words: tutWordsPadKeep },
@@ -16326,11 +16368,12 @@ function tutSendWords() {
       var s = steps[TUT.at];
       // ⓘ No arrow of their own: the page's float beside what is lit.
       body = { title: '', count: (TUT.at + 1) + ' of ' + steps.length, words: s.words(),
-               buttons: tutStepButtons(s), arrow: false,
-               side: s.act === 'end' ? 'center' : (s.side || '') };
+               buttons: tutStepButtons(s), arrow: false, side: tutWordsSide(s) };
       // ⓘ DS5-USBIP reports the two finger press only while this says so.
       if (s.pad) body.pad = true;
     }
+    // ⓘ The question too, while the window is put away (tutWordsSide).
+    if (TUT_SHRUNK) body.side = 'center';
     body.show = true;
     body.focus = focus;
     // ⓘ The window as small as it goes, for the tour: no place or size to keep.
@@ -16353,6 +16396,16 @@ function tutSendWords() {
   call('POST', '/api/v1/ui/tutorial-bubble', body, true)
     .then(function () { post.acked = Date.now(); })
     .catch(function () {});
+}
+
+// ⭐ WHERE THE WORDS STAND: beside what the step lights, on its side; over
+// the window's middle for the last step, and while the window is put away
+// (2.66.143; rhoquinn8217, 2026-11-06: *"hide the minimized config but not
+// the quick mode window when the user does the gesture"*), where they cover
+// it: the words are larger than the browser's smallest window, and stay over
+// it. With Quick up, beside it as the step says.
+function tutWordsSide(s) {
+  return TUT_SHRUNK || s.act === 'end' ? 'center' : (s.side || '');
 }
 
 // A click on the words' buttons, by its id, for the phase that showed it.

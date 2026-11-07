@@ -407,5 +407,40 @@ int run_quick_switch_tests()
         CTM_CHECK(word(mock_report(m, false, false, 0, 4000 + kReleaseGestureMs + 200)) == "");
     }
 
+    section("quick switch: the tour's Quick steps as a real one, one finger swiping or the right stick");
+    {
+        // ⭐ 2026-11-06: "swiping up or down with one finger or the R-stick up/down aren't working".
+        Mock m;
+        Swipes sw;
+        Stick st;
+        bool byStick = true;
+        Touch one[2] = { { true, 7, 900.0f, 600.0f }, {} };
+        Touch up[2] = { { true, 7, 900.0f, 600.0f - kVerticalUnits }, {} };
+        // Not up: nothing, the stick pushed or not.
+        CTM_CHECK_EQ(mock_steps(m, false, sw, st, one, true, 0.0f, -0.9f, &byStick), 0);
+        CTM_CHECK(!byStick);
+        // Up on this report: both start afresh, and step nothing yet.
+        mock_report(m, true, true, 2, 1000);
+        mock_report(m, false, false, 1, 1100);
+        CTM_CHECK(mock_up(m));
+        CTM_CHECK_EQ(mock_steps(m, false, sw, st, up, true, 0.0f, 0.9f, &byStick), 0);
+        // One finger, kVerticalUnits up: the next config, once a swipe.
+        CTM_CHECK_EQ(mock_steps(m, true, sw, st, one, true, 0.0f, 0.0f, &byStick), 0);
+        CTM_CHECK_EQ(mock_steps(m, true, sw, st, up, true, 0.0f, 0.0f, &byStick), 1);
+        CTM_CHECK(!byStick);
+        CTM_CHECK_EQ(mock_steps(m, true, sw, st, up, true, 0.0f, 0.0f, &byStick), 0);
+        // The right stick down: the config below, once until it has come back.
+        CTM_CHECK_EQ(mock_steps(m, true, sw, st, up, true, 0.0f, 0.9f, &byStick), 1);
+        CTM_CHECK(byStick);
+        CTM_CHECK_EQ(mock_steps(m, true, sw, st, up, true, 0.0f, 0.9f, &byStick), 0);
+        CTM_CHECK_EQ(mock_steps(m, true, sw, st, up, true, 0.0f, 0.0f, &byStick), 0);
+        CTM_CHECK_EQ(mock_steps(m, true, sw, st, up, true, 0.0f, -0.9f, &byStick), -1);
+        // Kept by a second press: nothing steps.
+        CTM_CHECK(std::string(mock_report(m, true, true, 1, 1300)) == "keep");
+        CTM_CHECK(!mock_up(m));
+        CTM_CHECK_EQ(mock_steps(m, true, sw, st, one, true, 0.0f, 0.0f, &byStick), 0);
+        CTM_CHECK_EQ(mock_steps(m, true, sw, st, up, true, 0.0f, 0.9f, &byStick), 0);
+    }
+
     return 0;
 }
