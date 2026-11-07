@@ -358,6 +358,39 @@ static int ds5_level_for(Ds5AudioOutput output, bool speaker, const char *sectio
     return device_config_int(section, key, -1);
 }
 
+// ⭐ THE LEVEL OUR OWN SETTINGS REPORT SENDS (ds5_apply_settings.inl). It is
+// ds5_level_for's answer except in one case: once a person has chosen where
+// the audio goes (audio_output set, auto included), an output that choice
+// plays through is sent its dial even when the dial was never moved -- 100,
+// the default the configs window shows for both (rest_config.inl).
+//
+// ⛔ WITHOUT IT A MODE UNDID ITSELF ON A CABLE (rhoquinn8217, 2026-11-06, a
+// cabled DualSense and Edge on the C1). "speaker" sends the headset 0, and the
+// pad keeps that 0 until it is unplugged: the TV's own report at each bridge
+// sets the speaker's volume, never the headset's. "headset" or "both" with no
+// headset_volume then claimed nothing, so the headset stayed silent while its
+// dial read 100. The speaker had the same hole after "headset",
+// "headset_mono" or "off".
+//
+// ⓘ OUR REPORT ONLY. The overrides below keep ds5_level_for, so an unset key
+// still leaves a game's own volume write alone. And with no audio_output at
+// all nothing changes: a pad nobody configured is left exactly as it was.
+static const int kDs5DialUnsetPercent = 100;
+
+static int ds5_settings_level_for(Ds5AudioOutput output, bool speaker, const char *section)
+{
+    const int level = ds5_level_for(output, speaker, section);
+    if (level >= 0 || device_config_str(section, "audio_output").empty()) {
+        return level;
+    }
+    // Under auto our report routes to the speaker alone (kDs5RouteToSpeaker),
+    // so the speaker is the one output it plays through.
+    const bool playsThrough = (output == Ds5AudioOutput::Auto)
+        ? speaker
+        : (speaker ? ds5_speaker_is_active(output) : ds5_headset_is_active(output));
+    return playsThrough ? kDs5DialUnsetPercent : level;
+}
+
 static std::atomic<uint64_t> g_ds5_echo_patch_count{0};
 
 // --- Override 1: the audio-control byte (routing + echo cancellation) ---
