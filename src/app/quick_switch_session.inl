@@ -226,7 +226,12 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
         Session &s = g_session;
         const bool mine = s.active && s.device == deviceKey;
         const bool pressEdge = quick_switch::press_edge(ps.press, pressed);
-        const bool arms = pressEdge && fingers == 2;
+        // ⭐ A press of the touchpad while the d-pad's app switcher has Alt down
+        // picks, as Cross does, with Quick held up or not
+        // (quick_switch::app_switch_press). The press is the switcher's then:
+        // it arms, keeps and closes nothing.
+        const bool pickedByPress = pressEdge && quick_switch::app_switch_press(ps.app);
+        const bool arms = pressEdge && !pickedByPress && fingers == 2;
         // ⓘ The tour's stand-in reads the same edge, beside the switch; while
         // its Quick is up, its swipes and the right stick are its steps, sent
         // as the switch's keys below (quick_switch::mock_steps).
@@ -249,10 +254,6 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
         // aside, as it would step a second time.
         const bool mockUp = g_mockOn.load() && quick_switch::mock_up(ps.mock);
         const int swipe = quick_switch::front_steps(ps.front, wheelInFront && !mockUp, touch);
-        // ⭐ The right stick left or right moves the d-pad's app switcher while
-        // its Alt is down (quick_switch::app_switch_stick), read every report
-        // so it knows when the stick has come back.
-        if (haveStick) quick_switch::app_switch_stick(ps.app, rx, ry);
         if (mine && s.pressed && !s.ending) {
             // ⓘ Each finger by itself, not the two together: a thumb swiping
             // beside a resting one moves their midpoint as well, and would
@@ -263,12 +264,10 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
             const int pushed = haveStick ? quick_switch::stick_steps(ps.stick, rx, ry) : 0;
             const int steps = swiped != 0 ? swiped : pushed;
             // ⭐ While the d-pad's app switcher has Alt down, Windows' switcher
-            // is over the wheel: a press of the touchpad picks, as Cross does
-            // (quick_switch::app_switch_press), and keeps nothing; the last
-            // finger lifting lets Alt go (quick_switch::app_switch_end), so
+            // is over the wheel: a press of the touchpad picks (above), and the
+            // last finger lifting lets Alt go (quick_switch::app_switch_end), so
             // Windows switches to the window its switcher shows.
             const bool switching = ps.app.alt;
-            if (switching && pressEdge) quick_switch::app_switch_press(ps.app);
             switch (quick_switch::while_held(switching ? false : pressEdge, fingers,
                                              switching ? 0 : steps)) {
             case quick_switch::Held::Close:
@@ -506,6 +505,9 @@ inline bool holds_touchpad(const void *deviceKey, int fingers, bool pressed)
     // ⭐ And while the tour's Quick is up, as a window the press opened holds
     // it: its swipes are the tour's, and no cursor moves.
     if (pad != g_pads.end() && g_mockOn.load() && quick_switch::mock_up(pad->second.mock)) return true;
+    // ⭐ And while the d-pad's app switcher has Alt down: its press picks, and
+    // reaches neither Windows nor the game.
+    if (pad != g_pads.end() && pad->second.app.alt) return true;
     const Session &s = g_session;
     return s.active && s.device == deviceKey && s.pressed && !s.ending;
 }
@@ -522,23 +524,28 @@ inline bool holds_stick(const void *deviceKey)
     // ⓘ The tour's Quick too, while it is up (holds_touchpad).
     const auto pad = g_pads.find(deviceKey);
     if (pad != g_pads.end() && g_mockOn.load() && quick_switch::mock_up(pad->second.mock)) return true;
+    // ⭐ And while the d-pad's app switcher has Alt down: the right stick moves
+    // it, and no cursor.
+    if (pad != g_pads.end() && pad->second.app.alt) return true;
     const Session &s = g_session;
     return s.active && s.device == deviceKey && s.pressed && !s.ending;
 }
 
-// ⭐ AFTER CROSS PICKED, THE QUICK WINDOW BACK IN FRONT of the window picked,
-// while a finger still holds it up (rhoquinn8217, 2026-11-06: "I want the two
-// finger press quick switch to reactivate if the user is still touching the
-// touchpad"). A moment after Alt went up, so Windows has given the picked
-// window the front; it is then the window the front goes back to as the
-// Quick window closes (ctm_open_ui::front_after_pick).
+// ⭐ AFTER A PICK, THE QUICK WINDOW BACK IN FRONT of the window picked
+// (rhoquinn8217, 2026-11-06: "I want the two finger press quick switch to
+// reactivate if the user is still touching the touchpad"): while a finger
+// still holds it up, or always for a switcher opened from Quick in front not
+// held up (`always`; "the config window always comes back after selecting an
+// app"). A moment after Alt went up, so Windows has given the picked window
+// the front; it is then the window the front goes back to as the Quick window
+// closes (ctm_open_ui::front_after_pick).
 constexpr long long kPickSettleMs = 250;
 
-inline void raise_after_pick(unsigned id)
+inline void raise_after_pick(unsigned id, bool always)
 {
-    std::thread([id]() {
+    std::thread([id, always]() {
         std::this_thread::sleep_for(std::chrono::milliseconds(kPickSettleMs));
-        {
+        if (!always) {
             std::lock_guard<std::mutex> lock(g_mutex);
             const Session &s = g_session;
             if (!s.active || s.id != id || !s.pressed || s.ending) return;
@@ -546,43 +553,75 @@ inline void raise_after_pick(unsigned id)
         const std::wstring picked = ctm_open_ui::front_after_pick();
         device_log::input_w() << L"quick switch: picked "
                               << (picked.empty() ? std::wstring(L"a window") : picked)
-                              << L": the Quick window back in front of it, a finger still on the touchpad";
+                              << (always ? L": the Quick window back in front of it"
+                                         : L": the Quick window back in front of it, a finger still on the touchpad");
     }).detach();
 }
 
-// ⭐ THE D-PAD'S APP SWITCHER (quick_switch::AppSwitch), every report of a pad
-// with a touchpad: its d-pad left and right and Cross, read before anything
-// changes the report. Returns the buttons it takes, as a mask of the pad's
-// button indexes, for rebind.inl to blank before the gate and the bindings
-// read them, so neither the page nor the game sees them.
-inline uint32_t app_buttons(const void *deviceKey, bool left, bool right, bool cross)
+// The configs window in front in Quick, held up by the switch or not: there
+// the d-pad's left and right, and the right stick's, open the app switcher
+// too (2026-11-06). ⓘ It asks Windows, so it is asked only when a press or a
+// push could open the switcher, never on every report.
+inline bool quick_in_front()
 {
-    bool altDown = false;
-    bool wasAlt = false;
-    uint32_t mask = 0;
+    bool compact = false, quick = false;
+    config_move::view_get(&compact, &quick, nullptr);
+    return compact && quick && ctm_rebind_config_mode_effective();
+}
+
+// ⭐ THE D-PAD'S APP SWITCHER (quick_switch::AppSwitch), every report of a pad
+// with a touchpad: its d-pad left and right, Cross, and its right stick, read
+// before anything changes the report. Returns the buttons it takes, as a mask
+// of the pad's button indexes, for rebind.inl to blank before the gate and
+// the bindings read them, so neither the page nor the game sees them.
+inline uint32_t app_buttons(const void *deviceKey, bool left, bool right, bool cross,
+                            bool haveStick, float rx, float ry)
+{
+    // ⓘ Not while the tour's stand-in is on: its Quick takes the d-pad's up
+    // and down and the switch's steps, and Alt+Tab would take the front from
+    // the tour.
+    const bool on = config_move::app_switcher_on() && !g_mockOn.load();
+    bool held = false;
+    bool alt = false;
     {
         std::lock_guard<std::mutex> lock(g_mutex);
         const auto pad = g_pads.find(deviceKey);
         if (pad == g_pads.end()) return 0;   // the switch is off: report() keeps no pad
         const Session &s = g_session;
-        // ⓘ Not while the tour's stand-in is on: its Quick takes the d-pad's
-        // up and down and the switch's steps, and Alt+Tab would take the
-        // front from the tour.
-        const bool holding = config_move::app_switcher_on() && !g_mockOn.load() &&
-                             s.active && s.device == deviceKey && s.pressed && !s.ending;
+        held = on && s.active && s.device == deviceKey && s.pressed && !s.ending;
+        alt = pad->second.app.alt;
+    }
+    // ⭐ Quick in front, not held up: asked of Windows only for a press or a
+    // push that could open the switcher (quick_in_front).
+    bool quickFront = false;
+    if (on && !held && !alt) {
+        const float ax = rx < 0 ? -rx : rx;
+        if (left || right || (haveStick && ax >= quick_switch::kStickStepAt)) quickFront = quick_in_front();
+    }
+    const bool canOpen = held || quickFront;
+    const bool fromQuick = !held && quickFront;
+    bool altDown = false;
+    uint32_t mask = 0;
+    {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        const auto pad = g_pads.find(deviceKey);
+        if (pad == g_pads.end()) return 0;
         quick_switch::AppSwitch &a = pad->second.app;
-        wasAlt = a.alt;
+        const bool wasAlt = a.alt;
+        const long long now = now_ms();
         const quick_switch::AppTakes t =
-            quick_switch::app_switch_buttons(a, holding, left, right, cross, now_ms());
+            quick_switch::app_switch_buttons(a, canOpen, fromQuick, left, right, cross, now);
+        if (haveStick) quick_switch::app_switch_stick(a, canOpen, fromQuick, rx, ry, now);
         altDown = !wasAlt && a.alt;
         if (t.leftRight) mask |= (1u << ctm_rebind::kBtnDpadLeft) | (1u << ctm_rebind::kBtnDpadRight);
         if (t.cross) mask |= 1u << ctm_rebind::kBtnFaceDown;
     }
     if (altDown) {
         device_log::input(device_log::msg()
-            << "quick switch: " << ctm_ordinal_for_device(deviceKey) << " -- d-pad "
-            << (right ? "right" : "left") << ": Alt held, Windows' window switcher up, until Cross "
-            << "or the last finger lifts");
+            << "quick switch: " << ctm_ordinal_for_device(deviceKey) << " -- "
+            << (left || right ? (right ? "d-pad right" : "d-pad left") : "right stick")
+            << (fromQuick ? " in Quick" : "") << ": Alt held, Windows' window switcher up, until "
+            << (fromQuick ? "Cross or a touchpad press picks" : "Cross, a touchpad press, or the last finger lifts"));
     }
     return mask;
 }
@@ -597,7 +636,9 @@ inline void app_keys(const void *deviceKey, bool *alt, int *tab)
     bool wentUp = false;
     bool picked = false;
     bool byPress = false;
-    unsigned reraise = 0;
+    bool fromQuick = false;
+    bool reraise = false;
+    unsigned id = 0;
     {
         std::lock_guard<std::mutex> lock(g_mutex);
         const auto pad = g_pads.find(deviceKey);
@@ -608,9 +649,12 @@ inline void app_keys(const void *deviceKey, bool *alt, int *tab)
             wentUp = k.wentUp;
             picked = k.picked;
             byPress = k.byPress;
+            fromQuick = k.fromQuick;
             const Session &s = g_session;
-            if (k.wentUp && k.picked && s.active && s.device == deviceKey && s.pressed && !s.ending) {
-                reraise = s.id;
+            const bool heldUp = s.active && s.device == deviceKey && s.pressed && !s.ending;
+            if (k.wentUp && k.picked && (k.fromQuick || heldUp)) {
+                reraise = true;
+                id = s.id;
             }
         }
         // ⛔ The listener's own raise presses Alt to be let take the front
@@ -627,9 +671,24 @@ inline void app_keys(const void *deviceKey, bool *alt, int *tab)
             << "quick switch: " << ctm_ordinal_for_device(deviceKey) << " -- Alt let go "
             << (!picked ? "as the window went" : byPress ? "at the touchpad's press" : "at Cross")
             << ": Windows switches to the window it shows"
-            << (reraise != 0 ? ", and the Quick window comes back in front of it" : ""));
+            << (reraise ? ", and the Quick window comes back in front of it" : ""));
     }
-    if (reraise != 0) raise_after_pick(reraise);
+    if (reraise) raise_after_pick(id, fromQuick);
+}
+
+// ⭐ A PAD GOING AWAY TAKES ITS SWITCH STATE WITH IT, its app switcher's Alt
+// above all: rebind_forget_pad (rebind.inl) at its unbridge. The keyboard lets
+// its keys go there too; this keeps the listener's own raise from waiting on
+// an Alt no pad holds any more (g_appSwitcherAlt).
+inline void forget_pad(const void *deviceKey)
+{
+    std::lock_guard<std::mutex> lock(g_mutex);
+    g_pads.erase(deviceKey);
+    bool any = false;
+    for (const auto &p : g_pads) {
+        if (p.second.app.alt) any = true;
+    }
+    ctm_open_ui::g_appSwitcherAlt.store(any);
 }
 
 // The tour's stand-in, on and off, and its words since the page last asked.
@@ -663,9 +722,15 @@ void quick_switch_report(const void *deviceKey, bool pressed,
     quick_switch_session::report(deviceKey, pressed, touch, haveStick, rx, ry);
 }
 
-uint32_t quick_switch_app_buttons(const void *deviceKey, bool left, bool right, bool cross)
+uint32_t quick_switch_app_buttons(const void *deviceKey, bool left, bool right, bool cross,
+                                  bool haveStick, float rx, float ry)
 {
-    return quick_switch_session::app_buttons(deviceKey, left, right, cross);
+    return quick_switch_session::app_buttons(deviceKey, left, right, cross, haveStick, rx, ry);
+}
+
+void quick_switch_forget_pad(const void *deviceKey)
+{
+    quick_switch_session::forget_pad(deviceKey);
 }
 
 void quick_switch_app_keys(const void *deviceKey, bool *alt, int *tab)

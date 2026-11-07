@@ -169,7 +169,10 @@ const char *quick_switch_key(const void *deviceKey);
 /* ...and the d-pad's app switcher: the buttons it takes from a report, to be
  * blanked before the gate and the bindings read them, and the Alt and Tab it
  * holds on the pad's keys, asked once a report. */
-uint32_t quick_switch_app_buttons(const void *deviceKey, bool left, bool right, bool cross);
+uint32_t quick_switch_app_buttons(const void *deviceKey, bool left, bool right, bool cross,
+                                  bool haveStick, float rx, float ry);
+/* ...and what it keeps of a pad, let go as the pad goes (rebind_forget_pad). */
+void quick_switch_forget_pad(const void *deviceKey);
 void quick_switch_app_keys(const void *deviceKey, bool *alt, int *tab);
 bool quick_switch_has_vertical_swipes();
 void quick_switch_page_asked_view();

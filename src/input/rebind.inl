@@ -408,13 +408,14 @@ inline void apply(const void *deviceKey,
         // mouse_exclusive.inl hides the touchpad it holds.
         // ⭐ And the right stick, which steps the config too while a finger
         // holds the window up (2026-11-03).
+        // ⓘ The right stick, read once for the switch and its app switcher below.
+        float rx = 0.0f, ry = 0.0f;
+        const bool stick = ctm_rebind::stick_axis(chordLayout, data, len, ctm_rebind::kStickRX, &rx) &&
+                           ctm_rebind::stick_axis(chordLayout, data, len, ctm_rebind::kStickRY, &ry);
         {
             int x1 = 0, y1 = 0, x2 = 0, y2 = 0;
             const bool at1 = f1 && ctm_rebind::touch_finger_pos(chordLayout, data, len, 0, &x1, &y1);
             const bool at2 = f2 && ctm_rebind::touch_finger_pos(chordLayout, data, len, 1, &x2, &y2);
-            float rx = 0.0f, ry = 0.0f;
-            const bool stick = ctm_rebind::stick_axis(chordLayout, data, len, ctm_rebind::kStickRX, &rx) &&
-                               ctm_rebind::stick_axis(chordLayout, data, len, ctm_rebind::kStickRY, &ry);
             quick_switch_report(deviceKey, ctm_rebind::touch_pressed(chordLayout, data, len),
                 at1, ctm_rebind::touch_finger_id(chordLayout, data, len, 0),
                 static_cast<float>(x1), static_cast<float>(y1),
@@ -424,8 +425,9 @@ inline void apply(const void *deviceKey,
         }
 
         // ⭐ AND THE D-PAD'S APP SWITCHER (rhoquinn8217, 2026-11-06;
-        // quick_switch.inl): while the switch holds the window up, left and
-        // right are Windows' window switcher, Alt held, and Cross its pick.
+        // quick_switch.inl): while the switch holds the window up, or Quick is
+        // in front, left and right, and the right stick's, are Windows' window
+        // switcher, Alt held, and Cross its pick.
         // ⓘ Unlike the switch above, this does change the report: the buttons
         // it takes are blanked here, before the gate and the bindings below
         // read them, so neither the page nor the game sees them.
@@ -433,7 +435,8 @@ inline void apply(const void *deviceKey,
             const uint32_t taken = quick_switch_app_buttons(deviceKey,
                 ctm_rebind::is_pressed(chordLayout, data, len, ctm_rebind::kBtnDpadLeft),
                 ctm_rebind::is_pressed(chordLayout, data, len, ctm_rebind::kBtnDpadRight),
-                ctm_rebind::is_pressed(chordLayout, data, len, ctm_rebind::kBtnFaceDown));
+                ctm_rebind::is_pressed(chordLayout, data, len, ctm_rebind::kBtnFaceDown),
+                stick, rx, ry);
             for (int i = 0; taken != 0 && i < ctm_rebind::kButtonCount; ++i) {
                 if ((taken & (1u << i)) != 0) ctm_rebind::clear_button(chordLayout, data, len, i);
             }
@@ -1292,6 +1295,8 @@ void rebind_forget_pad(const void *deviceKey)
     ctm_rebind::forget_chord_pad(deviceKey);
     ctm_overlay::forget_device(deviceKey);
     held_edges::forget(deviceKey);
+    // ⭐ And its quick switch state, its app switcher's Alt above all.
+    quick_switch_forget_pad(deviceKey);
 }
 
 bool ctm_rebind_config_mode()

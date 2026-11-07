@@ -477,12 +477,12 @@ int run_quick_switch_tests()
     section("quick switch: right holds Alt and sends Tab, left Shift+Tab, Alt held until Cross");
     {
         AppSwitch a;
-        AppTakes t = app_switch_buttons(a, true, false, false, false, 0);
+        AppTakes t = app_switch_buttons(a, true, false, false, false, false, 0);
         CTM_CHECK(t.leftRight);                     // held up: left and right are the switcher's
         CTM_CHECK(!t.cross);                        // Cross is the page's until Alt is down
         CTM_CHECK(!app_switch_keys(a, 0).alt);
         // Right: Alt alone first, then Tab a moment later.
-        t = app_switch_buttons(a, true, false, true, false, 100);
+        t = app_switch_buttons(a, true, false, false, true, false, 100);
         CTM_CHECK(a.alt);
         CTM_CHECK(t.cross);
         AppKeys k = app_switch_keys(a, 100);
@@ -495,9 +495,9 @@ int run_quick_switch_tests()
         CTM_CHECK(k.alt);
         CTM_CHECK_EQ(k.tab, 0);                     // Tab up, Alt still down
         // Right held: no second Tab. Let go, then left: Shift+Tab, Alt still down.
-        app_switch_buttons(a, true, false, true, false, 300);
-        app_switch_buttons(a, true, false, false, false, 310);
-        app_switch_buttons(a, true, true, false, false, 320);
+        app_switch_buttons(a, true, false, false, true, false, 300);
+        app_switch_buttons(a, true, false, false, false, false, 310);
+        app_switch_buttons(a, true, false, true, false, false, 320);
         k = app_switch_keys(a, 400);
         CTM_CHECK(k.alt);
         CTM_CHECK_EQ(k.tab, -1);                    // Shift+Tab
@@ -505,7 +505,7 @@ int run_quick_switch_tests()
         CTM_CHECK(k.alt);
         CTM_CHECK_EQ(k.tab, 0);
         // Cross: Alt goes up once the gap after the Tab has gone, and says Cross did it.
-        app_switch_buttons(a, true, false, false, true, 450);
+        app_switch_buttons(a, true, false, false, false, true, 450);
         k = app_switch_keys(a, 400 + kKeyDownMs + 1);
         CTM_CHECK(k.alt);                           // still in the gap
         k = app_switch_keys(a, 400 + kKeyDownMs + kKeyGapMs);
@@ -515,9 +515,9 @@ int run_quick_switch_tests()
         CTM_CHECK(!k.byPress);
         CTM_CHECK(!a.alt);
         // The press that picked stays the switcher's until it is let go.
-        t = app_switch_buttons(a, true, false, false, true, 600);
+        t = app_switch_buttons(a, true, false, false, false, true, 600);
         CTM_CHECK(t.cross);
-        t = app_switch_buttons(a, true, false, false, false, 610);
+        t = app_switch_buttons(a, true, false, false, false, false, 610);
         CTM_CHECK(!t.cross);
         CTM_CHECK(!app_switch_keys(a, 620).wentUp);  // once
     }
@@ -525,12 +525,12 @@ int run_quick_switch_tests()
     section("quick switch: the app switcher sends every press, in order, and Alt waits for them");
     {
         AppSwitch a;
-        app_switch_buttons(a, true, false, true, false, 0);     // right
-        app_switch_buttons(a, true, false, false, false, 5);
-        app_switch_buttons(a, true, false, true, false, 10);    // right
-        app_switch_buttons(a, true, false, false, false, 15);
-        app_switch_buttons(a, true, true, false, false, 20);    // left
-        app_switch_buttons(a, true, false, false, true, 25);    // Cross, before any Tab has gone
+        app_switch_buttons(a, true, false, false, true, false, 0);     // right
+        app_switch_buttons(a, true, false, false, false, false, 5);
+        app_switch_buttons(a, true, false, false, true, false, 10);    // right
+        app_switch_buttons(a, true, false, false, false, false, 15);
+        app_switch_buttons(a, true, false, true, false, false, 20);    // left
+        app_switch_buttons(a, true, false, false, false, true, 25);    // Cross, before any Tab has gone
         int sent[3] = {0, 0, 0};
         int n = 0;
         bool up = false;
@@ -552,7 +552,7 @@ int run_quick_switch_tests()
     section("quick switch: the app switcher lets Alt go as the window goes, and not as a pick");
     {
         AppSwitch a;
-        app_switch_buttons(a, true, false, true, false, 0);
+        app_switch_buttons(a, true, false, false, true, false, 0);
         app_switch_end(a);                            // the last finger lifted
         // The Tab already asked for still goes, then Alt goes up.
         bool sawTab = false;
@@ -566,65 +566,117 @@ int run_quick_switch_tests()
         CTM_CHECK(k.wentUp);
         CTM_CHECK(!k.picked);
         // Not held up any more: left and right are the pad's again, and a press opens nothing.
-        const AppTakes t = app_switch_buttons(a, false, false, true, false, 2000);
+        const AppTakes t = app_switch_buttons(a, false, false, false, true, false, 2000);
         CTM_CHECK(!t.leftRight);
         CTM_CHECK(!a.alt);
         // Pressed already as the window came up: no edge, no Alt, until it is pressed again.
         AppSwitch b;
-        app_switch_buttons(b, false, false, true, false, 0);
-        app_switch_buttons(b, true, false, true, false, 10);
+        app_switch_buttons(b, false, false, false, true, false, 0);
+        app_switch_buttons(b, true, false, false, true, false, 10);
         CTM_CHECK(!b.alt);
-        app_switch_buttons(b, true, false, false, false, 20);
-        app_switch_buttons(b, true, false, true, false, 30);
+        app_switch_buttons(b, true, false, false, false, false, 20);
+        app_switch_buttons(b, true, false, false, true, false, 30);
         CTM_CHECK(b.alt);
         // Cross with no Alt down is the page's: nothing picks.
         AppSwitch c;
-        const AppTakes ct = app_switch_buttons(c, true, false, false, true, 0);
+        const AppTakes ct = app_switch_buttons(c, true, false, false, false, true, 0);
         CTM_CHECK(!ct.cross);
         CTM_CHECK(!c.letGo);
     }
 
     // ⭐ 2026-11-06, on 141: the right stick moves the switcher, and a press
     // of the touchpad picks, once the switcher is up.
-    section("quick switch: the right stick left or right moves the switcher once it is up, a push a step");
+    section("quick switch: the right stick left or right moves the switcher, a push a step, from the middle");
     {
         AppSwitch a;
-        // Not up: the stick moves nothing, and opens nothing.
-        app_switch_stick(a, 0.0f, 0.0f);
-        app_switch_stick(a, 0.9f, 0.0f);
+        // Not allowed to open and not open: the stick moves nothing, and opens nothing.
+        app_switch_stick(a, false, false, 0.0f, 0.0f, 0);
+        app_switch_stick(a, false, false, 0.9f, 0.0f, 0);
         CTM_CHECK(!a.alt);
         CTM_CHECK(a.tabs.empty());
-        // Up (d-pad right), with the stick already pushed: nothing until it has come back.
-        app_switch_buttons(a, true, false, true, false, 0);
+        // Opened by the d-pad, with the stick already pushed: nothing until it has come back.
+        app_switch_buttons(a, true, false, false, true, false, 0);
         CTM_CHECK_EQ(static_cast<int>(a.tabs.size()), 1);
-        app_switch_stick(a, 0.9f, 0.0f);
+        app_switch_stick(a, true, false, 0.9f, 0.0f, 5);
         CTM_CHECK_EQ(static_cast<int>(a.tabs.size()), 1);
-        app_switch_stick(a, 0.0f, 0.0f);
-        app_switch_stick(a, 0.9f, 0.0f);                    // right: a Tab
+        app_switch_stick(a, true, false, 0.0f, 0.0f, 10);
+        app_switch_stick(a, true, false, 0.9f, 0.0f, 15);      // right: a Tab
         CTM_CHECK_EQ(static_cast<int>(a.tabs.size()), 2);
         CTM_CHECK_EQ(a.tabs.back(), 1);
-        app_switch_stick(a, 0.95f, 0.1f);                   // still pushed: nothing more
+        app_switch_stick(a, true, false, 0.95f, 0.1f, 20);     // still pushed: nothing more
         CTM_CHECK_EQ(static_cast<int>(a.tabs.size()), 2);
-        app_switch_stick(a, 0.1f, 0.0f);                    // back near the middle
-        app_switch_stick(a, -0.8f, 0.2f);                   // left: a Shift+Tab
+        app_switch_stick(a, true, false, 0.1f, 0.0f, 25);      // back near the middle
+        app_switch_stick(a, true, false, -0.8f, 0.2f, 30);     // left: a Shift+Tab
         CTM_CHECK_EQ(static_cast<int>(a.tabs.size()), 3);
         CTM_CHECK_EQ(a.tabs.back(), -1);
         // Up or down is not sideways.
-        app_switch_stick(a, 0.0f, 0.0f);
-        app_switch_stick(a, 0.3f, -0.9f);
+        app_switch_stick(a, true, false, 0.0f, 0.0f, 35);
+        app_switch_stick(a, true, false, 0.3f, -0.9f, 40);
         CTM_CHECK_EQ(static_cast<int>(a.tabs.size()), 3);
         // Picked: the stick moves nothing more.
-        app_switch_buttons(a, true, false, false, true, 50);
-        app_switch_stick(a, 0.0f, 0.0f);
-        app_switch_stick(a, 0.9f, 0.0f);
+        app_switch_buttons(a, true, false, false, false, true, 50);
+        app_switch_stick(a, true, false, 0.0f, 0.0f, 55);
+        app_switch_stick(a, true, false, 0.9f, 0.0f, 60);
         CTM_CHECK_EQ(static_cast<int>(a.tabs.size()), 3);
+    }
+
+    // ⭐ 2026-11-06, on 143: the stick opens it as the d-pad does, and Quick
+    // in front not held up has it too, the window back after every pick.
+    section("quick switch: the right stick opens the switcher as the d-pad does, from the middle");
+    {
+        AppSwitch a;
+        app_switch_stick(a, true, false, 0.9f, 0.0f, 0);        // pushed as it may first act: nothing
+        CTM_CHECK(!a.alt);
+        app_switch_stick(a, true, false, 0.0f, 0.0f, 5);
+        app_switch_stick(a, true, false, 0.9f, 0.0f, 10);       // right: Alt down, and a Tab after
+        CTM_CHECK(a.alt);
+        CTM_CHECK_EQ(static_cast<int>(a.tabs.size()), 1);
+        AppKeys k = app_switch_keys(a, 10);
+        CTM_CHECK(k.alt);
+        CTM_CHECK_EQ(k.tab, 0);                                 // Alt alone first
+        k = app_switch_keys(a, 10 + kKeyGapMs);
+        CTM_CHECK_EQ(k.tab, 1);
+        // Left from the middle, not open: Shift+Tab first.
+        AppSwitch b;
+        app_switch_stick(b, true, false, 0.0f, 0.0f, 0);
+        app_switch_stick(b, true, false, -0.9f, 0.0f, 5);
+        CTM_CHECK(b.alt);
+        CTM_CHECK_EQ(b.tabs.front(), -1);
+    }
+
+    section("quick switch: opened from Quick in front, the window comes back after the pick, and only a pick ends it");
+    {
+        AppSwitch a;
+        app_switch_buttons(a, true, true, false, true, false, 0);   // Quick in front: d-pad right
+        CTM_CHECK(a.alt);
+        CTM_CHECK(a.fromQuick);
+        // The switcher took the front: Quick is not in front, and left and right still move it.
+        app_switch_buttons(a, false, false, false, false, false, 10);
+        AppTakes t = app_switch_buttons(a, false, false, false, true, false, 20);
+        CTM_CHECK(t.leftRight);
+        CTM_CHECK_EQ(static_cast<int>(a.tabs.size()), 2);
+        // Cross picks; Alt goes up saying it came from Quick, so the window comes back.
+        app_switch_buttons(a, false, false, false, false, true, 30);
+        AppKeys k;
+        for (long long ms = 30; ms < 2000; ms += 4) {
+            k = app_switch_keys(a, ms);
+            if (k.wentUp) break;
+        }
+        CTM_CHECK(k.wentUp);
+        CTM_CHECK(k.picked);
+        CTM_CHECK(k.fromQuick);
+        CTM_CHECK(!a.fromQuick);
+        // Held up instead: it does not say Quick.
+        AppSwitch h;
+        app_switch_buttons(h, true, false, false, true, false, 0);
+        CTM_CHECK(!h.fromQuick);
     }
 
     section("quick switch: a press of the touchpad picks while the switcher is up, as Cross does");
     {
         AppSwitch a;
         CTM_CHECK(!app_switch_press(a));                    // not up: the press is the switch's
-        app_switch_buttons(a, true, false, true, false, 0);
+        app_switch_buttons(a, true, false, false, true, false, 0);
         CTM_CHECK(app_switch_press(a));
         CTM_CHECK(!app_switch_press(a));                    // once
         AppKeys k;
@@ -636,7 +688,7 @@ int run_quick_switch_tests()
         CTM_CHECK(k.picked);
         CTM_CHECK(k.byPress);
         // Cross took nothing: the touchpad picked.
-        const AppTakes t = app_switch_buttons(a, true, false, false, false, 2000);
+        const AppTakes t = app_switch_buttons(a, true, false, false, false, false, 2000);
         CTM_CHECK(!t.cross);
     }
 

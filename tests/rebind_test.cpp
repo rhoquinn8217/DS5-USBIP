@@ -196,7 +196,8 @@ void quick_switch_report(const void *, bool, bool, int, float, float, bool, int,
                          bool, float, float) {}
 const char *quick_switch_key(const void *) { return nullptr; }
 // ...nor its d-pad app switcher: it takes no button and holds no Alt here.
-uint32_t quick_switch_app_buttons(const void *, bool, bool, bool) { return 0; }
+uint32_t quick_switch_app_buttons(const void *, bool, bool, bool, bool, float, float) { return 0; }
+void quick_switch_forget_pad(const void *) {}
 void quick_switch_app_keys(const void *, bool *alt, int *tab)
 {
     *alt = false;
