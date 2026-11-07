@@ -294,8 +294,15 @@ static uint8_t ds5_volume_raw_from_percent(int percent, uint8_t fullScale, uint8
 //   headset       -- stereo headset, speaker muted
 //   headset_mono  -- headset with the left channel in both ears
 //   speaker       -- speaker only, headset muted
-//   both          -- speaker plus mono headset
+//   both          -- speaker plus mono headset (⛔ NOT OFFERED, below)
 //   off           -- everything muted
+//
+// ⛔ "both" IS NO LONGER OFFERED (rhoquinn8217, 2026-11-07: "lets remove the
+// both option for now from both DualSense and DS4 configs"). On a cabled Edge
+// it played the headphones alone while they were plugged in, and the speaker
+// only once they were out, though both volumes were sent; so it never played
+// both. Taken off the choices (rest_config.inl) until that is looked into. A
+// file that still says "both" is routed as before.
 //
 // Names rather than numbers on purpose: this is a choice between named things,
 // not a quantity. "audio_output = 0" needs a lookup table to read and fails
