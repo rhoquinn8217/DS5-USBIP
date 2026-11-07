@@ -194,6 +194,11 @@ carry it; upstream's own history is unchanged.
 | 2026-11-05 | In Simple, left from the resize button lands on the wheel: the button is the first control in the bar along the bottom, so left from it went nowhere. The help under the Overview's two finger touchpad quick switch is shorter and names the controllers whose touchpads are known to work, the DualSense, the DualSense Edge and the DS4. Page 2.66.135. | `731db46`, `97aecea`, merge `965fa95` |
 | 2026-11-05 | The app's icon is redrawn: a DualSense on a television, with a dark edge round the television and a base close under it, the controller outlined in white with a line over its touchpad, a white band inside each handle and shoulder buttons on top, and a glare across the glass. One icon for every background (a second one for dark backgrounds, switched with Windows' light or dark mode, was tried and set aside before the release). `installer/build-icon.ps1` draws it, `-Check` compares it byte for byte, and `-Png` writes it as one picture for the TV app's icon. | `54a7fb5`, `e2e4874`, `fcc4ae0`, merge `b23d30f` |
 | 2026-11-05 | Simple with no controller bridged says how to bridge one, under "Bridge a controller to start.": two fingers held on the touchpad of a DualSense or DS4, or the USB Bridge in aurora-tv's overlay. Quick keeps the one line. Page 2.66.137. | `d0ac929`, merge `dd77c10` |
+| 2026-11-06 | Simple's tour, reworked at rhoquinn8217's word, in thirty-six steps: Edit into Advanced Mode and back, the legend in a line, each mode visited through the mode selector, which lets only the mode a step asks for be chosen, Advanced at its small size with the tour's words over its middle and Quick's words above it, Close shrinking the window behind the words, the real two-finger press bringing Quick up with its wheel stepped by a finger's swipe or the right stick, and the double press bringing Simple back; then what the quick switch is for, the tip, and where the tutorials are. DS5-USBIP reports the press and its steps to the tour only while a step asks, and nothing changes outside the tour. A step that needs a DualSense's or DS4's touchpad offers Skip without one bridged. Archive's step moves on with whichever config is archived, and Go back onto the wheel's and auto link's steps stays where it lands. Every tour starts at its window's large size, borrowed from DS5-USBIP and given back as it ends, nothing of it kept. Quick's and Advanced's last steps say the tray icon brings the window back and where the tutorials are. Page 2.66.150. | `9d5e4c4`, `1a4dfa1`, `ffa10a5`, `eb0dc35`, `74fb857`, `7f7c202`, `3569491`, `c8aab08`, `e847d5b`, `7782a03`, `d38a3f5`, `82173cb`, `349cd3f`, `7aac7fd`, merge `4882fc9` |
+| 2026-11-06 | Under the setup's box that adds DS5-USBIP's start and stop to Vibepollo: "Setting this up enables the following:", then three bullets: automatic bridging when the stream starts, no bridging once the stream has stopped, and the webOS TV's temporary rebinds for signing in to Windows. | `27831c6`, `69d016e`, `93827d3`, merge `fb17a7f` |
+| 2026-11-06 | A cabled DualSense's headset plays again after Speaker: our own settings report sends each output the chosen audio_output plays through its dial, 100 when the key is unset, the configs window's default. Before, Speaker sent the headset 0, and a later Headset or Both with no headset_volume sent nothing, so the pad kept the 0 until it was unplugged. Under an explicit auto the speaker gets its dial. A game's report is overridden as before, and a config with no audio_output changes nothing. | `ceddcca`, merge `a553c5a` |
+| 2026-11-06 | While two fingers hold the Quick window up, d-pad left or right, or the right stick pushed left or right, opens Windows' window switcher, Alt held as Alt+Tab holds it, and steps through it, left going back. Cross or a press of the touchpad switches to the window it shows, and the Quick window comes back in front of it while a finger stays on the touchpad; lifting the last finger switches too, and closes Quick. Only left, right and Cross are taken from the controller while it is up. It has its own box on the Overview beside the two finger touchpad quick switch's, "D-pad left/right switches windows (Alt+Tab)", on by default, greyed and cleared while the quick switch is unticked, and back as it was when that is ticked again. A two-finger press with the window in front now closes it as the press comes up, so a four-second hold, the TV's release, closes nothing. Neither runs in the tour's practice of the quick switch. Page 2.67.3. | `569a15f`, `e2f13e6`, `c243695`, `2424bf1`, `1565811`, merge `24eaa26` |
+| 2026-11-07 | The configs window no longer offers "both" for where controller audio goes, for any controller: on a cabled DualSense Edge it played the headphones alone while they were plugged in, and the speaker only once they were out, though both volumes were sent, so it never played both. A config file that still says "both" is routed as before. | `e6f8c1a`, merge `6892371` |
 
 ## Files changed
 
@@ -208,7 +213,7 @@ ENet library, removed with the ENet transport).
  .github/ISSUE_TEMPLATE/config.yml             |     5 +
  .github/ISSUE_TEMPLATE/feature-request.yml    |    22 +
  .gitignore                                    |    43 +-
- CHANGES.md                                    |   479 +
+ CHANGES.md                                    |   484 +
  LINK                                          |     0
  README.md                                     |   291 +-
  THIRD-PARTY-NOTICES.txt                       |   618 +
@@ -260,7 +265,7 @@ ENet library, removed with the ENet transport).
  installer/build-icon.ps1                      |   446 +
  installer/controller-path.txt                 |    68 +
  installer/ctm-usbip.iss                       |     3 +-
- installer/ds5-usbip.iss                       |   864 ++
+ installer/ds5-usbip.iss                       |   894 ++
  installer/icon-source.png                     |   Bin 0 -> 100705 bytes
  installer/make-icon-ds5.ps1                   |   236 +
  installer/trace-silhouette.py                 |   368 +
@@ -277,7 +282,7 @@ ENet library, removed with the ENet transport).
  src/app/agent_session_sweep.inl               |   331 +
  src/app/cli.inl                               |    66 +-
  src/app/common.inl                            |   166 +-
- src/app/config_move.inl                       |  1561 +++
+ src/app/config_move.inl                       |  1719 +++
  src/app/console_attach.inl                    |    82 +
  src/app/control_caller.inl                    |    48 +
  src/app/device_capabilities.inl               |    78 +
@@ -293,16 +298,16 @@ ENet library, removed with the ENet transport).
  src/app/old_devices.inl                       |   267 +
  src/app/old_devices_rule.inl                  |    91 +
  src/app/open_on_bridge.inl                    |    93 +
- src/app/open_ui.inl                           |   943 ++
+ src/app/open_ui.inl                           |   974 ++
  src/app/overlay_window.inl                    |  2472 ++++
  src/app/paired_tv.inl                         |   590 +
  src/app/protocol_level.inl                    |    86 +
- src/app/quick_switch.inl                      |   408 +
- src/app/quick_switch_session.inl              |   457 +
+ src/app/quick_switch.inl                      |   724 +
+ src/app/quick_switch_session.inl              |   734 +
  src/app/quit_request.inl                      |    28 +
  src/app/read_deadline.inl                     |    28 +
  src/app/rest.inl                              |   898 ++
- src/app/rest_config.inl                       |  1518 +++
+ src/app/rest_config.inl                       |  1560 +++
  src/app/rest_config_sessions.inl              |   243 +
  src/app/rest_sessions.inl                     |    33 +
  src/app/rest_shared_section.inl               |    55 +
@@ -338,8 +343,8 @@ ENet library, removed with the ENet transport).
  src/audio/ds4_output_overrides.inl            |    38 +
  src/audio/ds4_rumble.inl                      |    68 +
  src/audio/ds4_speaker.inl                     |    62 +
- src/audio/ds5_apply_settings.inl              |   316 +
- src/audio/ds5_output_overrides.inl            |   699 +
+ src/audio/ds5_apply_settings.inl              |   324 +
+ src/audio/ds5_output_overrides.inl            |   739 +
  src/audio/iso_in_pacing.inl                   |   223 +
  src/audio/iso_in_test_tone.inl                |   103 +
  src/audio/mic_ring.inl                        |   229 +
@@ -354,7 +359,7 @@ ENet library, removed with the ENet transport).
  src/capture/amf_decoder.inl                   |   319 -
  src/capture/amf_encoder.inl                   |   209 -
  src/capture/ctm_stream_protocol.h             |    91 -
- src/capture/main.cpp                          |  3695 ------
+ src/capture/main.cpp                          |  3695 -----
  src/config/config_presets.inl                 |   498 +
  src/config/config_store.inl                   |   879 ++
  src/config/config_watcher.inl                 |   171 +
@@ -377,14 +382,14 @@ ENet library, removed with the ENet transport).
  src/input/mouse_held.inl                      |    99 +
  src/input/osk.inl                             |   228 +
  src/input/pad_press.inl                       |   116 +
- src/input/rebind.inl                          |  1398 ++
+ src/input/rebind.inl                          |  1450 ++
  src/input/stick_mouse.inl                     |   477 +
  src/input/touch_mouse.inl                     |  1707 +++
  src/input/trigger_click.inl                   |   864 ++
  src/input/trigger_effect.inl                  |   637 +
  src/log/capped_log.inl                        |   117 +
  src/log/device_log.inl                        |   233 +
- src/main.cpp                                  |  1086 +-
+ src/main.cpp                                  |  1133 +-
  src/map/runtime.cpp                           |   205 +-
  src/usbdisplay/README.md                      |    13 +
  src/usbip/device.inl                          |  1129 +-
@@ -405,7 +410,7 @@ ENet library, removed with the ENet transport).
  tests/default_speaker_rule_test.cpp           |   197 +
  tests/device_capabilities_test.cpp            |    70 +
  tests/device_config_cache_test.cpp            |   148 +
- tests/device_config_test.cpp                  |   565 +
+ tests/device_config_test.cpp                  |   643 +
  tests/device_names_test.cpp                   |   110 +
  tests/device_type_test.cpp                    |    89 +
  tests/ds4_settings_test.cpp                   |   359 +
@@ -434,10 +439,10 @@ ENet library, removed with the ENet transport).
  tests/polling_limits_test.cpp                 |   122 +
  tests/product_version_test.cpp                |    46 +
  tests/protocol_level_test.cpp                 |   112 +
- tests/quick_switch_test.cpp                   |   383 +
+ tests/quick_switch_test.cpp                   |   667 +
  tests/quit_request_test.cpp                   |    86 +
  tests/read_deadline_test.cpp                  |    50 +
- tests/rebind_test.cpp                         |   785 ++
+ tests/rebind_test.cpp                         |   793 ++
  tests/rest_parser_test.cpp                    |   252 +
  tests/rest_shared_section_test.cpp            |    79 +
  tests/rumble_floor_test.cpp                   |    87 +
@@ -448,7 +453,7 @@ ENet library, removed with the ENet transport).
  tests/sbc_test_signals.h                      |   171 +
  tests/schema_json_test.cpp                    |   158 +
  tests/setup_driver_test.cpp                   |    77 +
- tests/stick_mouse_test.cpp                    |   736 ++
+ tests/stick_mouse_test.cpp                    |   736 +
  tests/stop_wait_test.cpp                      |    93 +
  tests/stream_commands_test.cpp                |   118 +
  tests/taskbar_rule_test.cpp                   |    46 +
@@ -467,7 +472,7 @@ ENet library, removed with the ENet transport).
  tests/window_move_test.cpp                    |   136 +
  tests/window_open_rule_test.cpp               |    43 +
  tests/window_size_rule_test.cpp               |   129 +
- tools/controller-config-test-client.html      | 16598 ++++++++++++++++++++++++
+ tools/controller-config-test-client.html      | 17530 ++++++++++++++++++++++++
  tools/create-desktop-shortcut.bat             |    46 +
  tools/create-desktop-shortcut.ps1             |   148 +
  tools/osk-mockups.py                          |   103 +
@@ -475,5 +480,5 @@ ENet library, removed with the ENet transport).
  tools/sbc-golden-gen/ffmpeg_side.cpp          |   117 +
  tools/sbc-golden-gen/ffmpeg_side.h            |    15 +
  tools/sbc-golden-gen/main.cpp                 |   131 +
- 272 files changed, 78891 insertions(+), 6132 deletions(-)
+ 272 files changed, 81199 insertions(+), 6132 deletions(-)
 ```
