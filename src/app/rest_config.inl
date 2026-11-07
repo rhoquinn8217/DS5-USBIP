@@ -480,7 +480,7 @@ static std::string rest_keys_json()
 {"key":"gyro_stick_sens_v","type":"int","min":0,"max":100,"default":0,"name":"Gyro stick vertical sensitivity","help":"The same for up and down. 0 follows the sensitivity above."},
 {"key":"gyro_stick_axis","type":"choice","choices":["","yaw","roll"],"default":"","name":"Gyro stick: left and right come from","help":"Blank is player space: turning left and right, however the controller is held. yaw is turning the controller itself left and right. roll is tilting it like a steering wheel."},
 {"key":"gyro_stick_invert","type":"int","min":0,"max":3,"default":0,"name":"Gyro stick invert","help":"0 neither, 1 left and right, 2 up and down, 3 both."},
-{"key":"audio_output","type":"choice","choices":["auto","headset","headset_mono","speaker","both","off"],"default":"auto","help":"Where controller audio goes. The mode also decides which volume keys apply."},
+{"key":"audio_output","type":"choice","choices":["auto","headset","headset_mono","speaker","off"],"default":"auto","help":"Where controller audio goes. The mode also decides which volume keys apply."},
 {"key":"speaker_volume","type":"int","min":0,"max":100,"default":100,"help":"Controller speaker level. 100 is maximum."},
 {"key":"headset_volume","type":"int","min":0,"max":100,"default":100,"help":"Controller headset jack level. 100 is maximum."},
 {"key":"audio_gain","type":"int","min":0,"max":100,"default":100,"help":"Scales audio passing through. 100 is unchanged, not maximum, and it can only lower: louder would clip."},
