@@ -36,6 +36,7 @@ static void rest_fill_capabilities(RestDeviceView *view)
     // app/device_capabilities.inl, where they can be tested.
     view->hasAudio = ctm_caps::has_audio_hardware(k);
     view->hasRumbleGains = ctm_caps::has_rumble_gains(k);
+    view->hasEdgeButtons = ctm_caps::has_edge_buttons(k);
 
     // ⚠️ A WIRED XBOX PAD ARRIVES AS "xpad", WHICH settings_kind_for() DOES NOT
     // MAP -- it lists only the kinds the TV sends for a config, and xpad is not

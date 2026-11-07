@@ -1112,7 +1112,13 @@ inline void apply(const void *deviceKey,
         // ⛔ REPLACE. The button is cleared whether or not it is currently in
         // its turbo "down" phase -- the game must never see it at all, or a
         // rebind would double up with the original.
-        clear_button(*layout, data, len, i);
+        // ⭐ EXCEPT AN EDGE'S Fn WITH ITS PASSTHROUGH ON, as it is until set
+        // off (passthrough_key, button_layout.inl): the game sees Fn as well.
+        const char *passKey = passthrough_key(i);
+        if (passKey == nullptr ||
+            !device_config_bool(section.c_str(), passKey, kPassthroughDefault)) {
+            clear_button(*layout, data, len, i);
+        }
 
         // ⭐⭐ A CONTROLLER BUTTON BECOMES ANOTHER CONTROLLER BUTTON
         // (T-242 part A). ⓘ First, because `button_` is an unambiguous prefix

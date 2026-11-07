@@ -2,7 +2,7 @@
 <!--
   DS5-USBIP's Controller Configs page, served by the listener.
 
-  VERSION 2.67.3 -- see the changelog at the bottom of this comment.
+  VERSION 2.67.4 -- see the changelog at the bottom of this comment.
 
   WHAT IT STARTED AS. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -24,6 +24,11 @@
   not a tidy message about it.
 
   CHANGELOG
+    2.67.4   The DualSense Edge's Fn and back buttons can be rebound, in an
+             Edge buttons section only an Edge is offered, with a
+             passthrough setting under each Fn, on by default, and a
+             warning on Fn that the Edge's profile switching can't be
+             turned off (rhoquinn8217, 2026-11-07).
     2.67.3   The app switcher opens only while two fingers hold Quick up
              again (rhoquinn8217, 2026-11-06: "Revert the app switcher in
              regular quick mode."); the right stick still opens it there.
@@ -3501,7 +3506,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.67.3</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.67.4</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -5242,8 +5247,8 @@ function buttonMarkSet() {
   var d = deviceByOrdinal(ACTIVE);
   return d ? padLegendForKind(d.kind) : PAD_LEGEND_PS;
 }
-// The mark for a button index, or '' for one with none (an Edge's back
-// buttons), where the listener's name stays.
+// The mark for a button index, or '' for one with none (an Edge's Fn and
+// back buttons), where the listener's name stays.
 function buttonMark(index, set) {
   var m = BUTTON_MARKS[index];
   if (!m) return '';
@@ -5629,6 +5634,11 @@ var TOUCH_ACTION_KEYS = {
 // which do nothing while it is on and say so (swipeUpWarning). ⓘ It reads
 // only up and down, so left and right are not here.
 var SWIPE_SCROLL_KEYS = { touchpad_two_finger_swipe_up: 1, touchpad_two_finger_swipe_down: 1 };
+// ⭐ The rows whose help is a warning: an Edge's Fn, whose profile switching
+// can't be turned off and fires a rebind on it too (rhoquinn8217,
+// 2026-11-07: "with a short warning that profile witching with it can't be
+// turned off").
+var WARN_HELP_KEYS = { rebind_17: 1, rebind_18: 1 };
 // ⓘ The words for what these rows had before they took the whole list. A
 // value with no entry here reads as it does on a remap row.
 // ⭐ AND WHY IT DOES NOTHING WHILE TWO FINGERS SCROLL (rhoquinn8217, 2026-10-20,
@@ -6099,7 +6109,7 @@ function presetRowValue(key, value) {
 // preset changes for a reason, and the face buttons are the same four every
 // time. ⛔ Only the ORDER differs from the settings page -- the labels and the
 // values are that page's own.
-var PRESET_BUTTON_ORDER = ['Shoulder/stick buttons', 'Face buttons', 'System buttons'];
+var PRESET_BUTTON_ORDER = ['Shoulder/stick buttons', 'Face buttons', 'System buttons', 'Edge buttons'];
 
 // ⛔ TUNING NUMBERS ARE NOT PART OF THE DESCRIPTION (rhoquinn8217, 2026-09-10).
 // A preset preview answers "what will this do", and a press depth or a drag
@@ -6785,10 +6795,13 @@ function hiddenSetting(key) {
 // in one list was a wall to scroll past; these are the three clusters a hand
 // actually reaches for.
 // ⚠️ Mute and touchpad-click are NOT here because they are not rebindable --
-// the index table stops at PS. Adding them is a change to rebind.inl, not to
-// this list.
+// the index table stops at PS, then has only the DualSense Edge's four.
+// Adding them is a change to rebind.inl, not to this list.
+// ⭐ The Edge's Fn and back buttons have a section of their own, offered only
+// to an Edge (has_edge_buttons), with each Fn's passthrough under it
+// (rhoquinn8217, 2026-11-07).
 // The sections whose rows are buttons, and so want the legend above.
-var BUTTON_SECTIONS = ['Face buttons', 'Shoulder/stick buttons', 'System buttons'];
+var BUTTON_SECTIONS = ['Face buttons', 'Shoulder/stick buttons', 'System buttons', 'Edge buttons'];
 
 var BTN_GROUP = {
   0: 'Face buttons', 1: 'Face buttons', 2: 'Face buttons', 3: 'Face buttons',
@@ -6800,12 +6813,15 @@ var BTN_GROUP = {
   // 2026-09-10. One place to look is the smallest fix for that.
   6: 'Triggers', 7: 'Triggers',
   10: 'Shoulder/stick buttons', 11: 'Shoulder/stick buttons',
-  8: 'System buttons', 9: 'System buttons', 16: 'System buttons'
+  8: 'System buttons', 9: 'System buttons', 16: 'System buttons',
+  17: 'Edge buttons', 18: 'Edge buttons', 19: 'Edge buttons', 20: 'Edge buttons'
 };
 
 function sectionOf(key) {
   var btn = /^(?:rebind|turbo)_(\d+)$/.exec(key);
   if (btn) return BTN_GROUP[Number(btn[1])] || 'Other';
+  // ⓘ Each Fn's passthrough sits with the Fn it lets through.
+  if (/^fn_(left|right)_passthrough$/.test(key)) return 'Edge buttons';
   // ⭐ TWO STICK SECTIONS (rhoquinn8217, 2026-09-03). Every stick setting now
   // belongs to exactly ONE stick -- tuning included -- so splitting them is
   // honest rather than a duplicate wearing two headings.
@@ -6920,7 +6936,8 @@ function renderConfigEditor(hostId, configName, prefix, ordinal) {
       'Audio': 'has_audio',
       'Rumble': 'has_rumble_gains',
       'Touchpad': 'has_touchpad',
-      'Gyro': 'has_gyro'
+      'Gyro': 'has_gyro',
+      'Edge buttons': 'has_edge_buttons'
     };
     var shows = function(g) {
       if (SECTION_NEEDS[g] && !can(SECTION_NEEDS[g])) return false;
@@ -6940,7 +6957,7 @@ function renderConfigEditor(hostId, configName, prefix, ordinal) {
     // tuning -- so the top of whichever tab you open is the thing you wanted.
     var order = ['Audio', 'Rumble', 'Gyro', 'Touchpad', 'Triggers',
                  'Left stick', 'Right stick',
-                 'Face buttons', 'Shoulder/stick buttons', 'System buttons',
+                 'Face buttons', 'Shoulder/stick buttons', 'System buttons', 'Edge buttons',
                  'Other'].filter(shows);
 
     // ⭐ ONE SECTION AT A TIME. The others are not scrolled past, they are not
@@ -7118,9 +7135,11 @@ function renderConfigEditor(hostId, configName, prefix, ordinal) {
           helpText = (helpText ? helpText + ' ' : '') +
                      'Range ' + meta.min + ' to ' + meta.max + '.';
         }
+        // ⓘ A Fn row's help is a warning (WARN_HELP_KEYS), and reads as one.
         var note = inert
           ? '<small class="warnc">' + esc(inert) + '</small>'
-          : '<small>' + esc(helpText) + '</small>';
+          : '<small' + (WARN_HELP_KEYS[meta.key] ? ' class="warnc"' : '') + '>' +
+            esc(helpText) + '</small>';
         // ⭐ The up and down swipes' warning stands in for their help while two
         // fingers scroll (swipeUpWarning), and is redrawn when the scroll row
         // changes (paintSwipeUpNote), so a row never says the wrong one. ⓘ esc()

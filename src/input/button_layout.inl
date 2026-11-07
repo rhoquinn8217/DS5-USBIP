@@ -32,7 +32,16 @@ enum : int {
     kBtnSelect = 8, kBtnStart = 9, kBtnL3 = 10, kBtnR3 = 11,
     kBtnDpadUp = 12, kBtnDpadDown = 13, kBtnDpadLeft = 14, kBtnDpadRight = 15,
     kBtnHome = 16,
-    kButtonCount = 17
+    // ⭐ THE DUALSENSE EDGE'S OWN FOUR, past the W3C's seventeen (rhoquinn8217,
+    // 2026-11-07: "just add the button rebinds into DS5-USBIP with
+    // passthrough setting for each Fn"): its two Fn buttons and its two back
+    // buttons. Only the Edge reports them, in kDs5Layout's byte 10; every
+    // other layout leaves them absent.
+    kBtnFnLeft = 17, kBtnFnRight = 18, kBtnBackLeft = 19, kBtnBackRight = 20,
+    kButtonCount = 21,
+    // ⓘ The seventeen any pad can be given, as a binding's `button_` values:
+    // the Edge's four are rebound, not pressed.
+    kSharedButtonCount = 17
 };
 
 // Where each standard index lives in a DUALSENSE report.
@@ -44,7 +53,8 @@ enum : int {
 //        high nibble: square 0x10, cross 0x20, circle 0x40, triangle 0x80
 //   [9]  L1 0x01, R1 0x02, L2 0x04, R2 0x08,
 //        create 0x10, options 0x20, L3 0x40, R3 0x80
-//   [10] PS 0x01, touchpad-click 0x02, mute 0x04
+//   [10] PS 0x01, touchpad-click 0x02, mute 0x04; on an Edge, Fn left 0x10,
+//        Fn right 0x20, back left 0x40, back right 0x80
 //
 // ⛔ THE D-PAD IS A HAT. Values 0-7 are the eight directions and 8 is centred,
 // so "up" is not one bit -- it is three of the eight values. Treating it as a
@@ -238,16 +248,25 @@ inline const Layout kDs5Layout = {
         { kSpotHatDir, 0, kDirLeft },   // 14 d-pad left
         { kSpotHatDir, 0, kDirRight },  // 15 d-pad right
         { kSpotBit,   10, 0x01 },   // 16 PS / home
+        // ⭐ The Edge's own four (2026-11-07), MEASURED the same day on an Edge
+        // through its DS5dongle: each press alone in byte 10, nothing else
+        // set. ⓘ A plain DualSense never sets them, so it never presses one.
+        { kSpotBit,   10, 0x10 },   // 17 Fn left
+        { kSpotBit,   10, 0x20 },   // 18 Fn right
+        { kSpotBit,   10, 0x40 },   // 19 back left
+        { kSpotBit,   10, 0x80 },   // 20 back right
     },
     // Rest: LX LY RX RY centre at 0x80, then L2 and R2 analog at 0.
     { { 1, 4, 0x80 }, { 5, 2, 0x00 } },
-    // Touchpad click 0x02 and mute 0x04 have no standard index. ⭐ Nor do the
-    // DualSense Edge's Fn buttons (0x10 left, 0x20 right) and back paddles
-    // (0x40 left, 0x80 right), which share this byte; the Edge uses this table.
+    // Touchpad click 0x02 and mute 0x04 have no standard index. ⭐ The
+    // DualSense Edge's Fn buttons (0x10 left, 0x20 right) and back buttons
+    // (0x40 left, 0x80 right) share this byte, and have indices of their own
+    // since 2026-11-07 (17 to 20, above); the mask keeps them as well, so
+    // config mode's "nothing held" is what it was.
     // ⛔ Left out, they passed through config mode's "nothing held", so a
     // paddle pressed while the settings window held the pad reached the game
-    // (code review, 2026-10-05). ⓘ Their bits are SDL's PS5 driver's; a plain
-    // DualSense never sets them, so clearing them costs it nothing.
+    // (code review, 2026-10-05). ⓘ A plain DualSense never sets them, so
+    // clearing them costs it nothing.
     10, 0xF6,
     // Sticks one byte each, pushing up reads lower.
     { kAxisU8, 1, 2, 3, 4, false },
@@ -680,10 +699,25 @@ inline int button_index_for(const std::string &raw)
     }
     if (digits) {
         const int index = std::atoi(v.c_str());
-        if (index >= 0 && index < kButtonCount) return index;
+        // ⓘ The seventeen any pad can be given: the Edge's four are rebound by
+        // their rows, never named as a gate or a button to press.
+        if (index >= 0 && index < kSharedButtonCount) return index;
     }
     return -1;
 }
+
+// ⭐ AN EDGE'S Fn CAN PASS THROUGH ITS REBIND (rhoquinn8217, 2026-11-07: "add
+// a setting under each Fn button for passthrough default to true"): on, the
+// game sees Fn as well as what it is rebound to; off, the rebind replaces it
+// as every other rebind does. The setting's key for a button, or nullptr for
+// a button that has none.
+inline const char *passthrough_key(int standardIndex)
+{
+    if (standardIndex == kBtnFnLeft) return "fn_left_passthrough";
+    if (standardIndex == kBtnFnRight) return "fn_right_passthrough";
+    return nullptr;
+}
+inline constexpr bool kPassthroughDefault = true;
 
 // ⭐⭐ PUT A BUTTON DOWN. The exact mirror of clear_button below, and the
 // thing this project has never had. 🔗 T-242 part A.

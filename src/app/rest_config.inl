@@ -49,6 +49,8 @@ struct RestDeviceView {
     bool hasRumbleGains = true; // the rumble dials, on a DualSense's report or a DS4's
     bool hasTouchpad = true;
     bool hasGyro = true;
+    // ⭐ The DualSense Edge's Fn and back buttons (device_capabilities.inl).
+    bool hasEdgeButtons = true;
     // ⭐ THE POLLING RATE (usbip/input_pace.inl): the reports a second Windows
     // is getting now, and arriving from the TV, which differ only under a
     // limit; whether a limit can apply at all, a controller's and never a
@@ -107,6 +109,7 @@ static std::string rest_device_json(const RestDeviceView &d)
     out += ",\"has_rumble_gains\":" + std::string(d.hasRumbleGains ? "true" : "false");
     out += ",\"has_touchpad\":" + std::string(d.hasTouchpad ? "true" : "false");
     out += ",\"has_gyro\":" + std::string(d.hasGyro ? "true" : "false");
+    out += ",\"has_edge_buttons\":" + std::string(d.hasEdgeButtons ? "true" : "false");
     // ⭐ The polling rate column, Advanced only on the page.
     out += ",\"input_rate_hz\":" + std::to_string(d.inputRateHz);
     out += ",\"arrival_rate_hz\":" + std::to_string(d.arrivalRateHz);
@@ -387,6 +390,12 @@ static std::string rest_keys_json()
 {"key":"turbo_15","type":"int","min":0,"max":1000,"name":"(→)","default":0,"help":"Set milliseconds between rapid fire presses, 0 means held down"},
 {"key":"rebind_16","type":"string","name":"(PS) | (Home)","default":"","help":"Rebind button to keyboard key or mouse action"},
 {"key":"turbo_16","type":"int","min":0,"max":1000,"name":"(PS) | (Home)","default":0,"help":"Set milliseconds between rapid fire presses, 0 means held down"},
+{"key":"rebind_17","type":"string","name":"(Fn left)","default":"","help":"Rebind button to keyboard key or mouse action. Warning: profile switching with Fn can't be turned off, and fires this rebind too."},
+{"key":"fn_left_passthrough","type":"bool","default":true,"name":"Fn left passthrough","help":"On: the game sees Fn left as well as its rebind. Off: the rebind replaces it."},
+{"key":"rebind_18","type":"string","name":"(Fn right)","default":"","help":"Rebind button to keyboard key or mouse action. Warning: profile switching with Fn can't be turned off, and fires this rebind too."},
+{"key":"fn_right_passthrough","type":"bool","default":true,"name":"Fn right passthrough","help":"On: the game sees Fn right as well as its rebind. Off: the rebind replaces it."},
+{"key":"rebind_19","type":"string","name":"(back left)","default":"","help":"Rebind button to keyboard key or mouse action"},
+{"key":"rebind_20","type":"string","name":"(back right)","default":"","help":"Rebind button to keyboard key or mouse action"},
 )CTMKEYS";
     // The button rebinds and turbos are the bulk of the list, so they are
     // their own piece -- the next-largest structural boundary after the key
