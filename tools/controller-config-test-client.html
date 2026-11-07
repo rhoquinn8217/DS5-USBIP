@@ -15742,6 +15742,9 @@ function tutAdvOverview() { if (ACTIVE !== 'overview') showTab('overview'); }
 function tutAdvSwitch(id) {
   var box = tutById(id), label = box && box.closest('label');
   var help = label && label.nextElementSibling;
+  // ⓘ Past the d-pad's app switcher's box (2.67.0), which sits between the
+  // quick switch's and the help the two share.
+  while (help && help.classList.contains('ovsub')) help = help.nextElementSibling;
   return [label, help && help.classList.contains('ovhelp') ? help : null].filter(Boolean);
 }
 function tutAdvDual() {
