@@ -2,7 +2,7 @@
 <!--
   DS5-USBIP's Controller Configs page, served by the listener.
 
-  VERSION 2.66.147 -- see the changelog at the bottom of this comment.
+  VERSION 2.66.148 -- see the changelog at the bottom of this comment.
 
   WHAT IT STARTED AS. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -24,6 +24,11 @@
   not a tidy message about it.
 
   CHANGELOG
+    2.66.148 Simple's tip and the tutorials' place, a step each, at
+             rhoquinn8217's word (2026-11-06: "35 should be two steps, one for
+             the hint and one telling where to find the tutorials."): the tip
+             with Continue again, and the last step says where the tutorials
+             are, with Finish tutorial. Thirty-six steps.
     2.66.147 The tours' last steps, at rhoquinn8217's word (2026-11-06): the
              gesture for the way back out of Quick's and Advanced's ("yes,
              remove it from both"), the tray icon left, and each tour's last
@@ -3435,7 +3440,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.66.147</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.66.148</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -13490,8 +13495,8 @@ function selfTest() {
     var simpleWords = TUT_SIMPLE.map(function (st) { return st.words(); });
     TUT = keepTutS;
     TUT_MOCK = keepMockS;
-    ok('the tutorial: Simple has thirty-five steps, each with words, the last ending it',
-       TUT_SIMPLE.length === 35 && TUT_SIMPLE[34].act === 'end' &&
+    ok('the tutorial: Simple has thirty-six steps, each with words, the last ending it',
+       TUT_SIMPLE.length === 36 && TUT_SIMPLE[35].act === 'end' &&
        TUT_SIMPLE.filter(function (st) { return st.act === 'end'; }).length === 1 &&
        simpleWords.every(function (w) { return !!w && w.indexOf('undefined') < 0; }),
        simpleWords.join(' / '));
@@ -14034,6 +14039,7 @@ function selfTest() {
     TUT_SHRUNK = keepPad;
     padSeen.push(TUT_SIMPLE[31].keys === tutPadKeys && TUT_SIMPLE[32].keys === tutPadKeys &&
                  tutWordsSide(TUT_SIMPLE[33]) === 'center' && tutWordsSide(TUT_SIMPLE[34]) === 'left' &&
+                 tutWordsSide(TUT_SIMPLE[35]) === 'center' &&
                  tutWordsSide(TUT_SIMPLE[0]) === 'left');
     // ⭐ Simple's mode steps (2.66.145): only the mode asked for to choose,
     // the words over Advanced's middle and above Quick's window, and the last
@@ -14065,17 +14071,19 @@ function selfTest() {
     modeSeen.push(modePickerHtml('tutModeTest').indexOf('value="quick">') >= 0);
     TUT = keepMode[0]; COMPACT = keepMode[1]; QUICK = keepMode[2];
     setMode = keepMode[3]; tutViewKind = keepMode[4]; TUT_SHRUNK = keepMode[5];
-    var lastWords = TUT_SIMPLE[34].words();
+    var lastWords = TUT_SIMPLE[35].words(), tipWords = TUT_SIMPLE[34].words();
     modeSeen.push(tutWordsTrySwitch().indexOf('two finger quick switch') >= 0 &&
-                  TUT_SIMPLE[33].words === tutWordsTrySwitch && TUT_SIMPLE[34].act === 'end' &&
-                  lastWords.indexOf(tutWordsTutorials()) >= 0 && lastWords.indexOf(tutHl('Finish tutorial')) >= 0 &&
+                  TUT_SIMPLE[33].words === tutWordsTrySwitch && TUT_SIMPLE[35].act === 'end' &&
+                  TUT_SIMPLE[34].free === true && !TUT_SIMPLE[34].act && tipWords.indexOf('tip') >= 0 &&
+                  tipWords.indexOf(tutWordsTutorials()) < 0 && tipWords.indexOf(tutHl('Continue')) >= 0 &&
+                  lastWords.indexOf(tutWordsTutorials()) === 0 && lastWords.indexOf(tutHl('Finish tutorial')) >= 0 &&
                   tutWordsEnd().indexOf(tutWordsTutorials()) >= 0 && !/two fingers/.test(tutWordsEnd()) &&
                   /^Now we will learn how to bring back the window\. /.test(tutWordsPadTry()) &&
                   !/shrink/.test(TUT_SIMPLE[30].words()) && String(TUT_SIMPLE[28].lit).indexOf('#cselMode') >= 0 &&
                   !TUT_SIMPLE.some(function (st) { return st.words === tutWordsBack; }));
     ok('the tutorial: a mode step lets only its mode be chosen, the words stand over Advanced\'s middle and ' +
-       'above Quick\'s window, the step before the last encourages the two finger quick switch, and the ' +
-       'last, the tip, says where the tutorials are',
+       'above Quick\'s window, the two finger quick switch is encouraged, the tip comes after, and the ' +
+       'last step says where the tutorials are',
        modeSeen.join(',') === 'true,true,true,true,true,true,true', modeSeen.join(','));
     ok('the tutorial: on the two finger steps the switch\'s steps step Quick\'s wheel, nothing does while ' +
        'the window is put away, and the words cover it then',
@@ -15356,7 +15364,7 @@ var TUT_QUICK = [
   { lit: function () { return []; }, act: 'end', words: tutWordsEnd }
 ];
 
-// ⭐⭐ SIMPLE'S THIRTY-FIVE (thirty-six in 2.66.144 and 2.66.145, thirty-five in 2.66.141 to 2.66.143, thirty-seven in 2.66.139 and 2.66.140, thirty-three until 2.66.139, twenty-four until 2.66.138; rhoquinn8217, 2026-10-26, the list they went
+// ⭐⭐ SIMPLE'S THIRTY-SIX (thirty-five in 2.66.146 and 2.66.147, thirty-six in 2.66.144 and 2.66.145, thirty-five in 2.66.141 to 2.66.143, thirty-seven in 2.66.139 and 2.66.140, thirty-three until 2.66.139, twenty-four until 2.66.138; rhoquinn8217, 2026-10-26, the list they went
 // through: *"Based on how we did the quick mode tutorial, build a list a of
 // steps for me to review for a simple view tutorial"*). Simple's own: the
 // controllers either side of its panel, the button column beside the wheel,
@@ -15377,8 +15385,8 @@ var TUT_QUICK = [
 // size, the mode list, Circle and Close; the tip last, before the card that
 // ends the tour. ⭐ The tip after the position in 2.66.144 to 2.66.146 (*"Move
 // step 34 and 35 after step 21"*), the way back with it until 2.66.146 took
-// it out, and last again since 2.66.147, after the two finger quick switch
-// is encouraged.
+// it out, and after the two finger quick switch is encouraged since
+// 2.66.147, the tutorials' place last, a step of its own since 2.66.148.
 var TUT_SIMPLE = [
   // 1
   { side: 'left', lit: function () { return tutQ('.cname .devemo', '.cname .batt'); },
@@ -15649,26 +15657,31 @@ var TUT_SIMPLE = [
   { side: 'center', lit: function () { return []; }, words: tutWordsTrySwitch,
     enter: function () { if (TUT_SHRUNK || tutViewKind() !== 'simple') tutUnshrink('simple'); } },
   // 35 (*"Need a step to show the hint and how to click it to see the next
-  // one"*): the tip, last since 2.66.147 (rhoquinn8217, 2026-11-06: *"also
-  // move step 22 to after 35"*), L3 lit in the legend with it, with no arrow
-  // (*"step 22, also feather spotlight on the L3 symbol in the legend."*), and
-  // where the tutorials are said (*"The step right before finishing should
-  // tell that the tutorials can be found in the DS5-USBIP tray icon menu."*).
-  // A click is the way, or L3. ⭐ The words and the arrow go by the tip's
+  // one"*): the tip, after the quick switch since 2.66.147 (rhoquinn8217,
+  // 2026-11-06: *"also move step 22 to after 35"*), L3 lit in the legend with
+  // it, with no arrow (*"step 22, also feather spotlight on the L3 symbol in
+  // the legend."*). The last step in 2.66.147, saying where the tutorials are
+  // as well; a step each since 2.66.148 (*"35 should be two steps, one for the
+  // hint and one telling where to find the tutorials."*).
+  // A click is the way, or L3, and Continue stays. ⭐ The words and the arrow go by the tip's
   // ROW, which keeps its size, not by the tip, which is as wide as its words
   // (rhoquinn8217, 2026-10-28: *"when cycling through hints, the shouldn't
   // move around for no reason"*): each tip's width was a new place for the
   // words, at times across the window.
   // ⭐ And L3 does it too, H on a keyboard (rhoquinn8217, 2026-10-28: *"L3 in
   // simple mode cycles through hints."*): its press goes through to the page.
-  { side: 'left', free: true, act: 'end', split: true, anchorBox: tutTipRow,
+  { side: 'left', free: true, split: true, anchorBox: tutTipRow,
     lit: function () { return tutQ('.cinfo', '.clegend .lgi:nth-child(9)'); },
     keys: function (code, gated, plain) { return (gated || plain) && code === 'KeyH'; },
     words: function () {
       return 'This line is a tip, and a new one comes every 30 seconds. Click it or press ' +
-             tutKey('tip') + ' to see the next one. ' + tutWordsTutorials() + ' Choose ' +
-             tutHl('Finish tutorial') + '.';
-    } }
+             tutKey('tip') + ' to see the next one, then choose ' + tutHl('Continue') + '.';
+    } },
+  // 36: where the tutorials are (*"The step right before finishing should
+  // tell that the tutorials can be found in the DS5-USBIP tray icon menu."*),
+  // a step of its own since 2.66.148, the last, over the window's middle.
+  { lit: function () { return []; }, act: 'end',
+    words: function () { return tutWordsTutorials() + ' Choose ' + tutHl('Finish tutorial') + '.'; } }
 ];
 
 // ⓘ The tip line's row: as wide as the footer's column of text, and as tall
