@@ -339,6 +339,84 @@ int run_device_config_tests()
         CTM_CHECK_EQ(static_cast<int>(report[6]), 0x3d + (90 * (0x64 - 0x3d)) / 100);
     }
 
+    // --- Our own settings report: a chosen mode sends its dials ------------
+    // ⛔ The fault this guards (2026-11-06, a cabled DualSense on the C1):
+    // "speaker" sent the headset 0, the pad kept it, and "both" with no
+    // headset_volume then sent nothing for the headset, so it stayed silent
+    // while its dial read 100.
+    section("our report: a chosen mode sends an unset dial as 100");
+    {
+        auto speakerLevel = [](const char *section) {
+            return units::ds5_settings_level_for(units::ds5_audio_output_for(section), true, section);
+        };
+        auto headsetLevel = [](const char *section) {
+            return units::ds5_settings_level_for(units::ds5_audio_output_for(section), false, section);
+        };
+
+        // The case reported: speaker first, then both.
+        set_config("[ds5]\naudio_output = speaker\n");
+        CTM_CHECK_EQ(speakerLevel("ds5"), 100);
+        CTM_CHECK_EQ(headsetLevel("ds5"), 0);     // the output it does not use, still silenced
+        set_config("[ds5]\naudio_output = both\n");
+        CTM_CHECK_EQ(speakerLevel("ds5"), 100);
+        CTM_CHECK_EQ(headsetLevel("ds5"), 100);   // was -1: nothing sent, the 0 stayed
+
+        set_config("[ds5]\naudio_output = headset\n");
+        CTM_CHECK_EQ(speakerLevel("ds5"), 0);
+        CTM_CHECK_EQ(headsetLevel("ds5"), 100);
+        set_config("[ds5]\naudio_output = headset_mono\n");
+        CTM_CHECK_EQ(speakerLevel("ds5"), 0);
+        CTM_CHECK_EQ(headsetLevel("ds5"), 100);
+        set_config("[ds5]\naudio_output = off\n");
+        CTM_CHECK_EQ(speakerLevel("ds5"), 0);
+        CTM_CHECK_EQ(headsetLevel("ds5"), 0);
+
+        // Auto chosen: our report routes to the speaker, so the speaker gets
+        // its dial and the headset is left alone.
+        set_config("[ds5]\naudio_output = auto\n");
+        CTM_CHECK_EQ(speakerLevel("ds5"), 100);
+        CTM_CHECK_EQ(headsetLevel("ds5"), -1);
+
+        // The Edge reads its own section and gets the same.
+        set_config("[ds5_edge]\naudio_output = both\n");
+        CTM_CHECK_EQ(headsetLevel("ds5_edge"), 100);
+        CTM_CHECK_EQ(speakerLevel("ds5_edge"), 100);
+    }
+
+    section("our report: a set dial wins, and nothing chosen changes nothing");
+    {
+        auto speakerLevel = [](const char *section) {
+            return units::ds5_settings_level_for(units::ds5_audio_output_for(section), true, section);
+        };
+        auto headsetLevel = [](const char *section) {
+            return units::ds5_settings_level_for(units::ds5_audio_output_for(section), false, section);
+        };
+
+        set_config("[ds5]\naudio_output = both\nspeaker_volume = 40\nheadset_volume = 0\n");
+        CTM_CHECK_EQ(speakerLevel("ds5"), 40);
+        CTM_CHECK_EQ(headsetLevel("ds5"), 0);     // 0 is a legal level: silent, as set
+
+        // No audio_output at all: an unconfigured pad is left as it was.
+        set_config("[ds5]\nforce_echo_cancel = true\n");
+        CTM_CHECK_EQ(speakerLevel("ds5"), -1);
+        CTM_CHECK_EQ(headsetLevel("ds5"), -1);
+        set_config("[ds5]\nheadset_volume = 30\n");
+        CTM_CHECK_EQ(speakerLevel("ds5"), -1);
+        CTM_CHECK_EQ(headsetLevel("ds5"), 30);
+    }
+
+    section("a game's volume write still stands for an unset dial in a chosen mode");
+    {
+        // ⓘ Only OUR report sends the unset dial as 100. A game's own write
+        // passes the overrides untouched, as before.
+        set_config("[ds5]\naudio_output = both\n");
+        std::vector<uint8_t> report = make_report(0x30, 0, 0x50);   // claim both volumes
+        report[5] = 0x60;
+        units::ds5_apply_output_overrides(report.data(), report.size(), kDualSense);
+        CTM_CHECK_EQ(static_cast<int>(report[6]), 0x50);
+        CTM_CHECK_EQ(static_cast<int>(report[5]), 0x60);
+    }
+
     // --- Rumble: master and per-motor --------------------------------------
     // The per-motor gains cannot be tested on hardware -- no game available
     // drives the spinning weights at all -- so this is their only verification.

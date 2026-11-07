@@ -74,8 +74,14 @@ static void ds5_apply_initial_settings(CtmBackend *backend,
     const char *section = resolved.c_str();
 
     const Ds5AudioOutput output = ds5_audio_output_for(section);
-    const int speakerPercent = ds5_level_for(output, true, section);
-    const int headsetPercent = ds5_level_for(output, false, section);
+    // ⭐ ds5_settings_level_for, not ds5_level_for: a chosen mode sends the
+    // outputs it plays through their dials, 100 for a dial never moved, so a
+    // 0 an earlier mode sent does not stay on the pad. Its note says why.
+    const int speakerPercent = ds5_settings_level_for(output, true, section);
+    const int headsetPercent = ds5_settings_level_for(output, false, section);
+    // For the log line at the end: which of the two came from an unset dial.
+    const bool speakerUnset = speakerPercent >= 0 && ds5_level_for(output, true, section) < 0;
+    const bool headsetUnset = headsetPercent >= 0 && ds5_level_for(output, false, section) < 0;
 
     // Microphone mute, off unless asked for. Muting AT THE CONTROLLER is the
     // only mute that cannot be defeated by proximity: a muted microphone hears
@@ -269,8 +275,10 @@ static void ds5_apply_initial_settings(CtmBackend *backend,
     device_log::report(device_log::msg()
         << section << ": settings: sent audio to "
         << (speakerActive ? "speaker" : "headset")
-        << ", speaker volume " << speakerPercent
-        << "%, headset volume " << headsetPercent << "%");
+        << ", speaker volume " << speakerPercent << "%"
+        << (speakerUnset ? " (unset: the dial's)" : "")
+        << ", headset volume " << headsetPercent << "%"
+        << (headsetUnset ? " (unset: the dial's)" : ""));
 }
 
 // ⭐ The host-report entry point for trigger_effect::defend_host_report.
