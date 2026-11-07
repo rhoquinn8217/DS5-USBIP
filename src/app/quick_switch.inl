@@ -510,8 +510,15 @@ inline bool close_up(Armed &a, bool pressed, long long nowMs)
 // cross|A are the only buttons disabled"): left and right while the window is
 // held up, Cross while Alt is down and until the press that picked is let go,
 // so it reaches neither the page nor the window picked.
-// ⓘ A press of the touchpad, a swipe and the right stick do nothing while Alt
-// is down: the switcher is over the wheel.
+// ⭐ AND ONCE THE SWITCHER IS UP, THE RIGHT STICK AND THE TOUCHPAD TOO
+// (rhoquinn8217, 2026-11-06, on 141: "when app switching with left and right
+// arrows, allow R-stick left and right to also move the selector. also allow
+// pressing the touchpad to select the app"): a push of the stick left or
+// right is a press of the d-pad's (app_switch_stick), and a press of the
+// touchpad picks as Cross does (app_switch_press), Quick coming back in front
+// after it the same way. ⓘ Neither opens the switcher: the d-pad does.
+// ⓘ A swipe, and the stick up or down, still do nothing while Alt is down:
+// the switcher is over the wheel.
 // ⓘ Its own box beside the switch's, on until it is turned off. It acts only
 // while the switch is on, and keeps its own tick while the switch is off
 // (2026-11-06: "It should come back however it was ticked when quick switch
@@ -533,7 +540,9 @@ inline bool app_switcher_loaded(bool sawLine, bool lineOn)
 struct AppSwitch {
     bool alt = false;           // Alt is down: Windows' switcher is up
     bool letGo = false;         // Alt goes up once the Tabs on their way have gone
-    bool byCross = false;       // ...because Cross picked, not because the window went
+    bool picked = false;        // ...because Cross or the touchpad picked, not because the window went
+    bool byPress = false;       // ...the touchpad's press, not Cross
+    Stick stick;                // the right stick, read sideways while Alt is down
     std::deque<int> tabs;       // presses waiting: +1 Tab, -1 Shift+Tab
     int current = 0;            // the Tab down now: +1, -1, or 0
     bool inGap = false;         // Alt alone, after a Tab or before the first
@@ -574,7 +583,8 @@ inline AppTakes app_switch_buttons(AppSwitch &a, bool holding, bool left, bool r
     }
     if (crossEdge && a.alt && !a.letGo) {
         a.letGo = true;
-        a.byCross = true;
+        a.picked = true;
+        a.byPress = false;
         a.crossTaken = true;
     }
     if (!cross) a.crossTaken = false;
@@ -591,15 +601,60 @@ inline void app_switch_end(AppSwitch &a)
 {
     if (a.alt && !a.letGo) {
         a.letGo = true;
-        a.byCross = false;
+        a.picked = false;
+        a.byPress = false;
     }
+}
+
+// ⭐ A press of the touchpad while Alt is down picks, as Cross does. True when
+// it did: the press is the switcher's then, and keeps nothing.
+inline bool app_switch_press(AppSwitch &a)
+{
+    if (!a.alt || a.letGo) return false;
+    a.letGo = true;
+    a.picked = true;
+    a.byPress = true;
+    return true;
+}
+
+// The right stick's push left or right: -1 left, +1 right, 0 none. One a push,
+// judged as stick_steps judges up and down, the other way about: past
+// kStickStepAt sideways and further than it went up or down, and nothing more
+// until it has come back within kStickRearmAt of the middle.
+inline int stick_sideways(Stick &s, float x, float y)
+{
+    const float ax = x < 0 ? -x : x;
+    const float ay = y < 0 ? -y : y;
+    if (!s.armed) {
+        if (ax < kStickRearmAt && ay < kStickRearmAt) s.armed = true;
+        return 0;
+    }
+    if (ax >= kStickStepAt && ax > ay) {
+        s.armed = false;
+        return x < 0 ? -1 : 1;
+    }
+    return 0;
+}
+
+// ⭐ Each report's right stick: while Alt is down, a push left or right is a
+// press of the d-pad's, a Tab after any on their way. ⓘ From the middle: a
+// stick already pushed as Alt goes down moves nothing until it has come back.
+inline void app_switch_stick(AppSwitch &a, float x, float y)
+{
+    if (!a.alt || a.letGo) {
+        a.stick = Stick();
+        return;
+    }
+    const int side = stick_sideways(a.stick, x, y);
+    if (side != 0) a.tabs.push_back(side);
 }
 
 struct AppKeys {
     bool alt = false;       // Alt down on this report
     int tab = 0;            // +1 Tab, -1 Shift+Tab, 0 none
     bool wentUp = false;    // Alt has just gone up
-    bool byCross = false;   // ...because Cross picked
+    bool picked = false;    // ...because Cross or the touchpad picked
+    bool byPress = false;   // ...the touchpad's press, not Cross
 };
 
 // The keys this pad's report holds for the switcher, asked once a report. Each
@@ -636,10 +691,12 @@ inline AppKeys app_switch_keys(AppSwitch &a, long long nowMs)
     }
     if (a.letGo) {
         k.wentUp = true;
-        k.byCross = a.byCross;
+        k.picked = a.picked;
+        k.byPress = a.byPress;
         a.alt = false;
         a.letGo = false;
-        a.byCross = false;
+        a.picked = false;
+        a.byPress = false;
         return k;
     }
     k.alt = true;

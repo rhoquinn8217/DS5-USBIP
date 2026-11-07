@@ -511,7 +511,8 @@ int run_quick_switch_tests()
         k = app_switch_keys(a, 400 + kKeyDownMs + kKeyGapMs);
         CTM_CHECK(!k.alt);
         CTM_CHECK(k.wentUp);
-        CTM_CHECK(k.byCross);
+        CTM_CHECK(k.picked);
+        CTM_CHECK(!k.byPress);
         CTM_CHECK(!a.alt);
         // The press that picked stays the switcher's until it is let go.
         t = app_switch_buttons(a, true, false, false, true, 600);
@@ -563,7 +564,7 @@ int run_quick_switch_tests()
         }
         CTM_CHECK(sawTab);
         CTM_CHECK(k.wentUp);
-        CTM_CHECK(!k.byCross);
+        CTM_CHECK(!k.picked);
         // Not held up any more: left and right are the pad's again, and a press opens nothing.
         const AppTakes t = app_switch_buttons(a, false, false, true, false, 2000);
         CTM_CHECK(!t.leftRight);
@@ -581,6 +582,62 @@ int run_quick_switch_tests()
         const AppTakes ct = app_switch_buttons(c, true, false, false, true, 0);
         CTM_CHECK(!ct.cross);
         CTM_CHECK(!c.letGo);
+    }
+
+    // ⭐ 2026-11-06, on 141: the right stick moves the switcher, and a press
+    // of the touchpad picks, once the switcher is up.
+    section("quick switch: the right stick left or right moves the switcher once it is up, a push a step");
+    {
+        AppSwitch a;
+        // Not up: the stick moves nothing, and opens nothing.
+        app_switch_stick(a, 0.0f, 0.0f);
+        app_switch_stick(a, 0.9f, 0.0f);
+        CTM_CHECK(!a.alt);
+        CTM_CHECK(a.tabs.empty());
+        // Up (d-pad right), with the stick already pushed: nothing until it has come back.
+        app_switch_buttons(a, true, false, true, false, 0);
+        CTM_CHECK_EQ(static_cast<int>(a.tabs.size()), 1);
+        app_switch_stick(a, 0.9f, 0.0f);
+        CTM_CHECK_EQ(static_cast<int>(a.tabs.size()), 1);
+        app_switch_stick(a, 0.0f, 0.0f);
+        app_switch_stick(a, 0.9f, 0.0f);                    // right: a Tab
+        CTM_CHECK_EQ(static_cast<int>(a.tabs.size()), 2);
+        CTM_CHECK_EQ(a.tabs.back(), 1);
+        app_switch_stick(a, 0.95f, 0.1f);                   // still pushed: nothing more
+        CTM_CHECK_EQ(static_cast<int>(a.tabs.size()), 2);
+        app_switch_stick(a, 0.1f, 0.0f);                    // back near the middle
+        app_switch_stick(a, -0.8f, 0.2f);                   // left: a Shift+Tab
+        CTM_CHECK_EQ(static_cast<int>(a.tabs.size()), 3);
+        CTM_CHECK_EQ(a.tabs.back(), -1);
+        // Up or down is not sideways.
+        app_switch_stick(a, 0.0f, 0.0f);
+        app_switch_stick(a, 0.3f, -0.9f);
+        CTM_CHECK_EQ(static_cast<int>(a.tabs.size()), 3);
+        // Picked: the stick moves nothing more.
+        app_switch_buttons(a, true, false, false, true, 50);
+        app_switch_stick(a, 0.0f, 0.0f);
+        app_switch_stick(a, 0.9f, 0.0f);
+        CTM_CHECK_EQ(static_cast<int>(a.tabs.size()), 3);
+    }
+
+    section("quick switch: a press of the touchpad picks while the switcher is up, as Cross does");
+    {
+        AppSwitch a;
+        CTM_CHECK(!app_switch_press(a));                    // not up: the press is the switch's
+        app_switch_buttons(a, true, false, true, false, 0);
+        CTM_CHECK(app_switch_press(a));
+        CTM_CHECK(!app_switch_press(a));                    // once
+        AppKeys k;
+        for (long long ms = 0; ms < 1000; ms += 4) {
+            k = app_switch_keys(a, ms);
+            if (k.wentUp) break;
+        }
+        CTM_CHECK(k.wentUp);
+        CTM_CHECK(k.picked);
+        CTM_CHECK(k.byPress);
+        // Cross took nothing: the touchpad picked.
+        const AppTakes t = app_switch_buttons(a, true, false, false, false, 2000);
+        CTM_CHECK(!t.cross);
     }
 
     return 0;

@@ -249,6 +249,10 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
         // aside, as it would step a second time.
         const bool mockUp = g_mockOn.load() && quick_switch::mock_up(ps.mock);
         const int swipe = quick_switch::front_steps(ps.front, wheelInFront && !mockUp, touch);
+        // ⭐ The right stick left or right moves the d-pad's app switcher while
+        // its Alt is down (quick_switch::app_switch_stick), read every report
+        // so it knows when the stick has come back.
+        if (haveStick) quick_switch::app_switch_stick(ps.app, rx, ry);
         if (mine && s.pressed && !s.ending) {
             // ⓘ Each finger by itself, not the two together: a thumb swiping
             // beside a resting one moves their midpoint as well, and would
@@ -259,10 +263,12 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
             const int pushed = haveStick ? quick_switch::stick_steps(ps.stick, rx, ry) : 0;
             const int steps = swiped != 0 ? swiped : pushed;
             // ⭐ While the d-pad's app switcher has Alt down, Windows' switcher
-            // is over the wheel: only the last finger lifting counts, and it
-            // lets Alt go (quick_switch::app_switch_end), so Windows switches
-            // to the window its switcher shows.
+            // is over the wheel: a press of the touchpad picks, as Cross does
+            // (quick_switch::app_switch_press), and keeps nothing; the last
+            // finger lifting lets Alt go (quick_switch::app_switch_end), so
+            // Windows switches to the window its switcher shows.
             const bool switching = ps.app.alt;
+            if (switching && pressEdge) quick_switch::app_switch_press(ps.app);
             switch (quick_switch::while_held(switching ? false : pressEdge, fingers,
                                              switching ? 0 : steps)) {
             case quick_switch::Held::Close:
@@ -538,7 +544,7 @@ inline void raise_after_pick(unsigned id)
             if (!s.active || s.id != id || !s.pressed || s.ending) return;
         }
         const std::wstring picked = ctm_open_ui::front_after_pick();
-        device_log::input_w() << L"quick switch: Cross picked "
+        device_log::input_w() << L"quick switch: picked "
                               << (picked.empty() ? std::wstring(L"a window") : picked)
                               << L": the Quick window back in front of it, a finger still on the touchpad";
     }).detach();
@@ -589,7 +595,8 @@ inline void app_keys(const void *deviceKey, bool *alt, int *tab)
     *alt = false;
     *tab = 0;
     bool wentUp = false;
-    bool byCross = false;
+    bool picked = false;
+    bool byPress = false;
     unsigned reraise = 0;
     {
         std::lock_guard<std::mutex> lock(g_mutex);
@@ -599,9 +606,10 @@ inline void app_keys(const void *deviceKey, bool *alt, int *tab)
             *alt = k.alt;
             *tab = k.tab;
             wentUp = k.wentUp;
-            byCross = k.byCross;
+            picked = k.picked;
+            byPress = k.byPress;
             const Session &s = g_session;
-            if (k.wentUp && k.byCross && s.active && s.device == deviceKey && s.pressed && !s.ending) {
+            if (k.wentUp && k.picked && s.active && s.device == deviceKey && s.pressed && !s.ending) {
                 reraise = s.id;
             }
         }
@@ -617,7 +625,8 @@ inline void app_keys(const void *deviceKey, bool *alt, int *tab)
     if (wentUp) {
         device_log::input(device_log::msg()
             << "quick switch: " << ctm_ordinal_for_device(deviceKey) << " -- Alt let go "
-            << (byCross ? "at Cross" : "as the window went") << ": Windows switches to the window it shows"
+            << (!picked ? "as the window went" : byPress ? "at the touchpad's press" : "at Cross")
+            << ": Windows switches to the window it shows"
             << (reraise != 0 ? ", and the Quick window comes back in front of it" : ""));
     }
     if (reraise != 0) raise_after_pick(reraise);
