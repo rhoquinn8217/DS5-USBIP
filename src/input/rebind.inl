@@ -425,9 +425,9 @@ inline void apply(const void *deviceKey,
         }
 
         // ⭐ AND THE D-PAD'S APP SWITCHER (rhoquinn8217, 2026-11-06;
-        // quick_switch.inl): while the switch holds the window up, or Quick is
-        // in front, left and right, and the right stick's, are Windows' window
-        // switcher, Alt held, and Cross its pick.
+        // quick_switch.inl): while the switch holds the window up, left and
+        // right, and the right stick's, are Windows' window switcher, Alt
+        // held, and Cross its pick.
         // ⓘ Unlike the switch above, this does change the report: the buttons
         // it takes are blanked here, before the gate and the bindings below
         // read them, so neither the page nor the game sees them.
