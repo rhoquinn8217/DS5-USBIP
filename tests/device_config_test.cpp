@@ -417,6 +417,49 @@ int run_device_config_tests()
         CTM_CHECK_EQ(static_cast<int>(report[5]), 0x60);
     }
 
+    // --- Auto follows the headphone jack (2026-11-07) -----------------------
+    section("auto: the jack is byte 54's headphones bit, in report 0x01 only");
+    {
+        std::vector<uint8_t> in(64, 0);
+        in[0] = 0x01;
+        CTM_CHECK_EQ(units::ds5_jack_in(in.data(), in.size()), 0);
+        in[54] = 0x01;                                   // headphones
+        CTM_CHECK_EQ(units::ds5_jack_in(in.data(), in.size()), 1);
+        in[54] = 0x03;                                   // a headset: headphones and a microphone
+        CTM_CHECK_EQ(units::ds5_jack_in(in.data(), in.size()), 1);
+        in[54] = 0x02;                                   // a microphone alone is not headphones
+        CTM_CHECK_EQ(units::ds5_jack_in(in.data(), in.size()), 0);
+        in[53] = 0xff;                                   // the battery's byte is not the jack's
+        in[54] = 0x00;
+        CTM_CHECK_EQ(units::ds5_jack_in(in.data(), in.size()), 0);
+        CTM_CHECK_EQ(units::ds5_jack_in(in.data(), 54), -1);    // too short to say
+        in[0] = 0x31;
+        CTM_CHECK_EQ(units::ds5_jack_in(in.data(), in.size()), -1);   // not report 0x01
+        CTM_CHECK_EQ(units::ds5_jack_in(nullptr, 64), -1);
+    }
+
+    section("auto: headphones in route to them with the headset's dial; out, to the speaker with its own");
+    {
+        set_config("[ds5]\nforce_echo_cancel = true\n");
+        std::vector<uint8_t> r = units::ds5_auto_route_report("ds5", true);
+        CTM_CHECK_EQ(static_cast<int>(r[0]), 0x02);
+        CTM_CHECK_EQ(static_cast<int>(r[1]), 0x80 | 0x10);         // audio control and the headset's volume, nothing else
+        CTM_CHECK_EQ(static_cast<int>(r[8]), 0x00);                // the headphones, stereo, no echo cancel
+        CTM_CHECK_EQ(static_cast<int>(r[5]), 0x7f);                // a dial never moved is 100
+        CTM_CHECK_EQ(static_cast<int>(r[2]), 0);                   // flag panel 2: nothing
+        r = units::ds5_auto_route_report("ds5", false);
+        CTM_CHECK_EQ(static_cast<int>(r[1]), 0x80 | 0x20);         // audio control and the speaker's volume
+        CTM_CHECK_EQ(static_cast<int>(r[8]), 0x30 | 0x0c);         // the speaker, echo cancel on
+        CTM_CHECK_EQ(static_cast<int>(r[6]), 0x64);
+        // Set dials are sent as set; echo cancel off when the config says so.
+        set_config("[ds5]\nheadset_volume = 50\nspeaker_volume = 0\nforce_echo_cancel = false\n");
+        r = units::ds5_auto_route_report("ds5", true);
+        CTM_CHECK_EQ(static_cast<int>(r[5]), 0x4d + (50 * (0x7f - 0x4d)) / 100);
+        r = units::ds5_auto_route_report("ds5", false);
+        CTM_CHECK_EQ(static_cast<int>(r[6]), 0);                   // 0 is a level: silent, as set
+        CTM_CHECK_EQ(static_cast<int>(r[8]), 0x30);
+    }
+
     // --- Rumble: master and per-motor --------------------------------------
     // The per-motor gains cannot be tested on hardware -- no game available
     // drives the spinning weights at all -- so this is their only verification.

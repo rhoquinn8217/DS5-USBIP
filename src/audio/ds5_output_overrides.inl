@@ -398,6 +398,69 @@ static int ds5_settings_level_for(Ds5AudioOutput output, bool speaker, const cha
     return playsThrough ? kDs5DialUnsetPercent : level;
 }
 
+// ⭐⭐ AUTO FOLLOWS THE HEADPHONE JACK (rhoquinn8217, 2026-11-07: "Audio is
+// default to auto and the speaker plays audio correctly however when
+// connecting a headset, the audio doesn't automatically switch to the
+// headset unless headset audio has been enabled in DS5-USBIP"). A PS5
+// switches because the console watches the jack; on Windows nothing did, and
+// our report under auto always routes to the speaker. So with audio_output
+// auto, or not set, which is auto: something in the pad's jack sends the
+// headset route, nothing in it the speaker route, each with its own dial
+// (100 for a dial never moved, as the window shows it). Sent as the jack
+// changes (device.inl), and our settings report follows the jack too
+// (ds5_apply_settings.inl), so saving a config does not route it back.
+// ⓘ A game's own routing is still left alone under auto: the next plug going
+// in or out wins over it.
+// ⚠️ Over Bluetooth the TV fills the speaker into its own audio reports under
+// auto, so there it needs the TV to follow the jack as well.
+//
+// The jack is byte 54 of the USB-shaped report 0x01, the status byte after
+// the battery's (button_layout.inl, kBatteryDs5Status at 53): bit 0 headphones
+// in, bit 1 a microphone (the Linux driver's DS_STATUS1_HP_DETECT and
+// DS_STATUS1_MIC_DETECT, "HID: playstation: Support DualSense audio jack
+// hotplug detection"). The headphones' bit decides: it is what a headset sets
+// too.
+static const size_t  kDs5IdxJack         = 54;
+static const uint8_t kDs5JackHeadphones  = 0x01;
+
+// 1 headphones in the jack, 0 nothing, -1 not a report that says.
+static int ds5_jack_in(const uint8_t *report, size_t length)
+{
+    if (report == nullptr || length <= kDs5IdxJack || report[0] != 0x01) return -1;
+    return (report[kDs5IdxJack] & kDs5JackHeadphones) != 0 ? 1 : 0;
+}
+
+// The report auto sends when the jack changes: the headset route (0x00, stereo,
+// no echo cancel, which is the speaker's) with the headset's dial, or the
+// speaker route with echo cancel, as our settings report always sends it,
+// with the speaker's dial. Only the audio control and that one volume are
+// claimed: nothing else on the pad changes.
+static std::vector<uint8_t> ds5_auto_route_report(const char *section, bool jackIn)
+{
+    std::vector<uint8_t> report(kDs5OutReportLen, 0);
+    report[0] = kDs5OutReportId;
+    uint8_t claim = kDs5AllowAudioControl;
+    if (jackIn) {
+        const int pct = device_config_int(section, "headset_volume", kDs5DialUnsetPercent);
+        claim = static_cast<uint8_t>(claim | kDs5AllowHeadsetVolume);
+        report[kDs5IdxHeadsetVolume] =
+            ds5_volume_raw_from_percent(pct, kDs5HeadsetVolumeMax, kDs5HeadsetVolumeFloor);
+        report[kDs5IdxAudioControl] = 0x00;
+    } else {
+        const int pct = device_config_int(section, "speaker_volume", kDs5DialUnsetPercent);
+        claim = static_cast<uint8_t>(claim | kDs5AllowSpeakerVolume);
+        report[kDs5IdxSpeakerVolume] =
+            ds5_volume_raw_from_percent(pct, kDs5SpeakerVolumeMax, kDs5SpeakerVolumeFloor);
+        uint8_t control = kDs5RouteToSpeaker;
+        if (device_config_bool(section, "force_echo_cancel", true)) {
+            control = static_cast<uint8_t>(control | kDs5EchoNoiseCancel);
+        }
+        report[kDs5IdxAudioControl] = control;
+    }
+    report[kDs5IdxValidFlag0] = claim;
+    return report;
+}
+
 static std::atomic<uint64_t> g_ds5_echo_patch_count{0};
 
 // --- Override 1: the audio-control byte (routing + echo cancellation) ---
