@@ -2,7 +2,7 @@
 <!--
   DS5-USBIP's Controller Configs page, served by the listener.
 
-  VERSION 2.67.7 -- see the changelog at the bottom of this comment.
+  VERSION 2.67.8 -- see the changelog at the bottom of this comment.
 
   WHAT IT STARTED AS. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -24,6 +24,10 @@
   not a tidy message about it.
 
   CHANGELOG
+    2.67.8   The Overview's hover descriptions open beside the pointer, just
+             below and right of it, where they had opened under the setting's
+             left edge (rhoquinn8217, 2026-11-07: "the hover description are
+             too far from the pointer when the open up").
     2.67.7   A controller's tab no longer shows Overview's cards above its own
              rows after Advanced's tour ends: Overview's pane follows the
              active tab whenever the controller tabs are drawn (rhoquinn8217,
@@ -3528,7 +3532,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.67.7</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.67.8</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -10601,7 +10605,15 @@ var APP_SWITCHER = true;
 var TIP_WINDOW_SELECT = 'In Quick mode, d-pad left/right or the right stick picks another window, like Alt+Tab. Cross or a touchpad press switches to it.';
 var TIP_WINDOW_SELECT_OFF = 'Turn on 2-finger touchpad - Quick switch to use this.';
 var TIP_EL = null, TIP_AT = null, TIP_TIMER = 0;
-function tipShow(el) {
+// ⓘ Where the pointer is, for the tip to open beside it.
+var TIP_X = -1, TIP_Y = -1;
+// ⭐ BESIDE THE POINTER (rhoquinn8217, 2026-11-07: "the hover description are
+// too far from the pointer when the open up"): just below and right of it, as
+// Windows' own tooltips open, and turned back inside the window at its edges.
+// It was under the setting's left edge, which on a row as wide as the card is
+// far from where the pointer rests. ⓘ With no pointer (x, y left out), under
+// the setting, as before.
+function tipShow(el, x, y) {
   var text = el && el.getAttribute('data-tip');
   if (!text) return;
   if (!TIP_EL) {
@@ -10615,26 +10627,38 @@ function tipShow(el) {
   TIP_EL.style.fontSize = getComputedStyle(named).fontSize;
   TIP_EL.textContent = text;
   TIP_EL.style.display = 'block';
-  var r = el.getBoundingClientRect();
   var w = TIP_EL.offsetWidth, h = TIP_EL.offsetHeight;
-  var x = Math.min(r.left, window.innerWidth - w - 8);
-  var y = r.bottom + 6;
-  if (y + h > window.innerHeight - 8) y = r.top - h - 6;
-  TIP_EL.style.left = Math.max(8, x) + 'px';
-  TIP_EL.style.top = Math.max(8, y) + 'px';
+  var left, top;
+  if (typeof x === 'number' && typeof y === 'number' && x >= 0 && y >= 0) {
+    left = x + 12;
+    top = y + 20;
+    if (left + w > window.innerWidth - 8) left = window.innerWidth - w - 8;
+    if (top + h > window.innerHeight - 8) top = y - h - 10;
+  } else {
+    var r = el.getBoundingClientRect();
+    left = Math.min(r.left, window.innerWidth - w - 8);
+    top = r.bottom + 6;
+    if (top + h > window.innerHeight - 8) top = r.top - h - 6;
+  }
+  TIP_EL.style.left = Math.max(8, left) + 'px';
+  TIP_EL.style.top = Math.max(8, top) + 'px';
 }
 function tipHide() {
   clearTimeout(TIP_TIMER);
   TIP_AT = null;
   if (TIP_EL) TIP_EL.style.display = 'none';
 }
+document.addEventListener('mousemove', function (ev) { TIP_X = ev.clientX; TIP_Y = ev.clientY; });
 document.addEventListener('mouseover', function (ev) {
+  TIP_X = ev.clientX;
+  TIP_Y = ev.clientY;
   var el = ev.target && ev.target.closest ? ev.target.closest('[data-tip]') : null;
   if (el === TIP_AT) return;
   tipHide();
   if (!el) return;
   TIP_AT = el;
-  TIP_TIMER = setTimeout(function () { if (TIP_AT === el) tipShow(el); }, 400);
+  // ⓘ Where the pointer has come to rest, when the wait is over.
+  TIP_TIMER = setTimeout(function () { if (TIP_AT === el) tipShow(el, TIP_X, TIP_Y); }, 400);
 });
 document.addEventListener('mousedown', tipHide);
 window.addEventListener('scroll', tipHide, true);
@@ -13791,6 +13815,12 @@ function selfTest() {
     var nameSize = getComputedStyle(document.getElementById('openOnBridgeLabel')).fontSize;
     var tipShown = !!TIP_EL && TIP_EL.style.display === 'block' &&
                    TIP_EL.textContent === qsLabel.getAttribute('data-tip');
+    // ⭐ Beside the pointer (2.67.8): 12 right of it and 20 below, and back
+    // inside the window near its right edge.
+    tipShow(qsLabel, 40, 40);
+    var tipBeside = TIP_EL.style.left === '52px' && TIP_EL.style.top === '60px';
+    tipShow(qsLabel, window.innerWidth - 4, 40);
+    var tipInside = parseFloat(TIP_EL.style.left) + TIP_EL.offsetWidth <= window.innerWidth - 8 + 0.5;
     tipHide();
     // ⭐ Only the active tab's pane shows (2.67.7): a controller's ACTIVE takes
     // Overview's and the Editor's away, and Overview's gives its own back.
@@ -13815,9 +13845,9 @@ function selfTest() {
        ovNames.join('|') === 'Open on device bridge|2-finger touchpad - Quick switch|Quick switch: window select' &&
        !document.querySelector('#pane-overview .ovhelp') &&
        ovHovers.every(function (h) { return !!h && h.length <= 220; }) &&
-       tipShown && !!tipSize && tipSize === nameSize,
+       tipShown && !!tipSize && tipSize === nameSize && tipBeside && tipInside,
        ovNames.join('|') + ' / ' + ovHovers.map(function (h) { return h.length; }).join(',') +
-       ' / ' + tipSize + ' vs ' + nameSize);
+       ' / ' + tipSize + ' vs ' + nameSize + ' / beside ' + tipBeside + ', inside ' + tipInside);
     ok('Open on bridge: neither the Overview nor Advanced\'s tour sends anyone to the tray menu for it',
        advWords.join(' ').indexOf('Open on bridge') < 0 &&
        document.getElementById('pane-overview').textContent.indexOf('Open on bridge') < 0);
