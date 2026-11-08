@@ -419,7 +419,9 @@ static int ds5_settings_level_for(Ds5AudioOutput output, bool speaker, const cha
 // in, bit 1 a microphone (the Linux driver's DS_STATUS1_HP_DETECT and
 // DS_STATUS1_MIC_DETECT, "HID: playstation: Support DualSense audio jack
 // hotplug detection"). The headphones' bit decides: it is what a headset sets
-// too.
+// too. ✅ MEASURED on the C1, 2026-11-07, the DualSense Edge through its
+// DS5Dongle: four plugs and three unplugs each read off bit 0 as they
+// happened, and the route followed every one (device.log 23:35:49-23:38:35).
 static const size_t  kDs5IdxJack         = 54;
 static const uint8_t kDs5JackHeadphones  = 0x01;
 
