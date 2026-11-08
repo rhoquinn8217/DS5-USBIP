@@ -2,7 +2,7 @@
 <!--
   DS5-USBIP's Controller Configs page, served by the listener.
 
-  VERSION 2.67.6 -- see the changelog at the bottom of this comment.
+  VERSION 2.67.7 -- see the changelog at the bottom of this comment.
 
   WHAT IT STARTED AS. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -24,6 +24,10 @@
   not a tidy message about it.
 
   CHANGELOG
+    2.67.7   A controller's tab no longer shows Overview's cards above its own
+             rows after Advanced's tour ends: Overview's pane follows the
+             active tab whenever the controller tabs are drawn (rhoquinn8217,
+             2026-11-07, a screenshot of it).
     2.67.6   The Overview's hover descriptions are drawn in the page, as large
              as the settings' names, and say less (rhoquinn8217,
              2026-11-07: "Hover description text needs to be as large as the
@@ -3524,7 +3528,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.67.6</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.67.7</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -4834,6 +4838,8 @@ function renderTabs(devices) {
     host.appendChild(pane);
     buildDevicePane(d);
   });
+  // ⓘ And Overview's and the Editor's follow ACTIVE too (panesFollowActive).
+  panesFollowActive();
 
   // ⚠️ If the active tab's controller has gone, fall back rather than showing
   // nothing -- an unbridge should not leave a blank page.
@@ -6422,6 +6428,22 @@ function measureSticky() {
 }
 
 window.addEventListener('resize', measureSticky);
+
+// ⭐ ONLY THE ACTIVE TAB'S PANE SHOWS. Overview's and the Editor's panes are in
+// the page from the start, Overview's drawn 'on'; a controller's pane is drawn
+// 'on' when renderTabs builds it for ACTIVE. So anything that set ACTIVE to a
+// controller without showTab left Overview's showing as well, its cards above
+// the controller's rows: Advanced's tour, ended with a controller's tab saved
+// (tutMockOff), did (rhoquinn8217, 2026-11-07, a screenshot: "sometimes the
+// config advance mode looks like this ... when opening the config from
+// close", then "it's still like that right now"). renderTabs calls this after
+// every rebuild, and tutMockOff at once.
+function panesFollowActive() {
+  ['overview', 'editor'].forEach(function (n) {
+    var p = document.getElementById('pane-' + n);
+    if (p) p.classList.toggle('on', ACTIVE === n);
+  });
+}
 
 function showTab(name) {
   // ⓘ Any part opens its device's tab (one tab per device, 2.66.43).
@@ -13770,6 +13792,23 @@ function selfTest() {
     var tipShown = !!TIP_EL && TIP_EL.style.display === 'block' &&
                    TIP_EL.textContent === qsLabel.getAttribute('data-tip');
     tipHide();
+    // ⭐ Only the active tab's pane shows (2.67.7): a controller's ACTIVE takes
+    // Overview's and the Editor's away, and Overview's gives its own back.
+    var keepAct = ACTIVE, ovp = document.getElementById('pane-overview'),
+        edp = document.getElementById('pane-editor');
+    var keepOv = ovp.classList.contains('on'), keepEd = edp.classList.contains('on');
+    ACTIVE = 'ds5_usb_99';
+    ovp.classList.add('on');
+    panesFollowActive();
+    var panesOff = !ovp.classList.contains('on') && !edp.classList.contains('on');
+    ACTIVE = 'overview';
+    panesFollowActive();
+    var panesBack = ovp.classList.contains('on') && !edp.classList.contains('on');
+    ACTIVE = keepAct;
+    ovp.classList.toggle('on', keepOv);
+    edp.classList.toggle('on', keepEd);
+    ok('tabs: only the active tab\'s pane shows, so a controller\'s takes Overview\'s away',
+       panesOff && panesBack, panesOff + ',' + panesBack);
     ok('the Overview: Global Options, three boxes by their new names, no long help, a short hover on every ' +
        'setting at the names\' size',
        !!ovCard && ovCard.querySelector('.ovcard-h').textContent === 'Global Options' &&
@@ -14845,7 +14884,12 @@ function tutMockOff(saved, kind) {
   QUICK_WANT = null;
   if (kind === 'advanced' && !COMPACT) {
     if (saved === 'overview' || saved === 'editor') showTab(saved);
-    else if (saved) ACTIVE = saved;
+    else if (saved) {
+      ACTIVE = saved;
+      // ⛔ The tour showed Overview's pane, and nothing else takes it away
+      // (panesFollowActive).
+      panesFollowActive();
+    }
   } else if (saved && isControllerTab(saved)) WANT_ORDINAL = saved;
   DEVICE_SIG = null;
   loadConfigs();
