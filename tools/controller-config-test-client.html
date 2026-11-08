@@ -2,7 +2,7 @@
 <!--
   DS5-USBIP's Controller Configs page, served by the listener.
 
-  VERSION 2.67.4 -- see the changelog at the bottom of this comment.
+  VERSION 2.67.5 -- see the changelog at the bottom of this comment.
 
   WHAT IT STARTED AS. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -24,6 +24,12 @@
   not a tidy message about it.
 
   CHANGELOG
+    2.67.5   The Overview's first card is "Global Options", where it was
+             "Bridging Options", and its boxes are "Open on device bridge",
+             "2-finger touchpad - Quick switch" and "Quick switch: window
+             select". The long help under them is gone into each setting's
+             hover, the listener's address and the access token included
+             (rhoquinn8217, 2026-11-07).
     2.67.4   The DualSense Edge's Fn and back buttons can be rebound, in an
              Edge buttons section only an Edge is offered, with a warning
              on Fn that the Edge's profile switching can't be turned off
@@ -3054,7 +3060,6 @@
               margin-bottom:8px; }
   .ovcheck { display:flex; align-items:center; gap:10px; color:#e8e8ea; cursor:pointer; }
   .ovcheck input[type=checkbox] { width:18px; height:18px; }
-  .ovhelp { color:#71737c; font-size:12px; margin-top:6px; }
   .ovcheck.ovnext { margin-top:14px; }
   .ovcheck.ovsub { margin-top:8px; }
   .ovcheck.off { color:#71737c; cursor:default; }
@@ -3395,10 +3400,16 @@
      version went under the devices (the note beside it says why).
      ⭐ The first card is "Bridging Options" since 2026-10-26, where it was
      "This window" (rhoquinn8217: "Change the box name to "Bridging
-     Options"", once they had missed the quick config switch's box in it). -->
+     Options"", once they had missed the quick config switch's box in it).
+     ⭐ "Global Options" since 2026-11-07 (rhoquinn8217: "Change the Settings
+     Section title in the Overview to from "Bridging Options" to Global
+     Options"), its three boxes renamed, and the long help that was under
+     them gone into each setting's hover, as they asked: "Remove long
+     description in the Global Options and instead have on over
+     descriptions for each setting including listener and access token." -->
 <div class="ovcards">
   <div class="ovcard win">
-    <div class="ovcard-h">Bridging Options</div>
+    <div class="ovcard-h">Global Options</div>
     <!-- ⭐ OPEN ON BRIDGE (rhoquinn8217, 2026-10-09): whether a bridge brings
          this window up by itself. The listener keeps it, and this is the one
          switch for it since the tray menu's went (2026-10-30). Painted by
@@ -3406,7 +3417,7 @@
          controller lands on (data-gp-focus), since it sits alone and no
          row's □ reaches it. In words since 2026-10-22, its box first. -->
     <label class="ovcheck" id="openOnBridgeLabel"
-      title="Ticked: a bridge brings this window up by itself. Untick it to leave the window alone."><input type="checkbox" id="openOnBridge" data-gp-focus="1" checked onchange="toggleOpenOnBridge()">Open this window when a controller is bridged</label>
+      title="Ticked: a bridge brings this window up by itself. Untick it to leave the window alone."><input type="checkbox" id="openOnBridge" data-gp-focus="1" checked onchange="toggleOpenOnBridge()">Open on device bridge</label>
     <!-- ⭐ QUICK CONFIG SWITCH (rhoquinn8217, 2026-10-23): two fingers
          pressing the touchpad open this window in Quick while a finger
          stays on it, each swipe of a finger up or down steps the config,
@@ -3423,7 +3434,7 @@
          Painted by paintQuickSwitch(); a pad stop of its own
          (data-gp-focus), as Open on bridge has. -->
     <label class="ovcheck ovnext" id="quickSwitchLabel"
-      title="Unticked: the touchpad does what the config says. Tick it to switch configs by pressing the touchpad with two fingers."><input type="checkbox" id="quickSwitch" data-gp-focus="1" onchange="toggleQuickSwitch()">Two finger touchpad quick switch</label>
+      title="Unticked: the touchpad does what the config says. Tick it to switch configs by pressing the touchpad with two fingers."><input type="checkbox" id="quickSwitch" data-gp-focus="1" onchange="toggleQuickSwitch()">2-finger touchpad - Quick switch</label>
     <!-- ⭐ THE D-PAD'S APP SWITCHER (rhoquinn8217, 2026-11-06): while two
          fingers hold Quick up, d-pad left and right step Windows' window
          switcher, Alt held until Cross picks or the last finger lifts.
@@ -3434,18 +3445,17 @@
          Painted by paintQuickSwitch(); a pad stop of its own while it
          can be changed (data-gp-focus; gpCollect skips it disabled). -->
     <label class="ovcheck ovsub" id="appSwitcherLabel"
-      title="Ticked: while two fingers hold the Quick mode window up, d-pad left and right (or the right stick) pick another window, as Alt+Tab does, and Cross or a touchpad press switches to it."><input type="checkbox" id="appSwitcher" data-gp-focus="1" onchange="toggleAppSwitcher()">D-pad left/right switches windows (Alt+Tab)</label>
-    <div class="ovhelp">DualSense, DualSense Edge and DS4: press the touchpad with two fingers and keep one finger on the touchpad to keep the Quick mode window up. Swipe up/down with the other finger, or use the d-pad up/down or right stick, to switch configs. Use d-pad left/right, or the right stick, to pick another window, as Alt+Tab does, and Cross or a touchpad press to switch to it. Stop touching the touchpad to close the Quick mode window. To keep the window open, press the touchpad again before you stop touching it; it stays open in the mode you used last, and a two-finger press closes it.</div>
+      title="Ticked: while two fingers hold the Quick mode window up, d-pad left and right (or the right stick) pick another window, as Alt+Tab does, and Cross or a touchpad press switches to it."><input type="checkbox" id="appSwitcher" data-gp-focus="1" onchange="toggleAppSwitcher()">Quick switch: window select</label>
   </div>
   <div class="ovcard conn">
     <!-- ⓘ The light is this card's own (paintConnLight). The line beside
          the Log stays where it is: it also says what was just done. -->
     <div class="ovcard-h">Connection <span id="connLight" class="muted">checking…</span></div>
     <div class="ovfield">
-      <label class="muted" for="base">Listener address</label>
+      <label class="muted" for="base" title="Where this page finds DS5-USBIP: the address this window was opened on. Change it only to reach a listener started on another port.">Listener address</label>
       <input id="base" value="http://127.0.0.1:48053"
         title="Where this page finds DS5-USBIP: the address this window was opened on. Change it only to reach a listener started on another port.">
-      <label class="muted" for="token">Access token</label>
+      <label class="muted" for="token" title="A password for the listener. Leave this empty -- almost everyone should. The listener normally only answers programs on this same PC, so it needs no password. If you start it with --rest-lan it answers other machines on your network too, and then anyone on your wifi could send it commands. --rest-token sets a password to stop that, and this box is where you type the same password back so this page is still allowed in.">Access token</label>
       <span class="ovtoken">
       <!-- ⭐ HIDDEN UNTIL ITS EYE SHOWS IT (rhoquinn8217, 2026-10-22: "add a
            eye button next to the access token which will be hidden by
@@ -3505,7 +3515,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.67.4</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.67.5</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -10568,7 +10578,7 @@ function paintQuickSwitch() {
   if (al) {
     al.classList.toggle('off', !QUICK_SWITCH);
     al.title = !QUICK_SWITCH
-      ? 'Two finger touchpad quick switch is unticked: tick it to use this.'
+      ? '2-finger touchpad - Quick switch is unticked: tick it to use this.'
       : APP_SWITCHER
         ? 'Ticked: while two fingers hold the Quick mode window up, d-pad left and right (or the right stick) pick another window, as Alt+Tab does, and Cross or a touchpad press switches to it.'
         : 'Unticked: d-pad left and right stay with the configs window. Tick it to pick another window with them, as Alt+Tab does, while two fingers hold the Quick mode window up.';
@@ -10576,7 +10586,7 @@ function paintQuickSwitch() {
   var label = document.getElementById('quickSwitchLabel');
   if (label) {
     label.title = QUICK_SWITCH
-      ? 'Ticked: two fingers pressing the touchpad open Quick view as the press comes up, while a finger rests on it (held four seconds, the press is the TV\'s release, and opens nothing); each swipe of another finger up or down changes the config, and pressing again keeps the window, in the layout you had open last; until then the touchpad reaches neither Windows nor the game. In Simple and Quick, the same swipe beside a resting thumb moves the wheel. Untick it to turn both off.'
+      ? 'Ticked. DualSense, DualSense Edge and DS4: press the touchpad with two fingers and keep one finger on the touchpad to keep the Quick mode window up. Swipe up/down with the other finger, or use the d-pad up/down or right stick, to switch configs. Stop touching the touchpad to close the Quick mode window. To keep the window open, press the touchpad again before you stop touching it; it stays open in the mode you used last, and a two-finger press closes it.'
       : 'Unticked: the touchpad does what the config says. Tick it to switch configs by pressing the touchpad with two fingers.';
   }
 }
@@ -13637,7 +13647,7 @@ function selfTest() {
   // Advanced's tour (2.66.119): thirty-five steps with words (twenty-seven
   // until 2.66.120, thirty until 2.66.121, thirty-one until 2.66.123), the
   // last ending it, the first two
-  // Bridging Options' boxes, each with its help; a custom config made on a practice
+  // Global Options' boxes, a step each; a custom config made on a practice
   // controller keeps the settings written to it, an empty one as none, in
   // what Go back puts back, is renamed with them, a taken name refused, and
   // goes with them when archived; and it starts by itself in Advanced, once.
@@ -13685,17 +13695,34 @@ function selfTest() {
        TUT_ADVANCED.length === 35 && TUT_ADVANCED[34].act === 'end' &&
        advWords.every(function (w) { return !!w && w.indexOf('undefined') < 0; }),
        advWords.join(' / '));
-    // ⓘ With its help where it has one: Open on bridge's line went with the
-    // tray menu's item, and the quick switch's stays.
+    // ⓘ Each box alone: the help line under the quick switch went into its
+    // hover (2.67.5), as Open on bridge's went with the tray menu's item.
     var boxSteps = ['openOnBridge', 'quickSwitch'].map(function (id, n) {
       var lit = TUT_ADVANCED[n].lit(), at = TUT_ADVANCED[n].anchors();
-      var wantHelp = id === 'quickSwitch';
-      return lit.length === (wantHelp ? 2 : 1) && lit[0].contains(tutById(id)) &&
-             (!wantHelp || lit[1].classList.contains('ovhelp')) &&
+      return lit.length === 1 && lit[0].contains(tutById(id)) &&
              at.length === 1 && at[0] === tutById(id);
     });
-    ok('the tutorial: Advanced shows each of Bridging Options\' boxes in a step of its own, with its help',
+    ok('the tutorial: Advanced shows each of Global Options\' boxes in a step of its own',
        boxSteps[0] && boxSteps[1], boxSteps.join(','));
+    // ⭐ rhoquinn8217, 2026-11-07: the card is Global Options, its boxes by
+    // their new names, no long help under them, and a hover on every setting,
+    // the listener's address and the access token included.
+    var ovCard = document.querySelector('.ovcard.win');
+    var ovNames = ['openOnBridgeLabel', 'quickSwitchLabel', 'appSwitcherLabel'].map(function (id) {
+      var el = document.getElementById(id); return el ? el.textContent.trim() : '';
+    });
+    var ovHovers = ['openOnBridgeLabel', 'quickSwitchLabel', 'appSwitcherLabel'].map(function (id) {
+      var el = document.getElementById(id); return el ? el.title : '';
+    }).concat(['base', 'token'].map(function (id) {
+      var input = document.getElementById(id), label = document.querySelector('label[for="' + id + '"]');
+      return input && label && input.title && label.title === input.title ? label.title : '';
+    }));
+    ok('the Overview: Global Options, three boxes by their new names, no long help, a hover on every setting',
+       !!ovCard && ovCard.querySelector('.ovcard-h').textContent === 'Global Options' &&
+       ovNames.join('|') === 'Open on device bridge|2-finger touchpad - Quick switch|Quick switch: window select' &&
+       !document.querySelector('#pane-overview .ovhelp') &&
+       ovHovers.every(function (h) { return !!h; }),
+       ovNames.join('|') + ' / ' + ovHovers.map(function (h) { return h.length; }).join(','));
     ok('Open on bridge: neither the Overview nor Advanced\'s tour sends anyone to the tray menu for it',
        advWords.join(' ').indexOf('Open on bridge') < 0 &&
        document.getElementById('pane-overview').textContent.indexOf('Open on bridge') < 0);
@@ -15205,7 +15232,7 @@ function tutCanDo(s) {
 // ⓘ What the words say in place of trying, when Skip is up.
 function tutPadSkip() {
   if (!QUICK_SWITCH) {
-    return ' ' + tutHl('Two finger touchpad quick switch') + ' is off in the Overview, so choose ' +
+    return ' ' + tutHl('2-finger touchpad - Quick switch') + ' is off in the Overview, so choose ' +
            tutHl('Skip') + '.';
   }
   return ' With no DualSense or DS4 bridged, choose ' + tutHl('Skip') + '.';
@@ -15889,8 +15916,8 @@ function tutAdvSetting(key) {
 // ⓘ Overview for its steps, gone back to as well; Dual's tab from its first
 // step on, L1 and R1 having maybe left another.
 function tutAdvOverview() { if (ACTIVE !== 'overview') showTab('overview'); }
-// ⓘ One of Bridging Options' boxes, by its id: its label and the line of help
-// under it.
+// ⓘ One of Global Options' boxes, by its id: its label, and the line of help
+// under it while there was one (it went into the box's hover in 2.67.5).
 function tutAdvSwitch(id) {
   var box = tutById(id), label = box && box.closest('label');
   var help = label && label.nextElementSibling;
@@ -16079,14 +16106,14 @@ function tutAdvValueStep(key, words, boxOnly) {
 // place, the middle of the screen.
 var TUT_ADVANCED = [
   // 1 and 2 (rhoquinn8217, 2026-10-29: *"Step for each of the two check
-  // boxes in the overview."*): Bridging Options' two boxes, a step each, lit
-  // with the help under it where it has one, shown and locked: both are the
-  // listener's own.
+  // boxes in the overview."*): Global Options' two boxes, a step each, lit
+  // alone (the help under the quick switch went into its hover, 2.67.5),
+  // shown and locked: both are the listener's own.
   { side: 'left', enter: tutAdvOverview, lit: function () { return tutAdvSwitch('openOnBridge'); },
     anchors: function () { return tutA('#openOnBridge'); },
     words: function () {
-      return tutHl('Bridging Options') + ' apply to every controller. Ticked, ' +
-             tutHl('Open this window when a controller is bridged') + ' brings this window up whenever ' +
+      return tutHl('Global Options') + ' apply to every controller. Ticked, ' +
+             tutHl('Open on device bridge') + ' brings this window up whenever ' +
              'a controller is bridged.';
     } },
   { side: 'left', enter: tutAdvOverview, lit: function () { return tutAdvSwitch('quickSwitch'); },
@@ -16094,7 +16121,7 @@ var TUT_ADVANCED = [
     words: function () {
       // ⓘ The box's name as rhoquinn8217 gave it (2026-11-03), and the right
       // stick beside the swipe since the same day.
-      return 'Ticked, ' + tutHl('Two finger touchpad quick switch') + ' switches ' +
+      return 'Ticked, ' + tutHl('2-finger touchpad - Quick switch') + ' switches ' +
              'configs mid-game: press the touchpad with two fingers and Quick opens while a finger rests ' +
              'on it. Swipe another finger up or down, or push the right stick up or down, to change the ' +
              'config; lifting closes it, and pressing again keeps it open.';
