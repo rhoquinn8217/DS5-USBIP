@@ -216,7 +216,7 @@ ENet library, removed with the ENet transport).
  .github/ISSUE_TEMPLATE/config.yml             |     5 +
  .github/ISSUE_TEMPLATE/feature-request.yml    |    22 +
  .gitignore                                    |    43 +-
- CHANGES.md                                    |   484 +
+ CHANGES.md                                    |   490 +
  LINK                                          |     0
  README.md                                     |   291 +-
  THIRD-PARTY-NOTICES.txt                       |   618 +
@@ -268,27 +268,28 @@ ENet library, removed with the ENet transport).
  installer/build-icon.ps1                      |   446 +
  installer/controller-path.txt                 |    68 +
  installer/ctm-usbip.iss                       |     3 +-
- installer/ds5-usbip.iss                       |   894 ++
+ installer/ds5-usbip.iss                       |   902 ++
  installer/icon-source.png                     |   Bin 0 -> 100705 bytes
  installer/make-icon-ds5.ps1                   |   236 +
  installer/trace-silhouette.py                 |   368 +
  maps/ds4_usb_over_ds4_usb.map                 |   126 +
  maps/ds5_usb_over_ds5_usb.map                 |    61 +
- maps/virtual_keyboard.map                     |    46 +
+ maps/virtual_keyboard.map                     |    49 +
  maps/virtual_mouse.map                        |    54 +
  maps/xbox_gip_usb_over_xbox_bt.map            |     5 +
  profiles/descriptors/ds5e_composite.profile   |    30 +
- profiles/descriptors/virtual_keyboard.profile |    74 +
+ profiles/descriptors/virtual_keyboard.profile |    88 +
  profiles/descriptors/virtual_mouse.profile    |    59 +
  release.ps1                                   |   264 +
- src/app/agent.inl                             |  1391 +-
+ src/app/agent.inl                             |  1406 +-
  src/app/agent_session_sweep.inl               |   331 +
  src/app/cli.inl                               |    66 +-
  src/app/common.inl                            |   166 +-
- src/app/config_move.inl                       |  1719 +++
+ src/app/config_move.inl                       |  1753 +++
  src/app/console_attach.inl                    |    82 +
  src/app/control_caller.inl                    |    48 +
- src/app/device_capabilities.inl               |    78 +
+ src/app/default_config.inl                    |    73 +
+ src/app/device_capabilities.inl               |    86 +
  src/app/device_names.inl                      |    93 +
  src/app/device_type.inl                       |    70 +
  src/app/ds4_dongle_keep.inl                   |   110 +
@@ -310,8 +311,8 @@ ENet library, removed with the ENet transport).
  src/app/quit_request.inl                      |    28 +
  src/app/read_deadline.inl                     |    28 +
  src/app/rest.inl                              |   898 ++
- src/app/rest_config.inl                       |  1560 +++
- src/app/rest_config_sessions.inl              |   243 +
+ src/app/rest_config.inl                       |  1569 +++
+ src/app/rest_config_sessions.inl              |   244 +
  src/app/rest_sessions.inl                     |    33 +
  src/app/rest_shared_section.inl               |    55 +
  src/app/same_controller.inl                   |    38 +
@@ -327,7 +328,7 @@ ENet library, removed with the ENet transport).
  src/app/tray_menu.inl                         |   203 +
  src/app/tutorial_bubble.inl                   |  1305 ++
  src/app/tutorial_bubble_rule.inl              |   474 +
- src/app/tutorial_state.inl                    |    91 +
+ src/app/tutorial_state.inl                    |    93 +
  src/app/tv_sessions.inl                       |   167 +
  src/app/ui_page.inl                           |   140 +
  src/app/window_icon.inl                       |   242 +
@@ -363,14 +364,15 @@ ENet library, removed with the ENet transport).
  src/capture/amf_encoder.inl                   |   209 -
  src/capture/ctm_stream_protocol.h             |    91 -
  src/capture/main.cpp                          |  3695 -----
- src/config/config_presets.inl                 |   498 +
+ src/config/config_presets.inl                 |   563 +
  src/config/config_store.inl                   |   879 ++
  src/config/config_watcher.inl                 |   171 +
+ src/config/default_config_rule.inl            |    80 +
  src/config/device_config.inl                  |   342 +
  src/config/polling_limits.inl                 |   150 +
  src/input/battery.inl                         |   105 +
- src/input/binding_names.inl                   |   250 +
- src/input/button_layout.inl                   |  1151 ++
+ src/input/binding_names.inl                   |   260 +
+ src/input/button_layout.inl                   |  1172 ++
  src/input/chord_gate.inl                      |    66 +
  src/input/gyro_calibration.inl                |   168 +
  src/input/gyro_calibration_fetch.inl          |    99 +
@@ -378,21 +380,22 @@ ENet library, removed with the ENet transport).
  src/input/gyro_mouse.inl                      |  1190 ++
  src/input/held_edges.inl                      |    67 +
  src/input/key_pulse.inl                       |   106 +
- src/input/keyboard_device.inl                 |   397 +
+ src/input/keyboard_device.inl                 |   429 +
+ src/input/media_keys.inl                      |    95 +
  src/input/mic_report.inl                      |    41 +
  src/input/mouse_device.inl                    |   319 +
  src/input/mouse_exclusive.inl                 |   138 +
  src/input/mouse_held.inl                      |    99 +
  src/input/osk.inl                             |   228 +
  src/input/pad_press.inl                       |   116 +
- src/input/rebind.inl                          |  1450 ++
+ src/input/rebind.inl                          |  1453 ++
  src/input/stick_mouse.inl                     |   477 +
  src/input/touch_mouse.inl                     |  1707 +++
  src/input/trigger_click.inl                   |   864 ++
  src/input/trigger_effect.inl                  |   637 +
  src/log/capped_log.inl                        |   117 +
  src/log/device_log.inl                        |   233 +
- src/main.cpp                                  |  1133 +-
+ src/main.cpp                                  |  1140 +-
  src/map/runtime.cpp                           |   205 +-
  src/usbdisplay/README.md                      |    13 +
  src/usbip/device.inl                          |  1129 +-
@@ -404,14 +407,14 @@ ENet library, removed with the ENet transport).
  src/usbip/submit_limits.inl                   |    54 +
  src/usbip/wire.inl                            |   103 +
  tests/audio_haptics_dsp_test.cpp              |   250 +
- tests/binding_names_test.cpp                  |   211 +
+ tests/binding_names_test.cpp                  |   308 +
  tests/bridge_handshake_test.cpp               |   631 +
- tests/button_layout_test.cpp                  |  1189 ++
+ tests/button_layout_test.cpp                  |  1232 ++
  tests/capped_log_test.cpp                     |   140 +
- tests/config_store_test.cpp                   |  1044 ++
+ tests/config_store_test.cpp                   |  1115 ++
  tests/control_caller_test.cpp                 |    73 +
  tests/default_speaker_rule_test.cpp           |   197 +
- tests/device_capabilities_test.cpp            |    70 +
+ tests/device_capabilities_test.cpp            |    80 +
  tests/device_config_cache_test.cpp            |   148 +
  tests/device_config_test.cpp                  |   643 +
  tests/device_names_test.cpp                   |   110 +
@@ -427,7 +430,7 @@ ENet library, removed with the ENet transport).
  tests/input_pace_test.cpp                     |   184 +
  tests/iso_in_pacing_test.cpp                  |   143 +
  tests/key_pulse_test.cpp                      |   148 +
- tests/keyboard_device_test.cpp                |   170 +
+ tests/keyboard_device_test.cpp                |   218 +
  tests/licence_files_test.cpp                  |    92 +
  tests/lock_screen_rule_test.cpp               |    36 +
  tests/map_defaults_test.cpp                   |   152 +
@@ -475,7 +478,7 @@ ENet library, removed with the ENet transport).
  tests/window_move_test.cpp                    |   136 +
  tests/window_open_rule_test.cpp               |    43 +
  tests/window_size_rule_test.cpp               |   129 +
- tools/controller-config-test-client.html      | 17530 ++++++++++++++++++++++++
+ tools/controller-config-test-client.html      | 17545 ++++++++++++++++++++++++
  tools/create-desktop-shortcut.bat             |    46 +
  tools/create-desktop-shortcut.ps1             |   148 +
  tools/osk-mockups.py                          |   103 +
@@ -483,5 +486,5 @@ ENet library, removed with the ENet transport).
  tools/sbc-golden-gen/ffmpeg_side.cpp          |   117 +
  tools/sbc-golden-gen/ffmpeg_side.h            |    15 +
  tools/sbc-golden-gen/main.cpp                 |   131 +
- 272 files changed, 81199 insertions(+), 6132 deletions(-)
+ 275 files changed, 81969 insertions(+), 6132 deletions(-)
 ```
