@@ -264,7 +264,9 @@ int run_binding_names_tests()
         CTM_CHECK_EQ(unknown, 0);
         CTM_CHECK_EQ(mouse, 5);
         CTM_CHECK_EQ(keyboards, 3);
-        CTM_CHECK_EQ(buttons, static_cast<int>(ctm_rebind::kButtonCount));
+        // ⓘ The seventeen any pad can be given; the Edge's four are rebound,
+        // not offered as buttons to press.
+        CTM_CHECK_EQ(buttons, static_cast<int>(ctm_rebind::kSharedButtonCount));
         CTM_CHECK(keys > 90);
     }
 

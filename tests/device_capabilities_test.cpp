@@ -52,6 +52,16 @@ int run_device_capabilities_tests()
         CTM_CHECK(!ctm_caps::has_rumble_gains(""));
     }
 
+    section("capabilities: the Edge's Fn and back buttons, on an Edge alone");
+    {
+        CTM_CHECK(ctm_caps::has_edge_buttons("ds5_edge"));
+        CTM_CHECK(!ctm_caps::has_edge_buttons("ds5"));
+        CTM_CHECK(!ctm_caps::has_edge_buttons("ds4"));
+        CTM_CHECK(!ctm_caps::has_edge_buttons("xbox"));
+        CTM_CHECK(!ctm_caps::has_edge_buttons(""));
+        CTM_CHECK(!ctm_caps::has_edge_buttons("ds5e_usb"));   // the wire's kind, not the settings'
+    }
+
     section("capabilities: these take the SETTINGS kind, not the wire kind");
     {
         // ⛔ "ds4_usb" is how a pad is ATTACHED and "ds4" is what it IS.

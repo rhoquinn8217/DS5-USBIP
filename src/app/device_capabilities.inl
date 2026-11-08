@@ -75,4 +75,12 @@ inline bool has_rumble_gains(const std::string &settingsKind)
     return is_dualsense(settingsKind) || settingsKind == "ds4";
 }
 
+// ⭐ The DualSense Edge's two Fn buttons and two back buttons, rebound in a
+// section of their own (button_layout.inl, 17 to 20): the Edge alone has them
+// (rhoquinn8217, 2026-11-07).
+inline bool has_edge_buttons(const std::string &settingsKind)
+{
+    return settingsKind == "ds5_edge";
+}
+
 } // namespace ctm_caps

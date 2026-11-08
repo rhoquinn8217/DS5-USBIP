@@ -367,7 +367,7 @@ int run_button_layout_tests()
         CTM_CHECK_EQ(button_index_for("MouseLeft"),  -1);
         CTM_CHECK_EQ(button_index_for("OSKeyboard"), -1);
         CTM_CHECK_EQ(button_index_for("nonsense"),   -1);
-        CTM_CHECK_EQ(button_index_for("17"),         -1);   // past the table
+        CTM_CHECK_EQ(button_index_for("17"),         -1);   // past the seventeen any pad has
         CTM_CHECK_EQ(button_index_for("-1"),         -1);
         CTM_CHECK_EQ(button_index_for("99"),         -1);
 
@@ -1183,6 +1183,49 @@ int run_button_layout_tests()
         // ⛔ A report too short to hold those bytes is left alone.
         CTM_CHECK(!chord_gate_apply(*xbox, r, 4));
         CTM_CHECK(!chord_gate_apply(*xbox, nullptr, sizeof(r)));
+    }
+
+    section("button layout: the DualSense Edge's Fn and back buttons are buttons of their own, in byte 10");
+    {
+        // ⭐ rhoquinn8217, 2026-11-07, as measured on the Edge the same day:
+        // Fn left 0x10, Fn right 0x20, back left 0x40, back right 0x80.
+        using namespace ctm_rebind;
+        const Layout *ds5 = layout_for("ds5");
+        const Layout *ds4 = layout_for("ds4");
+        const Layout *xbox = layout_for("xbox");
+        CTM_CHECK(ds5 != nullptr && ds4 != nullptr && xbox != nullptr);
+        if (ds5 && ds4 && xbox) {
+            const struct { int index; uint8_t bit; } edge[] = {
+                { kBtnFnLeft, 0x10 }, { kBtnFnRight, 0x20 },
+                { kBtnBackLeft, 0x40 }, { kBtnBackRight, 0x80 } };
+            for (const auto &e : edge) {
+                std::vector<uint8_t> r(64, 0);
+                r[1] = r[2] = r[3] = r[4] = 0x80;
+                r[8] = 0x08;                              // hat centred
+                r[10] = e.bit;
+                int held = 0;
+                for (int i = 0; i < kButtonCount; ++i) if (is_pressed(*ds5, r.data(), r.size(), i)) ++held;
+                CTM_CHECK_EQ(held, 1);                    // that one alone
+                CTM_CHECK(is_pressed(*ds5, r.data(), r.size(), e.index));
+                // ⛔ PS shares the byte and stays its own.
+                CTM_CHECK(!is_pressed(*ds5, r.data(), r.size(), kBtnHome));
+                r[10] = static_cast<uint8_t>(e.bit | 0x01 | 0x02);   // with PS and the touchpad click
+                clear_button(*ds5, r.data(), r.size(), e.index);
+                CTM_CHECK_EQ(static_cast<int>(r[10]), 0x03);     // only its own bit went
+                // ⓘ Absent on every other pad.
+                CTM_CHECK(ds4->spots[e.index].how == kSpotAbsent);
+                CTM_CHECK(xbox->spots[e.index].how == kSpotAbsent);
+            }
+            // ⓘ The seventeen every pad has come first, unchanged.
+            CTM_CHECK_EQ(static_cast<int>(kSharedButtonCount), 17);
+            CTM_CHECK_EQ(static_cast<int>(kBtnFnLeft), static_cast<int>(kSharedButtonCount));
+            CTM_CHECK_EQ(static_cast<int>(kButtonCount), 21);
+            // ⭐ Config mode still rests all four, as it did by the byte's mask.
+            std::vector<uint8_t> g(64, 0);
+            g[10] = 0xF0;
+            blank_to_rest(*ds5, g.data(), g.size(), false);
+            CTM_CHECK_EQ(static_cast<int>(g[10] & 0xF0), 0);
+        }
     }
 
     return 0;

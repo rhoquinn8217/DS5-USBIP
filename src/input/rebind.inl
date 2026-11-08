@@ -1112,6 +1112,9 @@ inline void apply(const void *deviceKey,
         // ⛔ REPLACE. The button is cleared whether or not it is currently in
         // its turbo "down" phase -- the game must never see it at all, or a
         // rebind would double up with the original.
+        // ⓘ An Edge's Fn too: a passthrough setting for it came and went the
+        // same day (rhoquinn8217, 2026-11-07: "fn passthrough setting doesn't
+        // seem necessary, Lets remove them.").
         clear_button(*layout, data, len, i);
 
         // ⭐⭐ A CONTROLLER BUTTON BECOMES ANOTHER CONTROLLER BUTTON
