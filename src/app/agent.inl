@@ -747,17 +747,29 @@ static void bridge_session_worker(AgentBridgeSession *session)
     {
         const std::string serial = session->device ? session->device->physical_serial()
                                                    : std::string();
+        // ⭐ The first controller after a fresh install is auto linked to
+        // default_windows_config first, unless a config auto links it already
+        // (default_config.inl); the look-up below then finds it. ⓘ Before the
+        // session's lock, since it writes two files; the ordinal and the kind
+        // never change. What it returns is a link for this bridge alone, when
+        // it could keep none (a controller with no identity).
+        const std::string firstLink =
+            default_config::first_controller_bridged(session->ordinal, serial, session->kind);
         std::lock_guard<std::mutex> lock(session->mutex);
         session->physicalSerial = serial;
         session->tvPath = myTvPath;
         if (session->linkedConfig.empty()) {
-            const std::string autoLink = config_store::auto_link_for(serial, session->kind);
+            std::string autoLink = config_store::auto_link_for(serial, session->kind);
+            const bool thisBridgeOnly = autoLink.empty() && !firstLink.empty();
+            if (thisBridgeOnly) autoLink = firstLink;
             // ⭐ NOT WHILE WINDOWS IS LOCKED (lock_screen_rule.inl): the auto link
             // waits for the unlock, and the controller's own buttons reach the
             // PIN prompt meanwhile.
             if (g_windows_locked.load() && config_store::kind_supports_config(session->kind)) {
                 session->heldForLock = true;
-                session->beforeLock.clear();
+                // ⓘ A link for this bridge alone has no auto link to come back
+                // as, so it comes back as what the controller read before.
+                session->beforeLock = thisBridgeOnly ? autoLink : std::string();
                 if (!autoLink.empty()) {
                     device_log::config(device_log::msg()
                         << session->ordinal << " waits for Windows to be unlocked for its auto link to "
@@ -1672,6 +1684,9 @@ static int run_agent(uint16_t port)
         // ⓘ And the first start after an install puts the window in Simple
         // and lets every tutorial start again (tutorial_state.inl).
         config_move::install_check(module_directory());
+        // ⭐ And default_windows_config, made from its preset at the first
+        // start after an install when there is none (default_config.inl).
+        if (config_move::installed_now()) default_config::ensure();
     }
 
     // ⭐ Before any bridge: Windows can make a bridged controller's sound

@@ -21,6 +21,7 @@
 // Presets are plain data -- no Windows, no config file -- so the suite reads
 // them directly rather than through the agent.
 #include "config/config_presets.inl"
+#include "config/default_config_rule.inl"
 
 using namespace ctmtest;
 
@@ -605,7 +606,10 @@ int run_config_store_tests()
         // ⭐ The picker draws the array as it stands, and the order is theirs
         // (2026-10-11, listed in full by label; custom is the page's own first
         // row, not a preset).
-        const char *const order[] = { "stick-to-mouse", "gyro-to-stick-L2-aiming",
+        // ⭐ default_windows_config first since 2026-11-07: the config a first
+        // install starts with, above the list of 2026-10-11.
+        const char *const order[] = { "default_windows_config",
+                                      "stick-to-mouse", "gyro-to-stick-L2-aiming",
                                       "gyro-to-mouse-always-on", "gyro-to-mouse-r3-hold",
                                       "gyro-to-mouse-L2-aiming", "gyro-to-mouse-DS5-AT",
                                       "touchpad-to-mouse" };
@@ -617,6 +621,73 @@ int run_config_store_tests()
         if (const ctm_presets::Preset *at = ctm_presets::find("gyro-to-mouse-DS5-AT")) {
             CTM_CHECK(std::string(at->label) == "gyro-to-mouse (DS5 adaptive triggers)");
         }
+    }
+
+    section("presets: default_windows_config is aurora-tv's Windows sign-in list, Triangle blank, plus theirs");
+    {
+        // ⭐ rhoquinn8217, 2026-11-07: Square our keyboard, Triangle blank, two
+        // fingers scrolling naturally, the left stick scrolling, R3 held for the
+        // gyro mouse.
+        const ctm_presets::Preset *p = ctm_presets::find("default_windows_config");
+        CTM_CHECK(p != nullptr);
+        if (p) {
+            auto value = [&](const char *key) {
+                for (size_t i = 0; i < p->count; ++i) {
+                    if (std::string(p->settings[i].key) == key) return std::string(p->settings[i].value);
+                }
+                return std::string();
+            };
+            CTM_CHECK(value("rebind_0") == "Enter");
+            CTM_CHECK(value("rebind_1") == "Escape");
+            CTM_CHECK(value("rebind_2") == "KeyboardDS5_USBIP");
+            CTM_CHECK(value("rebind_3").empty());
+            CTM_CHECK(value("rebind_12") == "ArrowUp" && value("rebind_13") == "ArrowDown" &&
+                      value("rebind_14") == "ArrowLeft" && value("rebind_15") == "ArrowRight");
+            CTM_CHECK(value("rebind_7") == "MouseLeft" && value("rebind_6") == "MouseRight");
+            CTM_CHECK(value("right_stick_mode") == "mouse");
+            CTM_CHECK(value("left_stick_mode") == "scroll");
+            CTM_CHECK(value("touchpad_to_mouse") == "true");
+            CTM_CHECK(value("touchpad_one_finger_tap") == "MouseLeft");
+            CTM_CHECK(value("touchpad_two_finger_tap") == "MouseRight");
+            CTM_CHECK(value("touchpad_scroll") == "2" && value("touchpad_scroll_natural") == "true");
+            CTM_CHECK(value("gyro_to_mouse_gate_type") == "while_held" &&
+                      value("gyro_to_mouse_gate_button") == "r3");
+            // Pressing the touchpad clicks; and no steadying on the triggers
+            // (their word: letting go of R3 stops the cursor).
+            CTM_CHECK(value("touchpad_press_touch_drag") == "MouseLeft");
+            CTM_CHECK(value("left_trigger_steady_cursor_pull").empty() &&
+                      value("right_trigger_steady_cursor_pull").empty());
+            CTM_CHECK(std::string(p->label) == "default_windows_config");
+            CTM_CHECK(ctm_presets::suits(*p, "ds5") && ctm_presets::suits(*p, "ds5_edge") &&
+                      ctm_presets::suits(*p, "ds4") && ctm_presets::suits(*p, "xbox"));
+            CTM_CHECK(std::string(default_config::kName) == p->name);
+        }
+    }
+
+    section("default_windows_config: made at any install, the first controller's turn after a fresh one only");
+    {
+        using default_config::First;
+        // ⭐ Fresh is the installer's word: no copy installed as it started,
+        // which a reinstall after an uninstall is too.
+        CTM_CHECK(default_config::fresh(true, true));      // a new stamp, and the installer says fresh
+        CTM_CHECK(!default_config::fresh(true, false));    // an upgrade
+        CTM_CHECK(!default_config::fresh(false, true));    // no install this start
+        CTM_CHECK(default_config::installer_says_fresh("install = fresh"));
+        CTM_CHECK(default_config::installer_says_fresh("install = fresh\r"));
+        CTM_CHECK(default_config::installer_says_fresh(" install = fresh "));
+        CTM_CHECK(!default_config::installer_says_fresh("install = upgrade"));
+        CTM_CHECK(!default_config::installer_says_fresh(""));   // an installer from before
+        CTM_CHECK(std::string(default_config::kInstallFresh) == "install = fresh" &&
+                  std::string(default_config::kInstallUpgrade) == "install = upgrade");
+        // The first controller that takes a config has the turn; one auto linked keeps its own.
+        CTM_CHECK(default_config::first_controller(true, true, false) == First::Claim);
+        CTM_CHECK(default_config::first_controller(true, true, true) == First::Leave);
+        // A device that takes no config leaves the turn for a controller; none waiting, nothing.
+        CTM_CHECK(default_config::first_controller(true, false, false) == First::None);
+        CTM_CHECK(default_config::first_controller(false, true, false) == First::None);
+        CTM_CHECK(default_config::first_line() == "default_windows_config_first_controller = 1\n");
+        CTM_CHECK(default_config::parse_first("1") && !default_config::parse_first("0") &&
+                  !default_config::parse_first(""));
     }
 
     section("presets: a label names a button as {btn:N}, for the page to draw");

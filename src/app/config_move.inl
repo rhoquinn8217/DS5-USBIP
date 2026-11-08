@@ -991,6 +991,21 @@ inline std::atomic_int  g_tutorialAsked{tutorial_state::None};
 inline std::mutex g_stampMutex;
 inline std::string g_installStamp;
 
+// ⭐ default_windows_config's first controller (config/default_config_rule.inl):
+// its turn waits from a fresh install's first start until a controller has had
+// it, kept in window-state.txt meanwhile. ⓘ Whether an install was fresh is
+// the installer's word, in install-stamp.txt (install_check, below).
+inline std::atomic_bool g_installedNow{false};
+inline std::atomic_bool g_firstController{false};
+inline bool installed_now() { return g_installedNow.load(); }
+inline bool first_controller_waiting() { return g_firstController.load(); }
+inline bool take_first_controller()
+{
+    if (!g_firstController.exchange(false)) return false;
+    state_save();
+    return true;
+}
+
 inline void state_save()
 {
     // ⓘ Before the snapshot, not after: a place noted while this runs marks
@@ -1041,6 +1056,8 @@ inline void state_save()
         if (!g_installStamp.empty()) {
             out << tutorial_state::kInstallStampKey << " = " << g_installStamp << "\n";
         }
+        // ⓘ Only while the first controller is still to come (default_config_rule.inl).
+        if (g_firstController.load()) out << default_config::first_line();
     }
     if (view.on) {
         if (!view.ordinal.empty()) out << "ordinal = " << view.ordinal << "\n";
@@ -1153,6 +1170,10 @@ inline void state_load()
             g_installStamp = val;
             continue;
         }
+        if (key == default_config::kFirstKey) {
+            g_firstController.store(default_config::parse_first(val));
+            continue;
+        }
         // ⚠️ T-253: this must sit ABOVE the atoi fallback -- these values
         // are a PAIR, not a single number, and atoi would silently take the
         // width and drop the height.
@@ -1233,11 +1254,21 @@ inline void install_check(const std::wstring &exeFolder)
     std::string line;
     std::getline(f, line);
     const std::string stamp = tutorial_state::stamp_from_file(line);
+    // ⓘ And the line after it: whether the installer found no copy installed
+    // (default_config_rule.inl).
+    std::string kindLine;
+    std::getline(f, kindLine);
+    const bool installerFresh = default_config::installer_says_fresh(kindLine);
     {
         std::lock_guard<std::mutex> lock(g_stampMutex);
         if (!tutorial_state::fresh_install(stamp, g_installStamp)) return;
         g_installStamp = stamp;
     }
+    // ⭐ default_windows_config's: made after this (agent.inl), and after a
+    // fresh install the first controller's turn to be auto linked to it.
+    g_installedNow.store(true);
+    const bool firstEver = default_config::fresh(true, installerFresh);
+    if (firstEver) g_firstController.store(true);
     g_compact.store(true);
     g_quick.store(false);
     g_known.store(true);
@@ -1247,7 +1278,10 @@ inline void install_check(const std::wstring &exeFolder)
     state_save();
     device_log::input(device_log::msg()
         << "ui/install: the first start after an install (" << stamp
-        << "): the window opens in Simple, and every tutorial will start by itself again");
+        << "): the window opens in Simple, and every tutorial will start by itself again"
+        << (firstEver ? "; a fresh one: the first controller bridged is auto linked to "
+                      : "; an upgrade")
+        << (firstEver ? default_config::kName : ""));
 }
 
 // The "Open on bridge" switch: read by the bridge, set by the settings page,

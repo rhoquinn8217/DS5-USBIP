@@ -848,6 +848,7 @@ end;
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   Code: Integer;
+  InstallKind: String;
 begin
   if CurStep <> ssPostInstall then Exit;
   { The driver first: see InstallUsbip. }
@@ -857,8 +858,15 @@ begin
     opens the configs window in Simple, and its tutorials start by themselves
     again (src/app/tutorial_state.inl). Written before "Start DS5-USBIP" on the
     last page can run. }
+  { And on the line after it, whether this setup found a copy installed as
+    it started (GUninstaller, InitializeWizard): none is "fresh", a first
+    install or one after an uninstall, and DS5-USBIP then auto links the first
+    controller bridged to default_windows_config; over a copy it is "upgrade"
+    (src/config/default_config_rule.inl). }
+  if GUninstaller = '' then InstallKind := 'fresh' else InstallKind := 'upgrade';
   SaveStringToFile(ExpandConstant('{app}\install-stamp.txt'),
-    GetDateTimeString('yyyy/mm/dd hh:nn:ss.zzz', '-', ':') + #13#10, False);
+    GetDateTimeString('yyyy/mm/dd hh:nn:ss.zzz', '-', ':') + #13#10
+    + 'install = ' + InstallKind + #13#10, False);
   WizardForm.StatusLabel.Caption := 'Removing old controllers Windows kept from past bridges...';
   RemoveOldDevices(ExpandConstant('{app}\{#ExeName}'));
   if not StreamHostFound() then Exit;

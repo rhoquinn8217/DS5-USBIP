@@ -71,7 +71,9 @@ inline std::string json(bool simpleSeen, bool quickSeen, bool advancedSeen, int 
 }
 
 // A stamp read from the file: its first line, trimmed. ⓘ The installer writes
-// one line; anything after it is not the stamp.
+// the stamp first, then whether it found a copy installed
+// (config/default_config_rule.inl); anything after the first line is not the
+// stamp.
 inline std::string stamp_from_file(const std::string &text)
 {
     std::string line = text.substr(0, text.find_first_of("\r\n"));

@@ -373,6 +373,57 @@ inline const Setting kL2GyroStickAiming[] = {
     { "gyro_no_passthrough", "true" },
 };
 
+// ---- default_windows_config ---------------------------------------------------
+//
+// ⭐ THE CONFIG A FIRST INSTALL STARTS WITH (rhoquinn8217, 2026-11-07: *"create
+// a pre-set that matches the aurora-tv windows logging bindings except for
+// triangle for the numpad. Leave triangle blank. Square for the virtual
+// keyboard should use DS5-USBIP virtual keyboard instead. Also add two finger
+// natural scrolling and left stick scrolling and hold R3 for gyro to mouse."*,
+// then *"pressing touchpad should click"*). aurora-tv's Windows sign-in list,
+// row for row (its lock_numpad.c): the right stick and the touchpad move the
+// mouse, a one-finger tap left clicks and a two-finger tap right clicks, R2
+// left click and L2 right click, the d-pad the arrow keys, Cross Enter, Circle
+// Esc, Square the keyboard (ours here, where the TV opens its own) and
+// Triangle nothing (the TV's numpad). Then theirs on top: two fingers scroll
+// the page with them, the left stick scrolls, the gyro moves the mouse while
+// R3 is held, and pressing the touchpad clicks.
+// ⛔ No steadying on the triggers, which the R3 gyro preset has (their word:
+// *"letting go of r3 does this and works. Keep steady cursor pull off"*).
+// ⓘ Made as a config of the same name at an install's first start, and the
+// first controller after a fresh install auto linked to it
+// (default_config_rule.inl).
+// ⓘ Every pad: an Xbox pad has no touchpad or gyro, and the rest acts on it.
+inline const Setting kDefaultWindowsConfig[] = {
+    { "rebind_0",  "Enter" },               /* cross  */
+    { "rebind_1",  "Escape" },              /* circle */
+    { "rebind_2",  "KeyboardDS5_USBIP" },   /* square -- our on-screen keyboard */
+    /* ⓘ No rebind_3: Triangle is left blank (their word). */
+    { "rebind_12", "ArrowUp" },
+    { "rebind_13", "ArrowDown" },
+    { "rebind_14", "ArrowLeft" },
+    { "rebind_15", "ArrowRight" },
+    CTM_PRESET_TRIGGER_CLICKS,
+    { "right_stick_mode", "mouse" },
+    { "right_stick_no_passthrough", "true" },
+    { "left_stick_mode", "scroll" },
+    { "left_stick_no_passthrough", "true" },
+    { "touchpad_no_passthrough", "true" },
+    { "touchpad_to_mouse", "true" },
+    { "touchpad_scroll", "2" },
+    { "touchpad_scroll_natural", "true" },
+    { "touchpad_one_finger_tap", "MouseLeft" },
+    { "touchpad_two_finger_tap", "MouseRight" },
+    /* ⭐ Pressing the pad in clicks: the left button goes down with the press
+       and up when the finger lifts, so a press that moves drags, as in
+       touchpad-to-mouse. ⓘ The touchpad's click has no rebind_N: this is
+       the setting that makes it click. */
+    { "touchpad_press_touch_drag", "MouseLeft" },
+    { "gyro_no_passthrough", "true" },
+    { "gyro_to_mouse_gate_type", "while_held" },
+    { "gyro_to_mouse_gate_button", "r3" },
+};
+
 #define CTM_PRESET_COUNT_OF(a) (sizeof(a) / sizeof((a)[0]))
 
 // ⭐ THE ORDER IS THE ORDER PEOPLE READ, and the ones that need a DualSense
@@ -391,6 +442,20 @@ inline const Setting kL2GyroStickAiming[] = {
 // This array IS the order the picker draws, so moving an entry moves the row;
 // the test "presets: the order is rhoquinn8217's" holds it.
 inline const Preset kPresets[] = {
+    // ⭐ default_windows_config first, since 2026-11-07: the config a first
+    // install starts with, above the list's order of 2026-10-11, which
+    // follows it.
+    { "default_windows_config", "default_windows_config",
+      // ⭐ What it is for, and to unlink it for a game (rhoquinn8217,
+      // 2026-11-07: *"Give a description that emphasis that this is for
+      // exclusive controller controls for Windows Desktop. Also tell users in
+      // this description to remember to unlink this config when a game starts
+      // to use the controller normally."*). ⓘ The rebinds the page shows say
+      // how it works.
+      "For controlling the Windows desktop with only the controller, no "
+      "keyboard or mouse. Remember to unlink this config when a game starts, "
+      "to use the controller normally.",
+      true, true, true, true, kDefaultWindowsConfig, CTM_PRESET_COUNT_OF(kDefaultWindowsConfig) },
     { "stick-to-mouse", "stick-to-mouse",
       "Right stick moves the cursor, left stick scrolls -- both thumbs where "
       "they already are. The least precise of the three for fine work, and "
