@@ -33,10 +33,10 @@ enum : int {
     kBtnDpadUp = 12, kBtnDpadDown = 13, kBtnDpadLeft = 14, kBtnDpadRight = 15,
     kBtnHome = 16,
     // ⭐ THE DUALSENSE EDGE'S OWN FOUR, past the W3C's seventeen (rhoquinn8217,
-    // 2026-11-07: "just add the button rebinds into DS5-USBIP with
-    // passthrough setting for each Fn"): its two Fn buttons and its two back
-    // buttons. Only the Edge reports them, in kDs5Layout's byte 10; every
-    // other layout leaves them absent.
+    // 2026-11-07: "just add the button rebinds into DS5-USBIP"): its two Fn
+    // buttons and its two back buttons, rebound like any other. Only the Edge
+    // reports them, in kDs5Layout's byte 10; every other layout leaves them
+    // absent.
     kBtnFnLeft = 17, kBtnFnRight = 18, kBtnBackLeft = 19, kBtnBackRight = 20,
     kButtonCount = 21,
     // ⓘ The seventeen any pad can be given, as a binding's `button_` values:
@@ -705,19 +705,6 @@ inline int button_index_for(const std::string &raw)
     }
     return -1;
 }
-
-// ⭐ AN EDGE'S Fn CAN PASS THROUGH ITS REBIND (rhoquinn8217, 2026-11-07: "add
-// a setting under each Fn button for passthrough default to true"): on, the
-// game sees Fn as well as what it is rebound to; off, the rebind replaces it
-// as every other rebind does. The setting's key for a button, or nullptr for
-// a button that has none.
-inline const char *passthrough_key(int standardIndex)
-{
-    if (standardIndex == kBtnFnLeft) return "fn_left_passthrough";
-    if (standardIndex == kBtnFnRight) return "fn_right_passthrough";
-    return nullptr;
-}
-inline constexpr bool kPassthroughDefault = true;
 
 // ⭐⭐ PUT A BUTTON DOWN. The exact mirror of clear_button below, and the
 // thing this project has never had. 🔗 T-242 part A.

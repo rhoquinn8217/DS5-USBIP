@@ -1228,17 +1228,5 @@ int run_button_layout_tests()
         }
     }
 
-    section("button layout: each Fn has a passthrough, on until set off, and no other button has one");
-    {
-        using namespace ctm_rebind;
-        CTM_CHECK(std::string(passthrough_key(kBtnFnLeft)) == "fn_left_passthrough");
-        CTM_CHECK(std::string(passthrough_key(kBtnFnRight)) == "fn_right_passthrough");
-        CTM_CHECK(passthrough_key(kBtnBackLeft) == nullptr);
-        CTM_CHECK(passthrough_key(kBtnBackRight) == nullptr);
-        CTM_CHECK(passthrough_key(kBtnFaceDown) == nullptr);
-        CTM_CHECK(passthrough_key(kBtnHome) == nullptr);
-        CTM_CHECK(kPassthroughDefault);
-    }
-
     return 0;
 }

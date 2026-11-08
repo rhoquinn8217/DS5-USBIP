@@ -391,9 +391,7 @@ static std::string rest_keys_json()
 {"key":"rebind_16","type":"string","name":"(PS) | (Home)","default":"","help":"Rebind button to keyboard key or mouse action"},
 {"key":"turbo_16","type":"int","min":0,"max":1000,"name":"(PS) | (Home)","default":0,"help":"Set milliseconds between rapid fire presses, 0 means held down"},
 {"key":"rebind_17","type":"string","name":"(Fn left)","default":"","help":"Rebind button to keyboard key or mouse action. Warning: profile switching with Fn can't be turned off, and fires this rebind too."},
-{"key":"fn_left_passthrough","type":"bool","default":true,"name":"Fn left passthrough","help":"On: the game sees Fn left as well as its rebind. Off: the rebind replaces it."},
 {"key":"rebind_18","type":"string","name":"(Fn right)","default":"","help":"Rebind button to keyboard key or mouse action. Warning: profile switching with Fn can't be turned off, and fires this rebind too."},
-{"key":"fn_right_passthrough","type":"bool","default":true,"name":"Fn right passthrough","help":"On: the game sees Fn right as well as its rebind. Off: the rebind replaces it."},
 {"key":"rebind_19","type":"string","name":"(back left)","default":"","help":"Rebind button to keyboard key or mouse action"},
 {"key":"rebind_20","type":"string","name":"(back right)","default":"","help":"Rebind button to keyboard key or mouse action"},
 )CTMKEYS";

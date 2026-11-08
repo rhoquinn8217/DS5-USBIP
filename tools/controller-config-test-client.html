@@ -25,10 +25,9 @@
 
   CHANGELOG
     2.67.4   The DualSense Edge's Fn and back buttons can be rebound, in an
-             Edge buttons section only an Edge is offered, with a
-             passthrough setting under each Fn, on by default, and a
-             warning on Fn that the Edge's profile switching can't be
-             turned off (rhoquinn8217, 2026-11-07).
+             Edge buttons section only an Edge is offered, with a warning
+             on Fn that the Edge's profile switching can't be turned off
+             (rhoquinn8217, 2026-11-07).
     2.67.3   The app switcher opens only while two fingers hold Quick up
              again (rhoquinn8217, 2026-11-06: "Revert the app switcher in
              regular quick mode."); the right stick still opens it there.
@@ -6798,8 +6797,7 @@ function hiddenSetting(key) {
 // the index table stops at PS, then has only the DualSense Edge's four.
 // Adding them is a change to rebind.inl, not to this list.
 // ⭐ The Edge's Fn and back buttons have a section of their own, offered only
-// to an Edge (has_edge_buttons), with each Fn's passthrough under it
-// (rhoquinn8217, 2026-11-07).
+// to an Edge (has_edge_buttons) (rhoquinn8217, 2026-11-07).
 // The sections whose rows are buttons, and so want the legend above.
 var BUTTON_SECTIONS = ['Face buttons', 'Shoulder/stick buttons', 'System buttons', 'Edge buttons'];
 
@@ -6820,8 +6818,6 @@ var BTN_GROUP = {
 function sectionOf(key) {
   var btn = /^(?:rebind|turbo)_(\d+)$/.exec(key);
   if (btn) return BTN_GROUP[Number(btn[1])] || 'Other';
-  // ⓘ Each Fn's passthrough sits with the Fn it lets through.
-  if (/^fn_(left|right)_passthrough$/.test(key)) return 'Edge buttons';
   // ⭐ TWO STICK SECTIONS (rhoquinn8217, 2026-09-03). Every stick setting now
   // belongs to exactly ONE stick -- tuning included -- so splitting them is
   // honest rather than a duplicate wearing two headings.
