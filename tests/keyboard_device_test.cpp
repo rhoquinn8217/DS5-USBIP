@@ -165,6 +165,54 @@ int run_keyboard_device_tests()
         CTM_CHECK(held_keys() == std::vector<uint8_t>({keyA}));
     }
 
+    section("virtual keyboard: a media key leaves in the consumer report, and the keys in the keyboard's");
+    {
+        // ⭐ Both from one state: what is held, media keys among the keys.
+        const uint8_t keys[6] = { keyA, media_keys::kVolumeUp, keyB, 0, 0, 0 };
+        uint8_t keyboard[media_keys::kKeyboardReportLen];
+        uint8_t consumer[media_keys::kConsumerReportLen];
+        media_keys::keyboard_report(0x02, keys, keyboard);
+        media_keys::consumer_report(keys, consumer);
+        const uint8_t wantKeyboard[] = { 1, 0x02, 0, keyA, keyB, 0, 0, 0, 0 };
+        const uint8_t wantConsumer[] = { 2, 0xE9, 0x00 };
+        CTM_CHECK(memcmp(keyboard, wantKeyboard, sizeof(wantKeyboard)) == 0);
+        CTM_CHECK(memcmp(consumer, wantConsumer, sizeof(wantConsumer)) == 0);
+    }
+
+    section("virtual keyboard: nothing held is nothing in either report, each with its report ID");
+    {
+        const uint8_t keys[6] = { 0, 0, 0, 0, 0, 0 };
+        uint8_t keyboard[media_keys::kKeyboardReportLen];
+        uint8_t consumer[media_keys::kConsumerReportLen];
+        media_keys::keyboard_report(0, keys, keyboard);
+        media_keys::consumer_report(keys, consumer);
+        const uint8_t wantKeyboard[] = { 1, 0, 0, 0, 0, 0, 0, 0, 0 };
+        const uint8_t wantConsumer[] = { 2, 0, 0 };
+        CTM_CHECK(memcmp(keyboard, wantKeyboard, sizeof(wantKeyboard)) == 0);
+        CTM_CHECK(memcmp(consumer, wantConsumer, sizeof(wantConsumer)) == 0);
+    }
+
+    section("virtual keyboard: two media keys held send the first, and the second once it goes up");
+    {
+        const uint8_t both[6] = { media_keys::kNext, media_keys::kVolumeDown, 0, 0, 0, 0 };
+        uint8_t consumer[media_keys::kConsumerReportLen];
+        media_keys::consumer_report(both, consumer);
+        CTM_CHECK(consumer[1] == 0xB5 && consumer[2] == 0x00);
+        const uint8_t second[6] = { media_keys::kVolumeDown, 0, 0, 0, 0, 0 };
+        media_keys::consumer_report(second, consumer);
+        CTM_CHECK(consumer[1] == 0xEA && consumer[2] == 0x00);
+    }
+
+    section("virtual keyboard: a media key the rebinders hold is in the state the pump sends from");
+    {
+        nothing_held();
+        const uint8_t play = media_keys::kPlayPause;
+        kb::set_state_for(&g_padA, 0, &play, 1);
+        CTM_CHECK(held_keys() == std::vector<uint8_t>({play}));
+        kb::release_all();
+        CTM_CHECK(held_keys().empty());
+    }
+
     nothing_held();
     return 0;
 }

@@ -10,14 +10,18 @@
 // virtual USB keyboard is indistinguishable from hardware -- which is this
 // project's whole premise.
 //
-// SHAPE. 8-byte boot-keyboard reports: [0] modifiers, [1] reserved,
-// [2..7] up to six simultaneous key usages.
+// SHAPE. Two reports, each with its report ID (media_keys.inl): the keys,
+// [0] 1, [1] modifiers, [2] reserved, [3..8] up to six simultaneous key
+// usages; and the media key held, [0] 2, [1..2] its consumer usage. ⓘ It was
+// one 8-byte boot-keyboard report until the media keys (2026-11-07).
 
 #pragma once
 
 // ⓘ Outside the namespace, like every include here. A key that is tapped
 // rather than held: pressed, then released by the clock.
 #include "key_pulse.inl"
+// ⓘ And the media keys, which travel as keys and leave in a report of their own.
+#include "media_keys.inl"
 
 namespace ctm_keyboard_device {
 
@@ -253,6 +257,21 @@ inline bool holds_for(const void *deviceKey)
     return false;
 }
 
+// ⓘ What the pump last sent of each report, so each goes only when it has
+// changed. Read and written by the pump alone, and cleared before it starts.
+inline uint8_t g_sentKeyboard[media_keys::kKeyboardReportLen] = {};
+inline uint8_t g_sentConsumer[media_keys::kConsumerReportLen] = {};
+inline bool g_sentAny = false;
+
+inline void send_report(CtmUsbipDevice &device, const uint8_t *bytes, size_t len)
+{
+    CTM_INPUT_REPORT report = {};
+    report.length = static_cast<CTM_UINT16>(len);
+    report.endpoint_address = kKeyboardInEndpoint;
+    memcpy(report.data, bytes, len);
+    device.inject_synthetic_input(report);
+}
+
 inline long long pump_now_ms()
 {
     return std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -278,16 +297,15 @@ inline void pump_loop()
             continue;
         }
 
-        CTM_INPUT_REPORT report = {};
-        report.length = 8;
-        report.endpoint_address = kKeyboardInEndpoint;
+        // ⭐ TWO REPORTS FROM THE ONE STATE (media_keys.inl): the keys, and the
+        // media key held, if any, which Windows reads from a consumer control.
+        // ⓘ Each goes only when it differs from the last one sent of it.
+        uint8_t keyboard[media_keys::kKeyboardReportLen];
+        uint8_t consumer[media_keys::kConsumerReportLen];
         {
             std::lock_guard<std::mutex> lock(g_stateMutex);
-            report.data[0] = g_modifiers;
-            report.data[1] = 0;
-            for (size_t i = 0; i < 6; ++i) {
-                report.data[2 + i] = g_keys[i];
-            }
+            media_keys::keyboard_report(g_modifiers, g_keys, keyboard);
+            media_keys::consumer_report(g_keys, consumer);
         }
 
         std::shared_ptr<CtmUsbipDevice> device;
@@ -296,15 +314,27 @@ inline void pump_loop()
             device = g_device;
         }
         if (device) {
-            device->inject_synthetic_input(report);
+            const bool keyboardNew = !g_sentAny || memcmp(keyboard, g_sentKeyboard, sizeof(keyboard)) != 0;
+            const bool consumerNew = !g_sentAny || memcmp(consumer, g_sentConsumer, sizeof(consumer)) != 0;
+            if (keyboardNew) {
+                send_report(*device, keyboard, sizeof(keyboard));
+                memcpy(g_sentKeyboard, keyboard, sizeof(keyboard));
+            }
+            if (consumerNew) {
+                send_report(*device, consumer, sizeof(consumer));
+                memcpy(g_sentConsumer, consumer, sizeof(consumer));
+            }
+            g_sentAny = true;
             // ⓘ The last untested link. The agent resolves the key correctly --
             // measured -- and nothing reaches the browser, so the question is
             // whether the pump publishes at all and whether the device takes it.
             if (ctm_verbose_logs()) {
                 device_log::input(device_log::msg()
                     << "keyboard report sent: mod=0x" << std::hex
-                    << static_cast<int>(report.data[0]) << " key0=0x"
-                    << static_cast<int>(report.data[2]) << std::dec);
+                    << static_cast<int>(keyboard[1]) << " key0=0x"
+                    << static_cast<int>(keyboard[3]) << " media=0x"
+                    << (static_cast<int>(consumer[1]) | (static_cast<int>(consumer[2]) << 8))
+                    << std::dec);
             }
         } else {
             // ⛔ No device means ensure_started() never completed, or the
@@ -365,6 +395,8 @@ inline bool ensure_started()
     }
 
     g_device = device;
+    // ⓘ A keyboard just made has been sent nothing: both reports go first.
+    g_sentAny = false;
     g_running.store(true);
     g_pump = std::thread(pump_loop);
     g_started.store(true);

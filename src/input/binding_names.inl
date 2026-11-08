@@ -21,6 +21,8 @@
 // ⓘ Outside the namespace: this file opens ctm_rebind itself, and including it
 // inside would nest a second one.
 #include "button_layout.inl"
+// ⓘ The media keys' marks, which kKeys below names.
+#include "media_keys.inl"
 
 namespace ctm_rebind {
 
@@ -78,6 +80,14 @@ inline const KeyName kKeys[] = {
     // modifier's bit and the key's usage, and everything that presses a key
     // presses both. ⓘ Not a KeyboardEvent.code; it reads as what it does.
     {"Win+Tab",0x2B,0x08},
+    // ⭐ THE MEDIA KEYS (rhoquinn8217, 2026-11-07), by their KeyboardEvent.code
+    // names: the volume, and play or pause, stop, previous and next. ⓘ Their
+    // usages only mark them: the virtual keyboard sends each as a consumer
+    // control's, which is where Windows reads media keys (media_keys.inl).
+    {"AudioVolumeUp",media_keys::kVolumeUp,0},{"AudioVolumeDown",media_keys::kVolumeDown,0},
+    {"AudioVolumeMute",media_keys::kVolumeMute,0},
+    {"MediaPlayPause",media_keys::kPlayPause,0},{"MediaStop",media_keys::kStop,0},
+    {"MediaTrackPrevious",media_keys::kPrevious,0},{"MediaTrackNext",media_keys::kNext,0},
 };
 
 // ⛔ CASE-INSENSITIVE, because device_config_str LOWERCASES what it returns.

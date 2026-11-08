@@ -5,7 +5,10 @@
 # endpoint. So this map does no translation; it exists because the runtime
 # expects every virtual device to have one.
 #
-# Report is 8 bytes: [0] modifiers  [1] reserved  [2..7] up to six key usages.
+# ⓘ The listener builds this keyboard's reports itself and hands them to the
+# endpoint without this map (keyboard_device.inl): two reports since
+# 2026-11-07, the keys and the media key held, each with its report ID. The
+# paths below are kept for shape and carry nothing.
 
 [map]
 id = virtual_keyboard
