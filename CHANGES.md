@@ -410,7 +410,7 @@ ENet library, removed with the ENet transport).
  src/usbip/submit_limits.inl                   |    54 +
  src/usbip/wire.inl                            |   103 +
  tests/audio_haptics_dsp_test.cpp              |   250 +
- tests/binding_names_test.cpp                  |   308 +
+ tests/binding_names_test.cpp                  |   314 +
  tests/bridge_handshake_test.cpp               |   631 +
  tests/button_layout_test.cpp                  |  1232 ++
  tests/capped_log_test.cpp                     |   140 +
@@ -489,5 +489,5 @@ ENet library, removed with the ENet transport).
  tools/sbc-golden-gen/ffmpeg_side.cpp          |   117 +
  tools/sbc-golden-gen/ffmpeg_side.h            |    15 +
  tools/sbc-golden-gen/main.cpp                 |   131 +
- 275 files changed, 82299 insertions(+), 6132 deletions(-)
+ 275 files changed, 82305 insertions(+), 6132 deletions(-)
 ```
