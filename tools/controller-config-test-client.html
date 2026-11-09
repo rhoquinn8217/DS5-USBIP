@@ -2,7 +2,7 @@
 <!--
   DS5-USBIP's Controller Configs page, served by the listener.
 
-  VERSION 2.68.0 -- see the changelog at the bottom of this comment.
+  VERSION 2.68.1 -- see the changelog at the bottom of this comment.
 
   WHAT IT STARTED AS. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -24,6 +24,9 @@
   not a tidy message about it.
 
   CHANGELOG
+    2.68.1   The settings window's list scrolls with the halo, and only a
+             controller's polling rate is shown: a keyboard, a mouse and a
+             DS5Dongle's keyboard half show none (rhoquinn8217, 2026-11-09).
     2.68.0   Each controller has settings of its own, kept by the listener
              for that controller whatever config it reads: its rate limit,
              audio and rumble, in a window a gear opens, in a new settings
@@ -2751,7 +2754,7 @@
      them. */
   #ctlSetBox .confirmCard { width:430px; max-width:92vw; max-height:90vh; overflow:hidden;
                             box-sizing:border-box; display:flex; flex-direction:column; }
-  #ctlSetRows { flex:1 1 auto; min-height:0; overflow:auto; }
+  #ctlSetRows { flex:1 1 auto; min-height:0; overflow:auto; position:relative; }
   /* ⛔ Advanced's page is zoomed (--advZoom), and a vh inside it is
      multiplied again: divided back, as the body's own min-height is. */
   body:not(.compact) #ctlSetBox .confirmCard { max-height:calc(90vh / var(--advZoom)); }
@@ -3615,7 +3618,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.68.0</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.68.1</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -4746,12 +4749,17 @@ function rateLimitTitle(d) {
 // show the current polling rate and the rate limit, with rate limit is no
 // longer being a drop down."). The limit is set in the controller's settings
 // window, which the gear beside it opens, and R3 in Simple and Quick.
-// ⛔ A keyboard or a mouse shows the rate alone. The listener never limits
-// one: a mouse report is a movement, and one thinned out is distance the
-// cursor never travels. ⓘ Nor a DS5Dongle's keyboard half since 2026-11-08,
-// though it carries the dongle's DualSense ids ("the keyboard rate limit
-// should be ignore").
+// ⭐⭐ A CONTROLLER'S ALONE (rhoquinn8217, 2026-11-09: "keyboard polling rate
+// and anything non-controller is not important. Only show controller rate
+// limit"): a keyboard, a mouse and a DS5Dongle's keyboard half show nothing.
+// The listener never limits one of those anyway: a mouse report is a
+// movement, and one thinned out is distance the cursor never travels.
+function isControllerPart(d) {
+  return !!(d && (d.takes_rate_limit || d.has_settings || d.supports_config));
+}
+
 function rateTag(d) {
+  if (!isControllerPart(d)) return '';
   var html = '<span class="prate" data-ord="' + esc(String(d.ordinal)) + '">' +
              '<span class="prate-hz" title="' + esc(rateTitle(d)) + '">' +
              esc(rateHzText(d)) + '</span>';
@@ -4765,8 +4773,16 @@ function rateTag(d) {
 // ⓘ One per part, as the battery gauges are: two halves under one name each
 // have their own rate.
 function rateTags(parts) {
-  return (parts || []).map(function (d) { return rateTag(d); })
+  return (parts || []).map(function (d) { return rateTag(d); }).filter(Boolean)
                       .join(' <span class="muted">·</span> ');
+}
+
+// The rate and its limit with the gear, after the battery in Simple and
+// Quick: nothing for a device that is no controller. `tag`: a span on the
+// name's line, a div under it in Quick's panel.
+function compactRateLine(ordinal, tag) {
+  var line = rateTags(partsOf(ordinal)) + settingsGearHtml(ordinal, keyCap(padLegend().rate));
+  return line ? '<' + tag + ' class="' + (QUICK ? 'crate-q' : 'crate') + '">' + line + '</' + tag + '>' : '';
 }
 
 // ⭐ THE READOUTS FOLLOW THE POLL, in place, like the gauges: a rate changes
@@ -5088,6 +5104,27 @@ function settingArrow(id, dir) {
   if (next === el.selectedIndex) return;
   el.selectedIndex = next;
   el.dispatchEvent(new Event('change'));
+}
+
+// ⭐ THE LIST FOLLOWS THE HALO (rhoquinn8217, 2026-11-09: "when navigating
+// the settings options, scroll needs to follow what is highlighted"): the
+// row the halo is on is scrolled into the window's list, with its section's
+// heading when it is the section's first, and the list's top for the first
+// row of all. True when the halo is in the list.
+// ⛔ Not scrollIntoView, which left the list where it was in every view
+// (measured 2026-11-09: scrollTop 0 with the halo on the last row). The
+// row's place and the list's scroll are read in the list's own units, so
+// Advanced's zoom changes nothing.
+function settingsKeepInView(el) {
+  var box = document.getElementById('ctlSetRows');
+  if (!SETTINGS_OPEN || !box || !el || !box.contains(el)) return false;
+  var row = (el.closest && el.closest('.csrow')) || el;
+  var top = row.offsetTop, bottom = top + row.offsetHeight;
+  var head = row.previousElementSibling;
+  if (head && head.tagName === 'H4') top = head.previousElementSibling ? head.offsetTop : 0;
+  if (top < box.scrollTop) box.scrollTop = top;
+  else if (bottom > box.scrollTop + box.clientHeight) box.scrollTop = bottom - box.clientHeight;
+  return true;
 }
 
 // ◄ ► in the window: a choice steps, a number moves by 10 within its range,
@@ -9133,7 +9170,8 @@ function gpPaint() {
   if (stripHost) stripHost.classList.toggle('here', onStripNow);
   // Keep the focused control on screen -- on a TV the page is often scrolled
   // past what the D-pad is pointing at.
-  el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  // ⓘ In the settings window, its list scrolls instead (settingsKeepInView).
+  if (!settingsKeepInView(el)) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 
 // ⛔ CLAMPS, does not wrap.
@@ -12145,10 +12183,9 @@ function paintCompact() {
             // ⓘ No " | " in Simple since 2026-10-22 ("Remove the "|""): beside
             // its panel the rate and limit stand at the line's right end, on
             // the panel's right edge (alignNameRow).
-            (QUICK ? '<span class="cnsep">|</span>' : '') +
-            '<span class="' + (QUICK ? 'crate-q' : 'crate') + '">' +
-            rateTags(partsOf(d.ordinal)) + settingsGearHtml(d.ordinal, keyCap(padLegend().rate)) +
-            '</span>' +
+            // ⓘ And no " | " in Quick with nothing after it (compactRateLine).
+            (QUICK && compactRateLine(d.ordinal, 'span') ? '<span class="cnsep">|</span>' : '') +
+            compactRateLine(d.ordinal, 'span') +
             '</div>' +
             // ⓘ No device type line in either view (2.66.87): its name heads
             // the config panel, and its symbol stands by the nickname (Quick:
@@ -12322,9 +12359,8 @@ function paintCompact() {
                           shoulderMark(shoulder[1]) + ' \u25b8' + '</span>' : '') +
                   '<div class="ccur cqname"><div class="cqemo">' + deviceIcons(partsOf(d.ordinal)) +
                   '</div><div class="cname">' + esc(nameFor(d.ordinal)) +
-                  batteryTags(partsOf(d.ordinal)) + '</div><div class="crate-q">' +
-                  rateTags(partsOf(d.ordinal)) + settingsGearHtml(d.ordinal, keyCap(padLegend().rate)) +
-                  '</div></div>' +
+                  batteryTags(partsOf(d.ordinal)) + '</div>' + compactRateLine(d.ordinal, 'div') +
+                  '</div>' +
                   wheel + quickHints()
                 // ⭐ SIMPLE: THE TITLE OVER THE PANEL, THE WHEEL, AND NEW, EDIT,
                 // UNLINK AND AUTO LINK STACKED AT ITS RIGHT, ALL ONE SIZE
@@ -13299,7 +13335,7 @@ function selfTest() {
    'rateTag','rateTags','refreshRates','setRateLimitFor','pollRates',
    'settingsGearHtml','openControllerSettings','closeControllerSettings','controllerSettingRows',
    'configEditorGroups','postControllerSetting','controllerSettingChanged','controllerRateChanged',
-   'settingArrow','settingsStep',
+   'settingArrow','settingsStep','settingsKeepInView','compactRateLine',
    'toggleTokenShown','paintConnLight','archiveConfigBtn','autoLinkBtnHtml',
    'explainGreyed','clearGreyedNote'
   ].forEach(function(n) {
@@ -13421,8 +13457,10 @@ function selfTest() {
     var held = { ordinal: 'ds5_usb_8', kind: 'ds5_usb', input_rate_hz: 125, arrival_rate_hz: 250,
                  takes_rate_limit: true, supports_config: true, linked_config: 'pad',
                  polling_rate: '125', rate_limit_hz: 125 };
-    ok('a keyboard shows its rate and no limit',
-       rateTag(kb).indexOf('0 Hz') >= 0 && rateTag(kb).indexOf('prate-lim') < 0, rateTag(kb));
+    // ⭐ A controller's alone since 2026-11-09: a keyboard shows no rate.
+    ok('a keyboard shows no rate, and a controller with a keyboard half its own alone',
+       rateTag(kb) === '' && rateTags([loose, kb]).indexOf('·') < 0 &&
+       rateTags([loose, kb]).indexOf('250 Hz') >= 0, rateTags([loose, kb]));
     // ⭐ As text since 2026-11-08: no dropdown in any view.
     ok('a controller shows its rate and its limit as text, with no dropdown',
        rateTag(loose).indexOf('<select') < 0 &&
@@ -13523,6 +13561,8 @@ function selfTest() {
     ok('a mouse has none: a dash in the tables, nothing in Simple and Quick',
        settingsGearHtml('hid_6').indexOf('<button') < 0 && settingsGearHtml('hid_6', 'R3') === '',
        settingsGearHtml('hid_6'));
+    ok('and Simple and Quick show a mouse no rate line at all', compactRateLine('hid_6', 'span') === '',
+       compactRateLine('hid_6', 'span'));
     var csent = [];
     var setCall = call;
     call = function (method, path, body) {
