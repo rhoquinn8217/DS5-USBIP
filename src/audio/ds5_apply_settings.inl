@@ -77,8 +77,19 @@ static void ds5_apply_initial_settings(CtmBackend *backend,
     // ⭐ ds5_settings_level_for, not ds5_level_for: a chosen mode sends the
     // outputs it plays through their dials, 100 for a dial never moved, so a
     // 0 an earlier mode sent does not stay on the pad. Its note says why.
-    const int speakerPercent = ds5_settings_level_for(output, true, section);
-    const int headsetPercent = ds5_settings_level_for(output, false, section);
+    int speakerPercent = ds5_settings_level_for(output, true, section);
+    int headsetPercent = ds5_settings_level_for(output, false, section);
+    // ⭐ UNDER AUTO THE JACK DECIDES (ds5_output_overrides.inl,
+    // ds5_auto_route_report): with headphones in the pad's jack, as its
+    // reports last said, our report routes to them with the headset's dial,
+    // 100 when never moved, and leaves the speaker's level as it is. The
+    // device's jack watch sends the same as a plug goes in or out; this keeps
+    // a config saved meanwhile from sending the sound back to the speaker.
+    const bool autoHeadset = output == Ds5AudioOutput::Auto && device->ds5_jack() == 1;
+    if (autoHeadset) {
+        headsetPercent = device_config_int(section, "headset_volume", kDs5DialUnsetPercent);
+        speakerPercent = ds5_level_for(output, true, section);
+    }
     // For the log line at the end: which of the two came from an unset dial.
     const bool speakerUnset = speakerPercent >= 0 && ds5_level_for(output, true, section) < 0;
     const bool headsetUnset = headsetPercent >= 0 && ds5_level_for(output, false, section) < 0;
@@ -177,11 +188,12 @@ static void ds5_apply_initial_settings(CtmBackend *backend,
     // Routing, defaulting to the speaker when nothing is configured -- that is
     // the behaviour this had before routing existed.
     // Under auto, default to the speaker -- the behaviour before routing existed.
+    // ⭐ And to the headphones under auto with something in the jack (above).
     const bool speakerActive = (output == Ds5AudioOutput::Auto)
-        ? true
+        ? !autoHeadset
         : ds5_speaker_is_active(output);
     uint8_t audioControl = (output == Ds5AudioOutput::Auto)
-        ? kDs5RouteToSpeaker
+        ? (autoHeadset ? static_cast<uint8_t>(0x00) : kDs5RouteToSpeaker)
         : ds5_route_bits_for(output);
     // ⭐ DEFAULTS TO TRUE, and that is not a preference. The DualSense mutes its
     // own speaker when echo cancel is off -- feedback protection, because the

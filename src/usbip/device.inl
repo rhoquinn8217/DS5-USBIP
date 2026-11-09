@@ -590,6 +590,17 @@ public:
             }
         }
 
+        // ⭐ A DUALSENSE'S HEADPHONE JACK, for audio_output = auto
+        // (ds5_output_overrides.inl, ds5_jack_in): a plug going in or out,
+        // and the first report that says, sends the pad the route that
+        // follows it. On every report: a plug can go in at any time.
+        if (device_has_ds5_audio(profile_.device_descriptor)) {
+            const int jack = ds5_jack_in(data, length);
+            if (jack >= 0 && ds5Jack_.exchange(jack, std::memory_order_relaxed) != jack) {
+                ds5_follow_jack(jack != 0);
+            }
+        }
+
         // ⛔ A MICROPHONE REPORT IS NOT PAD STATE. STOP HERE.
         //
         // A Bluetooth DualSense says what a report holds in the low nibble of
@@ -1003,6 +1014,40 @@ public:
             lastControllerOutput_ = output;
         }
         return backend_->send_output_report(output, false, error);
+    }
+
+    // ⭐ A DualSense's headphone jack as its reports last said it (ds5_jack_in):
+    // 1 headphones in, 0 nothing, -1 not known yet. Our settings report under
+    // auto follows it (ds5_apply_settings.inl).
+    int ds5_jack() const
+    {
+        return ds5Jack_.load(std::memory_order_relaxed);
+    }
+
+    // ⭐ AUTO FOLLOWS THE JACK (ds5_output_overrides.inl): a DualSense's jack
+    // has changed, or said for the first time. With its config's audio_output
+    // auto, or not set, the pad is sent the route that follows the jack; with
+    // any other choice it is left as that choice set it. ⓘ On the report's
+    // own thread: it happens as a plug goes in or out, and once at a bridge.
+    void ds5_follow_jack(bool in)
+    {
+        const char *kind = device_section_for(profile_.device_descriptor);
+        if (kind == nullptr) return;
+        const std::string section = device_settings_section(kind, linked_config());
+        if (ds5_audio_output_for(section.c_str()) != Ds5AudioOutput::Auto) {
+            device_log::report(device_log::msg() << section << ": "
+                << (in ? "something in the headphone jack" : "nothing in the headphone jack")
+                << " -- audio_output is not auto, so the route stays as it is set");
+            return;
+        }
+        std::wstring error;
+        const bool sent = send_built_output_report(ds5_auto_route_report(section.c_str(), in), &error);
+        device_log::msg line;
+        line << section << ": auto: "
+             << (in ? "something in the headphone jack: the sound goes to it"
+                    : "nothing in the headphone jack: the sound goes to the speaker");
+        if (!sent) line << " -- send FAILED: " << narrow_ascii(error);
+        device_log::report(line);
     }
 
 private:
@@ -2358,6 +2403,8 @@ private:
     // none. Read on its sound stream's thread, re-read by refresh_gains.
     std::atomic<int> hapticsGain_{-1};
     std::atomic<int> soundGain_{-1};
+    // A DualSense's headphone jack, off its reports (ds5_jack_in): -1 not known.
+    std::atomic<int> ds5Jack_{-1};
     // A DS4's headphone jack, off its reports (ds4_speaker.inl): -1 not known
     // or not a DS4, 0 nothing in it, 1 something. Read by its sound stream.
     std::atomic<int> ds4Jack_{-1};
