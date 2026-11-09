@@ -29,7 +29,7 @@
 //
 // ⭐ NO WINDOW MODE AND NO OPEN ON BRIDGE (rhoquinn8217, 2026-10-30: "remove
 // the "window mode" and "open on bridge option" from the tray icon menu").
-// Both stay in the window: its Mode picker, and Bridging Options on Advanced's
+// Both stay in the window: its Mode picker, and Global Options on Advanced's
 // Overview.
 //
 // ⭐ DEVICES, NOT CONTROLLERS, AND NOT THEIR PARTS (rhoquinn8217, 2026-10-02:
