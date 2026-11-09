@@ -41,6 +41,10 @@ struct AgentBridgeSession {
     // shares the serial -- see same_controller.inl.
     std::string tvPath;
     std::string linkedConfig;
+    // ⭐ Its own settings' section (controller_settings.inl): audio and rumble,
+    // kept for the controller whatever config it reads. Empty for a device
+    // that is not a controller.
+    std::string controllerSection;
     // ⭐ HELD ON NO CONFIG WHILE WINDOWS IS LOCKED (lock_screen_rule.inl), and
     // what it read when the lock came, for an unlock with no auto link.
     bool heldForLock = false;
@@ -755,9 +759,29 @@ static void bridge_session_worker(AgentBridgeSession *session)
         // it could keep none (a controller with no identity).
         const std::string firstLink =
             default_config::first_controller_bridged(session->ordinal, serial, session->kind);
+        // ⭐ AND ITS OWN SETTINGS (controller_settings.inl): from its serial's
+        // file, or for this bridge alone with no usable serial or another
+        // controller bridged now on that serial. ⓘ Before the session's lock:
+        // it may read a file.
+        const bool isController = config_store::kind_supports_config(session->kind);
+        std::string controllerSection;
+        if (isController) {
+            std::string why;
+            controllerSection = controller_settings::claim(config_store::normalise_serial(serial),
+                                                           session->ordinal, &why);
+            device_log::config(device_log::msg() << session->ordinal << " keeps its own settings "
+                << (controller_settings::is_kept_section(controllerSection)
+                        ? "in " + why
+                        : "for this bridge alone: " + why));
+        }
         std::lock_guard<std::mutex> lock(session->mutex);
         session->physicalSerial = serial;
         session->tvPath = myTvPath;
+        session->controllerSection = controllerSection;
+        if (session->device) {
+            session->device->set_controller_kind(isController);
+            session->device->set_controller_section(controllerSection);
+        }
         if (session->linkedConfig.empty()) {
             std::string autoLink = config_store::auto_link_for(serial, session->kind);
             const bool thisBridgeOnly = autoLink.empty() && !firstLink.empty();
@@ -927,7 +951,13 @@ static void bridge_session_worker(AgentBridgeSession *session)
         // controller whose own config said 100.
         const std::string latencyKind = config_store::settings_kind_for(session->kind);
         if (!latencyKind.empty()) {
-            const std::string section = device_settings_section(latencyKind.c_str(), linked);
+            // ⭐ The controller's own settings (controller_settings.inl), not
+            // its config's: the latency and the three below.
+            std::string section;
+            {
+                std::lock_guard<std::mutex> lock(session->mutex);
+                section = controller_settings_section(latencyKind.c_str(), session->controllerSection);
+            }
             const int latency = device_config_int(section.c_str(), "audio_latency_ms", -1);
             if (latency >= 0 && latency <= 255) {
                 std::wstring latencyError;
@@ -1211,6 +1241,16 @@ static bool stop_bridge_session(const std::wstring &busId)
     }
     if (!session) {
         return false;
+    }
+    // ⓘ Its claim on its serial's settings goes, and settings kept for this
+    // bridge alone with it (controller_settings.inl).
+    {
+        std::string serial;
+        {
+            std::lock_guard<std::mutex> lock(session->mutex);
+            serial = session->physicalSerial;
+        }
+        controller_settings::release(config_store::normalise_serial(serial), session->ordinal);
     }
     session->stopping.store(true);
     if (g_agent_usbip_server) {

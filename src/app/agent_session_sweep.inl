@@ -183,6 +183,8 @@ static void apply_pending_config_to_sessions()
         // The settings report goes out through the device's map, which shapes
         // it for the wire the pad is on. Held, so it outlives the lock.
         std::shared_ptr<CtmUsbipDevice> device;
+        // ⭐ Its own settings' section (controller_settings.inl).
+        std::string controllerSection;
     };
     std::vector<Target> targets;
     {
@@ -192,12 +194,14 @@ static void apply_pending_config_to_sessions()
                 continue;
             }
             std::string linked;
+            std::string controllerSection;
             {
                 std::lock_guard<std::mutex> sessionLock(session->mutex);
                 linked = session->linkedConfig;
+                controllerSection = session->controllerSection;
             }
             targets.push_back(Target{session->backend, linked, session->kind,
-                                     session->busIdAscii, session->device});
+                                     session->busIdAscii, session->device, controllerSection});
         }
     }
 
@@ -227,8 +231,9 @@ static void apply_pending_config_to_sessions()
         //
         // ⚠️ Uses the SESSION kind, not a literal, so an Edge resolves its own
         // section rather than borrowing the DualSense one.
+        // ⭐ The controller's own settings (controller_settings.inl), not its config's.
         const std::string latencySection =
-            device_settings_section(settingsKind.c_str(), target.linkedConfig);
+            controller_settings_section(settingsKind.c_str(), target.controllerSection);
         const int latency = device_config_int(latencySection.c_str(), "audio_latency_ms", -1);
         // Warn on the live path as well as at handshake. This is the one a
         // person actually meets: they edit the file mid-session, the audio goes

@@ -98,6 +98,7 @@ static std::vector<RestDeviceView> rest_collect_devices()
             std::lock_guard<std::mutex> sessionLock(session->mutex);
             view.serial = session->physicalSerial;
             view.linkedConfig = session->linkedConfig;
+            view.controllerSection = session->controllerSection;
         }
         // ⓘ Empty until the TV's HELLO has arrived, like the serial.
         if (session->device) {
@@ -145,6 +146,56 @@ static bool rest_find_device(const std::string &ordinal, RestDeviceView *out)
 // ⚠️ What IS still refused is a device that takes no config at all, a keyboard
 // or a mouse. Linking one would report success and do nothing, which is the
 // worst shape a setting can take.
+// ⭐ A CONTROLLER'S OWN SETTINGS (controller_settings.inl): the section a
+// bridged controller reads them from, empty for any other device.
+static bool rest_controller_section(const std::string &ordinal, std::string *section)
+{
+    std::lock_guard<std::mutex> lock(g_agent_sessions_mutex);
+    for (const auto &session : g_agent_sessions) {
+        if (session->ordinal != ordinal) continue;
+        std::lock_guard<std::mutex> sessionLock(session->mutex);
+        *section = session->controllerSection;
+        return !section->empty();
+    }
+    return false;
+}
+
+// What the page reads: whether they are kept in the controller's file, and
+// what is set, as written; a setting not there is at its default.
+static std::string rest_controller_settings_json(const std::string &ordinal, const std::string &section)
+{
+    std::string out = "{\"ordinal\":\"" + rest_json_escape(ordinal) + "\"";
+    out += ",\"kept\":" + std::string(controller_settings::is_kept_section(section) ? "true" : "false");
+    out += ",\"settings\":{";
+    bool first = true;
+    for (const auto &s : controller_settings::get(section)) {
+        if (!first) out += ",";
+        first = false;
+        out += "\"" + rest_json_escape(s.first) + "\":\"" + rest_json_escape(s.second) + "\"";
+    }
+    out += "}}";
+    return out;
+}
+
+// Applied at once: the gains and the PC-sound haptics read again, and the
+// settings report and the TV's audio settings sent again by the next sweep,
+// as a change of config sends them (rest_link_device says why a flag).
+static void rest_apply_controller_settings(const std::string &ordinal)
+{
+    std::lock_guard<std::mutex> lock(g_agent_sessions_mutex);
+    for (const auto &session : g_agent_sessions) {
+        if (session->ordinal != ordinal) continue;
+        std::string section;
+        {
+            std::lock_guard<std::mutex> sessionLock(session->mutex);
+            section = session->controllerSection;
+        }
+        if (session->device) session->device->set_controller_section(section);
+        ctm_config_watcher::change_pending().store(true, std::memory_order_relaxed);
+        return;
+    }
+}
+
 static bool rest_link_device(const std::string &ordinal, const std::string &configName,
                              std::string *error)
 {

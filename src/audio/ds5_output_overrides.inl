@@ -64,6 +64,16 @@ static std::string device_settings_section(const char *kind, const std::string &
     return "cfg:" + name;
 }
 
+// ⭐ WHERE A CONTROLLER'S AUDIO AND RUMBLE ARE READ: its own settings
+// section (config/controller_settings.inl), whatever config is linked; its
+// kind's shared section when it has none, as a test has, or a pad before the
+// agent has claimed it one.
+static std::string controller_settings_section(const char *kind, const std::string &controllerSection)
+{
+    if (!controllerSection.empty()) return controllerSection;
+    return kind == nullptr ? std::string() : std::string(kind);
+}
+
 static const char *device_section_for(const std::vector<unsigned char> &descriptor)
 {
     if (descriptor.size() < 12) {
@@ -779,7 +789,8 @@ static void ds5_override_headset_volume(uint8_t *data, size_t length, const char
 // section. Defaulted so every existing caller is unaffected.
 static void ds5_apply_output_overrides(uint8_t *data, size_t length,
                                       const std::vector<unsigned char> &descriptor,
-                                      const std::string &linkedConfig = std::string())
+                                      const std::string &linkedConfig = std::string(),
+                                      const std::string &controllerSection = std::string())
 {
     // Resolved once per report, before anything else: an unrecognised device
     // costs two comparisons and is then left entirely alone. The per-report
@@ -795,10 +806,15 @@ static void ds5_apply_output_overrides(uint8_t *data, size_t length,
     }
     const std::string resolved = device_settings_section(kind, linkedConfig);
     const char *section = resolved.c_str();
+    // ⭐ Audio and rumble are the CONTROLLER's settings, not its config's
+    // (controller_settings.inl): read from its own section. The triggers stay
+    // the config's.
+    const std::string ctlName = controller_settings_section(kind, controllerSection);
+    const char *ctl = ctlName.c_str();
     // First, so the log shows what the HOST sent rather than what we left.
     ds5_observe_trigger_blocks(data, length, section);
-    ds5_override_audio_control(data, length, section);
-    ds5_override_speaker_volume(data, length, section);
-    ds5_override_headset_volume(data, length, section);
-    ds5_override_rumble(data, length, section);
+    ds5_override_audio_control(data, length, ctl);
+    ds5_override_speaker_volume(data, length, ctl);
+    ds5_override_headset_volume(data, length, ctl);
+    ds5_override_rumble(data, length, ctl);
 }

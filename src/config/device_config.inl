@@ -170,7 +170,9 @@ static void device_config_reload_shared()
     std::lock_guard<std::mutex> guard(g_device_config_mutex);
     // ⚠️ Only the sections THIS file owns: see device_config_invalidate().
     for (auto it = g_device_config.begin(); it != g_device_config.end(); ) {
-        if (it->first.rfind("cfg:", 0) == 0) ++it;
+        // ⓘ And a controller's own, "ctl:<serial>" and "ctl~<ordinal>"
+        // (controller_settings.inl), which this file does not own either.
+        if (it->first.rfind("cfg:", 0) == 0 || it->first.rfind("ctl", 0) == 0) ++it;
         else it = g_device_config.erase(it);
     }
     for (auto &section : read) {
