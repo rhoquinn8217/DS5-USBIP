@@ -79,9 +79,15 @@ std::vector<unsigned> profile_bytes(const char *profile, const char *sectionName
     const std::string rel = std::string("profiles/descriptors/") + profile;
     const char *ups[] = { "", "../", "../../", "../../../", "../../../../" };
     std::string text;
+    // ⛔ THE SOURCE'S PROFILE, NOT A COPY. build-tests.ps1 runs this from
+    // out\x64\Debug, which can hold a profiles folder copied by an older
+    // build: on 2026-11-08 one from 2026-09-11 was read first and failed every
+    // check here. So the folder is the one beside the source, found the way
+    // offered_names finds rest_config.inl.
     for (const char *up : ups) {
+        if (!std::ifstream((std::string(up) + "src/app/rest_config.inl").c_str(), std::ios::binary)) continue;
         std::ifstream in((std::string(up) + rel).c_str(), std::ios::binary);
-        if (!in) continue;
+        if (!in) break;
         std::stringstream buffer;
         buffer << in.rdbuf();
         text = buffer.str();
