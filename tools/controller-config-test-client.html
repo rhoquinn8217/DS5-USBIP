@@ -2,7 +2,7 @@
 <!--
   DS5-USBIP's Controller Configs page, served by the listener.
 
-  VERSION 2.67.9 -- see the changelog at the bottom of this comment.
+  VERSION 2.68.0 -- see the changelog at the bottom of this comment.
 
   WHAT IT STARTED AS. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -24,6 +24,13 @@
   not a tidy message about it.
 
   CHANGELOG
+    2.68.0   Each controller has settings of its own, kept by the listener
+             for that controller whatever config it reads: its rate limit,
+             audio and rumble, in a window a gear opens, in a new settings
+             column of both device tables, and R3 in Simple and Quick, where
+             it opened the rate limit. The tables and Simple and Quick show
+             the rate and the limit as text, with no dropdown, and a config
+             has no Audio and no Rumble section (rhoquinn8217, 2026-11-08).
     2.67.9   The Overview's hover descriptions in rhoquinn8217's words
              (2026-11-08), and two boxes renamed by them: "Quick switch -
              2-finger touchpad gesture" and "Quick switch: Window select".
@@ -2679,6 +2686,29 @@
     font-size:3vh; padding:1.2vh 2.5vw; }
   body.compact #presetList .prow > button:first-child { font-size:3vh; padding:1.4vh 2vw; }
   body.compact #presetList small { font-size:2.4vh; }
+  /* ⭐ The settings window fits the compact windows as the pre-set boxes do,
+     and scrolls inside itself; the halo's row is kept in sight. */
+  body.compact #ctlSetBox .confirmCard { font-size:3vh; width:auto; max-width:72vw;
+    max-height:92vh; box-sizing:border-box; }
+  body.compact #ctlSetBox .confirmCard h2 { font-size:3.8vh; }
+  body.compact #ctlSetSub { font-size:2.3vh; }
+  body.compact #ctlSetRows h4 { font-size:2.4vh; margin:1.4vh 0 0.6vh; }
+  body.compact #ctlSetRows select, body.compact #ctlSetRows input,
+  body.compact #ctlSetBox .confirmCard button { font-size:3vh; }
+  body.compact #ctlSetFoot { font-size:2.3vh; }
+  body.quick #ctlSetBox .confirmCard { font-size:calc(8.5 * var(--vh)); max-width:94vw;
+    max-height:calc(96 * var(--vh)); padding:calc(2.25 * var(--vh)) 3vw; }
+  body.quick #ctlSetBox .confirmCard h2 { font-size:calc(10 * var(--vh)); }
+  body.quick #ctlSetFoot { font-size:calc(6.5 * var(--vh)); margin-top:calc(2 * var(--vh));
+    padding-top:calc(2 * var(--vh)); }
+  /* ⓘ Quick's window holds a few rows at most: no subtitle there, and the
+     rows closer together; the halo's row is scrolled into sight. */
+  body.quick #ctlSetSub { display:none; }
+  body.quick #ctlSetBox .confirmCard h2 { margin-bottom:calc(1 * var(--vh)); }
+  body.quick #ctlSetRows h4 { font-size:calc(6.5 * var(--vh)); margin:calc(1.5 * var(--vh)) 0 calc(0.5 * var(--vh)); }
+  body.quick #ctlSetRows .csrow { padding-top:0; padding-bottom:0; }
+  body.quick #ctlSetRows select, body.quick #ctlSetRows input,
+  body.quick #ctlSetBox .confirmCard button { font-size:calc(8.5 * var(--vh)); }
   /* ⭐ Sits under the tabs and stays with them. Which controller you are
      editing, and which config it is reading, are the two things you must not
      lose track of while scrolling a long settings list. */
@@ -2695,6 +2725,56 @@
   .prate select { padding:1px 6px; font-size:12.5px; margin-left:2px;
                   vertical-align:baseline; }
   .prate select:disabled { opacity:0.55; cursor:not-allowed; }
+  /* ⭐ THE GEAR (rhoquinn8217, 2026-11-08: "In the overview, add a column to
+     the Device List Table Called Settings. Each row will have a clickable
+     gear icon."): a controller's own settings window. The Tabler "settings"
+     glyph (MIT), drawn as the page's button marks are, in the text's colour. */
+  .kgear { width:1.15em; height:1.15em; flex:0 0 auto; vertical-align:-0.2em;
+           fill:none; stroke:currentColor; stroke-width:1.6; stroke-linecap:round;
+           stroke-linejoin:round; }
+  button.csetgear { display:inline-flex; align-items:center; gap:0.35em; line-height:1;
+                    padding:3px 8px; vertical-align:middle; }
+  /* ⓘ In Simple and Quick, after the rate and its limit, at their size, with
+     R3's mark: R3 opens it there. ⓘ Tight, so the line takes no more room
+     than the limit's dropdown did and stays on the name's line in Simple
+     (rhoquinn8217, 2026-10-20: "put the controller icon, nickname, battery,
+     polling and rate limit on one line"). */
+  #compactBox button.csetgear { font-size:1em; padding:0.08em 0.22em; margin-left:0.3em;
+                                gap:0.12em; min-width:0; }
+  #compactBox button.csetgear .kgear { width:0.95em; height:0.95em; }
+  #compactBox button.csetgear .kps { width:0.9em; height:0.9em; }
+  /* ⭐ THE SETTINGS WINDOW: a card over the page, as the pre-set boxes are
+     (rhoquinn8217's picture, 2026-11-08). */
+  #ctlSetBox { position:fixed; inset:0; z-index:61; display:none;
+               align-items:center; justify-content:center; background:#0009; }
+  /* ⓘ Its title and Close stay where they are, and the rows scroll between
+     them. */
+  #ctlSetBox .confirmCard { width:430px; max-width:92vw; max-height:90vh; overflow:hidden;
+                            box-sizing:border-box; display:flex; flex-direction:column; }
+  #ctlSetRows { flex:1 1 auto; min-height:0; overflow:auto; }
+  /* ⛔ Advanced's page is zoomed (--advZoom), and a vh inside it is
+     multiplied again: divided back, as the body's own min-height is. */
+  body:not(.compact) #ctlSetBox .confirmCard { max-height:calc(90vh / var(--advZoom)); }
+  #ctlSetBox .confirmCard h2 { margin:0 0 2px; font-size:16px; }
+  #ctlSetSub { font-size:11px; color:#9a9caa; margin:0 0 6px; }
+  #ctlSetRows h4 { margin:10px 0 4px; font-size:12px; font-weight:600; color:#ffd166; }
+  #ctlSetRows .csrow { display:flex; align-items:center; justify-content:space-between;
+                       gap:12px; padding:3px 8px; border-radius:6px; }
+  #ctlSetRows .csname { flex:1 1 auto; min-width:0; }
+  #ctlSetRows .csnow { color:#9a9caa; }
+  #ctlSetRows .csval { display:inline-flex; align-items:center; gap:0.3em; white-space:nowrap; }
+  /* ⓘ The ›, a unit, or nothing, in one column, so the values' right edges
+     line up. */
+  #ctlSetRows .csarr { display:inline-block; width:1.6em; text-align:center; color:#9a9caa;
+                       cursor:pointer; user-select:none; }
+  #ctlSetRows .csslot { display:inline-block; width:1.6em; text-align:left; }
+  #ctlSetRows .csarr:hover { color:#e8e8ea; }
+  #ctlSetRows select, #ctlSetRows input { font-size:inherit; }
+  #ctlSetRows input[type=number] { width:5.5em; text-align:right; }
+  #ctlSetFoot { display:flex; justify-content:space-between; align-items:center; gap:12px;
+                margin-top:12px; padding-top:10px; border-top:1px solid #2c2e36;
+                font-size:11px; color:#9a9caa; }
+  #ctlSetHint { display:inline-flex; align-items:center; gap:0.35em; flex-wrap:wrap; }
   /* ⭐ The WHOLE row. A 3px bar at the left edge was invisible unless you knew
      to look, and the point is noticing at a glance that a pad is connected.
      Kept dim enough that the text still reads. */
@@ -3535,7 +3615,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.67.9</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.68.0</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -3589,6 +3669,17 @@
     <div class="confirmBtns">
       <button onclick="presetCancel()">Cancel</button>
     </div>
+  </div>
+</div>
+
+<!-- ⭐ A controller's own settings (openControllerSettings). -->
+<div id="ctlSetBox" style="display:none">
+  <div class="confirmCard">
+    <h2 id="ctlSetTitle">Controller settings</h2>
+    <div id="ctlSetSub"></div>
+    <div id="ctlSetRows"></div>
+    <div id="ctlSetFoot"><span id="ctlSetHint"></span>
+      <button id="ctlSetClose" onclick="closeControllerSettings()">Close</button></div>
   </div>
 </div>
 
@@ -4124,7 +4215,7 @@ var LAST_DEVICES = [];
 // ⚠️ Validated on every render -- a section that no longer exists (a config
 // with no keys of that family) falls back to the first rather than showing an
 // empty pane.
-var SECT_ACTIVE = 'Audio';
+var SECT_ACTIVE = 'Gyro';
 
 // ⭐ One strip in the header, but a set of sections PER PANE -- Overview edits
 // whichever config you pick, a controller tab edits its own. Held here and
@@ -4602,6 +4693,8 @@ function refreshBatteries(list) {
 // cursor never travels.
 // ⓘ The first choice is no limit at all, called Real time as the DS5Dongle
 // and its forks call theirs (rhoquinn8217, 2026-10-14). It was max in 2.66.82.
+// ⭐ CHOSEN IN THE CONTROLLER'S SETTINGS WINDOW since 2026-11-08, and shown as
+// text in the tables (rateTag).
 var RATE_CHOICES = [['real_time', 'Real time'], ['500', '500 Hz'], ['250', '250 Hz'], ['125', '125 Hz']];
 
 // The devices the readouts were last painted from. A head drawn again from
@@ -4626,72 +4719,59 @@ function rateTitle(d) {
   return t;
 }
 
-// What the dropdown shows: the limit that APPLIES. A value the listener does
-// not take, written into a config by hand, reads as Real time, which is what
-// it does.
+// What the limit reads: the one that APPLIES. A value the listener does not
+// take, written into a config by hand, reads as Real time, which is what it
+// does.
 function rateSelectValue(d) {
   var limit = Number(d.rate_limit_hz) || 0;
   return limit > 0 ? String(limit) : 'real_time';
 }
 
-// Why the dropdown cannot be used here, or '' when it can.
-// ⓘ No config is needed since 2.66.86: the limit is the controller's own.
-function rateLockReason(d) {
-  return d.takes_rate_limit ? '' : 'This device is never limited.';
+// The limit in words, as the settings window's choices name it.
+function rateLimitText(d) {
+  var v = rateSelectValue(d);
+  var c = RATE_CHOICES.filter(function (x) { return x[0] === v; })[0];
+  return c ? c[1] : v + ' Hz';
 }
 
-function rateTag(d, mark) {
+function rateLimitTitle(d) {
+  return 'The most reports a second Windows may get from this controller, ' +
+         (d.settings_kept === false ? 'kept until it is unbridged'
+                                    : 'kept for this controller, whatever config it reads') +
+         '. Set it in its settings, with the gear.';
+}
+
+// ⭐⭐ THE RATE AND ITS LIMIT AS TEXT, IN ALL THREE VIEWS (rhoquinn8217,
+// 2026-11-08: "Lets remove polling rate drop down. For all three views only
+// show the current polling rate and the rate limit, with rate limit is no
+// longer being a drop down."). The limit is set in the controller's settings
+// window, which the gear beside it opens, and R3 in Simple and Quick.
+// ⛔ A keyboard or a mouse shows the rate alone. The listener never limits
+// one: a mouse report is a movement, and one thinned out is distance the
+// cursor never travels. ⓘ Nor a DS5Dongle's keyboard half since 2026-11-08,
+// though it carries the dongle's DualSense ids ("the keyboard rate limit
+// should be ignore").
+function rateTag(d) {
   var html = '<span class="prate" data-ord="' + esc(String(d.ordinal)) + '">' +
              '<span class="prate-hz" title="' + esc(rateTitle(d)) + '">' +
              esc(rateHzText(d)) + '</span>';
   if (d.takes_rate_limit) {
-    var lock = rateLockReason(d);
-    var value = rateSelectValue(d);
-    var opts = RATE_CHOICES.map(function (c) {
-      return '<option value="' + c[0] + '"' + (c[0] === value ? ' selected' : '') + '>' +
-             c[1] + '</option>';
-    }).join('');
-    var kept = normSerial(d.serial)
-      ? 'kept for this controller, whatever config it reads'
-      : 'kept until it is unbridged, since it reports no serial to be remembered by';
-    var title = lock || ('The most reports a second Windows may get from this controller, ' +
-                kept + '. Real time passes on every report the moment ' +
-                'it arrives. A number is a ' +
-                'ceiling: a report that comes early waits for its turn, and the newest ' +
-                'always wins, so nothing piles up.');
-    // ⓘ The compact views' mouse handling, as their config selector has: in
-    // Simple and Quick a click opens it in the window, as the pad does,
-    // rather than as a native list unrolling past the window's edge.
-    // pickerActivate leaves Advanced's tables their native dropdown.
-    var pick = '<select data-ord="' + esc(String(d.ordinal)) + '" title="' + esc(title) + '"' +
-               (lock ? ' disabled' : '') + ' onmousedown="pickerActivate(event,this)"' +
-               ' onclick="pickerClickEnd(this)" onchange="setRateLimit(this)">' + opts + '</select>';
-    // ⭐ IN QUICK, R3'S MARK WHERE ITS ARROW WAS (2.66.87; rhoquinn8217,
-    // 2026-10-16: "replace the down carrot next to the rate limit and replace
-    // with (R3) in a circle. R3 will be the key that lets you reach the rate
-    // limit"): the press that opens it, drawn as the legends draw theirs,
-    // inside the box, and a click passes through it to the box.
-    if (mark) pick = '<span class="rpick">' + pick + '<span class="rmark">' + mark + '</span></span>';
-    html += ' / ' + pick;
+    html += ' / <span class="prate-lim" title="' + esc(rateLimitTitle(d)) + '">' +
+            esc(rateLimitText(d)) + '</span>';
   }
   return html + '</span>';
 }
 
 // ⓘ One per part, as the battery gauges are: two halves under one name each
-// have their own rate. `mark` goes on the first limit alone, the one R3
-// opens (gpRate).
-function rateTags(parts, mark) {
-  var marked = false;
-  return (parts || []).map(function (d) {
-    var m = mark && !marked && d.takes_rate_limit ? mark : '';
-    if (m) marked = true;
-    return rateTag(d, m);
-  }).join(' ');
+// have their own rate.
+function rateTags(parts) {
+  return (parts || []).map(function (d) { return rateTag(d); })
+                      .join(' <span class="muted">·</span> ');
 }
 
 // ⭐ THE READOUTS FOLLOW THE POLL, in place, like the gauges: a rate changes
 // every second, and a full redraw for each would take the halo off whatever it
-// was on. ⓘ A dropdown in use is left alone.
+// was on.
 function refreshRates(list) {
   if (list) RATE_LIST = list;
   var byOrd = {};
@@ -4706,30 +4786,328 @@ function refreshRates(list) {
       var title = rateTitle(d);
       if (hz.title !== title) hz.title = title;
     }
-    var sel = el.querySelector('select');
-    if (sel && sel !== document.activeElement && !sel.classList.contains('gp-selecting')) {
-      var want = rateSelectValue(d);
-      if (sel.value !== want) sel.value = want;
+    var lim = el.querySelector('.prate-lim');
+    if (lim) {
+      var words = rateLimitText(d);
+      if (lim.textContent !== words) lim.textContent = words;
     }
   });
 }
 
-// The dropdown's choice, written to the config the controller is linked to.
-function setRateLimit(sel) {
-  var ord = sel.getAttribute('data-ord');
+// A limit chosen in the settings window, written to the controller.
+// ⭐ TO THE CONTROLLER, not to a config (2.66.86).
+function setRateLimitFor(ord, value) {
   var d = (RATE_LIST || []).concat(LAST_DEVICES || []).filter(function (x) {
     return String(x.ordinal) === ord;
   })[0];
   if (!d || !d.takes_rate_limit) return;
-  // ⭐ TO THE CONTROLLER, not to a config (2.66.86).
   call('POST', '/api/v1/devices/' + encodeURIComponent(ord) + '/polling_rate',
-       { polling_rate: sel.value })
-    .then(function () { setConn('polling limit → ' + sel.value, 'good'); })
+       { polling_rate: value })
+    .then(function () { setConn('polling limit → ' + value, 'good'); })
     .catch(function () {});
   // ⓘ The readout answers once a second of reports has been counted at the
   // new rate, so it is asked again shortly rather than at the next poll.
   setTimeout(pollRates, 1300);
   setTimeout(pollRates, 2600);
+}
+
+// ⭐⭐ A CONTROLLER'S OWN SETTINGS (rhoquinn8217, 2026-11-08: "controller
+// specific settings for audio and rumble are not appropriate for configs.
+// Each controller needs a settings file that DS5-USBIP maintains and they
+// are tracked by serial"): its polling limit, audio and rumble, in a window
+// of their own, opened by the gear in the device tables and by R3 in Simple
+// and Quick. The listener keeps them for the controller, whatever config it
+// reads (config/controller_settings.inl), and every controller starts at the
+// defaults ("start every controller at the defaults"). One with no usable
+// serial, or bridged while another with its serial is, keeps them until it
+// is unbridged.
+// ⓘ Only a controller has them (has_settings): a keyboard or a mouse has no
+// gear ("only controllers").
+
+// The keys, in the window's order, by the names it shows them with (the
+// picture rhoquinn8217 approved, 2026-11-08), and a unit after the value
+// where one helps. ⓘ PC sound as vibration stands under Rumble, as the
+// picture has it: it is felt, not heard.
+var CONTROLLER_SETTINGS = [
+  { key: 'audio_output', name: 'Audio output', sect: 'Audio' },
+  { key: 'speaker_volume', name: 'Speaker volume', sect: 'Audio' },
+  { key: 'headset_volume', name: 'Headset volume', sect: 'Audio' },
+  { key: 'audio_gain', name: 'Gain', sect: 'Audio' },
+  { key: 'force_echo_cancel', name: 'Echo cancel always on', sect: 'Audio' },
+  // ⓘ Bluetooth only, so a cable never shows it (inertReason).
+  { key: 'audio_latency_ms', name: 'Speaker buffer', sect: 'Audio', unit: 'ms' },
+  { key: 'master_rumble_gain', name: 'All rumble', sect: 'Rumble', unit: '%' },
+  { key: 'rumble_gain_heavy', name: 'Heavy motor', sect: 'Rumble', unit: '%' },
+  { key: 'rumble_gain_soft', name: 'Soft motor', sect: 'Rumble', unit: '%' },
+  { key: 'rumble_floor', name: 'Floor', sect: 'Rumble' },
+  { key: 'audio_haptics', name: 'Haptics from audio', sect: 'Rumble' },
+  { key: 'audio_haptics_strength', name: 'Haptics strength', sect: 'Rumble', unit: '%' },
+  { key: 'audio_haptics_bass_hz', name: 'Haptics bass', sect: 'Rumble', unit: 'Hz' },
+  { key: 'audio_haptics_mode', name: 'When the game vibrates too', sect: 'Rumble' }
+];
+var CONTROLLER_SETTING_KEYS = {};
+CONTROLLER_SETTINGS.forEach(function (s) { CONTROLLER_SETTING_KEYS[s.key] = 1; });
+
+var SETTINGS_OPEN = '';       // the ordinal whose settings window is open, or ''
+var SETTINGS_TIMERS = {};     // a write waiting, per key, as writeOne's
+
+// The part of a device that has settings of its own: a DS5Dongle's controller
+// half, not its keyboard half.
+function settingsPartOf(ordinal) {
+  return partsOf(ordinal).filter(function (p) { return p.has_settings; })[0] || null;
+}
+
+var GEAR_SVG = '<svg class="kgear" viewBox="0 0 24 24" aria-hidden="true">' +
+  '<path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 ' +
+  '3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 ' +
+  '-1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 ' +
+  '1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 ' +
+  '-1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 ' +
+  '-3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z"/>' +
+  '<path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/></svg>';
+
+// The gear for a device's row: a dash in the tables for one with no settings
+// of its own, and nothing in Simple and Quick. `mark`: R3's, where R3 opens it.
+function settingsGearHtml(ordinal, mark) {
+  var p = settingsPartOf(ordinal);
+  if (!p) return mark ? '' : '<span class="muted">—</span>';
+  return '<button class="csetgear" data-ord="' + esc(p.ordinal) + '"' +
+         ' onclick="openControllerSettings(\'' + esc(p.ordinal) + '\')"' +
+         ' title="' + esc(nameFor(p.ordinal)) +
+         '’s own settings: polling, audio and rumble">' + GEAR_SVG + (mark || '') + '</button>';
+}
+
+function settingMeta(key) {
+  return (KEYS || []).filter(function (k) { return k.key === key; })[0] || null;
+}
+
+// ⭐ WHAT THE WINDOW OFFERS A CONTROLLER: "Based on the controller type". The
+// listener says what each pad has (has_audio, has_rumble_gains), and a setting
+// that cannot act on this pad (inertReason) is not shown at all, so each type
+// shows only what it has.
+// ⓘ Missing flags mean TRUE, as in the editor: an older listener sends none.
+function controllerSettingRows(d) {
+  var can = function (flag) { return d[flag] === undefined ? true : !!d[flag]; };
+  return CONTROLLER_SETTINGS.filter(function (s) {
+    if (s.sect === 'Audio' && !can('has_audio')) return false;
+    if (s.sect === 'Rumble' && !can('has_rumble_gains')) return false;
+    if (!settingMeta(s.key)) return false;
+    return !inertReason(s.key, d.kind);
+  });
+}
+
+// A choice in words: auto reads Auto, headset_mono Headset mono.
+function settingChoiceWords(value) {
+  var v = String(value);
+  return v.charAt(0).toUpperCase() + v.slice(1).replace(/_/g, ' ');
+}
+
+// ⭐ A VALUE PUT BACK TO ITS DEFAULT IS TAKEN OUT OF THE FILE, so a controller
+// at its defaults has nothing set, as a new one starts, and nothing is forced
+// on it: an unset volume still leaves a game's own volume alone
+// (ds5_level_for). '' tells the listener so.
+function settingSendValue(meta, raw) {
+  var v = String(raw === undefined || raw === null ? '' : raw);
+  if (v === '') return '';
+  if (meta && meta.default !== undefined && meta.default !== null && v === String(meta.default)) return '';
+  return v;
+}
+
+function settingRowHtml(s, meta, saved) {
+  var id = 'cs-' + s.key;
+  var has = saved[s.key] !== undefined && saved[s.key] !== '';
+  var val = has ? String(saved[s.key])
+                : (meta.default !== undefined && meta.default !== null ? String(meta.default) : '');
+  var on = ' onchange="controllerSettingChanged(\'' + s.key + '\')"';
+  var control;
+  if (meta.type === 'choice' && meta.choices) {
+    control = '<span class="csarr" onclick="settingArrow(\'' + id + '\',-1)">‹</span>' +
+              '<select id="' + id + '"' + on + '>' + meta.choices.map(function (c) {
+                return '<option value="' + esc(c) + '"' + (val === String(c) ? ' selected' : '') + '>' +
+                       esc(settingChoiceWords(c)) + '</option>';
+              }).join('') + '</select>' +
+              '<span class="csarr" onclick="settingArrow(\'' + id + '\',1)">›</span>';
+  } else if (meta.type === 'bool') {
+    var b = val === 'true' || val === '1';
+    control = '<select id="' + id + '"' + on + '>' +
+              '<option value="true"' + (b ? ' selected' : '') + '>on</option>' +
+              '<option value="false"' + (b ? '' : ' selected') + '>off</option></select>' +
+              '<span class="csslot"></span>';
+  } else {
+    var range = '';
+    if (meta.min !== undefined && meta.min !== null) range += ' min="' + Number(meta.min) + '"';
+    if (meta.max !== undefined && meta.max !== null) range += ' max="' + Number(meta.max) + '"';
+    control = '<input id="' + id + '" type="number" step="1" value="' + esc(val) + '"' + range + on + '>' +
+              '<span class="csslot">' + esc(s.unit || '') + '</span>';
+  }
+  return '<div class="csrow" data-tip="' + esc(meta.help || '') + '">' +
+         '<label class="csname" for="' + id + '">' + esc(s.name) + '</label>' +
+         '<span class="csval">' + control + '</span></div>';
+}
+
+// ⓘ The polling limit first, "Rate limit · 1000 Hz now": the rate is live,
+// a .prate the poll keeps up to date (refreshRates).
+function settingsRowsHtml(d, saved) {
+  var html = '';
+  if (d.takes_rate_limit) {
+    var now = rateSelectValue(d);
+    html += '<h4>Polling</h4><div class="csrow" data-tip="' + esc(rateLimitTitle(d)) + '">' +
+            '<label class="csname" for="cs-rate">Rate limit <span class="csnow">· ' +
+            '<span class="prate" data-ord="' + esc(d.ordinal) + '"><span class="prate-hz">' +
+            esc(rateHzText(d)) + '</span></span> now</span></label>' +
+            '<span class="csval"><span class="csarr" onclick="settingArrow(\'cs-rate\',-1)">‹</span>' +
+            '<select id="cs-rate" onchange="controllerRateChanged()">' +
+            RATE_CHOICES.map(function (c) {
+              return '<option value="' + c[0] + '"' + (c[0] === now ? ' selected' : '') + '>' + c[1] + '</option>';
+            }).join('') + '</select>' +
+            '<span class="csarr" onclick="settingArrow(\'cs-rate\',1)">›</span></span></div>';
+  }
+  ['Audio', 'Rumble'].forEach(function (sect) {
+    var rows = controllerSettingRows(d).filter(function (s) { return s.sect === sect; });
+    if (!rows.length) return;
+    html += '<h4>' + sect + '</h4>';
+    rows.forEach(function (s) { html += settingRowHtml(s, settingMeta(s.key), saved); });
+  });
+  return html || '<span class="muted">Nothing to set on this controller.</span>';
+}
+
+// ⓘ The footer's marks are the ones in hand, as the legends draw them.
+function paintSettingsHint() {
+  var lg = padLegend();
+  var hint = document.getElementById('ctlSetHint');
+  if (hint) hint.innerHTML = keyCap(lg.select) + ' change · ' + keyCap(lg.dpad) + ' move · ' +
+                             keyCap(lg.close) + ' close';
+}
+
+function settingsSubtitle(d, kept) {
+  var sn = normSerial(d.serial);
+  return deviceLabelShort(d) + ' · ' + (kept
+    ? 'kept for this controller, whatever config it reads'
+    : (!sn || /^0+$/.test(sn)
+       ? 'kept until it is unbridged: it reports no serial to be remembered by'
+       : 'kept until it is unbridged: another controller bridged now has its serial'));
+}
+
+function openControllerSettings(ord) {
+  var d = deviceByOrdinal(ord);
+  if (!d || !d.has_settings) return;
+  if (SETTINGS_OPEN && SETTINGS_OPEN !== ord) closeControllerSettings();
+  if (GP_SELECTING) gpSelectEnd(true);
+  if (FOOTER_MODE) setFooterMode(false);
+  if (!SETTINGS_OPEN) OVERLAY_OPENER = GP_FOCUS[GP_INDEX] || null;
+  SETTINGS_OPEN = ord;
+  document.getElementById('ctlSetTitle').textContent = (d.nickname || nameFor(ord)) + ' settings';
+  document.getElementById('ctlSetSub').textContent = settingsSubtitle(d, d.settings_kept !== false);
+  document.getElementById('ctlSetRows').innerHTML = '<span class="muted">loading…</span>';
+  paintSettingsHint();
+  document.getElementById('ctlSetBox').style.display = 'flex';
+  gpCollect();
+  GP_INDEX = 0;
+  gpPaint();
+  call('GET', '/api/v1/devices/' + encodeURIComponent(ord) + '/settings').then(function (r) {
+    var now = deviceByOrdinal(ord);
+    if (SETTINGS_OPEN !== ord || !now) return;
+    document.getElementById('ctlSetSub').textContent =
+      settingsSubtitle(now, !(r && r.kept === false));
+    document.getElementById('ctlSetRows').innerHTML = settingsRowsHtml(now, (r && r.settings) || {});
+    gpCollect();
+    GP_INDEX = 0;
+    gpPaint();
+  }).catch(function () {
+    if (SETTINGS_OPEN !== ord) return;
+    document.getElementById('ctlSetRows').innerHTML =
+      '<span class="warnc">This controller’s settings could not be read.</span>';
+    gpCollect();
+  });
+}
+
+// A write waiting is sent now rather than lost, and the halo goes back to
+// what opened the window.
+function closeControllerSettings() {
+  if (!SETTINGS_OPEN) return;
+  if (GP_SELECTING) gpSelectEnd(true);
+  if (GP_EDITING) {
+    GP_EDITING.classList.remove('gp-selecting');
+    GP_EDITING.blur();
+    GP_EDITING = null;
+  }
+  Object.keys(SETTINGS_TIMERS).forEach(function (k) {
+    var t = SETTINGS_TIMERS[k];
+    clearTimeout(t.timer);
+    delete SETTINGS_TIMERS[k];
+    t.send();
+  });
+  SETTINGS_OPEN = '';
+  document.getElementById('ctlSetBox').style.display = 'none';
+  tipHide();
+  gpCollect();
+  if (!TUT && OVERLAY_OPENER) focusElement(OVERLAY_OPENER);
+}
+
+// One setting, to the listener, kept by the controller. '' is its default.
+function postControllerSetting(ord, key, value) {
+  var body = {};
+  body[key] = value;
+  return call('POST', '/api/v1/devices/' + encodeURIComponent(ord) + '/settings', body)
+    .then(function () { setConn(key + ' → ' + (value === '' ? 'default' : value), 'good'); })
+    .catch(function () {});
+}
+
+// ⓘ Written 400 ms after the last change, as the editor's rows are, so a
+// value stepped ten times is one write.
+function controllerSettingChanged(key) {
+  var ord = SETTINGS_OPEN;
+  var el = document.getElementById('cs-' + key);
+  var meta = settingMeta(key);
+  if (!ord || !el || !meta) return;
+  if (el.type === 'number' && el.value !== '') {
+    var n = Number(el.value);
+    if (meta.min !== undefined && meta.min !== null && n < Number(meta.min)) el.value = String(meta.min);
+    if (meta.max !== undefined && meta.max !== null && n > Number(meta.max)) el.value = String(meta.max);
+  }
+  var value = settingSendValue(meta, el.value);
+  if (SETTINGS_TIMERS[key]) clearTimeout(SETTINGS_TIMERS[key].timer);
+  var send = function () { postControllerSetting(ord, key, value); };
+  SETTINGS_TIMERS[key] = { send: send, timer: setTimeout(function () {
+    delete SETTINGS_TIMERS[key];
+    send();
+  }, 400) };
+}
+
+function controllerRateChanged() {
+  var el = document.getElementById('cs-rate');
+  if (SETTINGS_OPEN && el) setRateLimitFor(SETTINGS_OPEN, el.value);
+}
+
+// ‹ and ›, and ◄ ► on the pad: the choice before or after, no further than
+// the list's ends.
+function settingArrow(id, dir) {
+  var el = document.getElementById(id);
+  if (!el || el.tagName !== 'SELECT') return;
+  var next = Math.max(0, Math.min(el.options.length - 1, el.selectedIndex + dir));
+  if (next === el.selectedIndex) return;
+  el.selectedIndex = next;
+  el.dispatchEvent(new Event('change'));
+}
+
+// ◄ ► in the window: a choice steps, a number moves by 10 within its range,
+// as a value box's ◄ ► do, and anything else is a step sideways.
+function settingsStep(dir) {
+  var el = GP_FOCUS[GP_INDEX];
+  if (el && el.closest && el.closest('#ctlSetRows')) {
+    if (el.tagName === 'SELECT') { settingArrow(el.id, dir); return; }
+    if (el.tagName === 'INPUT' && el.type === 'number') {
+      var cur = parseFloat(el.value);
+      if (isNaN(cur)) cur = 0;
+      var next = cur + dir * 10;
+      if (el.min !== '' && next < parseFloat(el.min)) next = parseFloat(el.min);
+      if (el.max !== '' && next > parseFloat(el.max)) next = parseFloat(el.max);
+      el.value = String(next);
+      el.dispatchEvent(new Event('change'));
+      return;
+    }
+  }
+  gpMove(dir);
 }
 
 // ⭐ ONCE A SECOND, while a readout is on screen. POLL_MS is four seconds, and
@@ -4779,6 +5157,8 @@ function renderTabs(devices) {
   }
   LAST_DEVICES = devices || [];
   groupDevices(LAST_DEVICES);
+  // ⓘ A settings window whose controller has gone (unbridged) goes with it.
+  if (SETTINGS_OPEN && !deviceByOrdinal(SETTINGS_OPEN)) closeControllerSettings();
   // The event, not an expiry: a device in the list means bridging works now.
   if (LAST_DEVICES.length) clearBridgeWait();
   else noteBridgeMayNeedAMoment();
@@ -6262,7 +6642,7 @@ function openPresetInfo(ordinal, presetName) {
   // layout -- but it matches the page's order anyway, because two orders for
   // the same thing is how they drift.
   var order = ['Gyro', 'Touchpad', 'Triggers', 'Left stick', 'Right stick',
-               'Audio', 'Rumble', 'Buttons', 'Other'];
+               'Buttons', 'Other'];
   var html = '';
   order.forEach(function(name) {
     if (rows[name] && rows[name].length) html += presetTable(name, rows[name]);
@@ -6550,7 +6930,10 @@ function devHeadRow(p) {
              '<td>' + batteryTags(parts) + '</td>' +
              '<td>' + rateTags(parts) + '</td>' +
              '<td>' + serialCell + '</td>' +
-             '<td>' + autoCell + '</td></tr>');
+             '<td>' + autoCell + '</td>' +
+             // ⭐ ITS GEAR LAST, as Overview's (rhoquinn8217, 2026-11-08: "In the
+             // controller view, add the Settings column there as well").
+             '<td>' + settingsGearHtml(p.ordinal) + '</td></tr>');
 }
 
 // One controller's own page: what it reads, and its settings, editable here.
@@ -6582,7 +6965,7 @@ function buildDevicePane(d) {
   });
 
   var head = '<table class="devrow"><tr><th>nickname</th><th>device</th><th>battery</th><th>polling rate / rate limit</th><th>serial</th>' +
-             '<th>auto linked config</th></tr>' +
+             '<th>auto linked config</th><th>settings</th></tr>' +
              // ⭐ One row for the device, all its parts in it (devHeadRow, above).
              devHeadRow(d) + '</table>';
 
@@ -6827,9 +7210,9 @@ function inertReason(key, sessionKind) {
 // touchpad_*_tap / _drag keys (T-242) and still read, so a config written
 // before the split keeps its gestures. Hidden for the same reason the gate
 // is: two controls for one thing, and whichever you touched last wins.
-// ⓘ polling_rate is set in the device tables' polling rate column (2.66.82),
-// beside the rate it limits. A row here as well would be a second control
-// for one thing.
+// ⓘ polling_rate is the rate limit in a controller's settings window
+// (2026-11-08; the device tables' dropdown from 2.66.82). A row here as well
+// would be a second control for one thing.
 var HIDDEN_SETTINGS = { trigger_probe: 1, gyro_to_mouse_gate: 1,
                         touchpad_tap_click: 1, touchpad_click_drag: 1,
                         polling_rate: 1 };
@@ -6891,6 +7274,20 @@ function sectionOf(key) {
   return 'Other';
 }
 
+// ⭐⭐ NO AUDIO AND NO RUMBLE IN A CONFIG (rhoquinn8217, 2026-11-08: "Config
+// should not have an audio and rumble section anymore"): they are the
+// controller's own, in its settings window (openControllerSettings). A config
+// file that still holds them keeps them, and nothing reads them.
+function configEditorGroups(keys) {
+  var groups = {};
+  (keys || []).forEach(function (meta) {
+    if (CONTROLLER_SETTING_KEYS[meta.key]) return;
+    var g = sectionOf(meta.key);
+    (groups[g] = groups[g] || []).push(meta);
+  });
+  return groups;
+}
+
 // ⭐ ONE settings editor, used by both a controller tab and Overview.
 //
 // It was two before: the tabs had this, and Overview had a
@@ -6913,21 +7310,7 @@ function renderConfigEditor(hostId, configName, prefix, ordinal) {
     if (hostId === 'cfgEditor' && OV_CONFIG !== configName) return;
     var current = cfg.settings || {};
 
-    var groups = {};
-    KEYS.forEach(function(meta) {
-      var g = sectionOf(meta.key);
-      (groups[g] = groups[g] || []).push(meta);
-    });
-    // ⭐ audio_latency_ms first within Audio -- it is the one that gets tweaked
-    // constantly, and burying it under volumes meant scrolling for it every
-    // time.
-    if (groups.Audio) {
-      groups.Audio.sort(function(a, b) {
-        if (a.key === 'audio_latency_ms') return -1;
-        if (b.key === 'audio_latency_ms') return 1;
-        return 0;
-      });
-    }
+    var groups = configEditorGroups(KEYS);
 
     // ⭐ No Apply button. Changing a value writes it.
     //
@@ -6977,8 +7360,6 @@ function renderConfigEditor(hostId, configName, prefix, ordinal) {
       return capDev[flag] === undefined ? true : !!capDev[flag];
     };
     var SECTION_NEEDS = {
-      'Audio': 'has_audio',
-      'Rumble': 'has_rumble_gains',
       'Touchpad': 'has_touchpad',
       'Gyro': 'has_gyro',
       'Edge buttons': 'has_edge_buttons'
@@ -6999,7 +7380,7 @@ function renderConfigEditor(hostId, configName, prefix, ordinal) {
     //
     // ⓘ Right still comes first WITHIN each section -- mode, switch, gate, then
     // tuning -- so the top of whichever tab you open is the thing you wanted.
-    var order = ['Audio', 'Rumble', 'Gyro', 'Touchpad', 'Triggers',
+    var order = ['Gyro', 'Touchpad', 'Triggers',
                  'Left stick', 'Right stick',
                  'Face buttons', 'Shoulder/stick buttons', 'System buttons', 'Edge buttons',
                  'Other'].filter(shows);
@@ -7463,24 +7844,19 @@ function wheelUnlink(ord) {
 
 // Triangle, and A from a keyboard: auto link on the config selector, or
 // remove the one standing; nothing anywhere else.
-// ⭐ R3 OPENS QUICK'S POLLING LIMIT (2.66.87; rhoquinn8217, 2026-10-16: "R3
-// will be the key that lets you reach the rate limit"), RS on an Xbox pad
-// and L on a keyboard: the halo goes to it, open, from wherever it was, the
-// footer's zone included. Up and down step it; ✕ or R3 again keeps the
-// choice, ○ puts the old one back, and either way the halo goes back to
-// the config wheel (gpSelectEnd). In Simple too since 2026-10-20 ("The rate
-// limit should only be acessible with R3"), its limit under the nickname;
-// nothing in Advanced.
+// ⭐ R3 OPENS THE CONTROLLER'S SETTINGS IN SIMPLE AND QUICK (rhoquinn8217,
+// 2026-11-08: "In simple mode and quick mode R3 now opens the settings
+// window"), RS on an Xbox pad and L on a keyboard, and closes them again.
+// From 2.66.87 it opened the polling limit ("R3 will be the key that lets you
+// reach the rate limit"), which is in the window now. Nothing in Advanced,
+// whose gear the d-pad reaches.
 function gpRate() {
+  if (SETTINGS_OPEN) { closeControllerSettings(); return; }
   if (!COMPACT) return;
-  var sel = document.querySelector('#compactBox .crate-q select:not(:disabled), ' +
-                                   '#compactBox .crate select:not(:disabled)');
-  if (!sel) return;
-  if (GP_SELECTING === sel) { gpSelectEnd(true); return; }
   if (GP_SELECTING || GP_EDITING || CONFIRM_CB || RENAMING || PRESET_OPEN ||
       PRESET_INFO_OPEN) return;
-  if (FOOTER_MODE) setFooterMode(false);
-  if (focusElement(sel)) gpActivate();
+  var p = settingsPartOf(ACTIVE);
+  if (p) openControllerSettings(p.ordinal);
 }
 
 function gpTriangle() {
@@ -7593,7 +7969,7 @@ function quickShown(d) {
 // True when it was taken, so the caller does not also move the halo.
 function quickVertical(delta) {
   if (!COMPACT || FOOTER_MODE || GP_SELECTING || GP_EDITING ||
-      CONFIRM_CB || RENAMING || PRESET_OPEN || PRESET_INFO_OPEN) return false;
+      CONFIRM_CB || RENAMING || PRESET_OPEN || PRESET_INFO_OPEN || SETTINGS_OPEN) return false;
   var sel = document.getElementById('cpick');
   if (!sel) return false;
   if (!QUICK && GP_FOCUS[GP_INDEX] !== sel) return false;
@@ -7900,7 +8276,7 @@ function loadDevices() {
     // same thing in different words -- 'linked' here, 'auto linked config'
     // there -- so reading one taught you nothing about the other.
     var html = '<table><tr><th>nickname</th><th>device</th><th>battery</th><th>polling rate / rate limit</th><th>serial</th>' +
-               '<th>auto linked config</th><th></th></tr>';
+               '<th>auto linked config</th><th></th><th>settings</th></tr>';
     // ⭐ ONE ROW PER DEVICE, as on its tab (rhoquinn8217, 2026-10-02: *"Lets
     // combine the rows with the same name and combine the icons."*). Grouped
     // here because this table is built before renderTabs stores the list;
@@ -7961,7 +8337,10 @@ function loadDevices() {
               '<td>' + rateTags(parts) + '</td>' +
               '<td>' + serial + '</td>' +
               '<td>' + autoCell + '</td>' +
-              '<td>' + autoBtn + '</td></tr>';
+              '<td>' + autoBtn + '</td>' +
+              // ⭐ THE SETTINGS COLUMN, LAST (rhoquinn8217, 2026-11-08): a gear
+              // on a controller's row, a dash on any other.
+              '<td>' + settingsGearHtml(dev.ordinal) + '</td></tr>';
     });
     host.innerHTML = html + '</table>';
 
@@ -8595,6 +8974,19 @@ function gpCollect() {
     return;
   }
 
+  // ⭐ The settings window, the same rule: while it is open it is the only
+  // thing focusable, its rows and Close.
+  if (SETTINGS_OPEN) {
+    document.querySelectorAll('#ctlSetBox select, #ctlSetBox input, #ctlSetBox button').forEach(function (e) {
+      if (e.offsetParent === null || e.disabled) return;
+      list.push(e);
+    });
+    GP_FOCUS = list;
+    if (GP_INDEX >= list.length) GP_INDEX = 0;
+    gpPaint();
+    return;
+  }
+
   var top = document.getElementById('stickyTop');
   if (top) {
     // ⓘ The rate limit (2.66.82) sits first in the head's row, and first in
@@ -8609,7 +9001,11 @@ function gpCollect() {
       // in the list, for R3 to put the halo on (gpRate), and out of the
       // d-pad's reach, which compactMove's rows decide.
       if (COMPACT && QUICK && e.closest && e.closest('#compactBox .cbar')) return;
-      if (e.closest && e.closest('.prate')) { lateInHead.push(e); return; }
+      // ⓘ And the gear since 2026-11-08, last in that row, for the same reason.
+      if (e.closest && (e.closest('.prate') || e.classList.contains('csetgear'))) {
+        lateInHead.push(e);
+        return;
+      }
       list.push(e);
     });
     lateInHead.forEach(function(e) { list.push(e); });
@@ -8834,7 +9230,8 @@ setInterval(function () {
 // in dialogs, where these elements do not exist.
 function gpBoundary(delta) {
   var el = GP_FOCUS[GP_INDEX];
-  if (!el || PRESET_OPEN || PRESET_INFO_OPEN || CONFIRM_CB || RENAMING || FOOTER_MODE) return false;
+  if (!el || PRESET_OPEN || PRESET_INFO_OPEN || CONFIRM_CB || RENAMING || FOOTER_MODE ||
+      SETTINGS_OPEN) return false;
 
   // ⓘ closest() walks up from the element itself, so this is already the strip
   // the focused button belongs to -- no scoping needed here, unlike the
@@ -9596,6 +9993,7 @@ function gpKeyMove(delta) {
     GP_SELECTING.selectedIndex = (GP_SELECTING.selectedIndex + delta + n) % n;
     return;
   }
+  if (SETTINGS_OPEN) { gpMove(delta); return; }
   if (footerUpLeaves(delta)) return;
   if (quickVertical(delta)) return;
   if (COMPACT && compactMove(0, delta)) return;
@@ -9849,6 +10247,8 @@ function gpKeyStep(dir) {
   }
   // ⭐ In compact there is nothing to step: Left and Right move between the
   // footer's buttons, as they do everywhere two things sit side by side.
+  // ⓘ In the settings window, ◄ ► change the row's value (settingsStep).
+  if (SETTINGS_OPEN) { settingsStep(dir); return; }
   if (COMPACT) { if (!compactMove(dir, 0)) gpMove(dir); return; }
   // ⭐ ◄ ► SWITCH SECTIONS (rhoquinn8217, 2026-08-31). Only one section is
   // shown at a time now, so this changes which one that is rather than jumping
@@ -9904,6 +10304,7 @@ function gpKeyBack() {
     return;
   }
   if (GP_SELECTING) { gpSelectEnd(false); return; }
+  if (SETTINGS_OPEN) { closeControllerSettings(); return; }
   if (RENAMING) { cancelRename(); return; }
   // ⭐ IN SIMPLE AND QUICK, CIRCLE GOES TO THE CLOSE BUTTON RATHER THAN
   // CLOSING. Simple first (rhoquinn8217, 2026-09-20: *"circle button or esc on
@@ -10093,6 +10494,8 @@ function savePlace(force) {
   // recording that would mean coming back to the Close button rather than to
   // the setting you were working on.
   if (FOOTER_MODE) return;
+  // ⓘ Nor in the settings window: its rows are no place to come back to.
+  if (SETTINGS_OPEN) return;
 
   var p = placeNow();
 
@@ -11744,7 +12147,8 @@ function paintCompact() {
             // the panel's right edge (alignNameRow).
             (QUICK ? '<span class="cnsep">|</span>' : '') +
             '<span class="' + (QUICK ? 'crate-q' : 'crate') + '">' +
-            rateTags(partsOf(d.ordinal), keyCap(padLegend().rate)) + '</span>' +
+            rateTags(partsOf(d.ordinal)) + settingsGearHtml(d.ordinal, keyCap(padLegend().rate)) +
+            '</span>' +
             '</div>' +
             // ⓘ No device type line in either view (2.66.87): its name heads
             // the config panel, and its symbol stands by the nickname (Quick:
@@ -11919,7 +12323,8 @@ function paintCompact() {
                   '<div class="ccur cqname"><div class="cqemo">' + deviceIcons(partsOf(d.ordinal)) +
                   '</div><div class="cname">' + esc(nameFor(d.ordinal)) +
                   batteryTags(partsOf(d.ordinal)) + '</div><div class="crate-q">' +
-                  rateTags(partsOf(d.ordinal), keyCap(padLegend().rate)) + '</div></div>' +
+                  rateTags(partsOf(d.ordinal)) + settingsGearHtml(d.ordinal, keyCap(padLegend().rate)) +
+                  '</div></div>' +
                   wheel + quickHints()
                 // ⭐ SIMPLE: THE TITLE OVER THE PANEL, THE WHEEL, AND NEW, EDIT,
                 // UNLINK AND AUTO LINK STACKED AT ITS RIGHT, ALL ONE SIZE
@@ -12048,7 +12453,7 @@ function gpTab(delta) {
   //
   // ⓘ Value editing already returns before reaching either caller, so it is not
   // listed: adding it would imply the others were checked when they were not.
-  if (FOOTER_MODE || CONFIRM_CB || RENAMING || PRESET_OPEN || PRESET_INFO_OPEN) {
+  if (FOOTER_MODE || CONFIRM_CB || RENAMING || PRESET_OPEN || PRESET_INFO_OPEN || SETTINGS_OPEN) {
     return;
   }
   // ⭐ In compact, L1/R1 step through CONTROLLERS only -- no Overview, no
@@ -12891,7 +13296,10 @@ function selfTest() {
    'askConfirm','confirmYes','confirmNo','claimAutoLink',
    'stopAutoLink','archive','unlinkConfirmed','renameConfig','copyConfigFor','createFromPreset','presetCancel','openPresetInfo','closePresetInfo','renameKey','loadConfigs','loadDevices',
    'openConfig','applyPick','newConfigFor','preserveScroll','setDown','gpCollect',
-   'rateTag','rateTags','refreshRates','setRateLimit','pollRates',
+   'rateTag','rateTags','refreshRates','setRateLimitFor','pollRates',
+   'settingsGearHtml','openControllerSettings','closeControllerSettings','controllerSettingRows',
+   'configEditorGroups','postControllerSetting','controllerSettingChanged','controllerRateChanged',
+   'settingArrow','settingsStep',
    'toggleTokenShown','paintConnLight','archiveConfigBtn','autoLinkBtnHtml',
    'explainGreyed','clearGreyedNote'
   ].forEach(function(n) {
@@ -13014,16 +13422,14 @@ function selfTest() {
                  takes_rate_limit: true, supports_config: true, linked_config: 'pad',
                  polling_rate: '125', rate_limit_hz: 125 };
     ok('a keyboard shows its rate and no limit',
-       rateTag(kb).indexOf('0 Hz') >= 0 && rateTag(kb).indexOf('<select') < 0, rateTag(kb));
-    ok('a controller with no config can set its limit: it is the controller\'s own',
-       rateTag(loose).indexOf(' disabled') < 0 && rateTag(loose).indexOf('<select') >= 0,
-       rateTag(loose));
-    ok('a linked controller can set its limit, showing the one that applies',
-       rateTag(held).indexOf(' disabled') < 0 &&
-       rateTag(held).indexOf('<option value="125" selected>') >= 0, rateTag(held));
-    ok('the first choice reads Real time',
-       rateTag(loose).indexOf('<option value="real_time" selected>Real time</option>') >= 0,
-       rateTag(loose));
+       rateTag(kb).indexOf('0 Hz') >= 0 && rateTag(kb).indexOf('prate-lim') < 0, rateTag(kb));
+    // ⭐ As text since 2026-11-08: no dropdown in any view.
+    ok('a controller shows its rate and its limit as text, with no dropdown',
+       rateTag(loose).indexOf('<select') < 0 &&
+       rateTag(loose).indexOf('250 Hz</span> / <span class="prate-lim"') >= 0, rateTag(loose));
+    ok('the limit shown is the one that applies',
+       rateTag(held).indexOf('>125 Hz</span></span>') >= 0, rateTag(held));
+    ok('no limit reads Real time', rateLimitText(loose) === 'Real time', rateLimitText(loose));
     ok('a value the listener does not take reads as Real time',
        rateSelectValue({ polling_rate: '1000', rate_limit_hz: 0 }) === 'real_time' &&
        rateSelectValue({ polling_rate: 'max', rate_limit_hz: 0 }) === 'real_time');
@@ -13052,17 +13458,15 @@ function selfTest() {
     ok('the readout follows the poll, in place',
        rbox.querySelector('.prate-hz').textContent === '124 Hz',
        rbox.querySelector('.prate-hz').textContent);
-    ok('and so does the limit', rbox.querySelector('select').value === '250',
-       rbox.querySelector('select').value);
+    ok('and so does the limit', rbox.querySelector('.prate-lim').textContent === '250 Hz',
+       rbox.querySelector('.prate-lim').textContent);
     var rsent = [];
     var rateCall = call;
     call = function (method, path, body) {
       rsent.push(method + ' ' + path + ' ' + JSON.stringify(body));
       return Promise.resolve({});
     };
-    var rsel = rbox.querySelector('select');
-    rsel.value = '125';
-    setRateLimit(rsel);
+    setRateLimitFor('ds5_usb_8', '125');
     call = rateCall;
     ok('a limit chosen is written to the controller, and to no config',
        rsent.length === 1 &&
@@ -13070,6 +13474,70 @@ function selfTest() {
        rsent.join(' | '));
     document.body.removeChild(rbox);
     RATE_LIST = savedRates;
+  }
+
+  // ⭐ A CONTROLLER'S OWN SETTINGS (2026-11-08): what its window offers each
+  // kind of controller, where a change is written, and that a config offers
+  // neither Audio nor Rumble. Self-contained: a schema of its own for the
+  // fourteen, made-up devices, and the writes go to a recorder.
+  {
+    var keysWas = KEYS, devsWas = LAST_DEVICES;
+    var kindOfKey = { audio_output: 'choice', audio_haptics_mode: 'choice',
+                      force_echo_cancel: 'bool', audio_haptics: 'bool' };
+    KEYS = CONTROLLER_SETTINGS.map(function (s) {
+      var t = kindOfKey[s.key] || 'int';
+      return { key: s.key, type: t, choices: t === 'choice' ? ['auto', 'speaker'] : undefined,
+               default: t === 'bool' ? false : t === 'choice' ? 'auto' : 100, min: 0, max: 500 };
+    }).concat([{ key: 'gyro_to_mouse', type: 'bool', default: false }]);
+    var keysOf = function (d) { return controllerSettingRows(d).map(function (s) { return s.key; }); };
+    var dsUsb = keysOf({ kind: 'ds5_usb', has_audio: true, has_rumble_gains: true });
+    ok('a cabled DualSense is offered all but the Bluetooth speaker buffer',
+       dsUsb.length === 13 && dsUsb.indexOf('audio_latency_ms') < 0, dsUsb.join(' '));
+    ok('a Bluetooth DualSense, the buffer too',
+       keysOf({ kind: 'ds5', has_audio: true, has_rumble_gains: true }).length === 14);
+    var ds4 = keysOf({ kind: 'ds4_usb', has_audio: true, has_rumble_gains: true });
+    ok('a cabled DS4: its volumes, the gain and its rumble, and nothing it cannot use',
+       ds4.join(' ') === 'speaker_volume headset_volume audio_gain master_rumble_gain ' +
+                         'rumble_gain_heavy rumble_gain_soft rumble_floor', ds4.join(' '));
+    var xb = keysOf({ kind: 'xbox', has_audio: false, has_rumble_gains: true });
+    ok('an Xbox pad: its rumble alone',
+       xb.join(' ') === 'master_rumble_gain rumble_gain_heavy rumble_gain_soft rumble_floor',
+       xb.join(' '));
+    var grp = configEditorGroups(KEYS);
+    ok('a config offers no Audio and no Rumble', !grp.Audio && !grp.Rumble && !!grp.Gyro,
+       Object.keys(grp).join(' '));
+    ok('a value put back to its default is taken out of the file',
+       settingSendValue({ default: 100 }, '100') === '' && settingSendValue({ default: 100 }, '70') === '70' &&
+       settingSendValue({ default: false }, 'false') === '' && settingSendValue({ default: false }, 'true') === 'true');
+    // ⓘ Only controllers have a gear: a DS5Dongle's two halves under one
+    // name have the controller's, its keyboard half none of its own.
+    LAST_DEVICES = [{ ordinal: 'ds5_usb_7', nickname: 'Mochi', kind: 'ds5_usb', has_settings: true },
+                    { ordinal: 'hid_7', nickname: 'Mochi', kind: 'hid', device_type: 'keyboard',
+                      has_settings: false },
+                    { ordinal: 'hid_6', nickname: 'Cobalt', kind: 'hid', device_type: 'mouse',
+                      has_settings: false }];
+    groupDevices(LAST_DEVICES);
+    ok('a controller has a gear, which opens its own settings',
+       settingsGearHtml('hid_7').indexOf('openControllerSettings(\'ds5_usb_7\')') >= 0,
+       settingsGearHtml('hid_7'));
+    ok('a mouse has none: a dash in the tables, nothing in Simple and Quick',
+       settingsGearHtml('hid_6').indexOf('<button') < 0 && settingsGearHtml('hid_6', 'R3') === '',
+       settingsGearHtml('hid_6'));
+    var csent = [];
+    var setCall = call;
+    call = function (method, path, body) {
+      csent.push(method + ' ' + path + ' ' + JSON.stringify(body));
+      return Promise.resolve({});
+    };
+    postControllerSetting('ds5_usb_7', 'speaker_volume', '70');
+    call = setCall;
+    ok('a setting is written to the controller, and to no config',
+       csent.length === 1 &&
+       csent[0] === 'POST /api/v1/devices/ds5_usb_7/settings {"speaker_volume":"70"}',
+       csent.join(' | '));
+    KEYS = keysWas;
+    LAST_DEVICES = devsWas;
+    groupDevices(LAST_DEVICES);
   }
 
   // 🔗 T-248. The hints are a plain array of strings, and the one way this
@@ -14662,7 +15130,8 @@ function tutMockMake(kind) {
              device_type: 'controller', label: 'DualSense (USB)', battery_percent: battery,
              battery_state: 'discharging', has_audio: true, has_rumble_gains: true,
              has_touchpad: true, has_gyro: true, input_rate_hz: 250, arrival_rate_hz: 250,
-             takes_rate_limit: true, supports_config: true };
+             takes_rate_limit: true, supports_config: true, has_settings: true,
+             settings_kept: true };
   };
   return {
     // ⓘ Dual by their word (2026-10-23); the other two are names from the
@@ -14721,7 +15190,7 @@ function tutSnapshot() {
   quickLinkNow();
   var m = TUT_MOCK;
   return JSON.stringify({ configs: m.configs, links: m.links, limits: m.limits, auto: m.auto,
-                         settings: m.settings, made: (TUT && TUT.made) || '' });
+                         settings: m.settings, ctl: m.ctl || {}, made: (TUT && TUT.made) || '' });
 }
 function tutRestore(snap) {
   if (!TUT_MOCK || !snap) return;
@@ -14731,6 +15200,7 @@ function tutRestore(snap) {
   TUT_MOCK.limits = s.limits;
   TUT_MOCK.auto = s.auto;
   TUT_MOCK.settings = s.settings || {};
+  TUT_MOCK.ctl = s.ctl || {};
   // ⓘ And the tour's name for the config it made, renamed or not made yet,
   // and no box counted as ticked: the rows are drawn from what is put back.
   if (TUT) { TUT.made = s.made || ''; TUT.ticked = {}; }
@@ -14794,6 +15264,19 @@ function tutMockCall(method, path, body) {
     }
     if (method === 'POST' && hit[2] === 'polling_rate') {
       m.limits[ord] = String((body && body.polling_rate) || '250');
+    }
+    // ⓘ Its own settings, as the listener keeps them: an empty one is its
+    // default.
+    if (hit[2] === 'settings') {
+      m.ctl = m.ctl || {};
+      var own = m.ctl[ord] = m.ctl[ord] || {};
+      if (method === 'POST' && body) {
+        Object.keys(body).forEach(function (k) {
+          if (body[k] === '' || body[k] === null || body[k] === undefined) delete own[k];
+          else own[k] = String(body[k]);
+        });
+      }
+      return done({ ordinal: ord, kept: true, settings: JSON.parse(JSON.stringify(own)) });
     }
     return done({ ok: true });
   }
@@ -14979,7 +15462,8 @@ function tutQ() {
 // ⓘ The page's own box, while it is up: its question (Archive's, the box
 // after a config is made) or its name row (Advanced's Rename, 2.66.120). It
 // keeps the keys, the pad and the halo, as with no tour, and the mouse.
-function tutPageModal() { return !!CONFIRM_CB || !!RENAMING; }
+// ⓘ And a controller's settings window (2026-11-08), opened on the rate's step.
+function tutPageModal() { return !!CONFIRM_CB || !!RENAMING || !!SETTINGS_OPEN; }
 
 // The page's own question, while it is up: Archive's, with OK and Cancel, or
 // the box after a config is made. ⓘ Auto link asks nothing since 2.66.100.
@@ -15104,12 +15588,14 @@ function tutWordsWheel() {
          'applied to ' + tutNick() + ' immediately after the wheel stops and the config is selected. ' +
          'Try it: press ' + tutKey('updown') + ', then choose ' + tutHl('Continue') + '.';
 }
-// ⓘ `press`: what opens the limit, R3 in Simple and Quick; Advanced's the
-// d-pad reaches, and it says none.
+// ⓘ `press`: what opens the controller's settings, R3 in Simple and Quick;
+// Advanced's gear the d-pad reaches, and it says none.
 function tutWordsRate(press) {
-  return 'How often ' + tutNick() + ' reports, and the most you allow. ' +
-         (press ? 'Press ' + press + ' to open the limit, and pick ' : 'Open the limit, and pick ') +
-         tutHl('250 Hz') + '.';
+  return 'How often ' + tutNick() + ' reports, and the most you allow, kept in ' + tutNick() +
+         "'s own settings. " +
+         (press ? 'Press ' + press + ' to open them'
+                : 'Open them: press ' + tutKey('select') + ' on the gear, or click it') +
+         ', and set the rate limit to ' + tutHl('250 Hz') + '.';
 }
 // ⓘ `press`: what to press, Simple's button on the page or Quick's on the
 // pad; `also`, the other way to do it, where there is one.
@@ -15573,15 +16059,14 @@ var TUT_QUICK = [
     keys: tutShoulderKeys,
     words: function () { return tutWordsShoulders(''); } },
   // 3 (*"Move bubble to left side of window, disable continue and direct user
-  // to press right stick button and select 250"*). The list is the page's
-  // own, and takes the keys while it is open. ⭐ R3 alone opens it, as on the
-  // page (*"Rate Limit should not be able to focused and expanded with x
-  // button"*): the halo reaches the limit only with R3's press (`keyTarget`).
-  { side: 'left', act: true, keyTarget: '.crate-q select',
-    lit: function () { return tutQ('.cqname .crate-q'); },
-    keys: function (code, gated, plain) {
-      return !!GP_SELECTING || ((gated || plain) && code === 'KeyL');
-    },
+  // to press right stick button and select 250"*). ⭐ R3 opens the
+  // controller's settings since 2026-11-08 ("In simple mode and quick mode R3
+  // now opens the settings window"), and the limit is picked there: the
+  // window is the page's own, and keeps the keys while it is open
+  // (tutPageModal).
+  { side: 'left', act: true,
+    lit: function () { return SETTINGS_OPEN ? tutCard('ctlSetBox') : tutQ('.cqname .crate-q'); },
+    keys: function (code, gated, plain) { return (gated || plain) && code === 'KeyL'; },
     enter: tutRateEnter, words: function () { return tutWordsRate(tutKey('rate')); }, done: tutRateDone },
   // 4 (*"combine step 3 and 4"*: the wheel, and turning it)
   { free: true, lit: function () { return tutQ('.cwheel'); }, keys: tutUpDownKeys, words: tutWordsWheel },
@@ -15686,12 +16171,11 @@ var TUT_SIMPLE = [
     hits: function () { return tutQ('.cside.l', '.cside.r'); },
     keys: tutShoulderKeys,
     words: function () { return tutWordsShoulders(', shown either side'); } },
-  // 3: R3 alone reaches the limit, as on the page.
-  { side: 'right', act: true, keyTarget: '.crate select',
-    lit: function () { return tutQ('.cname .crate'); },
-    keys: function (code, gated, plain) {
-      return !!GP_SELECTING || ((gated || plain) && code === 'KeyL');
-    },
+  // 3: R3 opens the controller's settings, as on the page, and the limit is
+  // picked there.
+  { side: 'right', act: true,
+    lit: function () { return SETTINGS_OPEN ? tutCard('ctlSetBox') : tutQ('.cname .crate'); },
+    keys: function (code, gated, plain) { return (gated || plain) && code === 'KeyL'; },
     enter: tutRateEnter, words: function () { return tutWordsRate(tutKey('rate')); }, done: tutRateDone },
   // 4: ⓘ Simple's wheel steps only under the halo, so each press takes the
   // halo there for its moment (keyAim), and gives it back.
@@ -16279,12 +16763,12 @@ var TUT_ADVANCED = [
     } },
   // 5: Dual, on its tab, in Simple's and Quick's words.
   { side: 'left', enter: tutAdvDual, lit: function () { return [tutAdvTab()]; }, words: tutWordsDual },
-  // 6: the polling limit, which the d-pad reaches here (R3 opens it in Simple
-  // and Quick only): open, and 250 Hz picked. The list is the page's own.
+  // 6: the controller's settings, which the gear opens here (R3 in Simple
+  // and Quick): opened, and the limit set to 250 Hz there. The window is the
+  // page's own.
   { side: 'left', act: true,
-    focus: function () { return document.querySelector('#stickyHead .prate select'); },
-    lit: function () { return tutA('#stickyHead .prate'); },
-    keys: function () { return !!GP_SELECTING; },
+    focus: function () { return document.querySelector('#stickyHead .csetgear'); },
+    lit: function () { return SETTINGS_OPEN ? tutCard('ctlSetBox') : tutA('#stickyHead .csetgear'); },
     enter: tutRateEnter, words: function () { return tutWordsRate(''); }, done: tutRateDone },
   // 7 and 8 (*"split into two steps, one to expand config list and another
   // step to select any"*): the config list, where Simple's and Quick's have
@@ -16583,7 +17067,7 @@ function tutViewKind() { return !COMPACT ? 'advanced' : QUICK ? 'quick' : 'simpl
 function tutMaybeStart() {
   if (TUT || STOPPED || IS_DOWN) return;
   if (document.visibilityState !== 'visible') return;
-  if (GP_SELECTING || CONFIRM_CB || RENAMING || PRESET_OPEN || PRESET_INFO_OPEN) return;
+  if (GP_SELECTING || CONFIRM_CB || RENAMING || PRESET_OPEN || PRESET_INFO_OPEN || SETTINGS_OPEN) return;
   var view = tutViewKind();
   // ⓘ Never by itself while the page tests itself (?selftest): a tour would
   // take the window from under the test.
@@ -16972,6 +17456,7 @@ function tutCloseOpen() {
   tutEditEnd();
   if (GP_SELECTING) gpSelectEnd(false);
   if (PRESET_OPEN || PRESET_INFO_OPEN) presetCancel();
+  if (SETTINGS_OPEN) closeControllerSettings();
   tutBoxLocks(false);
 }
 
@@ -16991,6 +17476,9 @@ function tutShow(i, keep) {
   var steps = tutSteps();
   if (i < 0 || i >= steps.length) return;
   if (!keep) tutCloseOpen();
+  // ⓘ The settings window shuts as its step is done: nothing after it goes on
+  // with it.
+  else if (SETTINGS_OPEN) closeControllerSettings();
   tutBoxLocks(false);
   var changed = TUT.phase !== 'step' || TUT.at !== i;
   TUT.phase = 'step';
@@ -17306,7 +17794,8 @@ function tutAllows(t) {
   var root = tutById('tutRoot');
   if (root && t && root.contains(t)) return true;
   var box = CONFIRM_CB ? document.getElementById('confirmBox')
-          : RENAMING ? document.getElementById('renameRow') : null;
+          : RENAMING ? document.getElementById('renameRow')
+          : SETTINGS_OPEN ? document.getElementById('ctlSetBox') : null;
   if (box && t && box.contains(t)) return true;
   var s = tutStep();
   if (s && (s.act === true || s.free) && !TUT.busy && (!s.pointer || s.pointer())) {
