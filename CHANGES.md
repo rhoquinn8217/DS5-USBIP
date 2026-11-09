@@ -219,7 +219,7 @@ ENet library, removed with the ENet transport).
  .github/ISSUE_TEMPLATE/config.yml             |     5 +
  .github/ISSUE_TEMPLATE/feature-request.yml    |    22 +
  .gitignore                                    |    43 +-
- CHANGES.md                                    |   490 +
+ CHANGES.md                                    |   493 +
  LINK                                          |     0
  README.md                                     |   291 +-
  THIRD-PARTY-NOTICES.txt                       |   618 +
@@ -350,8 +350,8 @@ ENet library, removed with the ENet transport).
  src/audio/ds4_output_overrides.inl            |    38 +
  src/audio/ds4_rumble.inl                      |    68 +
  src/audio/ds4_speaker.inl                     |    62 +
- src/audio/ds5_apply_settings.inl              |   324 +
- src/audio/ds5_output_overrides.inl            |   739 +
+ src/audio/ds5_apply_settings.inl              |   336 +
+ src/audio/ds5_output_overrides.inl            |   804 ++
  src/audio/iso_in_pacing.inl                   |   223 +
  src/audio/iso_in_test_tone.inl                |   103 +
  src/audio/mic_ring.inl                        |   229 +
@@ -401,7 +401,7 @@ ENet library, removed with the ENet transport).
  src/main.cpp                                  |  1140 +-
  src/map/runtime.cpp                           |   205 +-
  src/usbdisplay/README.md                      |    13 +
- src/usbip/device.inl                          |  1129 +-
+ src/usbip/device.inl                          |  1176 +-
  src/usbip/fallback_serial.inl                 |    81 +
  src/usbip/fine_timer.inl                      |    54 +
  src/usbip/input_pace.inl                      |   131 +
@@ -419,7 +419,7 @@ ENet library, removed with the ENet transport).
  tests/default_speaker_rule_test.cpp           |   197 +
  tests/device_capabilities_test.cpp            |    80 +
  tests/device_config_cache_test.cpp            |   148 +
- tests/device_config_test.cpp                  |   643 +
+ tests/device_config_test.cpp                  |   686 +
  tests/device_names_test.cpp                   |   110 +
  tests/device_type_test.cpp                    |    89 +
  tests/ds4_settings_test.cpp                   |   359 +
@@ -481,7 +481,7 @@ ENet library, removed with the ENet transport).
  tests/window_move_test.cpp                    |   136 +
  tests/window_open_rule_test.cpp               |    43 +
  tests/window_size_rule_test.cpp               |   129 +
- tools/controller-config-test-client.html      | 17545 ++++++++++++++++++++++++
+ tools/controller-config-test-client.html      | 17705 ++++++++++++++++++++++++
  tools/create-desktop-shortcut.bat             |    46 +
  tools/create-desktop-shortcut.ps1             |   148 +
  tools/osk-mockups.py                          |   103 +
@@ -489,5 +489,5 @@ ENet library, removed with the ENet transport).
  tools/sbc-golden-gen/ffmpeg_side.cpp          |   117 +
  tools/sbc-golden-gen/ffmpeg_side.h            |    15 +
  tools/sbc-golden-gen/main.cpp                 |   131 +
- 275 files changed, 81969 insertions(+), 6132 deletions(-)
+ 275 files changed, 82299 insertions(+), 6132 deletions(-)
 ```
