@@ -243,7 +243,16 @@ inline std::atomic_bool g_compact{false};
 // clipped at the large one. Measured: 500 px of row against 576 wanted.
 // ➡️ Keep the two widths in the same ratio as the two heights.
 // 0.342 x 1.255 is 0.429, which measures 585 against 585.
-inline const SizeShare kQuickSizes[2] = { { 0.342, 0.196 }, { 0.429, 0.246 } };
+// ⭐ WIDER SINCE 2026-11-09, FOR THE WINDOW SELECT IN ITS LEGEND (rhoquinn8217:
+// "Quick mode has space and we can expand it as well", then the d-pad's
+// "window select" in Quick's legend while the switch holds the window up):
+// five entries want 568 px with a keyboard in hand, of 530 at 0.342. At 0.37
+// they have 588; the large at 0.47 has 753 for 727, a little more than its
+// share of the heights' ratio (0.464) so it keeps the small one's spare room.
+//
+//   small   0.37 x 0.196   what the page opens Quick at
+//   large   0.47 x 0.246
+inline const SizeShare kQuickSizes[2] = { { 0.37, 0.196 }, { 0.47, 0.246 } };
 inline std::atomic_int  g_sizeQuick{0};
 inline std::atomic_bool g_quick{false};
 

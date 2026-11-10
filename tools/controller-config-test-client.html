@@ -2,7 +2,7 @@
 <!--
   DS5-USBIP's Controller Configs page, served by the listener.
 
-  VERSION 2.68.4 -- see the changelog at the bottom of this comment.
+  VERSION 2.68.5 -- see the changelog at the bottom of this comment.
 
   WHAT IT STARTED AS. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -24,6 +24,11 @@
   not a tidy message about it.
 
   CHANGELOG
+    2.68.5   While the quick config switch holds the window up, with Quick
+             switch: Window select ticked, Quick's legend ends with the
+             d-pad, its left and right filled, and "window select";
+             Quick is 0.37 of the screen wide for it, from 0.342, and its
+             large 0.47 from 0.429 (rhoquinn8217, 2026-11-09).
     2.68.4   "Quick switch: 2-finger touchpad gesture", from "Quick switch -
              2-finger touchpad gesture", as "Quick switch: Window select"
              reads (rhoquinn8217, 2026-11-09).
@@ -3658,7 +3663,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.68.4</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.68.5</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -5738,10 +5743,14 @@ var DPAD_ARMS = {
   up: 'M7.6 3.2H12.4V7.6H7.6Z', down: 'M7.6 12.4H12.4V16.8H7.6Z',
   left: 'M3.2 7.6H7.6V12.4H3.2Z', right: 'M12.4 7.6H16.8V12.4H12.4Z'
 };
-function dpadArm(dir) {
-  return '<svg class="kdpad" viewBox="0 0 20 20" role="img" aria-label="d-pad ' + dir + '">' +
+function dpadArm(dir) { return dpadArms([dir]); }
+// ⓘ And more than one arm filled: the window select's left and right in
+// Quick's legend (2026-11-09).
+function dpadArms(dirs) {
+  return '<svg class="kdpad" viewBox="0 0 20 20" role="img" aria-label="d-pad ' + dirs.join(' and ') + '">' +
          '<path d="M7.6 3.2H12.4V7.6H16.8V12.4H12.4V16.8H7.6V12.4H3.2V7.6H7.6Z"/>' +
-         '<path class="karm" d="' + DPAD_ARMS[dir] + '"/></svg>';
+         dirs.map(function (d) { return '<path class="karm" d="' + DPAD_ARMS[d] + '"/>'; }).join('') +
+         '</svg>';
 }
 function buttonMarkSet() {
   var legend = padLegend();
@@ -8230,6 +8239,9 @@ function quickSwitchStep(delta) {
 // ⓘ A step not yet linked is linked first.
 function quickSwitchKeep() {
   quickLinkOnLeave();
+  // ⓘ Kept: the d-pad is the window's again, and the legend says so.
+  SWITCH_KEPT = true;
+  if (COMPACT) paintCompact();
   fetch(base() + '/api/v1/ui/view')
     .then(function (r) { return r.json(); })
     .then(function (v) {
@@ -11207,9 +11219,12 @@ function paintQuickSwitch() {
 }
 function takeQuickSwitch(r) {
   if (!r || typeof r.on !== 'boolean') return;
+  var selectWas = switchWindowSelect();
   QUICK_SWITCH = r.on;
   if (typeof r.app_switcher === 'boolean') APP_SWITCHER = r.app_switcher;
   paintQuickSwitch();
+  // ⓘ Quick's legend names the window select only while it acts.
+  if (switchWindowSelect() !== selectWas) paintCompact();
 }
 function loadQuickSwitch() {
   call('GET', '/api/v1/ui/quick-switch', undefined, true).then(takeQuickSwitch).catch(function () {});
@@ -11651,8 +11666,10 @@ function compactSize() {
 // are TWO PLACERS: a switch sizes the window here, the resize button there,
 // and 2.66.49 changed only the listener's, so a switch opened at the old
 // width.
+// ⭐ 0.37 wide since 2.68.5 (2026-11-09), for the window select in its
+// legend.
 function quickSize() {
-  compactHome(Math.round(screen.availWidth * 0.342),
+  compactHome(Math.round(screen.availWidth * 0.37),
               Math.round(screen.availHeight * 0.196));
 }
 
@@ -12500,7 +12517,11 @@ function paintCompact() {
                         // ⭐ R3 OPENS THE CONTROLLER'S SETTINGS, IN EVERY VIEW'S
                         // LEGEND (rhoquinn8217, 2026-11-09), last, so the places
                         // a tour lights keep their numbers.
-                        [keyCap(LG.rate), 'settings']]) + '</div></div>' +
+                        [keyCap(LG.rate), 'settings']].concat(
+                        // ⭐ And the d-pad's window select, last, while the switch
+                        // holds the window up with it ticked (switchWindowSelect).
+                        switchWindowSelect() ? [[dpadArms(['left', 'right']), 'window select']] : [])) +
+            '</div></div>' +
             modeGroupHtml() +
             '<button class="cclose" onclick="closeWindow()">Close</button></div>';
   } else {
@@ -13430,6 +13451,7 @@ function selfTest() {
    'settingsGearHtml','openControllerSettings','closeControllerSettings','controllerSettingRows',
    'configEditorGroups','postControllerSetting','controllerSettingChanged','controllerRateChanged',
    'settingArrow','settingsStep','settingsKeepInView','compactRateLine','r3SettingsOrdinal',
+   'switchWindowSelect','dpadArms',
    'toggleTokenShown','paintConnLight','archiveConfigBtn','autoLinkBtnHtml',
    'explainGreyed','clearGreyedNote'
   ].forEach(function(n) {
@@ -13709,6 +13731,28 @@ function selfTest() {
       QUICK = true; qLine = compactRateLine('hid_7', 'div');
       QUICK = false; sLine = compactRateLine('hid_7', 'span');
     } finally { QUICK = keepQuickView; }
+    // ⭐ Quick's legend names the window select only while the switch holds
+    // the window up with the box ticked (2026-11-09).
+    var wsKeep = { c: COMPACT, q: QUICK, o: OPENED_BY_SWITCH, k: SWITCH_KEPT, s: QUICK_SWITCH, a: APP_SWITCHER };
+    var wsSeen = [];
+    try {
+      COMPACT = true; QUICK = true; OPENED_BY_SWITCH = true; SWITCH_KEPT = false;
+      QUICK_SWITCH = true; APP_SWITCHER = true;
+      wsSeen.push(switchWindowSelect());
+      APP_SWITCHER = false; wsSeen.push(switchWindowSelect()); APP_SWITCHER = true;
+      SWITCH_KEPT = true; wsSeen.push(switchWindowSelect()); SWITCH_KEPT = false;
+      OPENED_BY_SWITCH = false; wsSeen.push(switchWindowSelect()); OPENED_BY_SWITCH = true;
+      QUICK = false; wsSeen.push(switchWindowSelect());
+    } finally {
+      COMPACT = wsKeep.c; QUICK = wsKeep.q; OPENED_BY_SWITCH = wsKeep.o; SWITCH_KEPT = wsKeep.k;
+      QUICK_SWITCH = wsKeep.s; APP_SWITCHER = wsKeep.a;
+    }
+    var wsMark = dpadArms(['left', 'right']);
+    ok('Quick names the window select only while the switch holds it up with the box ticked; ' +
+       'its d-pad has left and right filled',
+       wsSeen.join(' ') === 'true false false false false' &&
+       wsMark.split('class="karm"').length === 3 && dpadArm('up').split('class="karm"').length === 2,
+       wsSeen.join(' '));
     ok("Quick's rate line has no gear, Simple's the gear without R3's mark",
        qLine.indexOf('csetgear') < 0 && sLine.indexOf('csetgear') >= 0 && sLine.indexOf('kps') < 0,
        qLine + ' / ' + sLine);
@@ -15053,7 +15097,7 @@ function selfTest() {
        padSeen.join(',') === 'true,true,true', padSeen.join(','));
     ok('the tutorial: Simple and Quick, shown in a tour, at their large sizes, Advanced at its small, ' +
        'and only while a tour runs',
-       shares.join(' ') === '{"w":0.63,"h":0.4819} {"w":0.429,"h":0.246} null' &&
+       shares.join(' ') === '{"w":0.63,"h":0.4819} {"w":0.47,"h":0.246} null' &&
        homes.join(' ') === Math.round(aw * 0.63) + 'x' + Math.round(ah * 0.4819) + ' ' +
                            Math.round(aw * 0.505) + 'x' + Math.round(ah * 0.3879),
        shares.join(' ') + ' / ' + homes.join(' '));
@@ -15328,6 +15372,17 @@ var TUT_WORDS_REST = { asked: 0, moving: true };   // the press poll's last answ
 var TUT_TICK_TIMER = null;   // tutTick between frames
 var TUT_MOCK = null;         // the practice controllers and configs, while a tour runs
 var OPENED_BY_SWITCH = false;  // this window is the quick config switch's (restoreView)
+var SWITCH_KEPT = false;       // and kept since, by a second press or R3 (quickSwitchKeep)
+
+// ⭐ "WINDOW SELECT" IN QUICK'S LEGEND WHILE THE SWITCH HOLDS THE WINDOW UP
+// (rhoquinn8217, 2026-11-09: "during a quick switch, if "Quick Switch: Window
+// select" is on, add d-pad symbol with left and right colored in with label
+// "window select" to the legend. This is only in quick mode."): the window
+// the switch opened and has not been kept, with the box ticked, when the
+// d-pad's left and right are Windows' window switcher.
+function switchWindowSelect() {
+  return !!(COMPACT && QUICK && OPENED_BY_SWITCH && !SWITCH_KEPT && QUICK_SWITCH && APP_SWITCHER);
+}
 
 function tutById(id) { return document.getElementById(id); }
 
@@ -16006,7 +16061,7 @@ function tutPadEvent(word) {
 // it gives with no tour (fitWindow): null. ⓘ A tour that starts in Advanced
 // still borrows its large size (ui/tour-size).
 function tutLargeShare() {
-  return !COMPACT ? null : QUICK ? { w: 0.429, h: 0.246 } : { w: 0.63, h: 0.4819 };
+  return !COMPACT ? null : QUICK ? { w: 0.47, h: 0.246 } : { w: 0.63, h: 0.4819 };
 }
 function tutLargeSize() {
   if (!TUT_SIZING) return;
