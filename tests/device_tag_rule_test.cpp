@@ -40,9 +40,10 @@ int run_device_tag_rule_tests()
         CTM_CHECK_EQ(type_name("", "Wireless Controller", "controller"), std::string("Wireless Con"));
         CTM_CHECK_EQ(type_name("", "", "controller"), std::string("controller"));
         CTM_CHECK_EQ(type_name("", "", ""), std::string());
-        // a DualSense's MAC as it is kept is twelve; a longer serial is cut
-        CTM_CHECK_EQ(serial_tag("a0fa9cef9b30"), std::string("a0fa9cef9b30"));
-        CTM_CHECK_EQ(serial_tag("63635e6bf4e30de12"), std::string("63635e6bf4e3"));
+        // a DualSense's MAC as it is kept is twelve; a longer serial is cut;
+        // both in capitals, "All caps the serical/mac"
+        CTM_CHECK_EQ(serial_tag("a0fa9cef9b30"), std::string("A0FA9CEF9B30"));
+        CTM_CHECK_EQ(serial_tag("63635e6bf4e30de12"), std::string("63635E6BF4E3"));
         CTM_CHECK_EQ(serial_tag(""), std::string());
         // trimmed, and never a space left at the end of a cut
         CTM_CHECK_EQ(clean("  Titan  "), std::string("Titan"));
@@ -57,7 +58,10 @@ int run_device_tag_rule_tests()
     {
         CTM_CHECK_EQ(base(Mode::Random, "Titan", "DualSense", "a0fa9cef9b30"), std::string());
         CTM_CHECK_EQ(base(Mode::Type, "Titan", "DualSense", "a0fa9cef9b30"), std::string("DualSense"));
-        CTM_CHECK_EQ(base(Mode::Serial, "Titan", "DualSense", "a0fa9cef9b30"), std::string("a0fa9cef9b30"));
+        CTM_CHECK_EQ(base(Mode::Serial, "Titan", "DualSense", serial_tag("a0fa9cef9b30")),
+                     std::string("A0FA9CEF9B30"));
+        // ⓘ only the serial: a type and a custom tag keep their own letters
+        CTM_CHECK_EQ(base(Mode::Custom, "Titan", "DualSense", serial_tag("a0fa9cef9b30")), std::string("Titan"));
         CTM_CHECK_EQ(base(Mode::Custom, "Titan", "DualSense", "a0fa9cef9b30"), std::string("Titan"));
         CTM_CHECK_EQ(base(Mode::Custom, "A very long custom tag", "", ""), std::string("A very long"));
         // nothing to go by is random: a custom tag never typed, no serial

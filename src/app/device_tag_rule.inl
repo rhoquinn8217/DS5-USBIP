@@ -93,9 +93,13 @@ inline std::string type_name(const std::string &model, const std::string &produc
 
 // The serial as it is kept (config_store::normalise_serial: a DualSense's MAC
 // is twelve characters that way); "" when it has none.
+// ⭐ IN CAPITALS (rhoquinn8217, 2026-11-10: *"All caps the serical/mac"*):
+// the file keeps it in small letters, the name is A0FA9CEF9B30.
 inline std::string serial_tag(const std::string &normalisedSerial)
 {
-    return clean(normalisedSerial);
+    std::string tag = clean(normalisedSerial);
+    for (char &c : tag) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+    return tag;
 }
 
 // The tag a choice gives, before a number for a twin; "" is random, as is a
