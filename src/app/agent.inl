@@ -174,6 +174,46 @@ static void watch_windows_lock()
     }).detach();
 }
 
+#include "uac_watch.inl"
+
+// ⭐⭐ A UAC PROMPT, WATCHED AS THE LOCK IS (uac_prompt_rule.inl says why and
+// what is told). STATUS carries what is up, and the TV takes every controller
+// until it closes. ⓘ Four times a second, so with the TV asking every second
+// the controllers change hands within about a second of the prompt.
+static std::atomic_int g_uac_prompt{uac_prompt_rule::kNone};
+
+static void watch_uac_prompts()
+{
+    std::thread([]() {
+        const DWORD session = uac_watch::own_session();
+        bool wasUp = false;
+        while (!g_stop.load()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(250));
+            const bool locked = g_windows_locked.load();
+            // ⓘ No look while locked: the lock screen's rule holds then.
+            const bool up = !locked && uac_watch::prompt_up(session);
+            if (up == wasUp) continue;
+            wasUp = up;
+            const int now = uac_prompt_rule::status_for(up, locked,
+                                                        up ? uac_watch::read_policy() : uac_prompt_rule::Policy{});
+            g_uac_prompt.store(now);
+            if (now == uac_prompt_rule::kYesNo) {
+                device_log::session(device_log::msg()
+                    << "UAC: a Yes or No prompt is up: the TV takes the controllers until it closes");
+            } else if (now == uac_prompt_rule::kTyping) {
+                device_log::session(device_log::msg()
+                    << "UAC: a prompt that can ask for a password or PIN is up: the TV takes the "
+                       "controllers until it closes, and offers its keyboard");
+            } else if (locked) {
+                device_log::session(device_log::msg()
+                    << "UAC: Windows locked over the prompt: the lock screen's rule now");
+            } else {
+                device_log::session(device_log::msg() << "UAC: the prompt closed");
+            }
+        }
+    }).detach();
+}
+
 // ⭐⭐ THE PAIRING PROOF (code review, 2026-10-05; rhoquinn8217's choice,
 // 2026-10-07). paired_tv.inl has the whole rule; these are what the control
 // port keeps for it.
@@ -1450,8 +1490,9 @@ static void handle_agent_client(SOCKET client, const sockaddr_in &peer)
     if (command == "STATUS") {
         // ⭐ With this listener's protocol level, and the oldest TV level it
         // works with: the TV refuses to bridge to a listener it is too new for
-        // (protocol_level.inl).
-        send_text(client, protocol_level::status_reply(g_windows_locked.load()));
+        // (protocol_level.inl). ⭐ And whether Windows is locked, and whether a
+        // UAC prompt is up.
+        send_text(client, protocol_level::status_reply(g_windows_locked.load(), g_uac_prompt.load()));
         return;
     }
 
@@ -1591,6 +1632,7 @@ static int run_agent(uint16_t port)
     // ⭐ Before any bridge: a stream started at the lock screen starts this
     // listener behind it, and its first bridge must already know.
     watch_windows_lock();
+    watch_uac_prompts();
     WSADATA data = {};
     if (WSAStartup(MAKEWORD(2, 2), &data) != 0) {
         start_report::failed(L"DS5-USBIP could not start: Windows networking did not come up.\n\n" +

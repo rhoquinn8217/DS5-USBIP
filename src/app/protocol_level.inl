@@ -28,10 +28,20 @@
 // ⭐ AND WHETHER WINDOWS IS LOCKED (rhoquinn8217, 2026-11-01). No new bridge while
 // it is, and only this side can see it, so STATUS says "locked=1" and the TV waits
 // for "locked=0". An optional word: an older TV skips it, and meets the refusal.
+//
+// ⭐ AND WHETHER A UAC PROMPT IS UP (rhoquinn8217, 2026-11-09). The TV takes
+// every controller while one is, bridged or not, so STATUS says "uac=0" for no
+// prompt, "uac=1" for a Yes or No prompt and "uac=2" for one that can ask for a
+// password or PIN (uac_prompt_rule.inl says how each is told). An optional word
+// too: an older TV skips it, and a TV that finds no "uac=" takes it as no
+// prompt. ⓘ Never a prompt while Windows is locked: "locked=1" comes with
+// "uac=0".
 
 #pragma once
 
 #include <string>
+
+#include "uac_prompt_rule.inl"
 
 namespace protocol_level {
 
@@ -58,11 +68,13 @@ inline int word_value(const std::string &line, const std::string &word, int miss
     return static_cast<int>(value);
 }
 
-// The answer to STATUS.
-inline std::string status_reply(bool windowsLocked)
+// The answer to STATUS. ⓘ The prompt as uac_prompt_rule's Kind; with Windows
+// locked, none.
+inline std::string status_reply(bool windowsLocked, int uacPrompt = uac_prompt_rule::kNone)
 {
+    const int uac = windowsLocked ? uac_prompt_rule::kNone : uac_prompt_rule::status_word_value(uacPrompt);
     return "OK CTM_AGENT_V1 level=" + std::to_string(kLevel) + " min_tv=" + std::to_string(kMinTv) +
-           (windowsLocked ? " locked=1" : " locked=0") + "\n";
+           (windowsLocked ? " locked=1" : " locked=0") + " uac=" + std::to_string(uac) + "\n";
 }
 
 // A BRIDGE_START while Windows is locked.
