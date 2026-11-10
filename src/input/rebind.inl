@@ -409,7 +409,8 @@ inline void apply(const void *deviceKey,
         // anything here changes the report, and it changes nothing itself:
         // mouse_exclusive.inl hides the touchpad it holds.
         // ⭐ And the right stick, which steps the config too while a finger
-        // holds the window up (2026-11-03).
+        // holds the window up (2026-11-03), and R3, which keeps the window as a
+        // second press does, for the settings it opens (2026-11-09).
         // ⓘ The right stick, read once for the switch and its app switcher below.
         float rx = 0.0f, ry = 0.0f;
         const bool stick = ctm_rebind::stick_axis(chordLayout, data, len, ctm_rebind::kStickRX, &rx) &&
@@ -423,7 +424,7 @@ inline void apply(const void *deviceKey,
                 static_cast<float>(x1), static_cast<float>(y1),
                 at2, ctm_rebind::touch_finger_id(chordLayout, data, len, 1),
                 static_cast<float>(x2), static_cast<float>(y2),
-                stick, rx, ry);
+                stick, rx, ry, ctm_rebind::is_pressed(chordLayout, data, len, ctm_rebind::kBtnR3));
         }
 
         // ⭐ AND THE D-PAD'S APP SWITCHER (rhoquinn8217, 2026-11-06;

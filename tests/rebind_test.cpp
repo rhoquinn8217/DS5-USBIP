@@ -193,7 +193,7 @@ void ctm_chord_show_ui(const std::string &)
 // The quick config switch (quick_switch_session.inl) is not here: it hears
 // nothing, and sends the page no step.
 void quick_switch_report(const void *, bool, bool, int, float, float, bool, int, float, float,
-                         bool, float, float) {}
+                         bool, float, float, bool) {}
 const char *quick_switch_key(const void *) { return nullptr; }
 // ...nor its d-pad app switcher: it takes no button and holds no Alt here.
 uint32_t quick_switch_app_buttons(const void *, bool, bool, bool, bool, float, float) { return 0; }
