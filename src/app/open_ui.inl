@@ -342,6 +342,17 @@ inline void raise_now(HWND hwnd)
                  SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
 }
 
+// The window there is, back in front; false when there is none.
+// ⓘ quick_switch_session.inl: the tour's window, for its stand-in.
+inline bool raise_existing()
+{
+    FindState state;
+    EnumWindows(find_window_proc, reinterpret_cast<LPARAM>(&state));
+    if (state.found == nullptr) return false;
+    raise_now(state.found);
+    return true;
+}
+
 // The program a window belongs to, by its exe's name, for the log. "?" when
 // Windows will not say -- a game run elevated, or by an anti-cheat, refuses.
 inline std::wstring exe_of(HWND hwnd)

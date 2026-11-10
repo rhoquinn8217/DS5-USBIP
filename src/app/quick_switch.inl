@@ -225,6 +225,25 @@ inline const char *mock_report(Mock &m, bool pressEdge, bool pressed, int finger
     return nullptr;
 }
 
+// ⭐ WHAT A PRESS ARMING THE SWITCH DOES, two fingers going in: away from the
+// window, the window comes as the press comes up (Armed, above); with it in
+// front, the press closes it as it comes up (close_up, below). ⭐ WHILE THE
+// TOUR'S STAND-IN IS ON, NEITHER: its steps play the switch, and the tour's
+// window is the one they play it in. In front, it stays; ⭐ OUT OF THE FRONT,
+// IT IS BROUGHT BACK for the stand-in, never replaced by a window of the
+// switch's own (rhoquinn8217, 2026-11-10, on Simple's tour: "on the quick
+// switch part it glitched. looks like it started quick mode tutorial during
+// simple mode tutorial"). A tap beside the tour's shrunk window had clicked
+// the desktop, and the next press opened Quick in a new window, closing the
+// tour's: the tour ended with it, and Quick's own tour started in the new one.
+enum class Arming { Open, Close, Tour, TourBack };
+
+inline Arming arming(bool inFront, bool tourStandIn)
+{
+    if (tourStandIn) return inFront ? Arming::Tour : Arming::TourBack;
+    return inFront ? Arming::Close : Arming::Open;
+}
+
 // ⭐ A FINGER SWIPED UP OR DOWN, WHILE THE WINDOW IS OPEN, ANOTHER RESTING OR
 // NOT (rhoquinn8217, 2026-10-23: "after pressing the touchpad with two finders,
 // 1 finger will not move and the other will swipe up and down.  For example

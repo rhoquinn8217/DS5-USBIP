@@ -442,6 +442,18 @@ int run_quick_switch_tests()
         CTM_CHECK_EQ(mock_steps(m, true, sw, st, up, true, 0.0f, 0.9f, &byStick), 0);
     }
 
+    // ⭐ 2026-11-10: a tap beside the tour's shrunk window clicked the desktop,
+    // and the next press opened Quick in a window of the switch's own, closing
+    // the tour's.
+    section("quick switch: while the tour's stand-in is on, a press opens and closes nothing");
+    {
+        CTM_CHECK(arming(false, false) == Arming::Open);
+        CTM_CHECK(arming(true, false) == Arming::Close);
+        // the tour's window in front stays; out of the front it is brought back
+        CTM_CHECK(arming(true, true) == Arming::Tour);
+        CTM_CHECK(arming(false, true) == Arming::TourBack);
+    }
+
     // ⭐ 2026-11-06: a press with the window in front closes it as it comes up,
     // and not one held to the TV's release.
     section("quick switch: a press with the window in front closes it as it comes up, not at the release");
