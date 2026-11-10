@@ -2,7 +2,7 @@
 <!--
   DS5-USBIP's Controller Configs page, served by the listener.
 
-  VERSION 2.68.8 -- see the changelog at the bottom of this comment.
+  VERSION 2.69.0 -- see the changelog at the bottom of this comment.
 
   WHAT IT STARTED AS. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -24,6 +24,11 @@
   not a tidy message about it.
 
   CHANGELOG
+    2.69.0   Device tag, first in a controller's settings: random, Device
+             Type, Serial/MAC or Custom, the next row its Preview (the name
+             it has now and "current" on random) or on Custom the box, twelve
+             at most; the listener names it at once. "device tag" is the word
+             where "nickname" was (rhoquinn8217, 2026-11-10).
     2.68.8   The self-test's check of a hover beside the pointer points near
              the top of the window: Quick's is 243 px high, too short for a
              tip below a pointer at 200, which was rightly put above it, so
@@ -2818,6 +2823,8 @@
   #ctlSetRows .csarr:hover { color:#e8e8ea; }
   #ctlSetRows select, #ctlSetRows input { font-size:inherit; }
   #ctlSetRows input[type=number] { width:5.5em; text-align:right; }
+  #ctlSetRows input[type=text] { width:7.5em; }
+  #ctlSetRows .cstag { display:inline-block; min-width:7.5em; padding:0 0.45em; }
   #ctlSetFoot { display:flex; justify-content:space-between; align-items:center; gap:12px;
                 margin-top:12px; padding-top:10px; border-top:1px solid #2c2e36;
                 font-size:11px; color:#9a9caa; }
@@ -3676,7 +3683,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.68.8</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.69.0</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -4919,6 +4926,12 @@ function setRateLimitFor(ord, value) {
 // where one helps. ⓘ PC sound as vibration stands under Rumble, as the
 // picture has it: it is felt, not heard.
 var CONTROLLER_SETTINGS = [
+  // ⭐ ITS DEVICE TAG (rhoquinn8217, 2026-11-10): what it is called when it
+  // is bridged, the listener naming it at once (device_tag_rule.inl). The
+  // choice, and the tag typed on Custom.
+  { key: 'device_tag_mode', name: 'Device tag', sect: 'Device',
+    words: { auto: 'random', type: 'Device Type', serial: 'Serial/MAC', custom: 'Custom' } },
+  { key: 'device_tag', name: 'Custom', sect: 'Device' },
   { key: 'audio_output', name: 'Audio output', sect: 'Audio' },
   { key: 'speaker_volume', name: 'Speaker volume', sect: 'Audio' },
   { key: 'headset_volume', name: 'Headset volume', sect: 'Audio' },
@@ -5017,9 +5030,13 @@ function settingRowHtml(s, meta, saved) {
     control = '<span class="csarr" onclick="settingArrow(\'' + id + '\',-1)">‹</span>' +
               '<select id="' + id + '"' + on + '>' + meta.choices.map(function (c) {
                 return '<option value="' + esc(c) + '"' + (val === String(c) ? ' selected' : '') + '>' +
-                       esc(settingChoiceWords(c)) + '</option>';
+                       esc((s.words && s.words[c]) || settingChoiceWords(c)) + '</option>';
               }).join('') + '</select>' +
               '<span class="csarr" onclick="settingArrow(\'' + id + '\',1)">›</span>';
+  } else if (meta.type === 'string') {
+    // ⓘ The custom tag: twelve at most, cleaned as it is typed (tagTyped).
+    control = '<input id="' + id + '" type="text" maxlength="' + TAG_MAX + '" spellcheck="false" value="' +
+              esc(val) + '"' + on + ' oninput="tagTyped(this)"><span class="csslot"></span>';
   } else if (meta.type === 'bool') {
     var b = val === 'true' || val === '1';
     control = '<select id="' + id + '"' + on + '>' +
@@ -5040,8 +5057,94 @@ function settingRowHtml(s, meta, saved) {
 
 // ⓘ The polling limit first, "Rate limit · 1000 Hz now": the rate is live,
 // a .prate the poll keeps up to date (refreshRates).
+// ⭐ THE DEVICE SECTION, first in a controller's settings (rhoquinn8217,
+// 2026-11-10): the tag's choice, then what it gives, "Preview" (*"change
+// preview tag to just preview"*), the name it has now and "current" in gray
+// on random; on Custom a box to type it in, labelled Custom. ⓘ Serial/MAC is
+// not offered to a controller with none to go by.
+var TAG_MAX = 12;
+var CTLSET_SAVED = {};     // the open window's settings as written, for the Device rows
+
+// What a choice gives: the name it has now on random; the listener's words
+// for its type and its serial (device_tag_rule.inl), twelve at most.
+function tagPreview(d, mode) {
+  if (mode === 'type') return String(d.tag_type || String(deviceLabelShort(d)).split(' (')[0]).slice(0, TAG_MAX);
+  if (mode === 'serial') return String(d.tag_serial || '').slice(0, TAG_MAX);
+  return d.nickname || nameFor(d.ordinal);
+}
+function tagPreviewHtml(d, mode) {
+  return esc(tagPreview(d, mode)) + (mode === 'auto' ? ' <span class="csnow">current</span>' : '');
+}
+// The row after the choice: the Preview, or on Custom the box.
+function tagSecondRowHtml(d, mode, saved) {
+  if (mode === 'custom') {
+    var s = CONTROLLER_SETTINGS.filter(function (x) { return x.key === 'device_tag'; })[0];
+    return settingRowHtml(s, settingMeta('device_tag') || { type: 'string', default: '' }, saved);
+  }
+  return '<div class="csrow" data-tip="What this controller is called now, or by this choice.">' +
+         '<span class="csname">Preview</span><span class="csval"><span class="cstag" id="cs-tag-preview">' +
+         tagPreviewHtml(d, mode) + '</span><span class="csslot"></span></span></div>';
+}
+function tagSectionHtml(d, saved) {
+  var mode = saved.device_tag_mode || 'auto';
+  var rows = controllerSettingRows(d).filter(function (s) { return s.sect === 'Device'; });
+  var choice = rows.filter(function (s) { return s.key === 'device_tag_mode'; })[0];
+  if (!choice) return '';
+  var meta = settingMeta('device_tag_mode'), m = {};
+  for (var k in meta) m[k] = meta[k];
+  m.choices = (meta.choices || []).filter(function (c) { return c !== 'serial' || !!d.tag_serial || mode === 'serial'; });
+  return '<h4>Device</h4><div id="ctlSetTag">' + settingRowHtml(choice, m, saved) +
+         '<div id="ctlSetTagRow">' + tagSecondRowHtml(d, mode, saved) + '</div></div>';
+}
+// ⓘ PRINTABLE ASCII, without what the settings file cannot hold, as the
+// listener keeps it (device_tag_rule.inl clean): the tray takes it as ASCII.
+function tagClean(textIn) {
+  var out = '';
+  for (var i = 0; i < textIn.length; i++) {
+    var c = textIn.charCodeAt(i), ch = textIn.charAt(i);
+    if (c < 32 || c > 126 || '[]=#;'.indexOf(ch) >= 0) continue;
+    out += ch;
+  }
+  return out;
+}
+function tagTyped(el) {
+  var clean = tagClean(el.value).slice(0, TAG_MAX);
+  if (clean !== el.value) el.value = clean;
+  CTLSET_SAVED.device_tag = clean;
+  controllerSettingChanged('device_tag');
+}
+// ⭐ A NEW CHOICE SHOWS AT ONCE: the row after it drawn again, the halo kept
+// on the choice. ⓘ Only that row: the choice itself may be the list being
+// stepped (GP_SELECTING).
+function tagModeChanged(mode) {
+  var d = deviceByOrdinal(SETTINGS_OPEN), row = document.getElementById('ctlSetTagRow');
+  if (!d || !row) return;
+  CTLSET_SAVED.device_tag_mode = mode;
+  row.innerHTML = tagSecondRowHtml(d, mode, CTLSET_SAVED);
+  var sel = document.getElementById('cs-device_tag_mode');
+  gpCollect();
+  var at = GP_FOCUS.indexOf(sel);
+  if (at >= 0) GP_INDEX = at;
+  gpPaint();
+}
+// ⓘ The window's title and the Preview follow the name the listener gives:
+// at once after a change of its tag (a poll is asked for), on every poll.
+function paintSettingsName() {
+  if (!SETTINGS_OPEN) return;
+  var d = deviceByOrdinal(SETTINGS_OPEN);
+  if (!d) return;
+  var t = document.getElementById('ctlSetTitle');
+  var want = (d.nickname || nameFor(d.ordinal)) + ' settings';
+  if (t && t.textContent !== want) t.textContent = want;
+  var p = document.getElementById('cs-tag-preview'), sel = document.getElementById('cs-device_tag_mode');
+  if (p && sel) {
+    var html = tagPreviewHtml(d, sel.value);
+    if (p.innerHTML !== html) p.innerHTML = html;
+  }
+}
 function settingsRowsHtml(d, saved) {
   var html = '';
+  html += tagSectionHtml(d, saved);
   if (d.takes_rate_limit) {
     var now = rateSelectValue(d);
     html += '<h4>Polling</h4><div class="csrow" data-tip="' + esc(rateLimitTitle(d)) + '">' +
@@ -5102,7 +5205,10 @@ function openControllerSettings(ord) {
     if (SETTINGS_OPEN !== ord || !now) return;
     document.getElementById('ctlSetSub').textContent =
       settingsSubtitle(now, !(r && r.kept === false));
-    document.getElementById('ctlSetRows').innerHTML = settingsRowsHtml(now, (r && r.settings) || {});
+    CTLSET_SAVED = {};
+    var got = (r && r.settings) || {};
+    for (var gk in got) CTLSET_SAVED[gk] = got[gk];
+    document.getElementById('ctlSetRows').innerHTML = settingsRowsHtml(now, CTLSET_SAVED);
     gpCollect();
     GP_INDEX = 0;
     gpPaint();
@@ -5159,8 +5265,13 @@ function controllerSettingChanged(key) {
     if (meta.max !== undefined && meta.max !== null && n > Number(meta.max)) el.value = String(meta.max);
   }
   var value = settingSendValue(meta, el.value);
+  if (key === 'device_tag_mode') tagModeChanged(el.value);
   if (SETTINGS_TIMERS[key]) clearTimeout(SETTINGS_TIMERS[key].timer);
-  var send = function () { postControllerSetting(ord, key, value); };
+  var tagKey = key === 'device_tag_mode' || key === 'device_tag';
+  var send = function () {
+    var sent = postControllerSetting(ord, key, value);
+    if (tagKey && sent && sent.then) sent.then(function () { pollDevices(); });
+  };
   SETTINGS_TIMERS[key] = { send: send, timer: setTimeout(function () {
     delete SETTINGS_TIMERS[key];
     send();
@@ -7085,7 +7196,7 @@ function buildDevicePane(d) {
     });
   });
 
-  var head = '<table class="devrow"><tr><th>nickname</th><th>device</th><th>battery</th><th>polling rate / rate limit</th><th>serial</th>' +
+  var head = '<table class="devrow"><tr><th>device tag</th><th>device</th><th>battery</th><th>polling rate / rate limit</th><th>serial</th>' +
              '<th>auto linked config</th><th>settings</th></tr>' +
              // ⭐ One row for the device, all its parts in it (devHeadRow, above).
              devHeadRow(d) + '</table>';
@@ -8413,7 +8524,7 @@ function loadDevices() {
     // ⭐ THE SAME COLUMNS AS THE CONTROLLER TAB. The two tables described the
     // same thing in different words -- 'linked' here, 'auto linked config'
     // there -- so reading one taught you nothing about the other.
-    var html = '<table><tr><th>nickname</th><th>device</th><th>battery</th><th>polling rate / rate limit</th><th>serial</th>' +
+    var html = '<table><tr><th>device tag</th><th>device</th><th>battery</th><th>polling rate / rate limit</th><th>serial</th>' +
                '<th>auto linked config</th><th></th><th>settings</th></tr>';
     // ⭐ ONE ROW PER DEVICE, as on its tab (rhoquinn8217, 2026-10-02: *"Lets
     // combine the rows with the same name and combine the icons."*). Grouped
@@ -13289,6 +13400,7 @@ function pollDevices() {
     // ⓘ Kept in step with the list even when nothing is redrawn, so a part's
     // battery or state is never read from the list before.
     groupDevices(list);
+    paintSettingsName();
 
     // ⭐ AM I STILL THE CURRENT WINDOW? Two settings windows should never
     // exist, but Ctrl+Shift+T reopens a closed one and that is the browser's
@@ -13715,29 +13827,63 @@ function selfTest() {
   {
     var keysWas = KEYS, devsWas = LAST_DEVICES;
     var kindOfKey = { audio_output: 'choice', audio_haptics_mode: 'choice',
-                      force_echo_cancel: 'bool', audio_haptics: 'bool' };
+                      force_echo_cancel: 'bool', audio_haptics: 'bool',
+                      device_tag_mode: 'choice', device_tag: 'string' };
     KEYS = CONTROLLER_SETTINGS.map(function (s) {
       var t = kindOfKey[s.key] || 'int';
+      if (s.key === 'device_tag_mode') {
+        return { key: s.key, type: t, choices: ['auto', 'type', 'serial', 'custom'], default: 'auto' };
+      }
+      if (t === 'string') return { key: s.key, type: t, default: '' };
       return { key: s.key, type: t, choices: t === 'choice' ? ['auto', 'speaker'] : undefined,
                default: t === 'bool' ? false : t === 'choice' ? 'auto' : 100, min: 0, max: 500 };
     }).concat([{ key: 'gyro_to_mouse', type: 'bool', default: false }]);
     var keysOf = function (d) { return controllerSettingRows(d).map(function (s) { return s.key; }); };
     var dsUsb = keysOf({ kind: 'ds5_usb', has_audio: true, has_rumble_gains: true });
     ok('a cabled DualSense is offered all but the Bluetooth speaker buffer',
-       dsUsb.length === 13 && dsUsb.indexOf('audio_latency_ms') < 0, dsUsb.join(' '));
+       dsUsb.length === 15 && dsUsb.indexOf('audio_latency_ms') < 0, dsUsb.join(' '));
     ok('a Bluetooth DualSense, the buffer too',
-       keysOf({ kind: 'ds5', has_audio: true, has_rumble_gains: true }).length === 14);
+       keysOf({ kind: 'ds5', has_audio: true, has_rumble_gains: true }).length === 16);
     var ds4 = keysOf({ kind: 'ds4_usb', has_audio: true, has_rumble_gains: true });
     ok('a cabled DS4: its volumes, the gain and its rumble, and nothing it cannot use',
-       ds4.join(' ') === 'speaker_volume headset_volume audio_gain master_rumble_gain ' +
+       ds4.join(' ') === 'device_tag_mode device_tag speaker_volume headset_volume audio_gain master_rumble_gain ' +
                          'rumble_gain_heavy rumble_gain_soft rumble_floor', ds4.join(' '));
     var xb = keysOf({ kind: 'xbox', has_audio: false, has_rumble_gains: true });
     ok('an Xbox pad: its rumble alone',
-       xb.join(' ') === 'master_rumble_gain rumble_gain_heavy rumble_gain_soft rumble_floor',
+       xb.join(' ') === 'device_tag_mode device_tag master_rumble_gain rumble_gain_heavy rumble_gain_soft rumble_floor',
        xb.join(' '));
     var grp = configEditorGroups(KEYS);
     ok('a config offers no Audio and no Rumble', !grp.Audio && !grp.Rumble && !!grp.Gyro,
        Object.keys(grp).join(' '));
+    // ⭐ The device tag (2026-11-10): first, its choice in their words, the
+    // Preview, the box on Custom, and Serial/MAC only with a serial.
+    var tagPad = { ordinal: 'ds5_usb_9', nickname: 'Titan', kind: 'ds5_usb', has_audio: true,
+                   has_rumble_gains: true, takes_rate_limit: true, has_settings: true,
+                   tag_type: 'DualSense', tag_serial: 'a0fa9cef9b30', label: 'DualSense (USB)' };
+    var tagRandom = settingsRowsHtml(tagPad, {});
+    var tagType = settingsRowsHtml(tagPad, { device_tag_mode: 'type' });
+    var tagCustom = settingsRowsHtml(tagPad, { device_tag_mode: 'custom', device_tag: 'Bolt' });
+    var tagNoSerial = tagSectionHtml({ ordinal: 'ds5_usb_9', nickname: 'Nova', kind: 'ds5_usb',
+                                       has_settings: true, tag_type: 'DualSense', tag_serial: '' }, {});
+    ok('the device tag comes first: random, Device Type, Serial/MAC and Custom, then the Preview',
+       tagRandom.indexOf('<h4>Device</h4>') >= 0 &&
+       tagRandom.indexOf('<h4>Device</h4>') < tagRandom.indexOf('<h4>Polling</h4>') &&
+       tagRandom.indexOf('>random<') > 0 && tagRandom.indexOf('>Device Type<') > 0 &&
+       tagRandom.indexOf('>Serial/MAC<') > 0 && tagRandom.indexOf('>Custom<') > 0 &&
+       tagRandom.indexOf('>Preview<') > 0 && tagRandom.indexOf('id="cs-device_tag"') < 0, tagRandom.slice(0, 400));
+    ok('random previews the name it has now, and "current" in gray',
+       tagRandom.indexOf('Titan <span class="csnow">current</span>') > 0);
+    ok('Device Type previews its type, without "current"',
+       tagType.indexOf('id="cs-tag-preview">DualSense</span>') > 0 && tagType.indexOf('current<') < 0);
+    ok('Custom has a box of twelve, labelled Custom, and no Preview',
+       tagCustom.indexOf('id="cs-device_tag"') > 0 && tagCustom.indexOf('maxlength="12"') > 0 &&
+       tagCustom.indexOf('value="Bolt"') > 0 && tagCustom.indexOf('>Custom</label>') > 0 &&
+       tagCustom.indexOf('>Preview<') < 0);
+    ok('Serial/MAC is not offered to a controller with no serial',
+       tagNoSerial.indexOf('value="serial"') < 0 && tagRandom.indexOf('value="serial"') > 0);
+    ok('a custom tag keeps printable ASCII without [ ] = # ;',
+       tagClean('Big [Boss]; #1=') === 'Big Boss 1' && tagClean('Se' + String.fromCharCode(241) + 'or') === 'Seor',
+       tagClean('Big [Boss]; #1='));
     ok('a value put back to its default is taken out of the file',
        settingSendValue({ default: 100 }, '100') === '' && settingSendValue({ default: 100 }, '70') === '70' &&
        settingSendValue({ default: false }, 'false') === '' && settingSendValue({ default: false }, 'true') === 'true');
@@ -15903,7 +16049,7 @@ function tutPadKeys(code, gated, plain) {
 // display."*): their DS5 is taken as the DS4, the DualSense being the DS5.
 function tutWordsDual() {
   return 'This is ' + tutNick() + ', a practice controller for this tour. Every controller gets a ' +
-         "random nickname like this when it's bridged. Only the DualSense, DualSense Edge and " +
+         "random device tag like this when it's bridged. Only the DualSense, DualSense Edge and " +
          'DualShock 4 support battery display.';
 }
 // ⓘ `where`: Simple shows the other controllers either side; Quick does not.
@@ -17082,7 +17228,7 @@ var TUT_ADVANCED = [
   { side: 'left', enter: tutAdvOverview,
     lit: function () { var t = tutById('devices'); return t ? [t.previousElementSibling, t] : []; },
     words: function () {
-      return tutHl('Devices') + ' lists every bridged controller: its nickname, its polling rate and ' +
+      return tutHl('Devices') + ' lists every bridged controller: its device tag, its polling rate and ' +
              'limit, its serial, and the config it auto links to.';
     } },
   // 4: the tabs, to try, and L1 and R1 in the legend lit with them, with no
