@@ -318,6 +318,7 @@ void ctm_osk_toggle(const std::string &section, int button, int program);
 #include "input/mic_report.inl"  // which input reports are a DualSense's microphone audio
 #include "app/device_type.inl"   // controller, keyboard or mouse by descriptor; device.inl asks it
 #include "app/device_names.inl"  // what a device is listed by; pure; device.inl asks it for the link
+#include "app/device_tag_rule.inl"  // a controller's device tag: random, its type, its serial or custom; pure
 #include "usbip/fallback_serial.inl"   // the serial of a device the TV sent none for
 #include "usbip/submit_info.inl"    // what a submit reports back; pure
 #include "usbip/input_pace.inl"     // a controller's rate limit and its readout; pure

@@ -196,6 +196,12 @@ static void rest_apply_controller_settings(const std::string &ordinal)
     }
 }
 
+// ⭐ A change of its device tag, applied at once (agent_apply_device_tag).
+static void rest_apply_device_tag(const std::string &ordinal, const std::string &section)
+{
+    agent_apply_device_tag(ordinal, section, true);
+}
+
 static bool rest_link_device(const std::string &ordinal, const std::string &configName,
                              std::string *error)
 {

@@ -1113,10 +1113,12 @@ int run_config_store_tests()
     // ⭐ A CONTROLLER'S OWN SETTINGS (controller_settings.inl; rhoquinn8217,
     // 2026-11-08): audio, rumble and haptics, kept by serial whatever config the
     // controller reads.
-    section("controller settings: fourteen keys of the controller's own, and nothing else");
+    section("controller settings: sixteen keys of the controller's own, and nothing else");
     {
         namespace ctl = units::controller_settings;
-        CTM_CHECK_EQ(sizeof(ctl::kKeys) / sizeof(ctl::kKeys[0]), static_cast<size_t>(14));
+        CTM_CHECK_EQ(sizeof(ctl::kKeys) / sizeof(ctl::kKeys[0]), static_cast<size_t>(16));
+        // its device tag since 2026-11-10: the choice, and the custom tag
+        CTM_CHECK(ctl::is_key("device_tag_mode") && ctl::is_key("device_tag"));
         CTM_CHECK(ctl::is_key("speaker_volume") && ctl::is_key("audio_output") &&
                   ctl::is_key("rumble_floor") && ctl::is_key("audio_haptics_mode") &&
                   ctl::is_key("audio_latency_ms") && ctl::is_key("force_echo_cancel"));

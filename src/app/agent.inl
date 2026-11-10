@@ -56,6 +56,97 @@ struct AgentBridgeSession {
 
 static std::mutex g_agent_sessions_mutex;
 static std::vector<std::unique_ptr<AgentBridgeSession>> g_agent_sessions;
+
+// ⭐ A CONTROLLER'S DEVICE TAG (device_tag_rule.inl; rhoquinn8217, 2026-11-10):
+// what it is called, from its own settings -- random, its type, its serial or
+// a custom tag -- with "(2)", "(3)" for a twin, and every part of one device
+// called the same, as the nickname block in the bridge below finds its parts.
+// `fresh`: the choice has just changed, so random draws a new name; at a
+// bridge, random keeps the name the session was born with.
+// ⛔ Takes g_agent_sessions_mutex and then each session's own: never call it
+// holding a session's mutex. ⓘ The session is found by its ordinal, which is
+// never reused, both times: its settings are read between, without the lock.
+static void agent_apply_device_tag(const std::string &ordinal, const std::string &section, bool fresh)
+{
+    if (section.empty()) return;
+    std::string kind, product, serial, deviceType;
+    {
+        std::lock_guard<std::mutex> guard(g_agent_sessions_mutex);
+        bool found = false;
+        for (const auto &s : g_agent_sessions) {
+            if (!s || s->ordinal != ordinal) continue;
+            std::lock_guard<std::mutex> lock(s->mutex);
+            kind = s->kind;
+            if (s->device) {
+                product = s->device->product_name();
+                serial = s->device->physical_serial();
+                deviceType = s->device->device_kind_by_descriptor();
+            }
+            found = true;
+            break;
+        }
+        if (!found) return;
+    }
+    const auto settings = controller_settings::get(section);
+    auto setting = [&](const char *key) {
+        const auto it = settings.find(key);
+        return it == settings.end() ? std::string() : it->second;
+    };
+    const device_tag::Mode mode = device_tag::mode_of(setting(device_tag::kModeKey));
+    const std::string tag = device_tag::base(
+        mode, setting(device_tag::kCustomKey),
+        device_tag::type_name(device_names::model_for_kind(kind), product, deviceType),
+        device_tag::serial_tag(config_store::normalise_serial(serial)));
+    if (tag.empty() && !fresh) return;
+    std::string name, previous;
+    {
+        std::lock_guard<std::mutex> guard(g_agent_sessions_mutex);
+        AgentBridgeSession *self = nullptr;
+        for (const auto &s : g_agent_sessions) {
+            if (s && s->ordinal == ordinal) { self = s.get(); break; }
+        }
+        if (!self) return;
+        uint16_t vendorId = 0, productId = 0;
+        std::string mySerial, myProduct;
+        {
+            std::lock_guard<std::mutex> lock(self->mutex);
+            previous = self->nickname;
+            if (self->device) {
+                vendorId = self->device->vendor_id();
+                productId = self->device->product_id();
+                mySerial = self->device->physical_serial();
+                myProduct = self->device->product_name();
+            }
+        }
+        std::vector<AgentBridgeSession *> parts{self};
+        std::vector<std::string> taken;
+        for (const auto &other : g_agent_sessions) {
+            if (!other || other.get() == self) continue;
+            std::lock_guard<std::mutex> otherLock(other->mutex);
+            const bool part = !myProduct.empty() && other->device &&
+                              tv_sessions::same_tv(other->owner, self->owner) &&
+                              same_device::matches(vendorId, productId, mySerial, myProduct,
+                                                   other->device->vendor_id(),
+                                                   other->device->product_id(),
+                                                   other->device->physical_serial(),
+                                                   other->device->product_name());
+            if (part) {
+                parts.push_back(other.get());
+                continue;
+            }
+            if (!other->nickname.empty()) taken.push_back(other->nickname);
+        }
+        name = tag.empty() ? ctm_nickname::pick(taken) : device_tag::unique(tag, taken);
+        for (AgentBridgeSession *s : parts) {
+            std::lock_guard<std::mutex> lock(s->mutex);
+            s->nickname = name;
+        }
+    }
+    if (name != previous) {
+        device_log::session(device_log::msg() << ordinal << " is called " << name << " (was " << previous
+                                              << "): its device tag is " << device_tag::mode_words(mode));
+    }
+}
 static std::unique_ptr<CtmUsbipServer> g_agent_usbip_server;
 
 // ⭐ DS4Dongles this listener restarted, each until it is back or the window has
@@ -814,6 +905,10 @@ static void bridge_session_worker(AgentBridgeSession *session)
                         ? "in " + why
                         : "for this bridge alone: " + why));
         }
+        // ⭐ ITS DEVICE TAG, now its settings are known (device_tag_rule.inl):
+        // random keeps the name it was born with. ⓘ Before the session's lock
+        // below, as agent_apply_device_tag takes the sessions' lock first.
+        if (!controllerSection.empty()) agent_apply_device_tag(session->ordinal, controllerSection, false);
         std::lock_guard<std::mutex> lock(session->mutex);
         session->physicalSerial = serial;
         session->tvPath = myTvPath;
