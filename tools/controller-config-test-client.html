@@ -16060,10 +16060,12 @@ function tutModeTo() {
 // front, the words stay up, and the swipe beside a resting thumb steps Quick's
 // wheel, as it does in front. The two finger press DS5-USBIP reports (`pad`)
 // brings it back in Quick, and the last finger lifting shrinks it again;
-// pressed twice, it comes back in Simple. ⓘ Never a real minimise: a window
-// out of the front is replaced by the switch's own, and the tour would end
-// with it. ⓘ The listener keeps no place or size from it (the words'
-// `shrunk`, config_move.inl).
+// pressed twice, it comes back in Simple. ⓘ Never a real minimise: it would
+// take the window out of the front, and the press would have to bring it
+// back, as DS5-USBIP does since 2026-11-10 for a window a click elsewhere took
+// the front from (quick_switch::arming), rather than open its own. ⓘ The
+// listener keeps no place or size from it (the words' `shrunk`,
+// config_move.inl).
 var TUT_SHRUNK = false;
 var TUT_SIZING = true;        // ⓘ false while the self-test plays it: no real window moves
 function tutShrink() {

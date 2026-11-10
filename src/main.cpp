@@ -207,6 +207,10 @@ void ui_tour_shrunk(bool on);
 // ⓘ A tour's large size, borrowed as it starts and given back as it ends
 // (config_move.inl). Defined below.
 void ui_tour_size(bool large, bool place);
+// ⓘ A tour's window going, and the next page asking for its layout: nothing of
+// the first kept as it goes (config_move.inl). Defined below.
+void ui_tour_window_going();
+void ui_page_opened();
 std::string ui_tutorial_words_side();
 bool ui_tutorial_words_moving();
 bool ui_tutorial_words_up();
@@ -564,6 +568,14 @@ void ui_tour_size(bool large, bool place)
 {
     if (large) config_move::tour_size_borrow();
     else config_move::tour_size_give_back(place);
+}
+void ui_tour_window_going()
+{
+    config_move::tour_window_going();
+}
+void ui_page_opened()
+{
+    config_move::page_opened();
 }
 std::string ui_tutorial_words_take_press()
 {

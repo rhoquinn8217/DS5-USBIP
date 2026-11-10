@@ -712,6 +712,9 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
             // running and its keys are heard, so the quick config switch's
             // steps may go (quick_switch_session.inl).
             quick_switch_page_asked_view();
+            // ⓘ And a tour's window that went before it is done with
+            // (config_move::page_opened).
+            ui_page_opened();
             bool compact = false, quick = false;
             std::string ordinal;
             const bool known = ui_view_get(&compact, &quick, &ordinal);
@@ -1200,6 +1203,9 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
             // window may still be up for a moment; if it is, its place is
             // worth having.
             ui_view_remember_pos();
+            // ⭐ A tour's window: nothing more of it kept, at this report's
+            // twin above all (config_move::tour_window_going).
+            ui_tour_window_going();
             ui_tour_shrunk(false);
             // ⓘ And a size a tour borrowed, for the next window.
             ui_tour_size(false, false);
