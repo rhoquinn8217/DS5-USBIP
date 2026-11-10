@@ -2,7 +2,7 @@
 <!--
   DS5-USBIP's Controller Configs page, served by the listener.
 
-  VERSION 2.68.2 -- see the changelog at the bottom of this comment.
+  VERSION 2.68.3 -- see the changelog at the bottom of this comment.
 
   WHAT IT STARTED AS. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -24,6 +24,12 @@
   not a tidy message about it.
 
   CHANGELOG
+    2.68.3   Advanced is wider with its text the size it was (0.733 of the
+             screen, laid out at 1250), so its footer is one line with no
+             controller bridged; Simple's polling rate sits in the middle
+             between the battery and the gear; a keyboard opens the
+             settings with S and the next tip with T (rhoquinn8217,
+             2026-11-09).
     2.68.2   R3 opens the controller's settings in Advanced too, and every
              view's legend says so; Quick's rate line has no gear and
              Simple's gear no R3 mark, where up from New reaches it and
@@ -2515,7 +2521,13 @@
   /* ⓘ The symbol on the panel's edge itself: .devemo's own 0.3em before it
      is for a symbol that follows a name. */
   body.compact:not(.quick) #compactBox .cmain.cpanel .cname > .devemo { margin-left:0; }
-  body.compact:not(.quick) #compactBox .cmain.cpanel .cname > .crate { margin-left:auto; }
+  /* ⭐ The rate in the middle of the room between the battery and the gear,
+     the gear at the panel's right edge (compactRateLine, 2026-11-09). */
+  body.compact:not(.quick) #compactBox .cmain.cpanel .cname > .crate { margin-left:0; flex:1 1 auto;
+    display:flex; align-items:center; }
+  body.compact:not(.quick) #compactBox .cmain.cpanel .cname > .crate > .crate-txt { flex:1 1 auto;
+    text-align:center; padding:0 0.6em; }
+  body.compact:not(.quick) #compactBox .cmain.cpanel .cname > .crate > button.csetgear { margin-left:0; }
   /* ⭐ Simple's limit with R3's mark where its arrow was, as Quick's
      (rhoquinn8217, 2026-10-20: "in simple mode add the R3 symbol for the
      rate limit similar to quick mode"). */
@@ -3456,9 +3468,18 @@
   // ⭐ ADVANCED'S ZOOM, FROM ITS WINDOW'S WIDTH (2.66.123): the width over
   // ADV_WIDTH, the width its rows were laid out for at 1x, so the page is the
   // same at every size, only larger; never under 1. 1.5 at the size it opens
-  // at, 0.68 of a 4K screen at 150%, and about 2 at its large, 0.90. Set here,
-  // before the page is drawn, and again whenever the window's size changes.
-  var ADV_WIDTH = 1160;
+  // at, 0.733 of a 4K screen at 150%, and about 2 at its large, 0.97. Set
+  // here, before the page is drawn, and again whenever the window's size
+  // changes.
+  // ⭐ 1250 SINCE 2.68.3, FROM 1160, WITH THE WINDOW AS MUCH WIDER (0.68 to
+  // 0.733 of the screen, the large 0.90 to 0.97), so the text is the size it
+  // was and the page has the room (rhoquinn8217, 2026-11-09: "advance mode
+  // legend isn't fitting. expand it out more", "it fits when there is a
+  // controller bridged"). ⓘ With no controller bridged and a pad the page
+  // sees, the footer's "listener up - no devices bridged" beside the
+  // keyboard's legend wanted 1232 of 1160, and has 1250 now. ⛔ A wider
+  // window ALONE gives this page no room: the zoom grows with it.
+  var ADV_WIDTH = 1250;
   function advZoomFor(width) { return Math.max(1, Math.round(width / ADV_WIDTH * 1000) / 1000); }
   function advZoomFit() {
     document.documentElement.style.setProperty('--advZoom', String(advZoomFor(window.innerWidth)));
@@ -3634,7 +3655,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.68.2</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.68.3</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -4053,8 +4074,10 @@ function callListener(method, path, body, quiet) {
 // kSizes (config_move.inl) and open_ui.inl hold the same numbers.
 // ⭐ LARGER SINCE 2026-10-29, WITH ITS TEXT (--advZoom): 0.68 x 0.73, and 0.90
 // x 0.94 the large.
+// ⭐ WIDER SINCE 2.68.3, WITH ADV_WIDTH (2026-11-09: "expand it out more"):
+// 0.733 x 0.73, and 0.97 x 0.94 the large.
 function wantSize() {
-  return { w: Math.round(screen.availWidth * 0.68),
+  return { w: Math.round(screen.availWidth * 0.733),
            h: Math.round(screen.availHeight * 0.73) };
 }
 function fitWindow() {
@@ -4799,8 +4822,15 @@ function rateTags(parts) {
 // ⭐ NO GEAR IN QUICK (rhoquinn8217, 2026-11-09: "remove settings symbol and
 // r3 symbol next to the polling rate in quick mode"): R3 opens the
 // settings there, as its legend says.
+// ⭐ SIMPLE'S RATE IN THE MIDDLE, BETWEEN THE BATTERY AND THE GEAR
+// (rhoquinn8217, 2026-11-09: "center the polling rate and limit between the
+// nickname/batter and the settings symbol", "in simple mode"): in a span of
+// its own that takes the line's room, the gear at the line's end.
 function compactRateLine(ordinal, tag) {
-  var line = rateTags(partsOf(ordinal)) + (QUICK ? '' : settingsGearHtml(ordinal, true));
+  var rates = rateTags(partsOf(ordinal));
+  var line = QUICK ? rates
+                   : (rates ? '<span class="crate-txt">' + rates + '</span>' : '') +
+                     settingsGearHtml(ordinal, true);
   return line ? '<' + tag + ' class="' + (QUICK ? 'crate-q' : 'crate') + '">' + line + '</' + tag + '>' : '';
 }
 
@@ -6175,7 +6205,10 @@ var KEY_LEGEND = {
   // 2026-10-15: "U and A", over Space and L). Space stays on/off.
   unlink: 'U', autolink: 'A', updown: '\u21c5',
   select: 'Enter', close: 'Esc', toggle: 'Space',
-  resize: 'R', position: 'P', shoulder: 'Q/E', rate: 'L', tip: 'H',
+  // ⭐ S FOR THE SETTINGS AND T FOR THE NEXT TIP (rhoquinn8217, 2026-11-09:
+  // "keyboard key S for settings instead of L", "keyboard T for next tip
+  // instead of H"), the first letters, as U, A, P and R are.
+  resize: 'R', position: 'P', shoulder: 'Q/E', rate: 'S', tip: 'T',
   next: 'PgDn', prev: 'PgUp',
   dpad: '\u2725'
 };
@@ -10989,12 +11022,13 @@ var PLAIN_KEYS = {
   // left) never arrives here.
   KeyU:       function () { gpUnlink(); },
   KeyA:       function () { gpTriangle(); },
-  // ⭐ L OPENS THE CONTROLLER'S OWN SETTINGS, as R3 does on a pad: L for
-  // limit, its first letter, from when it opened Quick's polling limit
-  // (2.66.87), as U and A are theirs.
-  KeyL:       function () { gpRate(); },
-  // ⭐ H GOES TO THE NEXT TIP, as L3 does on a pad (2.66.116).
-  KeyH:       function () { tipNextByButton(); },
+  // ⭐ S OPENS THE CONTROLLER'S OWN SETTINGS, as R3 does on a pad: S for
+  // settings (rhoquinn8217, 2026-11-09: "keyboard key S for settings instead
+  // of L"). ⓘ L, for limit, opened Quick's polling limit from 2.66.87.
+  KeyS:       function () { gpRate(); },
+  // ⭐ T GOES TO THE NEXT TIP, as L3 does on a pad (rhoquinn8217, 2026-11-09:
+  // "keyboard T for next tip instead of H"; H from 2.66.116).
+  KeyT:       function () { tipNextByButton(); },
 
   // ⭐⭐ Q AND E DID NOT WORK FROM A KEYBOARD, AND THE REASON WAS ONE LINE
   // (rhoquinn8217, 2026-09-24: *"I should mention that Q and E currently don't
@@ -13918,18 +13952,20 @@ function selfTest() {
        PAD_LEGEND_PS.unlink === '\u25a1' && PAD_LEGEND_PS.autolink === '\u25b3' &&
        PAD_LEGEND_XBOX.unlink === 'X' && PAD_LEGEND_XBOX.autolink === 'Y' &&
        KEY_LEGEND.unlink === 'U' && KEY_LEGEND.autolink === 'A');
-    ok('a keyboard: U unlinks, A auto links, Space still toggles, L opens Quick\'s limit',
+    ok('a keyboard: U unlinks, A auto links, Space still toggles, S opens the settings, T the next tip',
        String(PLAIN_KEYS.KeyU).indexOf('gpUnlink') >= 0 &&
        String(PLAIN_KEYS.KeyA).indexOf('gpTriangle') >= 0 &&
        String(PLAIN_KEYS.Space).indexOf('gpToggleManaged') >= 0 &&
-       String(PLAIN_KEYS.KeyL).indexOf('gpRate') >= 0);
+       String(PLAIN_KEYS.KeyS).indexOf('gpRate') >= 0 &&
+       String(PLAIN_KEYS.KeyT).indexOf('tipNextByButton') >= 0 && !PLAIN_KEYS.KeyL && !PLAIN_KEYS.KeyH);
     ok('the pad through the listener: Square, Triangle and R3',
        String(CONFIG_MODE_KEYS.KeyX).indexOf('gpSquare') >= 0 &&
        String(CONFIG_MODE_KEYS.KeyY).indexOf('gpTriangle') >= 0 &&
        String(CONFIG_MODE_KEYS.KeyL).indexOf('gpRate') >= 0);
-    ok('the legends: Quick\'s polling limit is R3, RS, L',
+    ok('the legends: the settings are R3, RS, S, and the next tip L3, LS, T',
        PAD_LEGEND_PS.rate === 'R3' && PAD_LEGEND_XBOX.rate === 'RS' &&
-       KEY_LEGEND.rate === 'L');
+       KEY_LEGEND.rate === 'S' && PAD_LEGEND_PS.tip === 'L3' && PAD_LEGEND_XBOX.tip === 'LS' &&
+       KEY_LEGEND.tip === 'T');
     var lt = buttonWordsHtml('on {btn:6} for aiming', PAD_LEGEND_XBOX);
     ok('a preset\'s name: its button drawn as the legend draws it, and in words where only text goes',
        buttonWordsText('gyro-to-mouse (on {btn:11})', PAD_LEGEND_PS) === 'gyro-to-mouse (on R3)' &&
@@ -14702,7 +14738,7 @@ function selfTest() {
     ok('the page: Advanced is drawn as large as its window\'s width makes it, the tour\'s layer not, and ' +
        'Simple and Quick as they were',
        Math.abs(zAdv - zWant) < 0.002 && zCompact === 1 && Math.abs(zLayer * zAdv - 1) < 0.001 &&
-       advZoomFor(1741) === 1.501 && advZoomFor(2304) === 1.986 && advZoomFor(900) === 1,
+       advZoomFor(1876) === 1.501 && advZoomFor(2483) === 1.986 && advZoomFor(900) === 1,
        zAdv + ' ' + zWant + ' ' + zLayer + ' ' + zCompact);
   }
 
@@ -16247,7 +16283,7 @@ var TUT_QUICK = [
   // (tutPageModal).
   { side: 'left', act: true,
     lit: function () { return SETTINGS_OPEN ? tutCard('ctlSetBox') : tutQ('.cqname .crate-q'); },
-    keys: function (code, gated, plain) { return (gated || plain) && code === 'KeyL'; },
+    keys: function (code, gated, plain) { return (gated && code === 'KeyL') || (plain && code === 'KeyS'); },
     enter: tutRateEnter, words: function () { return tutWordsRate(tutKey('rate')); }, done: tutRateDone },
   // 4 (*"combine step 3 and 4"*: the wheel, and turning it)
   { free: true, lit: function () { return tutQ('.cwheel'); }, keys: tutUpDownKeys, words: tutWordsWheel },
@@ -16355,8 +16391,8 @@ var TUT_SIMPLE = [
   // 3: R3 opens the controller's settings, as on the page, and the limit is
   // picked there.
   { side: 'right', act: true,
-    lit: function () { return SETTINGS_OPEN ? tutCard('ctlSetBox') : tutQ('.cname .crate'); },
-    keys: function (code, gated, plain) { return (gated || plain) && code === 'KeyL'; },
+    lit: function () { return SETTINGS_OPEN ? tutCard('ctlSetBox') : tutQ('.cname .crate .prate', '.cname .crate .csetgear'); },
+    keys: function (code, gated, plain) { return (gated && code === 'KeyL') || (plain && code === 'KeyS'); },
     enter: tutRateEnter, words: function () { return tutWordsRate(tutKey('rate')); }, done: tutRateDone },
   // 4: ⓘ Simple's wheel steps only under the halo, so each press takes the
   // halo there for its moment (keyAim), and gives it back.
@@ -16640,7 +16676,7 @@ var TUT_SIMPLE = [
   // simple mode cycles through hints."*): its press goes through to the page.
   { side: 'left', free: true, split: true, anchorBox: tutTipRow,
     lit: function () { return tutQ('.cinfo', '.clegend .lgi:nth-child(9)'); },
-    keys: function (code, gated, plain) { return (gated || plain) && code === 'KeyH'; },
+    keys: function (code, gated, plain) { return (gated && code === 'KeyH') || (plain && code === 'KeyT'); },
     words: function () {
       return 'This line is a tip, and a new one comes every 30 seconds. Click it or press ' +
              tutKey('tip') + ' to see the next one, then choose ' + tutHl('Continue') + '.';

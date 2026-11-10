@@ -106,10 +106,19 @@ inline window_move::Movers g_movers;
 //
 // ⓘ A saved index keeps its slot again, so a window left at the small opens
 // at the new small.
+// ⭐ AND WIDER SINCE 2026-11-09, THE TEXT THE SAME SIZE (rhoquinn8217:
+// "advance mode legend isn't fitting. expand it out more"): the page is
+// laid out at 1250 px from 1160 (its ADV_WIDTH) and zooms with the window's
+// width, so both sizes grow by as much, and its footer has the room with
+// no controller bridged:
+//
+//   small   0.733 x 0.73   what Advanced opens at
+//   large   0.97  x 0.94
+//
 // ⛔ The opening size is written twice more, and the three move together:
 // the page's wantSize() and the browser window's size in open_ui.inl.
 struct SizeShare { double w; double h; };
-inline const SizeShare kSizes[2] = { { 0.68, 0.73 }, { 0.90, 0.94 } };
+inline const SizeShare kSizes[2] = { { 0.733, 0.73 }, { 0.97, 0.94 } };
 inline std::atomic_int g_size{0};
 
 // ⭐ COMPACT HAS SIZES OF ITS OWN (rhoquinn8217, 2026-09-09): at 250% scaling on
