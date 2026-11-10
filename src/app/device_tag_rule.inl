@@ -121,6 +121,20 @@ inline std::string lower(const std::string &text)
 // ⭐ "(2)", "(3)" FOR A TWIN: the tag itself when no other device bridged now
 // has it, else the lowest number free. ⓘ Told apart without case: Titan and
 // titan would be said the same.
+// ⭐ NAMED AGAIN AS ITS SETTINGS WINDOW CLOSES, AND ONLY IF IT CHANGED
+// (rhoquinn8217, 2026-11-10: "Don't change the tag until after the setting
+// window is closed"): the choice differs from what it was before the window's
+// first write, or under Custom the tag does. ⓘ So random chosen and chosen
+// back draws no new name, and a tag typed and put back is no change.
+inline bool changed(const std::string &modeBefore, const std::string &customBefore,
+                    const std::string &modeNow, const std::string &customNow)
+{
+    const Mode before = mode_of(modeBefore);
+    const Mode now = mode_of(modeNow);
+    if (before != now) return true;
+    return now == Mode::Custom && clean(customBefore) != clean(customNow);
+}
+
 inline std::string unique(const std::string &tag, const std::vector<std::string> &taken)
 {
     auto isTaken = [&](const std::string &name) {

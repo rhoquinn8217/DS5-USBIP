@@ -6,8 +6,8 @@
 // a third "(3)".
 //
 // WHAT THESE CANNOT DO. No controller is bridged here: the agent's renaming at
-// a bridge and at a change of the setting (agent_apply_device_tag) is checked
-// by hand.
+// a bridge and as the settings window closes (agent_apply_device_tag,
+// rest_device_tags_settle) is checked by hand.
 
 #include "harness.h"
 
@@ -63,6 +63,21 @@ int run_device_tag_rule_tests()
         // nothing to go by is random: a custom tag never typed, no serial
         CTM_CHECK_EQ(base(Mode::Custom, "   ", "DualSense", ""), std::string());
         CTM_CHECK_EQ(base(Mode::Serial, "", "DualSense", ""), std::string());
+    }
+
+    section("device tag: named again as the settings window closes, only if it changed");
+    {
+        // ⭐ 2026-11-10: "Don't change the tag until after the setting window is closed".
+        CTM_CHECK(changed("", "", "type", ""));
+        CTM_CHECK(changed("custom", "Titan", "auto", "Titan"));
+        CTM_CHECK(changed("custom", "Titan", "custom", "Nova"));
+        // random chosen again, or a tag typed and put back: no change
+        CTM_CHECK(!changed("", "", "auto", ""));
+        CTM_CHECK(!changed("auto", "", "", ""));
+        CTM_CHECK(!changed("custom", "Titan", "custom", " Titan "));
+        // the custom tag counts only under Custom
+        CTM_CHECK(!changed("type", "Titan", "type", "Nova"));
+        CTM_CHECK(!changed("serial", "", "serial", "Nova"));
     }
 
     section("device tag: (2), (3) for a twin, the lowest number free");

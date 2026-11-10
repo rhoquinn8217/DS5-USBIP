@@ -74,7 +74,9 @@ static bool rest_find_device(const std::string &ordinal, RestDeviceView *out);
 static bool rest_controller_section(const std::string &ordinal, std::string *section);
 static std::string rest_controller_settings_json(const std::string &ordinal, const std::string &section);
 static void rest_apply_controller_settings(const std::string &ordinal);
-static void rest_apply_device_tag(const std::string &ordinal, const std::string &section);
+static void rest_device_tag_written(const std::string &ordinal, const std::string &section,
+                                    const std::string &modeBefore, const std::string &customBefore);
+static void rest_device_tags_settle(const std::string &ordinal);
 
 // The name the shared section answers to in the API. Reserved, so a real config
 // cannot take it -- see config_store::valid_name().
@@ -617,11 +619,23 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
         const size_t slash = rest.find('/');
         const std::string action =
             slash == std::string::npos ? std::string() : rest.substr(slash);
-        if (action != "/link" && action != "/polling_rate" && action != "/settings") {
+        if (action != "/link" && action != "/polling_rate" && action != "/settings" &&
+            action != "/settings_closed") {
             *out = rest_error_response(404, "unknown path");
             return true;
         }
         const std::string ordinal = rest.substr(0, slash);
+        // ⭐ ITS SETTINGS WINDOW CLOSED: its device tag names it now, if it
+        // changed while the window was open (rest_device_tags_settle).
+        if (action == "/settings_closed") {
+            if (req.method != "POST") {
+                *out = rest_error_response(405, "method not allowed", "Allow: POST, OPTIONS\r\n");
+                return true;
+            }
+            rest_device_tags_settle(ordinal);
+            *out = rest_http_response(200, R"({"ok":true})");
+            return true;
+        }
         // ⭐ A CONTROLLER'S OWN SETTINGS (controller_settings.inl; rhoquinn8217,
         // 2026-11-08): read, and set one key at a time or several, kept in its
         // file or for this bridge alone.
@@ -649,6 +663,22 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
             for (const auto &e : json.strings) writes.emplace_back(e.first, e.second);
             for (const auto &e : json.numbers) writes.emplace_back(e.first, std::to_string(e.second));
             for (const auto &e : json.bools) writes.emplace_back(e.first, e.second ? "true" : "false");
+            // ⭐ ITS DEVICE TAG WAITS FOR THE SETTINGS WINDOW TO CLOSE
+            // (rhoquinn8217, 2026-11-10: "Don't change the tag until after the
+            // setting window is closed"): written as chosen, with what the
+            // choice and the custom tag were before, and the controller named
+            // by it as the window closes, or as the page goes.
+            for (const auto &w : writes) {
+                if (w.first != device_tag::kModeKey && w.first != device_tag::kCustomKey) continue;
+                const auto before = controller_settings::get(section);
+                auto value = [&](const char *key) {
+                    const auto it = before.find(key);
+                    return it == before.end() ? std::string() : it->second;
+                };
+                rest_device_tag_written(ordinal, section, value(device_tag::kModeKey),
+                                        value(device_tag::kCustomKey));
+                break;
+            }
             for (const auto &w : writes) {
                 std::string error;
                 if (!controller_settings::set(section, w.first, w.second, &error)) {
@@ -659,23 +689,6 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
                                                      << (w.second.empty() ? std::string("(default)") : w.second));
             }
             rest_apply_controller_settings(ordinal);
-            // ⭐ ITS DEVICE TAG RENAMES IT AT ONCE (rhoquinn8217, 2026-11-10:
-            // "change right away"): a new choice always, random drawing a new
-            // name; the custom tag only while Custom is the choice.
-            {
-                bool modeWritten = false, customWritten = false;
-                for (const auto &w : writes) {
-                    if (w.first == device_tag::kModeKey) modeWritten = true;
-                    if (w.first == device_tag::kCustomKey) customWritten = true;
-                }
-                if (!modeWritten && customWritten) {
-                    const auto now = controller_settings::get(section);
-                    const auto mode = now.find(device_tag::kModeKey);
-                    customWritten = mode != now.end() &&
-                                    device_tag::mode_of(mode->second) == device_tag::Mode::Custom;
-                }
-                if (modeWritten || customWritten) rest_apply_device_tag(ordinal, section);
-            }
             *out = rest_http_response(200, rest_controller_settings_json(ordinal, section));
             return true;
         }
@@ -1229,6 +1242,8 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
             // ⓘ The tutorial's words have nothing left to stand beside.
             ui_tutorial_words_hide();
             ui_tour_pad(false);
+            // ⓘ And a settings window that went with it: its device tag now.
+            rest_device_tags_settle(std::string());
             // The other way out -- the X, or the browser going away. The
             // window may still be up for a moment; if it is, its place is
             // worth having.

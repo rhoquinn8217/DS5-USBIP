@@ -2,7 +2,7 @@
 <!--
   DS5-USBIP's Controller Configs page, served by the listener.
 
-  VERSION 2.69.0 -- see the changelog at the bottom of this comment.
+  VERSION 2.69.1 -- see the changelog at the bottom of this comment.
 
   WHAT IT STARTED AS. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -24,6 +24,12 @@
   not a tidy message about it.
 
   CHANGELOG
+    2.69.1   A device tag names the controller as its settings window closes,
+             not as it is chosen, and only if it changed; and the window's
+             names follow at once: the device list's signature carries the
+             name, so a new one redraws the tabs, Simple and Quick, which kept
+             the old one until a controller was switched (rhoquinn8217,
+             2026-11-10).
     2.69.0   Device tag, first in a controller's settings: random, Device
              Type, Serial/MAC or Custom, the next row its Preview (the name
              it has now and "current" on random) or on Custom the box, twelve
@@ -3683,7 +3689,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.69.0</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.69.1</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -5064,6 +5070,8 @@ function settingRowHtml(s, meta, saved) {
 // not offered to a controller with none to go by.
 var TAG_MAX = 12;
 var CTLSET_SAVED = {};     // the open window's settings as written, for the Device rows
+var CTLSET_TAGGED = false; // its device tag written since it opened: the listener names it as it closes
+var CTLSET_TAG_SENT = null; // the last write of it, which the close waits for even when already sent
 
 // What a choice gives: the name it has now on random; the listener's words
 // for its type and its serial (device_tag_rule.inl), twelve at most.
@@ -5127,8 +5135,9 @@ function tagModeChanged(mode) {
   if (at >= 0) GP_INDEX = at;
   gpPaint();
 }
-// ⓘ The window's title and the Preview follow the name the listener gives:
-// at once after a change of its tag (a poll is asked for), on every poll.
+// ⓘ The window's title and the Preview follow the name the listener gives,
+// on every poll. ⓘ A tag chosen here names it only as the window closes
+// (closeControllerSettings).
 function paintSettingsName() {
   if (!SETTINGS_OPEN) return;
   var d = deviceByOrdinal(SETTINGS_OPEN);
@@ -5230,12 +5239,24 @@ function closeControllerSettings() {
     GP_EDITING.blur();
     GP_EDITING = null;
   }
+  var ord = SETTINGS_OPEN, tagged = CTLSET_TAGGED, sent = [CTLSET_TAG_SENT];
   Object.keys(SETTINGS_TIMERS).forEach(function (k) {
     var t = SETTINGS_TIMERS[k];
     clearTimeout(t.timer);
     delete SETTINGS_TIMERS[k];
-    t.send();
+    sent.push(t.send());
   });
+  CTLSET_TAGGED = false;
+  CTLSET_TAG_SENT = null;
+  // ⭐ ITS DEVICE TAG AS THE WINDOW CLOSES (rhoquinn8217, 2026-11-10: "Don't
+  // change the tag until after the setting window is closed"): once what was
+  // waiting is written, the listener names it by its tag if that changed, and
+  // the window's names follow at once (deviceSignature).
+  if (tagged) {
+    Promise.all(sent).then(function () {
+      return call('POST', '/api/v1/devices/' + encodeURIComponent(ord) + '/settings_closed', {}, true);
+    }).then(function () { pollDevices(); }, function () { pollDevices(); });
+  }
   SETTINGS_OPEN = '';
   document.getElementById('ctlSetBox').style.display = 'none';
   tipHide();
@@ -5268,9 +5289,11 @@ function controllerSettingChanged(key) {
   if (key === 'device_tag_mode') tagModeChanged(el.value);
   if (SETTINGS_TIMERS[key]) clearTimeout(SETTINGS_TIMERS[key].timer);
   var tagKey = key === 'device_tag_mode' || key === 'device_tag';
+  if (tagKey) CTLSET_TAGGED = true;
   var send = function () {
     var sent = postControllerSetting(ord, key, value);
-    if (tagKey && sent && sent.then) sent.then(function () { pollDevices(); });
+    if (tagKey) CTLSET_TAG_SENT = sent;
+    return sent;
   };
   SETTINGS_TIMERS[key] = { send: send, timer: setTimeout(function () {
     delete SETTINGS_TIMERS[key];
@@ -13267,7 +13290,10 @@ function deviceSignature(list) {
   return (list || []).map(function(d) {
     // Everything the page renders from. A change in any of it should redraw;
     // anything else should not.
-    return [d.ordinal, d.kind, d.serial, d.linked_config, d.ready].join('|');
+    // ⭐ ITS NAME TOO (2026-11-10): a device tag renames a controller with
+    // nothing else changing, and the tabs, Simple and Quick kept the old name
+    // until a controller was switched or the window opened again.
+    return [d.ordinal, d.kind, d.serial, d.linked_config, d.ready, d.nickname].join('|');
   }).join(';');
 }
 
@@ -13884,6 +13910,9 @@ function selfTest() {
     ok('a custom tag keeps printable ASCII without [ ] = # ;',
        tagClean('Big [Boss]; #1=') === 'Big Boss 1' && tagClean('Se' + String.fromCharCode(241) + 'or') === 'Seor',
        tagClean('Big [Boss]; #1='));
+    ok('a new name redraws the window: the device list\'s signature carries it',
+       deviceSignature([{ ordinal: 'ds5_usb_9', nickname: 'Titan' }]) !==
+       deviceSignature([{ ordinal: 'ds5_usb_9', nickname: 'Nova' }]));
     ok('a value put back to its default is taken out of the file',
        settingSendValue({ default: 100 }, '100') === '' && settingSendValue({ default: 100 }, '70') === '70' &&
        settingSendValue({ default: false }, 'false') === '' && settingSendValue({ default: false }, 'true') === 'true');
