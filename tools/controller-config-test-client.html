@@ -2,7 +2,7 @@
 <!--
   DS5-USBIP's Controller Configs page, served by the listener.
 
-  VERSION 2.68.1 -- see the changelog at the bottom of this comment.
+  VERSION 2.68.2 -- see the changelog at the bottom of this comment.
 
   WHAT IT STARTED AS. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -24,6 +24,11 @@
   not a tidy message about it.
 
   CHANGELOG
+    2.68.2   R3 opens the controller's settings in Advanced too, and every
+             view's legend says so; Quick's rate line has no gear and
+             Simple's gear no R3 mark, where up from New reaches it and
+             left from it the wheel; the mode picker has less room beside
+             its words (rhoquinn8217, 2026-11-09).
     2.68.1   The settings window's list scrolls with the halo, and only a
              controller's polling rate is shown: a keyboard, a mouse and a
              DS5Dongle's keyboard half show none (rhoquinn8217, 2026-11-09).
@@ -2640,6 +2645,13 @@
   #compactBox .crate-q select::-webkit-scrollbar { display:none; }
   body.quick #compactBox .cbar select.modepick { padding-top:calc(0.6345 * var(--vh));
     padding-bottom:calc(0.6345 * var(--vh)); }
+  /* ⭐ THE PICKER WITHOUT THE SPARE ROOM BESIDE ITS WORDS (rhoquinn8217,
+     2026-11-09: "the text "SIMPLE MODE" doesn't need the extra margin space so
+     we should shrink it and see if the legend won't become 2 lines"): the
+     room goes to the legend, which has R3's settings in it since. Close keeps
+     its padding. ⓘ Quick's the same, as the two share one footer. */
+  #compactBox .cbar select.modepick { padding-left:0.9vw; padding-right:0.5vw; }
+  body.quick #compactBox .cbar select.modepick { padding-left:1.1vw; padding-right:0.7vw; }
   /* ⭐ THE SIZE BUTTON, FLUSH AGAINST THE PICKER HERE TOO (rhoquinn8217,
      2026-10-09), as in Advanced's footer: the two share .cgroup, which
      stretches the button to the picker's height, so the two cannot differ
@@ -2737,15 +2749,14 @@
            stroke-linejoin:round; }
   button.csetgear { display:inline-flex; align-items:center; gap:0.35em; line-height:1;
                     padding:3px 8px; vertical-align:middle; }
-  /* ⓘ In Simple and Quick, after the rate and its limit, at their size, with
-     R3's mark: R3 opens it there. ⓘ Tight, so the line takes no more room
+  /* ⓘ In Simple, after the rate and its limit, at their size (none in Quick,
+     and no R3 mark since 2026-11-09). ⓘ Tight, so the line takes no more room
      than the limit's dropdown did and stays on the name's line in Simple
      (rhoquinn8217, 2026-10-20: "put the controller icon, nickname, battery,
      polling and rate limit on one line"). */
   #compactBox button.csetgear { font-size:1em; padding:0.08em 0.22em; margin-left:0.3em;
                                 gap:0.12em; min-width:0; }
   #compactBox button.csetgear .kgear { width:0.95em; height:0.95em; }
-  #compactBox button.csetgear .kps { width:0.9em; height:0.9em; }
   /* ⭐ THE SETTINGS WINDOW: a card over the page, as the pre-set boxes are
      (rhoquinn8217's picture, 2026-11-08). */
   #ctlSetBox { position:fixed; inset:0; z-index:61; display:none;
@@ -2908,6 +2919,11 @@
   #gpend { margin-left:auto; display:flex; align-items:center;
            justify-content:flex-end; flex-wrap:wrap; gap:16px; }
   #modePick, #closeBtn { padding:2px 8px; font-size:11px; margin-left:8px; }
+  /* ⭐ The picker without the spare room beside its words, as in Simple and
+     Quick (rhoquinn8217, 2026-11-09): the legend has R3's settings in it
+     since, and a wider window gives it no more room here, where the page
+     zooms with the window (advZoomFit). */
+  #modePick { padding-left:3px; padding-right:2px; }
   /* ⭐ THE SIZE BUTTON SITS FLUSH AGAINST THE MODE PICKER (rhoquinn8217,
      2026-10-09: *"match the mode selector button size. Let the button be
      flush against the mode selector and reduce to space between it a the
@@ -3618,7 +3634,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.68.1</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.68.2</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -4777,11 +4793,14 @@ function rateTags(parts) {
                       .join(' <span class="muted">·</span> ');
 }
 
-// The rate and its limit with the gear, after the battery in Simple and
-// Quick: nothing for a device that is no controller. `tag`: a span on the
-// name's line, a div under it in Quick's panel.
+// The rate and its limit after the battery in Simple and Quick, with the
+// gear in Simple: nothing for a device that is no controller. `tag`: a span
+// on the name's line, a div under it in Quick's panel.
+// ⭐ NO GEAR IN QUICK (rhoquinn8217, 2026-11-09: "remove settings symbol and
+// r3 symbol next to the polling rate in quick mode"): R3 opens the
+// settings there, as its legend says.
 function compactRateLine(ordinal, tag) {
-  var line = rateTags(partsOf(ordinal)) + settingsGearHtml(ordinal, keyCap(padLegend().rate));
+  var line = rateTags(partsOf(ordinal)) + (QUICK ? '' : settingsGearHtml(ordinal, true));
   return line ? '<' + tag + ' class="' + (QUICK ? 'crate-q' : 'crate') + '">' + line + '</' + tag + '>' : '';
 }
 
@@ -4883,14 +4902,16 @@ var GEAR_SVG = '<svg class="kgear" viewBox="0 0 24 24" aria-hidden="true">' +
   '<path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/></svg>';
 
 // The gear for a device's row: a dash in the tables for one with no settings
-// of its own, and nothing in Simple and Quick. `mark`: R3's, where R3 opens it.
-function settingsGearHtml(ordinal, mark) {
+// of its own, and nothing in Simple (`compact`).
+// ⓘ Without R3's mark since 2026-11-09 (rhoquinn8217: "remove the r3 symbol
+// next to the polling rate in simple mode"): R3 is in every view's legend.
+function settingsGearHtml(ordinal, compact) {
   var p = settingsPartOf(ordinal);
-  if (!p) return mark ? '' : '<span class="muted">—</span>';
+  if (!p) return compact ? '' : '<span class="muted">—</span>';
   return '<button class="csetgear" data-ord="' + esc(p.ordinal) + '"' +
          ' onclick="openControllerSettings(\'' + esc(p.ordinal) + '\')"' +
          ' title="' + esc(nameFor(p.ordinal)) +
-         '’s own settings: polling, audio and rumble">' + GEAR_SVG + (mark || '') + '</button>';
+         '’s own settings: polling, audio and rumble">' + GEAR_SVG + '</button>';
 }
 
 function settingMeta(key) {
@@ -7885,15 +7906,29 @@ function wheelUnlink(ord) {
 // 2026-11-08: "In simple mode and quick mode R3 now opens the settings
 // window"), RS on an Xbox pad and L on a keyboard, and closes them again.
 // From 2.66.87 it opened the polling limit ("R3 will be the key that lets you
-// reach the rate limit"), which is in the window now. Nothing in Advanced,
-// whose gear the d-pad reaches.
+// reach the rate limit"), which is in the window now.
+// ⭐ AND IN ADVANCED (rhoquinn8217, 2026-11-09: "We need to add the R3 button
+// functionality to advance mode as well"): the controller on screen, its
+// tab's; on Overview, the row the halo is on (r3SettingsOrdinal).
 function gpRate() {
   if (SETTINGS_OPEN) { closeControllerSettings(); return; }
-  if (!COMPACT) return;
   if (GP_SELECTING || GP_EDITING || CONFIRM_CB || RENAMING || PRESET_OPEN ||
       PRESET_INFO_OPEN) return;
+  var ord = r3SettingsOrdinal();
+  if (ord) openControllerSettings(ord);
+}
+
+// Whose settings R3 opens: the controller on screen, or in Advanced's
+// Overview the one whose row the halo is on. '' where there is none: the
+// Editor, a keyboard or a mouse alone.
+function r3SettingsOrdinal() {
   var p = settingsPartOf(ACTIVE);
-  if (p) openControllerSettings(p.ordinal);
+  if (p) return p.ordinal;
+  if (COMPACT || ACTIVE !== 'overview') return '';
+  var el = GP_FOCUS[GP_INDEX];
+  var row = el && el.closest ? el.closest('tr') : null;
+  var gear = row ? row.querySelector('button.csetgear') : null;
+  return gear ? (gear.getAttribute('data-ord') || '') : '';
 }
 
 function gpTriangle() {
@@ -9606,7 +9641,7 @@ function gpActivate() {
     // that was the whole of the argument for calling this a coin-flip
     // preference. `config_move.inl` gives Quick a size table of ITS OWN:
     //
-    //     Simple  kCompactSizes  0.49  x 0.3879  of the screen (0.45 x 0.45 when this was written)
+    //     Simple  kCompactSizes  0.505 x 0.3879  of the screen (0.45 x 0.45 when this was written)
     //     Quick   kQuickSizes    0.342 x 0.196   (0.313 wide until 2.66.130, 0.278 x 0.150 until 2.66.87)
     //
     // ➡️ **Simple's window is THREE TIMES TALLER than Quick's.** So the
@@ -9964,8 +9999,8 @@ var CONFIG_MODE_KEYS = {
   KeyX: function () { gpSquare(); },
   // ⭐ Triangle, which reached nothing here until 2.66.84 (rebind.inl).
   KeyY: function () { gpTriangle(); },
-  // ⭐ R3, which reaches the page in Quick alone (2.66.87, rebind.inl):
-  // Quick's polling limit.
+  // ⭐ R3 (rebind.inl): the controller's own settings, in every view since
+  // 2026-11-09. ⓘ Quick's polling limit from 2.66.87.
   KeyL: function () { gpRate(); },
   // ⭐ THE QUICK CONFIG SWITCH'S STEPS (2.66.93, rebind.inl): a finger swiped
   // up for the next config, down for the one before. They step the wheel
@@ -10109,9 +10144,9 @@ function compactMove(dx, dy) {
   var cur = GP_FOCUS[GP_INDEX];
   // ⭐ SIMPLE'S PANEL (2.66.87): right from the wheel enters its column of
   // buttons at Unlink, and left from the wheel goes nowhere; up and down
-  // walk the column, stopping at its top (R3 alone reaches the polling
-  // limit) and off its bottom to the footer, and up from the footer comes
-  // back to its bottom; left goes back to the wheel.
+  // walk the column, up off its top to the gear (2026-11-09) and off its
+  // bottom to the footer, and up from the footer comes back to its bottom;
+  // left goes back to the wheel.
   // Up and down on the wheel step it (quickVertical), so the column is the
   // way past it.
   var col = QUICK ? [] : Array.prototype.slice.call(box.querySelectorAll('.csbtns > button'))
@@ -10119,6 +10154,16 @@ function compactMove(dx, dy) {
   var wheelSel = document.getElementById('cpick');
   if (col.length && wheelSel) {
     var inCol = col.indexOf(cur);
+    // ⭐ THE GEAR, OVER THE COLUMN (rhoquinn8217, 2026-11-09: "allow up from
+    // new to land on the settings symbol. Left on the setting symbol should
+    // also land on the wheel"): down from it comes back to the column's top,
+    // and up and right go nowhere.
+    var gear = box.querySelector('.ccur button.csetgear');
+    if (gear && cur === gear) {
+      if (dx < 0) return focusElement(wheelSel);
+      if (dy > 0) return focusElement(col[0]);
+      return true;
+    }
     // ⭐ RIGHT FROM THE WHEEL LANDS ON UNLINK, EVERY TIME (rhoquinn8217,
     // 2026-10-22, evening: "Right from the wheel goes to unlink", then "No, I
     // want right to land on unlink, not New"), greyed or not: a greyed
@@ -10146,6 +10191,7 @@ function compactMove(dx, dy) {
       if (dx > 0) return true;
       var to = inCol + dy;
       if (to >= 0 && to < col.length) return focusElement(col[to]);
+      if (to < 0 && gear) return focusElement(gear);
       // ⓘ Onto the Mode picker, not the bar's first control: the 🗗 is first
       // since it moved to the picker's left (2026-10-19).
       var barPick = bar.filter(function (e) { return e.tagName === 'SELECT'; })[0];
@@ -10943,8 +10989,9 @@ var PLAIN_KEYS = {
   // left) never arrives here.
   KeyU:       function () { gpUnlink(); },
   KeyA:       function () { gpTriangle(); },
-  // ⭐ L OPENS QUICK'S POLLING LIMIT, as R3 does on a pad (2.66.87): L for
-  // limit, its first letter, as U and A are theirs.
+  // ⭐ L OPENS THE CONTROLLER'S OWN SETTINGS, as R3 does on a pad: L for
+  // limit, its first letter, from when it opened Quick's polling limit
+  // (2.66.87), as U and A are theirs.
   KeyL:       function () { gpRate(); },
   // ⭐ H GOES TO THE NEXT TIP, as L3 does on a pad (2.66.116).
   KeyH:       function () { tipNextByButton(); },
@@ -11549,9 +11596,10 @@ function compactHome(w, h) {
 // height of the window"), its sizes kept by Simple's --vh; kCompactSizes in
 // config_move.inl is the other placer, and moves with this.
 // ⭐ 0.49 OF ITS WIDTH SINCE 2.66.132, from 0.45, just enough for the
-// footer's legend to be one line (rhoquinn8217, 2026-11-02).
+// footer's legend to be one line (rhoquinn8217, 2026-11-02), and 0.505
+// since 2.68.2, with R3's settings in it (2026-11-09).
 function compactSize() {
-  compactHome(Math.round(screen.availWidth * 0.49),
+  compactHome(Math.round(screen.availWidth * 0.505),
               Math.round(screen.availHeight * 0.3879));
 }
 
@@ -12411,7 +12459,11 @@ function paintCompact() {
             legendLine([[keyCap(LG.position), 'position'], [keyCap(LG.resize), 'resize'],
                         // ⓘ "footer/close", as Advanced's says: Circle takes the
                         // pad into the footer, onto Close (2.66.85).
-                        [keyCap(LG.close), 'footer/close']]) + '</div></div>' +
+                        [keyCap(LG.close), 'footer/close'],
+                        // ⭐ R3 OPENS THE CONTROLLER'S SETTINGS, IN EVERY VIEW'S
+                        // LEGEND (rhoquinn8217, 2026-11-09), last, so the places
+                        // a tour lights keep their numbers.
+                        [keyCap(LG.rate), 'settings']]) + '</div></div>' +
             modeGroupHtml() +
             '<button class="cclose" onclick="closeWindow()">Close</button></div>';
   } else {
@@ -12428,7 +12480,9 @@ function paintCompact() {
                         // ⭐ L3 IN THE LEGEND, NOT BESIDE THE TIP (2.66.132;
                         // rhoquinn8217, 2026-11-02: *"Move the L3 symbol near the
                         // hint to the legend in simple mode."*).
-                        [keyCap(LG.tip), 'next tip']]) + '</div>' +
+                        [keyCap(LG.tip), 'next tip'],
+                        // ⭐ And R3's settings, last, beside L3 (2026-11-09).
+                        [keyCap(LG.rate), 'settings']]) + '</div>' +
             '<div class="cinfo" title="Click for the next tip" ' +
             'onmouseenter="HINT_HELD = true" onmouseleave="HINT_HELD = false" ' +
             'onmousedown="hintPressed(event)" onmouseup="hintReleased(event)">' +
@@ -12630,7 +12684,10 @@ function gpPoll() {
                            // on/off here, by their word, though it unlinks there too.
                            [keyCap(LGA.autolink), 'auto link'],
                            [keyCap(LGA.position), 'position'], [keyCap(LGA.resize), 'resize'],
-                           [keyCap(LGA.close), 'footer/close']]);
+                           [keyCap(LGA.close), 'footer/close'],
+                           // ⭐ R3 opens the controller's settings here too
+                           // (rhoquinn8217, 2026-11-09), last as in Simple and Quick.
+                           [keyCap(LGA.rate), 'settings']]);
   if (!GP_EDITING && GP_HINT_SHOWN !== legend) {
     hint.innerHTML = legend;
     GP_HINT_SHOWN = legend;
@@ -12819,7 +12876,7 @@ function gpPoll() {
   // listener's gate.
   if (edge(2)) gpSquare();           // square: unlink on the selector, else managed
   if (edge(3)) gpTriangle();         // triangle: auto link on the selector
-  if (edge(11)) gpRate();            // R3: Quick's polling limit
+  if (edge(11)) gpRate();            // R3: the controller's own settings
   if (edge(10)) tipNextByButton();   // L3: Simple's next tip
 
   // ⛔ pressed(), NOT edge(). edge() WRITES GP_PREV as it reads, so calling it
@@ -13335,7 +13392,7 @@ function selfTest() {
    'rateTag','rateTags','refreshRates','setRateLimitFor','pollRates',
    'settingsGearHtml','openControllerSettings','closeControllerSettings','controllerSettingRows',
    'configEditorGroups','postControllerSetting','controllerSettingChanged','controllerRateChanged',
-   'settingArrow','settingsStep','settingsKeepInView','compactRateLine',
+   'settingArrow','settingsStep','settingsKeepInView','compactRateLine','r3SettingsOrdinal',
    'toggleTokenShown','paintConnLight','archiveConfigBtn','autoLinkBtnHtml',
    'explainGreyed','clearGreyedNote'
   ].forEach(function(n) {
@@ -13379,6 +13436,54 @@ function selfTest() {
     }
     ok('Simple: left from the resize button lands on the wheel',
        !!landed && landed.id === 'cpick', landed ? (landed.id || landed.textContent) : 'nothing');
+  }
+
+  // ⭐ SIMPLE'S GEAR IN THE D-PAD'S REACH (2026-11-09): up from New lands on
+  // it, left from it on the wheel, down from it back on New. The same
+  // made-up box with the name row's gear.
+  {
+    var gLentIds = ['compactBox', 'cpick'];
+    var gLent = gLentIds.map(function (id) {
+      var e = document.getElementById(id);
+      if (e) e.id = id + '-lent';
+      return e;
+    });
+    var gFake = document.createElement('div');
+    gFake.id = 'compactBox';
+    gFake.style.cssText = 'position:fixed;left:-9999px;top:0;width:600px';
+    gFake.innerHTML =
+      '<div class="ccur"><div class="cname">Pad<span class="crate">250 Hz' +
+      '<button class="csetgear">gear</button></span></div></div>' +
+      '<div class="cselrow"><select id="cpick"><option>a</option></select></div>' +
+      '<div class="csbtns"><button>New</button><button class="cunlink-btn">Unlink</button>' +
+      '<button>Archive</button></div>' +
+      '<div class="cbar"><span class="cgroup"><button class="csize">size</button>' +
+      '<select><option>Simple</option></select></span></div>';
+    document.body.appendChild(gFake);
+    var gKeep = { c: COMPACT, q: QUICK, f: GP_FOCUS, i: GP_INDEX, w: GP_WANT };
+    var gSaw = [];
+    try {
+      COMPACT = true; QUICK = false;
+      GP_FOCUS = Array.prototype.slice.call(gFake.querySelectorAll('select, button'));
+      var gName = function () { var e = GP_FOCUS[GP_INDEX]; return e ? (e.id || e.textContent) : 'nothing'; };
+      GP_INDEX = GP_FOCUS.indexOf(gFake.querySelector('.csbtns button'));
+      compactMove(0, -1); gSaw.push(gName());
+      compactMove(0, 1); gSaw.push(gName());
+      compactMove(0, -1);
+      compactMove(-1, 0); gSaw.push(gName());
+      GP_INDEX = GP_FOCUS.indexOf(gFake.querySelector('button.csetgear'));
+      compactMove(0, -1); gSaw.push(gName());
+      compactMove(1, 0); gSaw.push(gName());
+    } finally {
+      COMPACT = gKeep.c; QUICK = gKeep.q; GP_FOCUS = gKeep.f; GP_INDEX = gKeep.i;
+      GP_WANT = gKeep.w;
+      gFake.remove();
+      gLent.forEach(function (e, k) { if (e) e.id = gLentIds[k]; });
+      gpPaint();
+    }
+    ok('Simple: up from New to the gear, down back to New, left from the gear to the wheel; ' +
+       'up and right from it stay',
+       gSaw.join(' ') === 'gear New cpick gear gear', gSaw.join(' '));
   }
 
   // 3. ⓘ The name pool moved to the agent 2026-09-01, so the checks that it
@@ -13559,8 +13664,43 @@ function selfTest() {
        settingsGearHtml('hid_7').indexOf('openControllerSettings(\'ds5_usb_7\')') >= 0,
        settingsGearHtml('hid_7'));
     ok('a mouse has none: a dash in the tables, nothing in Simple and Quick',
-       settingsGearHtml('hid_6').indexOf('<button') < 0 && settingsGearHtml('hid_6', 'R3') === '',
+       settingsGearHtml('hid_6').indexOf('<button') < 0 && settingsGearHtml('hid_6', true) === '',
        settingsGearHtml('hid_6'));
+    // ⭐ Simple's gear without R3's mark, and none in Quick (2026-11-09).
+    var keepQuickView = QUICK, qLine = '', sLine = '';
+    try {
+      QUICK = true; qLine = compactRateLine('hid_7', 'div');
+      QUICK = false; sLine = compactRateLine('hid_7', 'span');
+    } finally { QUICK = keepQuickView; }
+    ok("Quick's rate line has no gear, Simple's the gear without R3's mark",
+       qLine.indexOf('csetgear') < 0 && sLine.indexOf('csetgear') >= 0 && sLine.indexOf('kps') < 0,
+       qLine + ' / ' + sLine);
+    // ⭐ R3 in Advanced (2026-11-09): the controller on its tab, and on
+    // Overview the row the halo is on. A stand-in catches the opening.
+    var r3Keep = { c: COMPACT, a: ACTIVE, f: GP_FOCUS, i: GP_INDEX, o: openControllerSettings,
+                   s: SETTINGS_OPEN };
+    var r3Opened = [];
+    try {
+      openControllerSettings = function (ord) { r3Opened.push(ord); };
+      SETTINGS_OPEN = '';
+      COMPACT = false;
+      ACTIVE = 'hid_7';
+      gpRate();
+      var body = document.createElement('tbody');
+      body.innerHTML = '<tr><td><button class="r3probe">x</button></td><td>' +
+                       settingsGearHtml('hid_7') + '</td></tr>';
+      ACTIVE = 'overview';
+      GP_FOCUS = [body.querySelector('button.r3probe')];
+      GP_INDEX = 0;
+      gpRate();
+      ACTIVE = 'editor';
+      gpRate();
+    } finally {
+      openControllerSettings = r3Keep.o; COMPACT = r3Keep.c; ACTIVE = r3Keep.a;
+      GP_FOCUS = r3Keep.f; GP_INDEX = r3Keep.i; SETTINGS_OPEN = r3Keep.s;
+    }
+    ok("R3 in Advanced: the tab's controller, Overview's row under the halo, nothing on the Editor",
+       r3Opened.join(' ') === 'ds5_usb_7 ds5_usb_7', r3Opened.join(' '));
     ok('and Simple and Quick show a mouse no rate line at all', compactRateLine('hid_6', 'span') === '',
        compactRateLine('hid_6', 'span'));
     var csent = [];
@@ -14874,9 +15014,9 @@ function selfTest() {
        padSeen.join(',') === 'true,true,true', padSeen.join(','));
     ok('the tutorial: Simple and Quick, shown in a tour, at their large sizes, Advanced at its small, ' +
        'and only while a tour runs',
-       shares.join(' ') === '{"w":0.611,"h":0.4819} {"w":0.429,"h":0.246} null' &&
-       homes.join(' ') === Math.round(aw * 0.611) + 'x' + Math.round(ah * 0.4819) + ' ' +
-                           Math.round(aw * 0.49) + 'x' + Math.round(ah * 0.3879),
+       shares.join(' ') === '{"w":0.63,"h":0.4819} {"w":0.429,"h":0.246} null' &&
+       homes.join(' ') === Math.round(aw * 0.63) + 'x' + Math.round(ah * 0.4819) + ' ' +
+                           Math.round(aw * 0.505) + 'x' + Math.round(ah * 0.3879),
        shares.join(' ') + ' / ' + homes.join(' '));
     // ⭐ Skip (2.66.140): on the two finger steps, Continue is Skip with no
     // DualSense, Edge or DS4 really bridged or the switch unticked; with one
@@ -15713,8 +15853,9 @@ function tutWordsMode(mode) {
 function tutWordsLegend(quick) {
   if (quick) {
     return 'The legend says what each button does in this window: ' + tutKey('position') +
-           ' positions the window, ' + tutKey('resize') + ' resizes it, and ' + tutKey('close') +
-           ' takes you to the footer, onto ' + tutHl('Close') + '.';
+           ' positions the window, ' + tutKey('resize') + ' resizes it, ' + tutKey('close') +
+           ' takes you to the footer, onto ' + tutHl('Close') + ', and ' + tutKey('rate') +
+           ' opens ' + tutNick() + "'s settings.";
   }
   // ⭐ Simple's in a line (2.66.144; rhoquinn8217, 2026-11-06: *"No need to
   // go over each button in the legend. They can see it already so you are
@@ -15826,7 +15967,7 @@ function tutPadEvent(word) {
 // it gives with no tour (fitWindow): null. ⓘ A tour that starts in Advanced
 // still borrows its large size (ui/tour-size).
 function tutLargeShare() {
-  return !COMPACT ? null : QUICK ? { w: 0.429, h: 0.246 } : { w: 0.611, h: 0.4819 };
+  return !COMPACT ? null : QUICK ? { w: 0.429, h: 0.246 } : { w: 0.63, h: 0.4819 };
 }
 function tutLargeSize() {
   if (!TUT_SIZING) return;

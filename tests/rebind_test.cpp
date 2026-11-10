@@ -215,8 +215,8 @@ inline void blank_report(const ctm_rebind::Layout &, uint8_t *, size_t) {}
 inline void forget_device(const void *) {}
 }  // namespace ctm_overlay
 bool g_steering = false;
-// ⓘ The layout the page last named: the gate gives the page R3 in the
-// compact views, Simple and Quick, and not in Advanced.
+// ⓘ The layout the page last named: the gate gives the page L3 in Simple
+// alone (R3 in every view since 2026-11-09).
 bool g_compactView = false;
 bool g_quickView = false;
 namespace config_move {
@@ -578,17 +578,20 @@ int run_rebind_tests()
         ctm_rebind_set_editing_field(false);
     }
 
-    section("config mode: R3 types Ctrl+Shift+Alt+L in Simple and Quick, for their polling limit");
+    section("config mode: R3 types Ctrl+Shift+Alt+L in every view, for the controller's own settings");
     {
-        // ⓘ In Advanced it does what the config binds it to, and while a
-        // name is being typed it is the virtual keyboard's size.
+        // ⓘ In Advanced as well since 2026-11-09, where it did what the config
+        // binds it to; while a name is being typed it is the virtual
+        // keyboard's size.
         reset();
         ctm_rebind_set_config_mode(true);
         g_windowInFront = true;
         g_compactView = false;                          // Advanced
         g_quickView = false;
-        send(kPadA, pressing({kBtnR3}));
-        CTM_CHECK(keys_are(kPadA, {}));
+        const std::vector<uint8_t> advanced = send(kPadA, pressing({kBtnR3}));
+        CTM_CHECK(keys_are(kPadA, {0x0f}));            // L
+        CTM_CHECK_EQ(static_cast<int>(mods_of(kPadA)), 0x07);
+        CTM_CHECK(advanced == at_rest());
         g_compactView = true;                           // Simple
         const std::vector<uint8_t> simple = send(kPadA, pressing({kBtnR3}));
         CTM_CHECK(keys_are(kPadA, {0x0f}));            // L

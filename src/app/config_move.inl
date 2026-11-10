@@ -145,9 +145,19 @@ inline std::atomic_int g_size{0};
 // 690. Large keeps the small one's spare room: 0.611 gives its legend 864 px
 // against 844 wanted, where 0.56 gave 766. The heights are as they were.
 //
-//   medium  0.49  x 0.3879   what the page opens Simple at, so the two agree
+//   medium  0.49  x 0.3879   (until 2026-11-09; below)
 //   large   0.611 x 0.4819
-inline const SizeShare kCompactSizes[2] = { { 0.49, 0.3879 }, { 0.611, 0.4819 } };
+// ⭐ AND A LITTLE WIDER AGAIN, FOR R3'S "settings" IN THE LEGEND (rhoquinn8217,
+// 2026-11-09: "I want to make the mode selector smaller first ... If it
+// still does, we won't have to expand the simple window that much"). With
+// the Mode picker's spare room taken out the legend had 738 px at 0.49 and
+// wanted 734 with a pad in hand, 746 with a keyboard; 0.505 gives it 769.
+// Large the same: 963 px at 0.63 against 935 wanted, where 0.611 gave 924.
+// Measured on the page, as above.
+//
+//   medium  0.505 x 0.3879   what the page opens Simple at, so the two agree
+//   large   0.63  x 0.4819
+inline const SizeShare kCompactSizes[2] = { { 0.505, 0.3879 }, { 0.63, 0.4819 } };
 inline std::atomic_int  g_sizeCompact{0};
 inline std::atomic_bool g_compact{false};
 
