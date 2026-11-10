@@ -2,7 +2,7 @@
 <!--
   DS5-USBIP's Controller Configs page, served by the listener.
 
-  VERSION 2.68.3 -- see the changelog at the bottom of this comment.
+  VERSION 2.68.4 -- see the changelog at the bottom of this comment.
 
   WHAT IT STARTED AS. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -24,6 +24,9 @@
   not a tidy message about it.
 
   CHANGELOG
+    2.68.4   "Quick switch: 2-finger touchpad gesture", from "Quick switch -
+             2-finger touchpad gesture", as "Quick switch: Window select"
+             reads (rhoquinn8217, 2026-11-09).
     2.68.3   Advanced is wider with its text the size it was (0.733 of the
              screen, laid out at 1250), so its footer is one line with no
              controller bridged; Simple's polling rate sits in the middle
@@ -3574,7 +3577,7 @@
          Painted by paintQuickSwitch(); a pad stop of its own
          (data-gp-focus), as Open on bridge has. -->
     <label class="ovcheck ovnext" id="quickSwitchLabel"
-      data-tip="Press the touchpad with two fingers and keep a finger on it to open Quick mode and keep it open until you stop touching the touchpad. Swipe up or down with another finger, or use the d-pad or right stick, to switch configs. Stop touching the touchpad to close it or press the touchpad again to keep the config open. The config window will switch to the window mode you used before opening Quick mode."><input type="checkbox" id="quickSwitch" data-gp-focus="1" onchange="toggleQuickSwitch()">Quick switch - 2-finger touchpad gesture</label>
+      data-tip="Press the touchpad with two fingers and keep a finger on it to open Quick mode and keep it open until you stop touching the touchpad. Swipe up or down with another finger, or use the d-pad or right stick, to switch configs. Stop touching the touchpad to close it or press the touchpad again to keep the config open. The config window will switch to the window mode you used before opening Quick mode."><input type="checkbox" id="quickSwitch" data-gp-focus="1" onchange="toggleQuickSwitch()">Quick switch: 2-finger touchpad gesture</label>
     <!-- ⭐ THE D-PAD'S APP SWITCHER (rhoquinn8217, 2026-11-06): while two
          fingers hold Quick up, d-pad left and right step Windows' window
          switcher, Alt held until Cross picks or the last finger lifts.
@@ -3655,7 +3658,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.68.3</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.68.4</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -11128,7 +11131,7 @@ var APP_SWITCHER = true;
 // the Overview's settings carry data-tip instead and this draws it in the
 // page, at the size of the settings' names, after a short wait as a tooltip.
 var TIP_WINDOW_SELECT = 'During a quick switch, left/right on the d-pad or the right stick allows you to bring up another window, like Alt+Tab. Select the window with cross or a touchpad press.';
-var TIP_WINDOW_SELECT_OFF = 'Turn on Quick switch - 2-finger touchpad gesture to use this.';
+var TIP_WINDOW_SELECT_OFF = 'Turn on Quick switch: 2-finger touchpad gesture to use this.';
 var TIP_EL = null, TIP_AT = null, TIP_TIMER = 0;
 // ⓘ Where the pointer is, for the tip to open beside it.
 var TIP_X = -1, TIP_Y = -1;
@@ -14529,7 +14532,7 @@ function selfTest() {
     ok('the Overview: Global Options, three boxes by their new names, no long help, a short hover on every ' +
        'setting at the names\' size',
        !!ovCard && ovCard.querySelector('.ovcard-h').textContent === 'Global Options' &&
-       ovNames.join('|') === 'Open on device bridge|Quick switch - 2-finger touchpad gesture|Quick switch: Window select' &&
+       ovNames.join('|') === 'Open on device bridge|Quick switch: 2-finger touchpad gesture|Quick switch: Window select' &&
        !document.querySelector('#pane-overview .ovhelp') &&
        ovHovers.every(function (h) { return !!h; }) &&
        tipShown && !!tipSize && tipSize === nameSize && tipBeside && tipInside,
@@ -16068,7 +16071,7 @@ function tutCanDo(s) {
 // ⓘ What the words say in place of trying, when Skip is up.
 function tutPadSkip() {
   if (!QUICK_SWITCH) {
-    return ' ' + tutHl('Quick switch - 2-finger touchpad gesture') + ' is off in the Overview, so choose ' +
+    return ' ' + tutHl('Quick switch: 2-finger touchpad gesture') + ' is off in the Overview, so choose ' +
            tutHl('Skip') + '.';
   }
   return ' With no DualSense or DS4 bridged, choose ' + tutHl('Skip') + '.';
@@ -16955,7 +16958,7 @@ var TUT_ADVANCED = [
     words: function () {
       // ⓘ The box's name as rhoquinn8217 gave it (2026-11-03), and the right
       // stick beside the swipe since the same day.
-      return 'Ticked, ' + tutHl('Quick switch - 2-finger touchpad gesture') + ' switches ' +
+      return 'Ticked, ' + tutHl('Quick switch: 2-finger touchpad gesture') + ' switches ' +
              'configs mid-game: press the touchpad with two fingers and Quick opens while a finger rests ' +
              'on it. Swipe another finger up or down, or push the right stick up or down, to change the ' +
              'config; lifting closes it, and pressing again keeps it open.';
