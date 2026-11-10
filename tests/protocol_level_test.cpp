@@ -76,6 +76,23 @@ int run_protocol_level_tests()
         CTM_CHECK(std::string(protocol_level::kWindowsLocked).rfind("ERR Windows is locked", 0) == 0);
     }
 
+    section("protocol level: STATUS says whether a UAC prompt is up");
+    {
+        // none unless one is said, so a caller from before the prompts reads as before
+        CTM_CHECK_EQ(protocol_level::word_value(protocol_level::status_reply(false), "uac=", -1), 0);
+        CTM_CHECK_EQ(protocol_level::word_value(protocol_level::status_reply(false, 1), "uac=", -1), 1);
+        CTM_CHECK_EQ(protocol_level::word_value(protocol_level::status_reply(false, 2), "uac=", -1), 2);
+        // never with Windows locked, and never a kind it does not know
+        CTM_CHECK_EQ(protocol_level::word_value(protocol_level::status_reply(true, 1), "uac=", -1), 0);
+        CTM_CHECK_EQ(protocol_level::word_value(protocol_level::status_reply(false, 7), "uac=", -1), 0);
+        // the words before it read as they did: the TV's probe finds " locked=" and the levels
+        const std::string reply = protocol_level::status_reply(false, 2);
+        CTM_CHECK(reply.rfind("OK CTM_AGENT_V1 ", 0) == 0);
+        CTM_CHECK_EQ(protocol_level::word_value(reply, "locked=", -1), 0);
+        CTM_CHECK_EQ(protocol_level::word_value(reply, "level=", 0), kLevel);
+        CTM_CHECK(reply.find(" locked=0 uac=2\n") != std::string::npos);
+    }
+
     section("protocol level: a TV's level, from its BRIDGE_START");
     {
         CTM_CHECK_EQ(protocol_level::tv_level("BRIDGE_START ds5 0 ctm-ds5-1 level=3"), 3);
@@ -102,7 +119,7 @@ int run_protocol_level_tests()
         const std::string agent = read_agent_source();
         CTM_CHECK(!agent.empty());
         const std::string status = between(agent, "if (command == \"STATUS\") {", "return;");
-        CTM_CHECK(status.find("send_text(client, protocol_level::status_reply(g_windows_locked.load()));") != std::string::npos);
+        CTM_CHECK(status.find("send_text(client, protocol_level::status_reply(g_windows_locked.load(), g_uac_prompt.load()));") != std::string::npos);
         const std::string start = between(agent, "if (command == \"BRIDGE_START\") {", "start_bridge_session_for(");
         CTM_CHECK(start.find("protocol_level::refusal_for(") != std::string::npos);
         CTM_CHECK(start.find("if (g_windows_locked.load()) {") != std::string::npos);
