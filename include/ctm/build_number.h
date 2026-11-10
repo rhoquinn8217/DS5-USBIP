@@ -18,6 +18,6 @@
 #ifndef DS5_USBIP_BUILD_NUMBER_H
 #define DS5_USBIP_BUILD_NUMBER_H
 
-#define PRODUCT_BUILD 179
+#define PRODUCT_BUILD 180
 
 #endif
