@@ -72,13 +72,17 @@ static void ds5_apply_initial_settings(CtmBackend *backend,
     }
     const std::string resolved = device_settings_section(kind, linkedConfig);
     const char *section = resolved.c_str();
+    // ⭐ Audio is the CONTROLLER's, not its config's (controller_settings.inl):
+    // its own section. The microphone's mute and the triggers stay the config's.
+    const std::string ctlSection = controller_settings_section(kind, device->controller_section());
+    const char *ctl = ctlSection.c_str();
 
-    const Ds5AudioOutput output = ds5_audio_output_for(section);
+    const Ds5AudioOutput output = ds5_audio_output_for(ctl);
     // ⭐ ds5_settings_level_for, not ds5_level_for: a chosen mode sends the
     // outputs it plays through their dials, 100 for a dial never moved, so a
     // 0 an earlier mode sent does not stay on the pad. Its note says why.
-    int speakerPercent = ds5_settings_level_for(output, true, section);
-    int headsetPercent = ds5_settings_level_for(output, false, section);
+    int speakerPercent = ds5_settings_level_for(output, true, ctl);
+    int headsetPercent = ds5_settings_level_for(output, false, ctl);
     // ⭐ UNDER AUTO THE JACK DECIDES (ds5_output_overrides.inl,
     // ds5_auto_route_report): with headphones in the pad's jack, as its
     // reports last said, our report routes to them with the headset's dial,
@@ -87,12 +91,12 @@ static void ds5_apply_initial_settings(CtmBackend *backend,
     // a config saved meanwhile from sending the sound back to the speaker.
     const bool autoHeadset = output == Ds5AudioOutput::Auto && device->ds5_jack() == 1;
     if (autoHeadset) {
-        headsetPercent = device_config_int(section, "headset_volume", kDs5DialUnsetPercent);
-        speakerPercent = ds5_level_for(output, true, section);
+        headsetPercent = device_config_int(ctl, "headset_volume", kDs5DialUnsetPercent);
+        speakerPercent = ds5_level_for(output, true, ctl);
     }
     // For the log line at the end: which of the two came from an unset dial.
-    const bool speakerUnset = speakerPercent >= 0 && ds5_level_for(output, true, section) < 0;
-    const bool headsetUnset = headsetPercent >= 0 && ds5_level_for(output, false, section) < 0;
+    const bool speakerUnset = speakerPercent >= 0 && ds5_level_for(output, true, ctl) < 0;
+    const bool headsetUnset = headsetPercent >= 0 && ds5_level_for(output, false, ctl) < 0;
 
     // Microphone mute, off unless asked for. Muting AT THE CONTROLLER is the
     // only mute that cannot be defeated by proximity: a muted microphone hears
@@ -210,7 +214,7 @@ static void ds5_apply_initial_settings(CtmBackend *backend,
     // silences the controller. That one intercepts a GAME'S report, where an
     // absent key must leave the report untouched -- a rule the test suite
     // enforces directly.
-    if (speakerActive && device_config_bool(section, "force_echo_cancel", true)) {
+    if (speakerActive && device_config_bool(ctl, "force_echo_cancel", true)) {
         audioControl = static_cast<uint8_t>(audioControl | kDs5EchoNoiseCancel);
     }
     report[kDs5IdxAudioControl] = audioControl;

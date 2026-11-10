@@ -170,7 +170,7 @@ public:
                 wchar_t instance[160] = {};
                 std::swprintf(instance, 160, L"USB\\VID_%04X&PID_%04X\\%ls", vendor, product, virtualSerial.c_str());
                 std::atomic_store(&hapticsPad_, audio_haptics::attach(instance, L"the pad " + virtualSerial,
-                                                                      device_settings_section(kind, linked_config())));
+                                                                      controller_settings_section(kind, controller_section())));
             }
         }
         // ⭐ The map replays captured packets, and an announce carries an id
@@ -287,7 +287,9 @@ public:
     // kind's: audio_gain.inl says why they are read per pad.
     void refresh_gains()
     {
-        const std::string section = device_settings_section(device_section_for(profile_.device_descriptor), linked_config());
+        // ⭐ The controller's own settings (controller_settings.inl), not its config's.
+        const std::string section = controller_settings_section(device_section_for(profile_.device_descriptor),
+                                                                controller_section());
         const ctm_audio_gain::Gains g = ctm_audio_gain::read(section.empty() ? nullptr : section.c_str());
         const int oldHaptics = hapticsGain_.exchange(g.haptics);
         const int oldSound = soundGain_.exchange(g.sound);
@@ -311,12 +313,40 @@ public:
             linkedConfig_ = name;
         }
         refresh_gains();
-        // ⓘ PC-sound haptics read the section a link names, as everything
-        // else here does.
+    }
+
+    // ⭐ THE CONTROLLER'S OWN SETTINGS SECTION (config/controller_settings.inl):
+    // audio and rumble are read from it, whatever config is linked
+    // (rhoquinn8217, 2026-11-08: "controller specific settings for audio and
+    // rumble are not appropriate for configs"). Set by the agent at bridge
+    // time; empty until then, which reads every default.
+    std::string controller_section() const
+    {
+        std::lock_guard<std::mutex> lock(physicalSerialMutex_);
+        return controllerSection_;
+    }
+
+    void set_controller_section(const std::string &section)
+    {
+        {
+            std::lock_guard<std::mutex> lock(physicalSerialMutex_);
+            controllerSection_ = section;
+        }
+        refresh_gains();
+        // ⓘ PC-sound haptics are the controller's too.
         if (const std::shared_ptr<audio_haptics::Pad> pad = std::atomic_load(&hapticsPad_)) {
-            audio_haptics::set_section(*pad, device_settings_section(device_section_for(profile_.device_descriptor), name));
+            audio_haptics::set_section(*pad, controller_settings_section(device_section_for(profile_.device_descriptor),
+                                                                         section));
         }
     }
+
+    // ⭐ WHETHER ITS SESSION IS A CONTROLLER'S (config_store::kind_supports_config),
+    // told by the agent. A DS5Dongle's keyboard half carries the dongle's
+    // DualSense ids, and so a button layout, but bridges as a session of its
+    // own, kind "hid": it takes no polling limit (rhoquinn8217, 2026-11-08:
+    // "The rate of the controller is the only one that should be set, the
+    // keyboard rate limit should be ignore").
+    void set_controller_kind(bool controller) { controllerKind_.store(controller); }
 
     // ⭐ WHETHER A RATE LIMIT CAN APPLY HERE (usbip/input_pace.inl).
     //
@@ -326,8 +356,18 @@ public:
     // several HID interfaces, which is forwarded exactly as it comes.
     bool takes_rate_limit() const
     {
-        return profile_.interface_report_descriptors.empty() &&
+        return controllerKind_.load() && profile_.interface_report_descriptors.empty() &&
                device_button_section_for(profile_.device_descriptor) != nullptr;
+    }
+
+    // ⭐ KEPT BY ITS SERIAL, OR FOR THIS BRIDGE ALONE, AS ITS OWN SETTINGS ARE
+    // (config/controller_settings.inl; rhoquinn8217, 2026-11-08): a controller
+    // with no usable serial, or one bridged while another with its serial is,
+    // keeps its limit for this bridge only, so two never share one.
+    bool rate_limit_kept() const
+    {
+        if (!ctm_polling_limit_has_identity(physical_serial())) return false;
+        return !ctm_controller_settings_for_bridge(controller_section());
     }
 
     // ⭐ THE CONTROLLER'S OWN LIMIT (config/polling_limits.inl; rhoquinn8217,
@@ -335,12 +375,11 @@ public:
     // or empty for Real time. Kept by the controller's serial, so a change
     // of config never moves it. ⓘ It was the linked config's polling_rate
     // until then, which config files may still carry and nothing reads.
-    // ⓘ A controller with no usable serial keeps one for this bridge only.
+    // ⓘ Or for this bridge only (rate_limit_kept).
     std::string rate_limit_setting() const
     {
         if (!takes_rate_limit()) return std::string();
-        const std::string serial = physical_serial();
-        if (ctm_polling_limit_has_identity(serial)) return ctm_polling_limit_get(serial);
+        if (rate_limit_kept()) return ctm_polling_limit_get(physical_serial());
         std::lock_guard<std::mutex> lock(physicalSerialMutex_);
         return bridgeRateLimit_;
     }
@@ -351,8 +390,7 @@ public:
     bool set_rate_limit_setting(const std::string &value)
     {
         if (!takes_rate_limit()) return false;
-        const std::string serial = physical_serial();
-        if (ctm_polling_limit_has_identity(serial)) return ctm_polling_limit_set(serial, value);
+        if (rate_limit_kept()) return ctm_polling_limit_set(physical_serial(), value);
         const int hz = input_pace::limit_hz(value);
         if (hz == 0 && !value.empty() && value != "real_time") return false;
         std::lock_guard<std::mutex> lock(physicalSerialMutex_);
@@ -825,8 +863,9 @@ public:
         if (limit != loggedLimit_.exchange(limit)) {
             device_log::usb_s() << "input rate limit: "
                 << (limit > 0 ? std::to_string(limit) + " a second" : std::string("none"))
-                << (ctm_polling_limit_has_identity(physical_serial())
-                    ? ", this controller's own"
+                << (rate_limit_kept() ? ", this controller's own"
+                    : ctm_polling_limit_has_identity(physical_serial())
+                    ? ", for this bridge: another controller bridged now has its serial"
                     : ", for this bridge: the controller reports no serial")
                 << std::endl;
         }
@@ -1033,7 +1072,8 @@ public:
     {
         const char *kind = device_section_for(profile_.device_descriptor);
         if (kind == nullptr) return;
-        const std::string section = device_settings_section(kind, linked_config());
+        // ⓘ audio_output is the controller's own (controller_settings.inl).
+        const std::string section = controller_settings_section(kind, controller_section());
         if (ds5_audio_output_for(section.c_str()) != Ds5AudioOutput::Auto) {
             device_log::report(device_log::msg() << section << ": "
                 << (in ? "something in the headphone jack" : "nothing in the headphone jack")
@@ -2119,10 +2159,10 @@ private:
             memcpy(event.data, data.data(), event.length);
         }
         ds5_apply_output_overrides(event.data, event.length, profile_.device_descriptor,
-                                   linked_config());
+                                   linked_config(), controller_section());
         // A DS4's rumble dials, on its own report; nothing for any other pad.
         ds4_apply_output_overrides(event.data, event.length, profile_.device_descriptor,
-                                   linked_config());
+                                   linked_config(), controller_section());
         // ⭐ After the overrides, so [trigger-in] above logs what the HOST sent.
         trigger_defend_host_report(event.data, event.length, profile_.device_descriptor,
                                    linked_config());
@@ -2399,6 +2439,10 @@ private:
     std::wstring fallbackSerial_;
     std::string physicalSerial_;
     std::string linkedConfig_;
+    // ⭐ The controller's own settings section, and whether its session is a
+    // controller's: set_controller_section, set_controller_kind.
+    std::string controllerSection_;
+    std::atomic_bool controllerKind_{true};
     // Its two sound gains, from its own section (audio_gain.inl): -1 for
     // none. Read on its sound stream's thread, re-read by refresh_gains.
     std::atomic<int> hapticsGain_{-1};

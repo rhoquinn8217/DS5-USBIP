@@ -51,6 +51,9 @@ struct RestDeviceView {
     bool hasGyro = true;
     // ⭐ The DualSense Edge's Fn and back buttons (device_capabilities.inl).
     bool hasEdgeButtons = true;
+    // ⭐ Its own settings' section (controller_settings.inl), empty for a device
+    // that is not a controller: the page's gear and settings window.
+    std::string controllerSection;
     // ⭐ THE POLLING RATE (usbip/input_pace.inl): the reports a second Windows
     // is getting now, and arriving from the TV, which differ only under a
     // limit; whether a limit can apply at all, a controller's and never a
@@ -68,6 +71,9 @@ static bool rest_link_device(const std::string &ordinal, const std::string &conf
 static bool rest_set_polling_rate(const std::string &ordinal, const std::string &value,
                                   std::string *error);
 static bool rest_find_device(const std::string &ordinal, RestDeviceView *out);
+static bool rest_controller_section(const std::string &ordinal, std::string *section);
+static std::string rest_controller_settings_json(const std::string &ordinal, const std::string &section);
+static void rest_apply_controller_settings(const std::string &ordinal);
 
 // The name the shared section answers to in the API. Reserved, so a real config
 // cannot take it -- see config_store::valid_name().
@@ -110,6 +116,11 @@ static std::string rest_device_json(const RestDeviceView &d)
     out += ",\"has_touchpad\":" + std::string(d.hasTouchpad ? "true" : "false");
     out += ",\"has_gyro\":" + std::string(d.hasGyro ? "true" : "false");
     out += ",\"has_edge_buttons\":" + std::string(d.hasEdgeButtons ? "true" : "false");
+    // ⭐ Whether it has settings of its own (a controller), and whether they are
+    // kept in its file or for this bridge alone (controller_settings.inl).
+    out += ",\"has_settings\":" + std::string(d.controllerSection.empty() ? "false" : "true");
+    out += ",\"settings_kept\":" +
+           std::string(controller_settings::is_kept_section(d.controllerSection) ? "true" : "false");
     // ⭐ The polling rate column, Advanced only on the page.
     out += ",\"input_rate_hz\":" + std::to_string(d.inputRateHz);
     out += ",\"arrival_rate_hz\":" + std::to_string(d.arrivalRateHz);
@@ -582,6 +593,8 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
         return true;
     }
 
+    // GET|POST /api/v1/devices/{ordinal}/settings: a controller's own settings
+    //   (controller_settings.inl), {"key":"value"} to set, "" for the default
     // POST /api/v1/devices/{ordinal}/link   {"config":"name"} or {} to unlink
     // POST /api/v1/devices/{ordinal}/polling_rate   {"polling_rate":"250"}: the
     //   controller's own limit, "real_time" or nothing for none
@@ -591,11 +604,51 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
         const size_t slash = rest.find('/');
         const std::string action =
             slash == std::string::npos ? std::string() : rest.substr(slash);
-        if (action != "/link" && action != "/polling_rate") {
+        if (action != "/link" && action != "/polling_rate" && action != "/settings") {
             *out = rest_error_response(404, "unknown path");
             return true;
         }
         const std::string ordinal = rest.substr(0, slash);
+        // ⭐ A CONTROLLER'S OWN SETTINGS (controller_settings.inl; rhoquinn8217,
+        // 2026-11-08): read, and set one key at a time or several, kept in its
+        // file or for this bridge alone.
+        if (action == "/settings") {
+            std::string section;
+            if (!rest_controller_section(ordinal, &section)) {
+                *out = rest_error_response(404, ordinal + " is not a bridged controller");
+                return true;
+            }
+            if (req.method == "GET") {
+                *out = rest_http_response(200, rest_controller_settings_json(ordinal, section));
+                return true;
+            }
+            if (req.method != "POST") {
+                *out = rest_error_response(405, "method not allowed", "Allow: GET, POST, OPTIONS\r\n");
+                return true;
+            }
+            RestJson json;
+            std::string parseError;
+            if (!rest_parse_flat_json(req.body, &json, &parseError)) {
+                *out = rest_error_response(400, parseError);
+                return true;
+            }
+            std::vector<std::pair<std::string, std::string>> writes;
+            for (const auto &e : json.strings) writes.emplace_back(e.first, e.second);
+            for (const auto &e : json.numbers) writes.emplace_back(e.first, std::to_string(e.second));
+            for (const auto &e : json.bools) writes.emplace_back(e.first, e.second ? "true" : "false");
+            for (const auto &w : writes) {
+                std::string error;
+                if (!controller_settings::set(section, w.first, w.second, &error)) {
+                    *out = rest_error_response(400, error);
+                    return true;
+                }
+                device_log::config(device_log::msg() << ordinal << " settings: " << w.first << " = "
+                                                     << (w.second.empty() ? std::string("(default)") : w.second));
+            }
+            rest_apply_controller_settings(ordinal);
+            *out = rest_http_response(200, rest_controller_settings_json(ordinal, section));
+            return true;
+        }
         if (req.method != "POST") {
             *out = rest_error_response(405, "method not allowed", "Allow: POST, OPTIONS\r\n");
             return true;

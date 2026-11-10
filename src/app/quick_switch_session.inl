@@ -19,7 +19,11 @@
 // with the report. mouse_exclusive.inl blanks them while holds_touchpad says
 // so. ⭐ A second press keeps the window, in the layout it had before, and
 // lets the touchpad go (quick_switch::while_held; config_move::keep_quick_view;
-// the page's KeyV).
+// the page's KeyV). ⭐ AND SO DOES R3, which opens the controller's settings
+// over it (rhoquinn8217, 2026-11-09: "when quick switching, if R3 is press to
+// open settings treat it like the user has pressed the touchpad again to keep
+// the config window up and open the settings window"): the gate hands the
+// page R3 as ever, and the window stays for it.
 // ⭐ THE WINDOW COMES AS THE PRESS COMES UP, under four seconds (rhoquinn8217,
 // 2026-10-28; quick_switch::armed_report): held that long, the press is the
 // TV's release, and the window came up over it. From the press to the
@@ -90,6 +94,7 @@ struct PadState {
     quick_switch::Stick mockStick;     // and its right stick's pushes
     quick_switch::Armed closeArmed;    // pressed with two fingers, the window in front: it closes as it comes up
     quick_switch::AppSwitch app;       // the d-pad's app switcher: Alt, and the Tabs on their way
+    quick_switch::Press r3;            // R3 going in: while the window is held up, a keep
 };
 
 inline std::mutex g_mutex;
@@ -183,10 +188,10 @@ inline void close_when_sent(unsigned id)
 
 // Every report of a pad with a touchpad, read before anything changes the
 // report: whether the pad is pressed in, each of its two fingers -- down or
-// not, the id the pad gave its touch, and where it is -- and its right stick,
-// when the report holds one (haveStick), up negative.
+// not, the id the pad gave its touch, and where it is -- its right stick,
+// when the report holds one (haveStick), up negative, and R3.
 inline void report(const void *deviceKey, bool pressed, const quick_switch::Touch (&touch)[2],
-                   bool haveStick, float rx, float ry)
+                   bool haveStick, float rx, float ry, bool r3)
 {
     const int fingers = (touch[0].down ? 1 : 0) + (touch[1].down ? 1 : 0);
     if (!config_move::quick_switch_on()) {
@@ -215,6 +220,7 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
     Did did = Did::Nothing;
     int step = 0;
     bool byStick = false;
+    bool byR3 = false;
     bool byMock = false;
     unsigned closer = 0;
     unsigned opened = 0;
@@ -226,6 +232,9 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
         Session &s = g_session;
         const bool mine = s.active && s.device == deviceKey;
         const bool pressEdge = quick_switch::press_edge(ps.press, pressed);
+        // ⓘ Read on every report, as the press is, so R3 held as the window
+        // came is no press.
+        const bool r3Edge = quick_switch::press_edge(ps.r3, r3);
         // ⭐ A press of the touchpad while the d-pad's app switcher has Alt down
         // picks, as Cross does (quick_switch::app_switch_press). The press is
         // the switcher's then: it arms, keeps and closes nothing.
@@ -267,7 +276,10 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
             // last finger lifting lets Alt go (quick_switch::app_switch_end), so
             // Windows switches to the window its switcher shows.
             const bool switching = ps.app.alt;
-            switch (quick_switch::while_held(switching ? false : pressEdge, fingers,
+            // ⭐ R3 keeps the window as a second press does: it opens the
+            // controller's settings, and they would go with the window.
+            const bool keepPress = pressEdge || r3Edge;
+            switch (quick_switch::while_held(switching ? false : keepPress, fingers,
                                              switching ? 0 : steps)) {
             case quick_switch::Held::Close:
                 s.ending = true;
@@ -285,6 +297,7 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
                 s.kept = true;
                 quick_switch::queue_layout(s.keys);
                 kept = s.id;
+                byR3 = !pressEdge;
                 did = Did::Kept;
                 break;
             case quick_switch::Held::Step:
@@ -457,8 +470,10 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
                                 "under four seconds" :
             did == Did::TooLong ? "two fingers held four seconds, the TV's release: no window, "
                                   "the touchpad held back until the last finger lifts" :
-            did == Did::Kept ? "pressed again: the window stays, in the layout it had before, "
-                               "and the touchpad is the config's again" :
+            did == Did::Kept ? (byR3 ? "R3, for the controller's settings: the window stays, in the "
+                                       "layout it had before, and the touchpad is the config's again"
+                                     : "pressed again: the window stays, in the layout it had before, "
+                                       "and the touchpad is the config's again") :
             did == Did::InFront ? "two fingers pressed, with the window in front already" :
             did == Did::SomeoneElse ? "the touchpad, while another controller is switching" :
             byStick ? (step > 0 ? "right stick down: the next config" : "right stick up: the config before") :
@@ -683,10 +698,10 @@ inline std::string take_mock_events()
 void quick_switch_report(const void *deviceKey, bool pressed,
                          bool down0, int id0, float x0, float y0,
                          bool down1, int id1, float x1, float y1,
-                         bool haveStick, float rx, float ry)
+                         bool haveStick, float rx, float ry, bool r3)
 {
     const quick_switch::Touch touch[2] = { { down0, id0, x0, y0 }, { down1, id1, x1, y1 } };
-    quick_switch_session::report(deviceKey, pressed, touch, haveStick, rx, ry);
+    quick_switch_session::report(deviceKey, pressed, touch, haveStick, rx, ry, r3);
 }
 
 uint32_t quick_switch_app_buttons(const void *deviceKey, bool left, bool right, bool cross,

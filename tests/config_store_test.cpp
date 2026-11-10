@@ -1110,6 +1110,89 @@ int run_config_store_tests()
         CTM_CHECK_EQ(after, 80);
     }
 
+    // ⭐ A CONTROLLER'S OWN SETTINGS (controller_settings.inl; rhoquinn8217,
+    // 2026-11-08): audio, rumble and haptics, kept by serial whatever config the
+    // controller reads.
+    section("controller settings: fourteen keys of the controller's own, and nothing else");
+    {
+        namespace ctl = units::controller_settings;
+        CTM_CHECK_EQ(sizeof(ctl::kKeys) / sizeof(ctl::kKeys[0]), static_cast<size_t>(14));
+        CTM_CHECK(ctl::is_key("speaker_volume") && ctl::is_key("audio_output") &&
+                  ctl::is_key("rumble_floor") && ctl::is_key("audio_haptics_mode") &&
+                  ctl::is_key("audio_latency_ms") && ctl::is_key("force_echo_cancel"));
+        CTM_CHECK(!ctl::is_key("rebind_0") && !ctl::is_key("mic_muted") &&
+                  !ctl::is_key("polling_rate") && !ctl::is_key(""));
+    }
+
+    section("controller settings: a file by serial, or this bridge's alone");
+    {
+        namespace ctl = units::controller_settings;
+        CTM_CHECK(ctl::keep_for("aabbccddeeff", false) == ctl::Keep::InFile);
+        CTM_CHECK(ctl::keep_for("", false) == ctl::Keep::ForThisBridge);              // no serial
+        CTM_CHECK(ctl::keep_for("aabbccddeeff", true) == ctl::Keep::ForThisBridge);   // another has it
+        CTM_CHECK(cs::normalise_serial("000000000000").empty());                       // all zeros: none
+        CTM_CHECK(ctl::kept_section("aabb") == "ctl:aabb" && ctl::bridge_section("ds5_usb_1") == "ctl~ds5_usb_1");
+        CTM_CHECK(ctl::is_kept_section("ctl:aabb") && !ctl::is_kept_section("ctl~x") &&
+                  ctl::is_bridge_section("ctl~x") && !ctl::is_kept_section("cfg:aabb"));
+    }
+
+    section("controller settings: a file keeps a controller's keys alone, and reads back as written");
+    {
+        namespace ctl = units::controller_settings;
+        const std::map<std::string, std::string> m = ctl::parse(
+            "# a comment\r\nSpeaker_Volume = 80\r\nrebind_0 = Enter\r\n\r\nrumble_floor=20\r\nno equals\r\n");
+        CTM_CHECK(m.size() == 2 && m.count("speaker_volume") && m.at("speaker_volume") == "80" &&
+                  m.count("rumble_floor") && m.at("rumble_floor") == "20");
+        CTM_CHECK(ctl::parse(ctl::format("aabb", m)) == m);
+    }
+
+    section("controller settings: claimed, set, read and released; a second of one serial keeps its own for the bridge");
+    {
+        namespace ctl = units::controller_settings;
+        std::string why, error;
+        const std::string a = ctl::claim("aabbccddeeff", "ds5_usb_1", &why);
+        CTM_CHECK(a == "ctl:aabbccddeeff");
+        CTM_CHECK(ctl::set(a, "speaker_volume", "70", &error));
+        CTM_CHECK(!ctl::set(a, "rebind_0", "Enter", &error));          // not a controller's
+        CTM_CHECK(!ctl::set("cfg:couch", "speaker_volume", "70", &error)); // not a controller's section
+        CTM_CHECK_EQ(units::device_config_int(a.c_str(), "speaker_volume", -1), 70);
+        // ⭐ A second controller with that serial, bridged now: its own, for this bridge.
+        const std::string b = ctl::claim("aabbccddeeff", "ds5_usb_2", &why);
+        CTM_CHECK(b == "ctl~ds5_usb_2");
+        CTM_CHECK_EQ(units::device_config_int(b.c_str(), "speaker_volume", -1), -1);
+        CTM_CHECK(ctl::set(b, "speaker_volume", "30", &error));
+        CTM_CHECK_EQ(units::device_config_int(b.c_str(), "speaker_volume", -1), 30);
+        CTM_CHECK_EQ(units::device_config_int(a.c_str(), "speaker_volume", -1), 70);
+        // The file is written, and a reload of the shared file keeps both sections.
+        CTM_CHECK(std::filesystem::exists("controllers\\aabbccddeeff.txt"));
+        units::device_config_invalidate();
+        CTM_CHECK_EQ(units::device_config_int(a.c_str(), "speaker_volume", -1), 70);
+        CTM_CHECK_EQ(units::device_config_int(b.c_str(), "speaker_volume", -1), 30);
+        // Released: this bridge's goes; the file is read back at the next claim.
+        ctl::release("aabbccddeeff", "ds5_usb_2");
+        ctl::release("aabbccddeeff", "ds5_usb_1");
+        CTM_CHECK(ctl::get(b).empty());
+        const std::string again = ctl::claim("aabbccddeeff", "ds5_usb_3", &why);
+        CTM_CHECK(again == a);
+        CTM_CHECK_EQ(units::device_config_int(again.c_str(), "speaker_volume", -1), 70);
+        // An empty value puts it back to its default.
+        CTM_CHECK(ctl::set(again, "speaker_volume", "", &error));
+        CTM_CHECK_EQ(units::device_config_int(again.c_str(), "speaker_volume", -1), -1);
+        ctl::release("aabbccddeeff", "ds5_usb_3");
+        // No usable serial: this bridge's alone.
+        CTM_CHECK(ctl::claim("", "hid_1", &why) == "ctl~hid_1");
+        ctl::release("", "hid_1");
+    }
+
+    section("controller settings: audio and rumble are the controller's, not its config's");
+    {
+        // ⭐ A linked config's speaker_volume is not read for the controller; its
+        // own section's is (controller_settings_section).
+        CTM_CHECK(units::controller_settings_section("ds5", "ctl:aabb") == "ctl:aabb");
+        CTM_CHECK(units::controller_settings_section("ds5", "") == "ds5");   // none claimed yet: its kind's
+        CTM_CHECK(units::controller_settings_section(nullptr, "").empty());
+    }
+
     wipe_configs();
     return 0;
 }

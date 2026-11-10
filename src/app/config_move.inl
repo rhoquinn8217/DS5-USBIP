@@ -106,10 +106,19 @@ inline window_move::Movers g_movers;
 //
 // ⓘ A saved index keeps its slot again, so a window left at the small opens
 // at the new small.
+// ⭐ AND WIDER SINCE 2026-11-09, THE TEXT THE SAME SIZE (rhoquinn8217:
+// "advance mode legend isn't fitting. expand it out more"): the page is
+// laid out at 1250 px from 1160 (its ADV_WIDTH) and zooms with the window's
+// width, so both sizes grow by as much, and its footer has the room with
+// no controller bridged:
+//
+//   small   0.733 x 0.73   what Advanced opens at
+//   large   0.97  x 0.94
+//
 // ⛔ The opening size is written twice more, and the three move together:
 // the page's wantSize() and the browser window's size in open_ui.inl.
 struct SizeShare { double w; double h; };
-inline const SizeShare kSizes[2] = { { 0.68, 0.73 }, { 0.90, 0.94 } };
+inline const SizeShare kSizes[2] = { { 0.733, 0.73 }, { 0.97, 0.94 } };
 inline std::atomic_int g_size{0};
 
 // ⭐ COMPACT HAS SIZES OF ITS OWN (rhoquinn8217, 2026-09-09): at 250% scaling on
@@ -145,9 +154,19 @@ inline std::atomic_int g_size{0};
 // 690. Large keeps the small one's spare room: 0.611 gives its legend 864 px
 // against 844 wanted, where 0.56 gave 766. The heights are as they were.
 //
-//   medium  0.49  x 0.3879   what the page opens Simple at, so the two agree
+//   medium  0.49  x 0.3879   (until 2026-11-09; below)
 //   large   0.611 x 0.4819
-inline const SizeShare kCompactSizes[2] = { { 0.49, 0.3879 }, { 0.611, 0.4819 } };
+// ⭐ AND A LITTLE WIDER AGAIN, FOR R3'S "settings" IN THE LEGEND (rhoquinn8217,
+// 2026-11-09: "I want to make the mode selector smaller first ... If it
+// still does, we won't have to expand the simple window that much"). With
+// the Mode picker's spare room taken out the legend had 738 px at 0.49 and
+// wanted 734 with a pad in hand, 746 with a keyboard; 0.505 gives it 769.
+// Large the same: 963 px at 0.63 against 935 wanted, where 0.611 gave 924.
+// Measured on the page, as above.
+//
+//   medium  0.505 x 0.3879   what the page opens Simple at, so the two agree
+//   large   0.63  x 0.4819
+inline const SizeShare kCompactSizes[2] = { { 0.505, 0.3879 }, { 0.63, 0.4819 } };
 inline std::atomic_int  g_sizeCompact{0};
 inline std::atomic_bool g_compact{false};
 
@@ -224,7 +243,16 @@ inline std::atomic_bool g_compact{false};
 // clipped at the large one. Measured: 500 px of row against 576 wanted.
 // ➡️ Keep the two widths in the same ratio as the two heights.
 // 0.342 x 1.255 is 0.429, which measures 585 against 585.
-inline const SizeShare kQuickSizes[2] = { { 0.342, 0.196 }, { 0.429, 0.246 } };
+// ⭐ WIDER SINCE 2026-11-09, FOR THE WINDOW SELECT IN ITS LEGEND (rhoquinn8217:
+// "Quick mode has space and we can expand it as well", then the d-pad's
+// "window select" in Quick's legend while the switch holds the window up):
+// five entries want 568 px with a keyboard in hand, of 530 at 0.342. At 0.37
+// they have 588; the large at 0.47 has 753 for 727, a little more than its
+// share of the heights' ratio (0.464) so it keeps the small one's spare room.
+//
+//   small   0.37 x 0.196   what the page opens Quick at
+//   large   0.47 x 0.246
+inline const SizeShare kQuickSizes[2] = { { 0.37, 0.196 }, { 0.47, 0.246 } };
 inline std::atomic_int  g_sizeQuick{0};
 inline std::atomic_bool g_quick{false};
 

@@ -864,8 +864,8 @@ inline void open_new(uint16_t restPort, bool withToken = true)
     const int waW = wa.right - wa.left, waH = wa.bottom - wa.top;
     // ⓘ Advanced's small since 2026-10-29 (kSizes in config_move.inl, where
     // the reason is): 0.68 x 0.73, the large until then, with 0.90 x 0.94 its
-    // large.
-    const int winW = (int)(waW * 0.68);   // Advanced's small, its opening size
+    // large; 0.733 and 0.97 wide since 2026-11-09.
+    const int winW = (int)(waW * 0.733);  // Advanced's small, its opening size
     const int winH = (int)(waH * 0.73);
     // ⭐⭐ AT ITS LAYOUT'S SIZE AND PLACE, IN THE BROWSER'S UNITS (rhoquinn8217,
     // 2026-10-23: "when the window opens in simple or quick mode, a larger

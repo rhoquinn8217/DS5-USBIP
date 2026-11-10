@@ -303,12 +303,13 @@ inline const GateBinding kConfigModeKeys[] = {
     // triangle when you are on the config selector auto links it, all
     // modes"). It sent nothing here until then.
     { kBtnFaceUp,    "KeyY",  CTM_GATE_MODS },   // triangle: auto link on the config selector
-    // ⭐ R3 OPENS QUICK'S POLLING LIMIT (rhoquinn8217, 2026-10-16: "R3 will
-    // be the key that lets you reach the rate limit"), and Simple's since
-    // 2026-10-20 ("The rate limit should only be acessible with R3"):
-    // gate_claims leaves it to the config in Advanced, and it is the
+    // ⭐ R3 OPENS THE CONTROLLER'S OWN SETTINGS, IN EVERY VIEW (rhoquinn8217,
+    // 2026-11-09: "We need to add the R3 button functionality to advance mode
+    // as well"). ⓘ It opened Quick's polling limit from 2026-10-16 ("R3 will
+    // be the key that lets you reach the rate limit") and Simple's from
+    // 2026-10-20, and was the config's in Advanced until now. It is the
     // virtual keyboard's size while a name is being typed.
-    { kBtnR3,        "KeyL",  CTM_GATE_MODS },   // R3: the compact views' polling limit
+    { kBtnR3,        "KeyL",  CTM_GATE_MODS },   // R3: the controller's own settings
     // ⭐ L3 GOES TO SIMPLE'S NEXT TIP (rhoquinn8217, 2026-10-28: "L3 in simple
     // mode cycles through hints"): only while Simple is in front, the one
     // layout with tips (gate_claims). The virtual keyboard has no use for it.
@@ -321,9 +322,10 @@ inline const GateBinding kConfigModeKeys[] = {
     { kBtnR2,        "KeyF",  CTM_GATE_MODS },   // R2: a tour's Continue
 };
 
-// ⓘ Whether the page has this button: every one in the table, but R3
-// only while the window is in Simple or Quick, and L3 only in Simple; in
-// Advanced they do what the config binds them to, as they did before.
+// ⓘ Whether the page has this button: every one in the table, but L3
+// only while the window is in Simple; in Advanced and Quick it does what
+// the config binds it to, as it did before. ⓘ R3 in every view since
+// 2026-11-09, where it was Simple's and Quick's alone.
 inline bool gate_claims(int standardIndex)
 {
     // ⭐ L2 AND R2 ONLY WHILE A TOUR IS UP (2026-10-29): its Go back and
@@ -333,10 +335,10 @@ inline bool gate_claims(int standardIndex)
     // mouse is (rhoquinn8217, 2026-09-03: gating clicks "left the pad unable to
     // click on the very page it was driving").
     if (standardIndex == kBtnL2 || standardIndex == kBtnR2) return ::ui_tutorial_words_up();
-    if (standardIndex != kBtnR3 && standardIndex != kBtnL3) return true;
+    if (standardIndex != kBtnL3) return true;
     bool compact = false, quick = false;
     if (!config_move::view_get(&compact, &quick, nullptr) || !compact) return false;
-    return standardIndex == kBtnR3 || !quick;
+    return !quick;
 }
 
 inline void apply(const void *deviceKey,
@@ -407,7 +409,8 @@ inline void apply(const void *deviceKey,
         // anything here changes the report, and it changes nothing itself:
         // mouse_exclusive.inl hides the touchpad it holds.
         // ⭐ And the right stick, which steps the config too while a finger
-        // holds the window up (2026-11-03).
+        // holds the window up (2026-11-03), and R3, which keeps the window as a
+        // second press does, for the settings it opens (2026-11-09).
         // ⓘ The right stick, read once for the switch and its app switcher below.
         float rx = 0.0f, ry = 0.0f;
         const bool stick = ctm_rebind::stick_axis(chordLayout, data, len, ctm_rebind::kStickRX, &rx) &&
@@ -421,7 +424,7 @@ inline void apply(const void *deviceKey,
                 static_cast<float>(x1), static_cast<float>(y1),
                 at2, ctm_rebind::touch_finger_id(chordLayout, data, len, 1),
                 static_cast<float>(x2), static_cast<float>(y2),
-                stick, rx, ry);
+                stick, rx, ry, ctm_rebind::is_pressed(chordLayout, data, len, ctm_rebind::kBtnR3));
         }
 
         // ⭐ AND THE D-PAD'S APP SWITCHER (rhoquinn8217, 2026-11-06;

@@ -7,7 +7,8 @@ static std::atomic<uint64_t> g_ds4_rumble_scale_count{0};
 
 static void ds4_apply_output_overrides(uint8_t *data, size_t length,
                                        const std::vector<unsigned char> &descriptor,
-                                       const std::string &linkedConfig = std::string())
+                                       const std::string &linkedConfig = std::string(),
+                                       const std::string &controllerSection = std::string())
 {
     if (data == nullptr || length <= kDs4IdxMotorHeavy || data[0] != kDs4OutReportId) {
         return;
@@ -16,8 +17,11 @@ static void ds4_apply_output_overrides(uint8_t *data, size_t length,
     if (kind == nullptr || std::strcmp(kind, "ds4") != 0) {
         return;
     }
-    const std::string resolved = device_settings_section(kind, linkedConfig);
-    const char *section = resolved.c_str();
+    // ⭐ The rumble dials are the CONTROLLER's settings, not its config's
+    // (controller_settings.inl).
+    (void)linkedConfig;
+    const std::string ctlName = controller_settings_section(kind, controllerSection);
+    const char *section = ctlName.c_str();
     const uint8_t softWas = data[kDs4IdxMotorSoft];
     const uint8_t heavyWas = data[kDs4IdxMotorHeavy];
     if (!ds4_scale_motors(data, length,

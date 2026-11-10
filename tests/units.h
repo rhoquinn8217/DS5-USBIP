@@ -50,5 +50,7 @@ namespace units {
 #include "audio/audio_gain.inl"
 #include "audio/ds5_output_overrides.inl"
 #include "config/config_store.inl"
+#include "config/controller_settings_rule.inl"
+#include "config/controller_settings.inl"
 
 }  // namespace units
