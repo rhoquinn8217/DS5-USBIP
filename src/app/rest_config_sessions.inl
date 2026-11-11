@@ -89,6 +89,7 @@ static std::vector<RestDeviceView> rest_collect_devices()
         view.ordinal = session->ordinal;
         view.nickname = session->nickname;
         view.kind = session->kind;
+        view.tvAddress = session->tvAddress; // set at its start, never changed
         // ⚠️ Reported rather than filtered. A session mid-startup has no serial
         // yet and a link against it may not survive -- but hiding it entirely
         // would make a controller that is plugged in simply not appear, which

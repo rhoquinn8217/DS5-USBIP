@@ -28,6 +28,7 @@ struct RestDeviceView {
     bool ready = false;         // false = still starting or tearing down
     std::string product;        // the device's own name, from the TV at HELLO
     std::string deviceType;     // "controller", "keyboard", "mouse" or ""
+    std::string tvAddress;      // the address its TV asked for the bridge from, or ""
     std::string link;           // "USB" or "BT" by the TV's HELLO, or ""
     // ⛔ -1 is "the pad did not say", which is NOT zero percent: a flat pad and
     // a pad with no battery byte are opposite facts and must not share a value
@@ -122,15 +123,17 @@ static std::string rest_device_json(const RestDeviceView &d)
     // ⭐ Whether it has settings of its own (a controller), and whether they are
     // kept in its file or for this bridge alone (controller_settings.inl).
     out += ",\"has_settings\":" + std::string(d.controllerSection.empty() ? "false" : "true");
-    // ⭐ What its device tag is by its type and by its serial
+    // ⭐ What its device tag is by its type, by its serial and by its address
     // (device_tag_rule.inl), for the settings window's Preview: the same
-    // words the agent names it by. ⓘ "" for the serial when it has none.
+    // words the agent names it by. ⓘ "" for a serial or an address it has
+    // none of.
     if (!d.controllerSection.empty()) {
         out += ",\"tag_type\":\"" +
                rest_json_escape(device_tag::type_name(device_names::model_for_kind(d.kind), d.product,
                                                       d.deviceType)) + "\"";
         out += ",\"tag_serial\":\"" +
                rest_json_escape(device_tag::serial_tag(config_store::normalise_serial(d.serial))) + "\"";
+        out += ",\"tag_ip\":\"" + rest_json_escape(device_tag::ip_tag(d.tvAddress)) + "\"";
     }
     out += ",\"settings_kept\":" +
            std::string(controller_settings::is_kept_section(d.controllerSection) ? "true" : "false");
@@ -511,8 +514,8 @@ static std::string rest_keys_json()
 {"key":"gyro_stick_sens_v","type":"int","min":0,"max":100,"default":0,"name":"Gyro stick vertical sensitivity","help":"The same for up and down. 0 follows the sensitivity above."},
 {"key":"gyro_stick_axis","type":"choice","choices":["","yaw","roll"],"default":"","name":"Gyro stick: left and right come from","help":"Blank is player space: turning left and right, however the controller is held. yaw is turning the controller itself left and right. roll is tilting it like a steering wheel."},
 {"key":"gyro_stick_invert","type":"int","min":0,"max":3,"default":0,"name":"Gyro stick invert","help":"0 neither, 1 left and right, 2 up and down, 3 both."},
-{"key":"device_tag_mode","type":"choice","choices":["auto","type","serial","custom"],"default":"auto","help":"What this controller is called when it is bridged: a random name, its type, its serial or MAC, or a custom tag. Up to 12 characters, the rest cut off; another with the same tag gets (2), (3)."},
-{"key":"device_tag","type":"string","default":"","help":"This controller's own tag, up to 12 characters."},
+{"key":"device_tag_mode","type":"choice","choices":["auto","type","serial","ip","custom"],"default":"auto","help":"What this controller is called when it is bridged: a random name, its type, its serial or MAC, the IP address of the TV it is bridged from, or a custom tag. A type or serial is cut at 12 characters, a custom tag at 20; another with the same tag gets (2), (3)."},
+{"key":"device_tag","type":"string","default":"","help":"This controller's own tag, up to 20 characters."},
 {"key":"audio_output","type":"choice","choices":["auto","headset","headset_mono","speaker","off"],"default":"auto","help":"Where controller audio goes. auto follows the controller's headphone jack: the headphones while something is plugged in, the speaker while nothing is. The mode also decides which volume keys apply."},
 {"key":"speaker_volume","type":"int","min":0,"max":100,"default":100,"help":"Controller speaker level. 100 is maximum."},
 {"key":"headset_volume","type":"int","min":0,"max":100,"default":100,"help":"Controller headset jack level. 100 is maximum."},

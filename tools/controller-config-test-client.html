@@ -2,7 +2,7 @@
 <!--
   DS5-USBIP's Controller Configs page, served by the listener.
 
-  VERSION 2.69.3 -- see the changelog at the bottom of this comment.
+  VERSION 2.69.4 -- see the changelog at the bottom of this comment.
 
   WHAT IT STARTED AS. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -24,6 +24,12 @@
   not a tidy message about it.
 
   CHANGELOG
+    2.69.4   A device tag can be the IP address of the TV a controller is
+             bridged from, and a custom tag takes twenty characters. The
+             Preview and the Custom box are drawn alike: "Preview:" or
+             "Custom:" and a bold, framed box, side by side in the middle of
+             the row. Quick puts a long name on two lines, so the configs
+             keep their room (rhoquinn8217, 2026-11-10).
     2.69.3   A device tag's first choice reads Auto-generated, not random, and
              has no Preview row: the name it has is in the window's title
              (rhoquinn8217, 2026-11-10).
@@ -2521,7 +2527,11 @@
   body.quick #compactBox .cqcorner.r { right:0.9em; }
   body.quick #compactBox .cqname { display:flex; flex-direction:column; align-items:center;
     gap:calc(0.8 * var(--vh)); grid-column:1; grid-row:1; min-width:0; }
-  body.quick #compactBox .cqname > .cname { font-size:calc(11 * var(--vh)); }
+  body.quick #compactBox .cqname > .cname { font-size:calc(11 * var(--vh)); overflow-wrap:anywhere; }
+  /* ⭐ A LONG NAME ON TWO LINES (rhoquinn8217, 2026-11-10: "two lines"): a
+     device tag of twenty widened this column and cut the wheel's config names
+     short, so the column keeps to about its usual width and the name wraps. */
+  body.quick #compactBox .cqname { max-width:25vw; }
   body.quick #compactBox .cqname > .crate-q { font-size:calc(8.0 * var(--vh)); font-weight:400;
     color:#c8c9ce; white-space:nowrap; }
   body.quick #compactBox .cselrow > .cpick-wrap { flex-shrink:0; }
@@ -2838,7 +2848,20 @@
   #ctlSetRows select, #ctlSetRows input { font-size:inherit; }
   #ctlSetRows input[type=number] { width:5.5em; text-align:right; }
   #ctlSetRows input[type=text] { width:7.5em; }
-  #ctlSetRows .cstag { display:inline-block; min-width:7.5em; padding:0 0.45em; }
+  /* ⭐ THE ROW AFTER THE DEVICE TAG'S CHOICE (rhoquinn8217, 2026-11-10: "bold
+     the Preview name, center align the Preview label add a ":" after Preview
+     and box the preview name", then "Both the Preview Lablel the previewed
+     tag need to be centered. Custom and tag input should look th same way."):
+     its label and its box side by side in the middle of the row; the box
+     framed, bold, its words centred, as wide for the Preview as for Custom's
+     box, which takes twenty. */
+  #ctlSetRows .csrow.cspair { justify-content:center; }
+  #ctlSetRows .csrow.cspair .csname { flex:0 0 auto; }
+  #ctlSetRows .csrow.cspair .csslot { display:none; }
+  #ctlSetRows .cstag, #ctlSetRows .csrow.cspair input[type=text] { display:inline-block;
+    box-sizing:border-box; width:13em; font-weight:700; text-align:center; border:1px solid #6b6f80;
+    border-radius:6px; padding:0.15em 0.6em; line-height:1.4; background:transparent;
+    color:inherit; font-family:inherit; }
   #ctlSetFoot { display:flex; justify-content:space-between; align-items:center; gap:12px;
                 margin-top:12px; padding-top:10px; border-top:1px solid #2c2e36;
                 font-size:11px; color:#9a9caa; }
@@ -3697,7 +3720,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.69.3</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.69.4</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -4944,10 +4967,12 @@ var CONTROLLER_SETTINGS = [
   // is bridged, the listener naming it as the window closes
   // (device_tag_rule.inl). The choice, and the tag typed on Custom. ⓘ auto
   // reads Auto-generated (*"We need a better word than "random" for the
-  // option"*, then *"auto-generated"*).
+  // option"*, then *"auto-generated"*); ip, IP address (*"On more Device tag
+  // option, "IP address""*).
   { key: 'device_tag_mode', name: 'Device tag', sect: 'Device',
-    words: { auto: 'Auto-generated', type: 'Device Type', serial: 'Serial/MAC', custom: 'Custom' } },
-  { key: 'device_tag', name: 'Custom', sect: 'Device' },
+    words: { auto: 'Auto-generated', type: 'Device Type', serial: 'Serial/MAC', ip: 'IP address',
+             custom: 'Custom' } },
+  { key: 'device_tag', name: 'Custom:', sect: 'Device', rowClass: 'cspair' },
   { key: 'audio_output', name: 'Audio output', sect: 'Audio' },
   { key: 'speaker_volume', name: 'Speaker volume', sect: 'Audio' },
   { key: 'headset_volume', name: 'Headset volume', sect: 'Audio' },
@@ -5050,8 +5075,8 @@ function settingRowHtml(s, meta, saved) {
               }).join('') + '</select>' +
               '<span class="csarr" onclick="settingArrow(\'' + id + '\',1)">›</span>';
   } else if (meta.type === 'string') {
-    // ⓘ The custom tag: twelve at most, cleaned as it is typed (tagTyped).
-    control = '<input id="' + id + '" type="text" maxlength="' + TAG_MAX + '" spellcheck="false" value="' +
+    // ⓘ The custom tag: twenty at most, cleaned as it is typed (tagTyped).
+    control = '<input id="' + id + '" type="text" maxlength="' + TAG_CUSTOM_MAX + '" spellcheck="false" value="' +
               esc(val) + '"' + on + ' oninput="tagTyped(this)"><span class="csslot"></span>';
   } else if (meta.type === 'bool') {
     var b = val === 'true' || val === '1';
@@ -5066,7 +5091,7 @@ function settingRowHtml(s, meta, saved) {
     control = '<input id="' + id + '" type="number" step="1" value="' + esc(val) + '"' + range + on + '>' +
               '<span class="csslot">' + esc(s.unit || '') + '</span>';
   }
-  return '<div class="csrow" data-tip="' + esc(meta.help || '') + '">' +
+  return '<div class="csrow' + (s.rowClass ? ' ' + s.rowClass : '') + '" data-tip="' + esc(meta.help || '') + '">' +
          '<label class="csname" for="' + id + '">' + esc(s.name) + '</label>' +
          '<span class="csval">' + control + '</span></div>';
 }
@@ -5081,33 +5106,39 @@ function settingRowHtml(s, meta, saved) {
 // "random" for the option. Also when random is selected hide the preview
 // row."*, and the word, *"auto-generated"*): no row after it, the name it has
 // being in the window's title. ⭐ Serial/MAC in capitals, as the listener
-// names it.
-var TAG_MAX = 12;
+// names it. ⭐ IP ADDRESS (*"On more Device tag option, "IP address""*): the
+// address the TV asked for the bridge from, offered when the listener has
+// one. ⭐ A CUSTOM TAG OF TWENTY (*"Increase Custom Name to 20 characters"*);
+// a type or a serial is still cut at twelve.
+var TAG_MAX = 12;        // a type or a serial
+var TAG_CUSTOM_MAX = 20; // a custom tag, and an address (fifteen at most)
 var CTLSET_SAVED = {};     // the open window's settings as written, for the Device rows
 var CTLSET_TAGGED = false; // its device tag written since it opened: the listener names it as it closes
 var CTLSET_TAG_SENT = null; // the last write of it, which the close waits for even when already sent
 
-// What Device Type and Serial/MAC give: the listener's words for its type and
-// its serial (device_tag_rule.inl), twelve at most.
+// What Device Type, Serial/MAC and IP address give: the listener's words for
+// its type, its serial and its address (device_tag_rule.inl).
 function tagPreview(d, mode) {
   if (mode === 'type') return String(d.tag_type || String(deviceLabelShort(d)).split(' (')[0]).slice(0, TAG_MAX);
+  if (mode === 'ip') return String(d.tag_ip || '').slice(0, TAG_CUSTOM_MAX);
   return String(d.tag_serial || '').toUpperCase().slice(0, TAG_MAX);
 }
 function tagPreviewHtml(d, mode) {
   return esc(tagPreview(d, mode));
 }
-// The row after the choice: on Custom the box, on Device Type and Serial/MAC
-// the Preview, and on Auto-generated none. ⓘ Anything else the listener reads
-// as auto (device_tag_rule.inl mode_of).
+// The row after the choice: on Custom the box, on Device Type, Serial/MAC and
+// IP address the Preview, both drawn alike (cspair), and on Auto-generated
+// none. ⓘ Anything else the listener reads as auto (device_tag_rule.inl
+// mode_of).
 function tagSecondRowHtml(d, mode, saved) {
   if (mode === 'custom') {
     var s = CONTROLLER_SETTINGS.filter(function (x) { return x.key === 'device_tag'; })[0];
     return settingRowHtml(s, settingMeta('device_tag') || { type: 'string', default: '' }, saved);
   }
-  if (mode !== 'type' && mode !== 'serial') return '';
-  return '<div class="csrow" data-tip="The name this choice gives this controller.">' +
-         '<span class="csname">Preview</span><span class="csval"><span class="cstag" id="cs-tag-preview">' +
-         tagPreviewHtml(d, mode) + '</span><span class="csslot"></span></span></div>';
+  if (mode !== 'type' && mode !== 'serial' && mode !== 'ip') return '';
+  return '<div class="csrow cspair" data-tip="The name this choice gives this controller.">' +
+         '<span class="csname">Preview:</span><span class="csval"><span class="cstag" id="cs-tag-preview">' +
+         tagPreviewHtml(d, mode) + '</span></span></div>';
 }
 function tagSectionHtml(d, saved) {
   var mode = saved.device_tag_mode || 'auto';
@@ -5116,7 +5147,9 @@ function tagSectionHtml(d, saved) {
   if (!choice) return '';
   var meta = settingMeta('device_tag_mode'), m = {};
   for (var k in meta) m[k] = meta[k];
-  m.choices = (meta.choices || []).filter(function (c) { return c !== 'serial' || !!d.tag_serial || mode === 'serial'; });
+  m.choices = (meta.choices || []).filter(function (c) {
+    return (c !== 'serial' || !!d.tag_serial || mode === 'serial') && (c !== 'ip' || !!d.tag_ip || mode === 'ip');
+  });
   return '<h4>Device</h4><div id="ctlSetTag">' + settingRowHtml(choice, m, saved) +
          '<div id="ctlSetTagRow">' + tagSecondRowHtml(d, mode, saved) + '</div></div>';
 }
@@ -5132,7 +5165,7 @@ function tagClean(textIn) {
   return out;
 }
 function tagTyped(el) {
-  var clean = tagClean(el.value).slice(0, TAG_MAX);
+  var clean = tagClean(el.value).slice(0, TAG_CUSTOM_MAX);
   if (clean !== el.value) el.value = clean;
   CTLSET_SAVED.device_tag = clean;
   controllerSettingChanged('device_tag');
@@ -13874,7 +13907,7 @@ function selfTest() {
     KEYS = CONTROLLER_SETTINGS.map(function (s) {
       var t = kindOfKey[s.key] || 'int';
       if (s.key === 'device_tag_mode') {
-        return { key: s.key, type: t, choices: ['auto', 'type', 'serial', 'custom'], default: 'auto' };
+        return { key: s.key, type: t, choices: ['auto', 'type', 'serial', 'ip', 'custom'], default: 'auto' };
       }
       if (t === 'string') return { key: s.key, type: t, default: '' };
       return { key: s.key, type: t, choices: t === 'choice' ? ['auto', 'speaker'] : undefined,
@@ -13902,34 +13935,54 @@ function selfTest() {
     // only with a serial.
     var tagPad = { ordinal: 'ds5_usb_9', nickname: 'Titan', kind: 'ds5_usb', has_audio: true,
                    has_rumble_gains: true, takes_rate_limit: true, has_settings: true,
-                   tag_type: 'DualSense', tag_serial: 'a0fa9cef9b30', label: 'DualSense (USB)' };
+                   tag_type: 'DualSense', tag_serial: 'a0fa9cef9b30', tag_ip: '192.168.1.87',
+                   label: 'DualSense (USB)' };
     var tagAuto = settingsRowsHtml(tagPad, {});
     var tagAutoSet = settingsRowsHtml(tagPad, { device_tag_mode: 'auto' });
     var tagType = settingsRowsHtml(tagPad, { device_tag_mode: 'type' });
     var tagSerial = settingsRowsHtml(tagPad, { device_tag_mode: 'serial' });
+    var tagIp = settingsRowsHtml(tagPad, { device_tag_mode: 'ip' });
     var tagCustom = settingsRowsHtml(tagPad, { device_tag_mode: 'custom', device_tag: 'Bolt' });
     var tagNoSerial = tagSectionHtml({ ordinal: 'ds5_usb_9', nickname: 'Nova', kind: 'ds5_usb',
                                        has_settings: true, tag_type: 'DualSense', tag_serial: '' }, {});
-    ok('the device tag comes first: Auto-generated, Device Type, Serial/MAC and Custom',
+    ok('the device tag comes first: Auto-generated, Device Type, Serial/MAC, IP address and Custom',
        tagAuto.indexOf('<h4>Device</h4>') >= 0 &&
        tagAuto.indexOf('<h4>Device</h4>') < tagAuto.indexOf('<h4>Polling</h4>') &&
        tagAuto.indexOf('>Auto-generated<') > 0 && tagAuto.indexOf('>Device Type<') > 0 &&
-       tagAuto.indexOf('>Serial/MAC<') > 0 && tagAuto.indexOf('>Custom<') > 0 &&
+       tagAuto.indexOf('>Serial/MAC<') > 0 && tagAuto.indexOf('>IP address<') > 0 &&
+       tagAuto.indexOf('>Serial/MAC<') < tagAuto.indexOf('>IP address<') &&
+       tagAuto.indexOf('>IP address<') < tagAuto.indexOf('>Custom<') &&
        tagAuto.indexOf('id="cs-device_tag"') < 0, tagAuto.slice(0, 400));
     ok('Auto-generated has no row after it, by default or set: no Preview, and no "random"',
        tagAuto.indexOf('>Preview<') < 0 && tagAuto.indexOf('cs-tag-preview') < 0 &&
        tagAutoSet.indexOf('>Preview<') < 0 && tagAutoSet.indexOf('cs-tag-preview') < 0 &&
        tagAuto.indexOf('>random<') < 0, tagAuto.slice(0, 600));
-    ok('Device Type previews its type',
+    ok('Device Type previews its type, "Preview:" and the name side by side in the middle of the row',
+       tagType.indexOf('<div class="csrow cspair"') > 0 && tagType.indexOf('<span class="csname">Preview:</span>') > 0 &&
        tagType.indexOf('id="cs-tag-preview">DualSense</span>') > 0, tagType.slice(0, 600));
+    ok('IP address previews the address the TV asked for the bridge from',
+       tagIp.indexOf('<div class="csrow cspair"') > 0 &&
+       tagIp.indexOf('id="cs-tag-preview">192.168.1.87</span>') > 0, tagIp.slice(0, 600));
     ok('Serial/MAC previews the serial in capitals, as the listener names it',
        tagSerial.indexOf('id="cs-tag-preview">A0FA9CEF9B30</span>') > 0, tagSerial.slice(0, 600));
-    ok('Custom has a box of twelve, labelled Custom, and no Preview',
-       tagCustom.indexOf('id="cs-device_tag"') > 0 && tagCustom.indexOf('maxlength="12"') > 0 &&
-       tagCustom.indexOf('value="Bolt"') > 0 && tagCustom.indexOf('>Custom</label>') > 0 &&
-       tagCustom.indexOf('>Preview<') < 0);
-    ok('Serial/MAC is not offered to a controller with no serial',
-       tagNoSerial.indexOf('value="serial"') < 0 && tagAuto.indexOf('value="serial"') > 0);
+    ok('Custom has a box of twenty, labelled Custom:, drawn as the Preview is, and no Preview',
+       tagCustom.indexOf('id="cs-device_tag"') > 0 && tagCustom.indexOf('maxlength="20"') > 0 &&
+       tagCustom.indexOf('value="Bolt"') > 0 && tagCustom.indexOf('>Custom:</label>') > 0 &&
+       tagCustom.indexOf('<div class="csrow cspair"') > 0 && tagCustom.indexOf('>Preview') < 0,
+       tagCustom.slice(0, 600));
+    ok('Serial/MAC and IP address are not offered to a controller with no serial and no address',
+       tagNoSerial.indexOf('value="serial"') < 0 && tagNoSerial.indexOf('value="ip"') < 0 &&
+       tagAuto.indexOf('value="serial"') > 0 && tagAuto.indexOf('value="ip"') > 0);
+    // ⭐ Quick's name column keeps to about its usual width, a long name on
+    // two lines ("two lines"): its rule is in the page's styles.
+    var quickWraps = Array.prototype.some.call(document.styleSheets, function (sh) {
+      try {
+        return Array.prototype.some.call(sh.cssRules || [], function (r) {
+          return r.selectorText === 'body.quick #compactBox .cqname' && !!(r.style && r.style.maxWidth);
+        });
+      } catch (e) { return false; }
+    });
+    ok('Quick keeps a long name to about its usual width, on two lines', quickWraps);
     ok('a custom tag keeps printable ASCII without [ ] = # ;',
        tagClean('Big [Boss]; #1=') === 'Big Boss 1' && tagClean('Se' + String.fromCharCode(241) + 'or') === 'Seor',
        tagClean('Big [Boss]; #1='));

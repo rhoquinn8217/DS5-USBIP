@@ -17,6 +17,12 @@ struct AgentBridgeSession {
     // for a TV that proved nothing. Names, stale ports, stops and retiring all
     // stay within one TV -- tv_sessions.inl.
     std::string owner;
+    // ⭐ The address the TV asked for this bridge from, as this listener saw
+    // it ("192.168.1.87"); "" for a session started over the REST API. Its
+    // device tag can be it (device_tag_rule.inl, IP address). ⓘ A TV at
+    // another site comes through its router: that site's address. Set at the
+    // start and never changed, so it is read without a lock.
+    std::string tvAddress;
     std::shared_ptr<CtmUsbipDevice> device;
     // ⛔ SHARED, NOT UNIQUE (code review, 2026-10-05). The settings push sends
     // on it from the agent loop after letting go of the session list lock, and
@@ -58,8 +64,9 @@ static std::mutex g_agent_sessions_mutex;
 static std::vector<std::unique_ptr<AgentBridgeSession>> g_agent_sessions;
 
 // ⭐ A CONTROLLER'S DEVICE TAG (device_tag_rule.inl; rhoquinn8217, 2026-11-10):
-// what it is called, from its own settings -- random, its type, its serial or
-// a custom tag -- with "(2)", "(3)" for a twin, and every part of one device
+// what it is called, from its own settings -- random, its type, its serial,
+// the address it is bridged from or a custom tag -- with "(2)", "(3)" for a
+// twin, and every part of one device
 // called the same, as the nickname block in the bridge below finds its parts.
 // `fresh`: the choice has just changed, so random draws a new name; at a
 // bridge, random keeps the name the session was born with.
@@ -69,7 +76,7 @@ static std::vector<std::unique_ptr<AgentBridgeSession>> g_agent_sessions;
 static void agent_apply_device_tag(const std::string &ordinal, const std::string &section, bool fresh)
 {
     if (section.empty()) return;
-    std::string kind, product, serial, deviceType;
+    std::string kind, product, serial, deviceType, tvAddress;
     {
         std::lock_guard<std::mutex> guard(g_agent_sessions_mutex);
         bool found = false;
@@ -77,6 +84,7 @@ static void agent_apply_device_tag(const std::string &ordinal, const std::string
             if (!s || s->ordinal != ordinal) continue;
             std::lock_guard<std::mutex> lock(s->mutex);
             kind = s->kind;
+            tvAddress = s->tvAddress;
             if (s->device) {
                 product = s->device->product_name();
                 serial = s->device->physical_serial();
@@ -96,7 +104,7 @@ static void agent_apply_device_tag(const std::string &ordinal, const std::string
     const std::string tag = device_tag::base(
         mode, setting(device_tag::kCustomKey),
         device_tag::type_name(device_names::model_for_kind(kind), product, deviceType),
-        device_tag::serial_tag(config_store::normalise_serial(serial)));
+        device_tag::serial_tag(config_store::normalise_serial(serial)), device_tag::ip_tag(tvAddress));
     if (tag.empty() && !fresh) return;
     std::string name, previous;
     {
@@ -1224,7 +1232,8 @@ static void bridge_session_worker(AgentBridgeSession *session)
 // (`fromHome`), from its bottom for one at another site -- and the session's
 // port goes back in *startedPort either way.
 static bool start_bridge_session_for(const std::string &kind, uint16_t port, const std::wstring &busId,
-                                     uint32_t onlyPeer, const std::string &owner, bool fromHome,
+                                     uint32_t onlyPeer, const std::string &owner,
+                                     const std::string &tvAddress, bool fromHome,
                                      std::wstring *error, uint16_t *startedPort)
 {
     const std::string busIdAscii = narrow_ascii(busId);
@@ -1335,6 +1344,7 @@ static bool start_bridge_session_for(const std::string &kind, uint16_t port, con
     session->port = port;
     session->onlyPeer = onlyPeer;
     session->owner = owner;
+    session->tvAddress = tvAddress;
     session->device = std::make_shared<CtmUsbipDevice>();
     AgentBridgeSession *sessionPtr = session.get();
     const std::string ordinalForLog = session->ordinal;
@@ -1357,7 +1367,7 @@ static bool start_bridge_session_for(const std::string &kind, uint16_t port, con
 // REST API, which answers this PC alone.
 static bool start_bridge_session(const std::string &kind, uint16_t port, const std::wstring &busId, std::wstring *error)
 {
-    return start_bridge_session_for(kind, port, busId, 0, std::string(), true, error, nullptr);
+    return start_bridge_session_for(kind, port, busId, 0, std::string(), std::string(), true, error, nullptr);
 }
 
 static bool stop_bridge_session(const std::wstring &busId)
@@ -1690,8 +1700,11 @@ static void handle_agent_client(SOCKET client, const sockaddr_in &peer)
         // ⓘ Home is this PC or the home network, as the proof reads it
         // (paired_tv.inl): no router between, so no forwarded port needed.
         const bool fromHome = paired_tv::is_this_pc(peerAddr) || paired_tv::is_home_network(peerAddr);
+        // ⓘ And the address it asked from, for a device tag of its address.
+        char askedFrom[INET_ADDRSTRLEN] = {};
+        inet_ntop(AF_INET, &peer.sin_addr, askedFrom, sizeof(askedFrom));
         if (start_bridge_session_for(kind, static_cast<uint16_t>(port), widen_ascii(busIdAscii.c_str(), busIdAscii.size()),
-                                     onlyPeer, owner, fromHome, &error, &startedPort)) {
+                                     onlyPeer, owner, askedFrom, fromHome, &error, &startedPort)) {
             // ⭐ The port it was given, to a TV that asked for one with port 0;
             // an older TV chose its own and reads only the OK.
             send_text(client, port == 0 ? "OK bridge starting port=" + std::to_string(startedPort) + "\n"
