@@ -2,7 +2,7 @@
 <!--
   DS5-USBIP's Controller Configs page, served by the listener.
 
-  VERSION 2.69.4 -- see the changelog at the bottom of this comment.
+  VERSION 2.69.5 -- see the changelog at the bottom of this comment.
 
   WHAT IT STARTED AS. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -24,6 +24,11 @@
   not a tidy message about it.
 
   CHANGELOG
+    2.69.5   A device tag of twenty whatever the choice, Device Type and
+             Serial/MAC as well as Custom. Enter in the custom tag's box gets
+             out of it as Escape does, and the DS5-USBIP keyboard may open in
+             it. Quick keeps a long name on one line, as before 2.69.4
+             (rhoquinn8217, 2026-11-10).
     2.69.4   A device tag can be the IP address of the TV a controller is
              bridged from, and a custom tag takes twenty characters. The
              Preview and the Custom box are drawn alike: "Preview:" or
@@ -2527,11 +2532,13 @@
   body.quick #compactBox .cqcorner.r { right:0.9em; }
   body.quick #compactBox .cqname { display:flex; flex-direction:column; align-items:center;
     gap:calc(0.8 * var(--vh)); grid-column:1; grid-row:1; min-width:0; }
-  body.quick #compactBox .cqname > .cname { font-size:calc(11 * var(--vh)); overflow-wrap:anywhere; }
-  /* ⭐ A LONG NAME ON TWO LINES (rhoquinn8217, 2026-11-10: "two lines"): a
-     device tag of twenty widened this column and cut the wheel's config names
-     short, so the column keeps to about its usual width and the name wraps. */
-  body.quick #compactBox .cqname { max-width:25vw; }
+  body.quick #compactBox .cqname > .cname { font-size:calc(11 * var(--vh)); }
+  /* ⭐ A LONG NAME ON ONE LINE (rhoquinn8217, 2026-11-10: "20 characters can
+     fit on one line and won't require the config window to be stretch
+     more"): at Quick's own size a device tag of twenty, "(2)" and all, fits
+     beside the configs, every config name whole. ⛔ Two lines were tried
+     (2.69.4): measured in a window taller than Quick's, they cut "Player"
+     from its "1" in the real one. */
   body.quick #compactBox .cqname > .crate-q { font-size:calc(8.0 * var(--vh)); font-weight:400;
     color:#c8c9ce; white-space:nowrap; }
   body.quick #compactBox .cselrow > .cpick-wrap { flex-shrink:0; }
@@ -3720,7 +3727,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.69.4</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.69.5</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -5076,7 +5083,7 @@ function settingRowHtml(s, meta, saved) {
               '<span class="csarr" onclick="settingArrow(\'' + id + '\',1)">›</span>';
   } else if (meta.type === 'string') {
     // ⓘ The custom tag: twenty at most, cleaned as it is typed (tagTyped).
-    control = '<input id="' + id + '" type="text" maxlength="' + TAG_CUSTOM_MAX + '" spellcheck="false" value="' +
+    control = '<input id="' + id + '" type="text" maxlength="' + TAG_MAX + '" spellcheck="false" value="' +
               esc(val) + '"' + on + ' oninput="tagTyped(this)"><span class="csslot"></span>';
   } else if (meta.type === 'bool') {
     var b = val === 'true' || val === '1';
@@ -5108,10 +5115,9 @@ function settingRowHtml(s, meta, saved) {
 // being in the window's title. ⭐ Serial/MAC in capitals, as the listener
 // names it. ⭐ IP ADDRESS (*"On more Device tag option, "IP address""*): the
 // address the TV asked for the bridge from, offered when the listener has
-// one. ⭐ A CUSTOM TAG OF TWENTY (*"Increase Custom Name to 20 characters"*);
-// a type or a serial is still cut at twelve.
-var TAG_MAX = 12;        // a type or a serial
-var TAG_CUSTOM_MAX = 20; // a custom tag, and an address (fifteen at most)
+// one. ⭐ TWENTY AT MOST, WHATEVER THE CHOICE (*"Increase Custom Name to 20
+// characters"*, then *"Allow device type and serial to be 20 characters"*).
+var TAG_MAX = 20;
 var CTLSET_SAVED = {};     // the open window's settings as written, for the Device rows
 var CTLSET_TAGGED = false; // its device tag written since it opened: the listener names it as it closes
 var CTLSET_TAG_SENT = null; // the last write of it, which the close waits for even when already sent
@@ -5120,7 +5126,7 @@ var CTLSET_TAG_SENT = null; // the last write of it, which the close waits for e
 // its type, its serial and its address (device_tag_rule.inl).
 function tagPreview(d, mode) {
   if (mode === 'type') return String(d.tag_type || String(deviceLabelShort(d)).split(' (')[0]).slice(0, TAG_MAX);
-  if (mode === 'ip') return String(d.tag_ip || '').slice(0, TAG_CUSTOM_MAX);
+  if (mode === 'ip') return String(d.tag_ip || '').slice(0, TAG_MAX);
   return String(d.tag_serial || '').toUpperCase().slice(0, TAG_MAX);
 }
 function tagPreviewHtml(d, mode) {
@@ -5165,7 +5171,7 @@ function tagClean(textIn) {
   return out;
 }
 function tagTyped(el) {
-  var clean = tagClean(el.value).slice(0, TAG_CUSTOM_MAX);
+  var clean = tagClean(el.value).slice(0, TAG_MAX);
   if (clean !== el.value) el.value = clean;
   CTLSET_SAVED.device_tag = clean;
   controllerSettingChanged('device_tag');
@@ -10101,7 +10107,9 @@ function fieldIsEditable(el) {
 // have to keep up with that generator. Naming the three is dull and stays
 // true. ⓘ `#renameRow` is asked by CONTAINMENT because it hosts both rename
 // and copy, and could gain a second field.
-var FREE_TEXT_IDS = ['base', 'token'];
+// ⭐ AND THE CUSTOM DEVICE TAG (rhoquinn8217, 2026-11-10: "Allow DS5-USBIP
+// keyboard to open when using the custom tag input"): free text too.
+var FREE_TEXT_IDS = ['base', 'token', 'cs-device_tag'];
 
 function fieldWantsKeyboard(el) {
   if (!fieldIsEditable(el)) return false;
@@ -11477,7 +11485,12 @@ document.addEventListener('keydown', function (ev) {
   // ⓘ Blurring is enough: the page then reports `editing: false` and the
   // listener closes the keyboard -- the same route as walking away with the
   // d-pad. ⚠️ RENAMING is left alone, because its handler does more than blur.
-  if (ev.code === 'Escape' && typingInAField() && !RENAMING) {
+  // ⭐ AND ENTER, IN THE CUSTOM DEVICE TAG'S BOX (rhoquinn8217, 2026-11-10:
+  // "Pressing enter in the Custom tag input should pull you out like esc
+  // does"): what was typed is already written, so Enter is done with it.
+  var tagEnter = (ev.code === 'Enter' || ev.code === 'NumpadEnter' || ev.key === 'Enter') &&
+                 document.activeElement && document.activeElement.id === 'cs-device_tag';
+  if ((ev.code === 'Escape' || tagEnter) && typingInAField() && !RENAMING) {
     var esc = document.activeElement;
     if (esc && esc.blur) {
       ev.preventDefault();
@@ -13973,8 +13986,8 @@ function selfTest() {
     ok('Serial/MAC and IP address are not offered to a controller with no serial and no address',
        tagNoSerial.indexOf('value="serial"') < 0 && tagNoSerial.indexOf('value="ip"') < 0 &&
        tagAuto.indexOf('value="serial"') > 0 && tagAuto.indexOf('value="ip"') > 0);
-    // ⭐ Quick's name column keeps to about its usual width, a long name on
-    // two lines ("two lines"): its rule is in the page's styles.
+    // ⭐ Quick keeps a long name on one line ("20 characters can fit on one
+    // line"): nothing in the page's styles narrows its name's column.
     var quickWraps = Array.prototype.some.call(document.styleSheets, function (sh) {
       try {
         return Array.prototype.some.call(sh.cssRules || [], function (r) {
@@ -13982,7 +13995,29 @@ function selfTest() {
         });
       } catch (e) { return false; }
     });
-    ok('Quick keeps a long name to about its usual width, on two lines', quickWraps);
+    ok('Quick keeps a long name on one line', !quickWraps);
+    // ⭐ The custom tag's box: twenty, the DS5-USBIP keyboard allowed in it,
+    // and Enter gets out of it as Escape does.
+    {
+      var tagBox = document.createElement('input');
+      tagBox.type = 'text';
+      tagBox.id = 'cs-device_tag';
+      document.body.appendChild(tagBox);
+      var keepStop = STOPPED, keepEdit = GP_EDITING, keepSel = GP_SELECTING, keepIdx = GP_INDEX;
+      var keepRen = RENAMING;
+      STOPPED = false; GP_EDITING = null; GP_SELECTING = null; RENAMING = false;
+      tagBox.focus();
+      var tagIn = document.activeElement === tagBox;
+      tagBox.dispatchEvent(new KeyboardEvent('keydown',
+        { key: 'Enter', code: 'Enter', bubbles: true, cancelable: true }));
+      var tagOut = document.activeElement !== tagBox;
+      STOPPED = keepStop; GP_EDITING = keepEdit; GP_SELECTING = keepSel; GP_INDEX = keepIdx;
+      RENAMING = keepRen;
+      ok('the custom tag\'s box lets the DS5-USBIP keyboard open', fieldWantsKeyboard(tagBox));
+      tagBox.parentNode.removeChild(tagBox);
+      ok('Enter in the custom tag\'s box gets out of it, as Escape does', tagIn && tagOut,
+         'in ' + tagIn + ', out ' + tagOut);
+    }
     ok('a custom tag keeps printable ASCII without [ ] = # ;',
        tagClean('Big [Boss]; #1=') === 'Big Boss 1' && tagClean('Se' + String.fromCharCode(241) + 'or') === 'Seor',
        tagClean('Big [Boss]; #1='));

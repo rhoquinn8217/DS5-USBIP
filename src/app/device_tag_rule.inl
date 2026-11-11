@@ -10,7 +10,8 @@
 // tag, add (2), (3) etc."*, *"change right away"* and *"12 is fine for device
 // type that are longer just cut them off"*; the choice reads Auto-generated
 // (*"auto-generated"*, where it read random). Then *"Increase Custom Name to 20
-// characters"* and *"On more Device tag option, "IP address""*.
+// characters"*, *"On more Device tag option, "IP address""* and *"Allow device
+// type and serial to be 20 characters"*.
 //
 // ⓘ Kept in the controller's own settings (controller_settings.inl), as its
 // rate limit, audio and rumble are: a choice, device_tag_mode, and the tag
@@ -30,12 +31,11 @@ namespace device_tag {
 inline const char *const kModeKey = "device_tag_mode";
 inline const char *const kCustomKey = "device_tag";
 
-// ⭐ TWELVE AT MOST FOR A TYPE OR A SERIAL (rhoquinn8217, 2026-11-10): a
-// longer one is cut off there. ⭐ TWENTY FOR A CUSTOM TAG (the same day:
-// *"Increase Custom Name to 20 characters"*), and for an address, which is
-// fifteen at most; Quick puts a long name on two lines.
-inline const size_t kMax = 12;
-inline const size_t kCustomMax = 20;
+// ⭐ TWENTY AT MOST, WHATEVER THE CHOICE (rhoquinn8217, 2026-11-10: *"Increase
+// Custom Name to 20 characters"*, then *"Allow device type and serial to be 20
+// characters"*), the rest cut off; an address is fifteen at most. Twelve
+// until then. Simple and Quick hold a name of twenty on one line.
+inline const size_t kMax = 20;
 
 enum class Mode { Random, Type, Serial, Ip, Custom };
 
@@ -70,9 +70,9 @@ inline std::string trim(const std::string &text)
 
 // ⛔ PRINTABLE ASCII ONLY: the tray's menu and the log take a name as ASCII
 // (agent.inl, widen_ascii), and the settings file refuses [ ] = # ; so those
-// go too. Then trimmed, cut to `max` (twelve unless said) and trimmed again,
-// so a cut never leaves a space at the end.
-inline std::string clean(const std::string &raw, size_t max = kMax)
+// go too. Then trimmed, cut to twenty and trimmed again, so a cut never leaves
+// a space at the end.
+inline std::string clean(const std::string &raw)
 {
     std::string kept;
     for (char c : raw) {
@@ -82,7 +82,7 @@ inline std::string clean(const std::string &raw, size_t max = kMax)
         kept.push_back(c);
     }
     kept = trim(kept);
-    if (kept.size() > max) kept = trim(kept.substr(0, max));
+    if (kept.size() > kMax) kept = trim(kept.substr(0, kMax));
     return kept;
 }
 
@@ -114,7 +114,7 @@ inline std::string serial_tag(const std::string &normalisedSerial)
 // bridge asked for ("192.168.1.87"); "" when there is none.
 inline std::string ip_tag(const std::string &address)
 {
-    return clean(address, kCustomMax);
+    return clean(address);
 }
 
 // The tag a choice gives, before a number for a twin; "" is random, as is a
@@ -126,8 +126,8 @@ inline std::string base(Mode mode, const std::string &custom, const std::string 
     switch (mode) {
     case Mode::Type: return clean(typeName);
     case Mode::Serial: return clean(serialTag);
-    case Mode::Ip: return clean(ipTag, kCustomMax);
-    case Mode::Custom: return clean(custom, kCustomMax);
+    case Mode::Ip: return clean(ipTag);
+    case Mode::Custom: return clean(custom);
     default: return std::string();
     }
 }
@@ -153,7 +153,7 @@ inline bool changed(const std::string &modeBefore, const std::string &customBefo
     const Mode before = mode_of(modeBefore);
     const Mode now = mode_of(modeNow);
     if (before != now) return true;
-    return now == Mode::Custom && clean(customBefore, kCustomMax) != clean(customNow, kCustomMax);
+    return now == Mode::Custom && clean(customBefore) != clean(customNow);
 }
 
 inline std::string unique(const std::string &tag, const std::vector<std::string> &taken)
