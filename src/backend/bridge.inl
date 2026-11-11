@@ -424,7 +424,7 @@ public:
     bool send_audio_settings(uint8_t speakerPct, uint8_t headsetPct,
                              uint8_t audioMode, std::wstring *error) override
     {
-        CtmBridgeProtocol::HostConfig hostConfig = lastHostConfig_;
+        CtmBridgeProtocol::HostConfig hostConfig = last_host_config();
         hostConfig.speaker_volume_pct = speakerPct;
         hostConfig.headset_volume_pct = headsetPct;
         hostConfig.audio_mode = audioMode;
@@ -437,13 +437,13 @@ public:
                 error)) {
             return false;
         }
-        lastHostConfig_ = hostConfig;
+        set_last_host_config(hostConfig);
         return true;
     }
 
     bool send_audio_latency(uint16_t latencyMs, std::wstring *error) override
     {
-        CtmBridgeProtocol::HostConfig hostConfig = lastHostConfig_;
+        CtmBridgeProtocol::HostConfig hostConfig = last_host_config();
         hostConfig.latency_ms = latencyMs;
         if (!send_message(
                 CtmBridgeProtocol::MsgHostConfig,
@@ -454,8 +454,34 @@ public:
                 error)) {
             return false;
         }
-        lastHostConfig_ = hostConfig;
+        set_last_host_config(hostConfig);
         return true;
+    }
+
+    bool audio_sent(uint8_t *speakerPct, uint8_t *headsetPct,
+                    uint8_t *audioMode, uint16_t *latencyMs) const override
+    {
+        const CtmBridgeProtocol::HostConfig last = last_host_config();
+        if (speakerPct) *speakerPct = last.speaker_volume_pct;
+        if (headsetPct) *headsetPct = last.headset_volume_pct;
+        if (audioMode) *audioMode = last.audio_mode;
+        if (latencyMs) *latencyMs = last.latency_ms;
+        return true;
+    }
+
+    // ⓘ Under a lock of its own: the handshake writes it on the bridge's
+    // thread, and the agent's sweep reads and writes it on its own
+    // (audio_sent).
+    CtmBridgeProtocol::HostConfig last_host_config() const
+    {
+        std::lock_guard<std::mutex> lock(hostConfigMutex_);
+        return lastHostConfig_;
+    }
+
+    void set_last_host_config(const CtmBridgeProtocol::HostConfig &hostConfig)
+    {
+        std::lock_guard<std::mutex> lock(hostConfigMutex_);
+        lastHostConfig_ = hostConfig;
     }
 
     // True once a connection is up AND its handshake is done. Output, audio and
@@ -769,10 +795,11 @@ private:
             if (initial) {
                 hostConfig.latency_ms = configured_audio_latency();
             } else {
-                hostConfig.latency_ms = lastHostConfig_.latency_ms;
-                hostConfig.speaker_volume_pct = lastHostConfig_.speaker_volume_pct;
-                hostConfig.headset_volume_pct = lastHostConfig_.headset_volume_pct;
-                hostConfig.audio_mode = lastHostConfig_.audio_mode;
+                const CtmBridgeProtocol::HostConfig last = last_host_config();
+                hostConfig.latency_ms = last.latency_ms;
+                hostConfig.speaker_volume_pct = last.speaker_volume_pct;
+                hostConfig.headset_volume_pct = last.headset_volume_pct;
+                hostConfig.audio_mode = last.audio_mode;
             }
             std::wstring sendError;
             if (!send_message(
@@ -790,7 +817,7 @@ private:
                 std::wcerr << L"bridge host config failed: " << sendError << L"\n";
                 continue;
             }
-            lastHostConfig_ = hostConfig;
+            set_last_host_config(hostConfig);
             handshakeDone_.store(true);
 
             device_log::bridge_w() << L"bridge backend"
@@ -1233,8 +1260,10 @@ private:
     double btPaceMs_ = 10.0;
     // The last host config sent, kept so a live latency change can re-send the
     // whole thing rather than reconstruct it from scratch and risk drifting
-    // from the handshake's version.
+    // from the handshake's version. ⓘ Read and written through
+    // last_host_config and set_last_host_config, under hostConfigMutex_.
     CtmBridgeProtocol::HostConfig lastHostConfig_ = {};
+    mutable std::mutex hostConfigMutex_;
     bool wsaStarted_ = false;
     // Bounded accept windows + idle rule (see accept_client / reader_loop).
     // All 0 = disabled: the CLI bridge mode keeps wait-forever semantics; the

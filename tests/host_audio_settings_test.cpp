@@ -148,5 +148,40 @@ int run_host_audio_settings_tests()
     CTM_CHECK(!audio_volume::full_when_unset(""));
     CTM_CHECK(!audio_volume::full_when_unset("ds4_usb"));
 
+    // ⭐⭐ BACK TO ITS DEFAULT ON THE TV (2026-11-11). The TV keeps the last
+    // value it was sent, so a Bluetooth DualSense stayed on the headphones
+    // after "headset" and then the default, and at 30 after 30 and then 100,
+    // the default, which leaves the file. A value this bridge sent before and
+    // unset now is sent as its default: the mode auto, a dial 100.
+    using audio_volume::back_to_default;
+    CTM_CHECK_EQ(back_to_default(mode_byte(""), mode_byte("headset"), audio_volume::kModeAuto), 0);
+    CTM_CHECK_EQ(back_to_default(volume_byte(-1), volume_byte(30), audio_volume::kFull), 100);
+    // A speaker set to 0 and then put back is 100 again, not left silent.
+    CTM_CHECK_EQ(back_to_default(volume_byte(-1), volume_byte(0), audio_volume::kFull), 100);
+    // What is set now is sent as it is, whatever was sent before.
+    CTM_CHECK_EQ(back_to_default(volume_byte(40), volume_byte(30), audio_volume::kFull), 40);
+    CTM_CHECK_EQ(back_to_default(volume_byte(0), kAudioUnset, audio_volume::kFull), 0);
+    CTM_CHECK_EQ(back_to_default(mode_byte("speaker"), mode_byte("headset"), audio_volume::kModeAuto), 2);
+    // ⛔ Never sent and unset now: still unset, so a pad nobody changed is told
+    // nothing and its volumes keep deferring to the game's, as before.
+    CTM_CHECK_EQ(back_to_default(kAudioUnset, kAudioUnset, audio_volume::kFull), kAudioUnset);
+    CTM_CHECK(!worth_sending(back_to_default(volume_byte(-1), kAudioUnset, audio_volume::kFull),
+                             back_to_default(volume_byte(-1), kAudioUnset, audio_volume::kFull),
+                             back_to_default(mode_byte(""), kAudioUnset, audio_volume::kModeAuto)));
+    // ⛔ And the defaults never make the all-zero triple: put back, the dials
+    // are 100, so the TV does not take auto for an older host's zeros.
+    const uint8_t backSpk  = back_to_default(volume_byte(-1), volume_byte(0), audio_volume::kFull);
+    const uint8_t backHset = back_to_default(volume_byte(-1), volume_byte(0), audio_volume::kFull);
+    const uint8_t backMode = back_to_default(mode_byte(""), mode_byte("auto"), audio_volume::kModeAuto);
+    CTM_CHECK(!(backSpk == 0 && backHset == 0 && backMode == 0));
+
+    // The buffer the same way, in its own width.
+    using audio_volume::latency_back_to_default;
+    const uint16_t kLatUnset = audio_volume::kLatencyUnset;
+    CTM_CHECK_EQ(kLatUnset, 0xFFFFu);
+    CTM_CHECK_EQ(latency_back_to_default(kLatUnset, 100, 60), 60);
+    CTM_CHECK_EQ(latency_back_to_default(40, 100, 60), 40);
+    CTM_CHECK_EQ(latency_back_to_default(kLatUnset, kLatUnset, 60), kLatUnset);
+
     return 0;
 }
