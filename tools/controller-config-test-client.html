@@ -2,7 +2,7 @@
 <!--
   DS5-USBIP's Controller Configs page, served by the listener.
 
-  VERSION 2.69.6 -- see the changelog at the bottom of this comment.
+  VERSION 2.69.7 -- see the changelog at the bottom of this comment.
 
   WHAT IT STARTED AS. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -24,6 +24,9 @@
   not a tidy message about it.
 
   CHANGELOG
+    2.69.7   Simple's settings gear right after the rate and limit, centred
+             with them under the name, where it stood at the panel's right
+             edge (rhoquinn8217, 2026-11-10).
     2.69.6   Simple's line over the panel is two: the name and its battery,
              then the device's symbols and the rate and limit centred under
              them, the gear where it was. The window is taller for it (0.418
@@ -2589,11 +2592,12 @@
      can move the device symbols and the polling rate and limit centered
      under the tag and battery"), where it was one line (2026-10-22): the
      name and its battery, then the symbols and the rate and limit centred
-     under them, the gear where it was, at the panel's right edge. The window
-     is taller for it (compactSize, kCompactSizes). ⓘ By the style's order,
-     the markup as it was: the name is the line's own text, so ::after
-     breaks the line after the battery. */
-  body.compact:not(.quick) #compactBox .cmain.cpanel .cname { justify-content:center; position:relative;
+     under them, and the gear right after the limit (the same day: "move the
+     settings button next to the polling rate a limit."). The window is
+     taller for it (compactSize, kCompactSizes). ⓘ By the style's order, the
+     markup as it was: the name is the line's own text, so ::after breaks
+     the line after the battery. */
+  body.compact:not(.quick) #compactBox .cmain.cpanel .cname { justify-content:center;
     row-gap:calc(0.6 * var(--vh)); }
   body.compact:not(.quick) #compactBox .cmain.cpanel .cname::after { content:""; order:2; flex-basis:100%;
     height:0; }
@@ -2604,8 +2608,7 @@
     display:flex; align-items:center; }
   body.compact:not(.quick) #compactBox .cmain.cpanel .cname > .crate > .crate-txt { flex:0 0 auto;
     text-align:center; padding:0; }
-  body.compact:not(.quick) #compactBox .cmain.cpanel .cname > .crate > button.csetgear { margin-left:0;
-    position:absolute; right:0; bottom:0; }
+  body.compact:not(.quick) #compactBox .cmain.cpanel .cname > .crate > button.csetgear { margin-left:0.5em; }
   /* ⭐ Simple's limit with R3's mark where its arrow was, as Quick's
      (rhoquinn8217, 2026-10-20: "in simple mode add the R3 symbol for the
      rate limit similar to quick mode"). */
@@ -3748,7 +3751,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.69.6</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.69.7</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -4922,7 +4925,10 @@ function rateTags(parts) {
 // ⭐ SIMPLE'S RATE IN THE MIDDLE, BETWEEN THE BATTERY AND THE GEAR
 // (rhoquinn8217, 2026-11-09: "center the polling rate and limit between the
 // nickname/batter and the settings symbol", "in simple mode"): in a span of
-// its own that takes the line's room, the gear at the line's end.
+// its own that takes the line's room, the gear at the line's end. ⭐ SINCE
+// 2.69.7 UNDER THE NAME, THE GEAR RIGHT AFTER THE LIMIT (rhoquinn8217,
+// 2026-11-10: "move the settings button next to the polling rate a limit."),
+// the line centred by the style.
 function compactRateLine(ordinal, tag) {
   var rates = rateTags(partsOf(ordinal));
   var line = QUICK ? rates
@@ -14039,6 +14045,20 @@ function selfTest() {
       }
       ok('Simple: the symbols and the rate and limit centred under the name and battery',
          underIt && centred, rowInfo);
+      // ⭐ And the gear right after the limit, on its line ("move the
+      // settings button next to the polling rate a limit.").
+      var gearBox = rateBox && rateBox.querySelector('button.csetgear');
+      var txtBox = rateBox && rateBox.querySelector('.crate-txt');
+      var gearNext = false, gearInfo = 'no gear or no rate';
+      if (gearBox && txtBox) {
+        var gr = gearBox.getBoundingClientRect(), tr = txtBox.getBoundingClientRect();
+        var gearGap = gr.left - tr.right;
+        gearNext = gearGap >= 0 && gearGap <= parseFloat(getComputedStyle(gearBox).fontSize) * 1.5 &&
+                   Math.abs((gr.top + gr.bottom) / 2 - (tr.top + tr.bottom) / 2) <= tr.height * 0.6;
+        gearInfo = 'gap ' + Math.round(gearGap) + ' px, gear ' + Math.round(gr.top) + '-' + Math.round(gr.bottom) +
+                   ', rate ' + Math.round(tr.top) + '-' + Math.round(tr.bottom);
+      }
+      ok('Simple: the settings gear right after the rate and limit', gearNext, gearInfo);
     }
     // ⭐ The custom tag's box: twenty, the DS5-USBIP keyboard allowed in it,
     // and Enter gets out of it as Escape does.
