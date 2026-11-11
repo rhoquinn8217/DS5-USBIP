@@ -213,6 +213,7 @@ carry it; upstream's own history is unchanged.
 | 2026-11-10 | Each controller has a device tag, the name it is called by while bridged, chosen first in its settings: Auto-generated (a random name, as before), Device Type, Serial/MAC (in capitals), IP address (the TV it is bridged from) or Custom, typed in a box the DS5-USBIP keyboard opens in, Enter leaving it as Esc does. Up to 20 characters, the rest cut off; a second controller with the same tag is named with (2), (3), and every part of one device takes the same tag. It is named as its settings window closes, and only if it changed, and the window's names follow at once. Under the choice, "Preview:" or "Custom:" beside a bold, framed box; "device tag" is the window's word where it said nickname. Page 2.69.7. | `c48538d`, `2fc148e`, `5604baf`, `f3864fc`, `266e078`, `ab53b4a`, `04a695c`, merge `23f4ef9` |
 | 2026-11-10 | Simple's line over the panel is two: the controller's name and battery, then its symbols, the polling rate and limit and the settings gear, centred under them. The window is taller for it, 0.418 of the screen's height where it was 0.3879 (0.52 large, from 0.4819), and nothing on it grows. | `30c7c69`, `7c74793`, merge `23f4ef9` |
 | 2026-11-10 | Simple's tour keeps its window at the two-finger steps: a one-finger tap there clicks nothing, and a press with the window behind brings it back instead of switching. Before, a stray tap could click the desktop, the next press ended the tour, Quick's tour started by itself, and Simple came back small. | `50e2fc0`, merge `e9a4b99`, merge `23f4ef9` |
+| 2026-11-10 | A controller's auto link is kept in its own file, controllers\<serial>.txt, as auto_link = <config>, and configs hold no serials or MACs. One answer per controller: Auto link on another config moves it there, where it was refused. A renamed config keeps its controllers, an archived one holds them until it is put back, a copy auto links nothing, and a new config has no auto_link line. An older config's own auto_link line keeps working and is moved into the controllers' files at the next bridge, so nobody's configs have to be redone. | `9cdae3c`, merge `c28f98c` |
 
 ## Files changed
 
@@ -227,7 +228,7 @@ ENet library, removed with the ENet transport).
  .github/ISSUE_TEMPLATE/config.yml             |     5 +
  .github/ISSUE_TEMPLATE/feature-request.yml    |    22 +
  .gitignore                                    |    43 +-
- CHANGES.md                                    |   508 +
+ CHANGES.md                                    |   510 +
  LINK                                          |     0
  README.md                                     |   291 +-
  THIRD-PARTY-NOTICES.txt                       |   618 +
@@ -292,7 +293,7 @@ ENet library, removed with the ENet transport).
  profiles/descriptors/virtual_keyboard.profile |    88 +
  profiles/descriptors/virtual_mouse.profile    |    59 +
  release.ps1                                   |   264 +
- src/app/agent.inl                             |  1596 +-
+ src/app/agent.inl                             |  1597 +-
  src/app/agent_session_sweep.inl               |   336 +
  src/app/cli.inl                               |    66 +-
  src/app/common.inl                            |   166 +-
@@ -323,7 +324,7 @@ ENet library, removed with the ENet transport).
  src/app/quit_request.inl                      |    28 +
  src/app/read_deadline.inl                     |    28 +
  src/app/rest.inl                              |   898 ++
- src/app/rest_config.inl                       |  1676 +++
+ src/app/rest_config.inl                       |  1680 +++
  src/app/rest_config_sessions.inl              |   350 +
  src/app/rest_sessions.inl                     |    33 +
  src/app/rest_shared_section.inl               |    55 +
@@ -378,11 +379,12 @@ ENet library, removed with the ENet transport).
  src/capture/amf_encoder.inl                   |   209 -
  src/capture/ctm_stream_protocol.h             |    91 -
  src/capture/main.cpp                          |  3695 -----
+ src/config/auto_link_store.inl                |   120 +
  src/config/config_presets.inl                 |   563 +
- src/config/config_store.inl                   |   879 ++
- src/config/config_watcher.inl                 |   171 +
- src/config/controller_settings.inl            |   143 +
- src/config/controller_settings_rule.inl       |   112 +
+ src/config/config_store.inl                   |   892 ++
+ src/config/config_watcher.inl                 |   172 +
+ src/config/controller_settings.inl            |   214 +
+ src/config/controller_settings_rule.inl       |   113 +
  src/config/default_config_rule.inl            |    80 +
  src/config/device_config.inl                  |   344 +
  src/config/polling_limits.inl                 |   150 +
@@ -411,7 +413,7 @@ ENet library, removed with the ENet transport).
  src/input/trigger_effect.inl                  |   637 +
  src/log/capped_log.inl                        |   117 +
  src/log/device_log.inl                        |   233 +
- src/main.cpp                                  |  1158 +-
+ src/main.cpp                                  |  1159 +-
  src/map/runtime.cpp                           |   205 +-
  src/usbdisplay/README.md                      |    13 +
  src/usbip/device.inl                          |  1220 +-
@@ -427,7 +429,7 @@ ENet library, removed with the ENet transport).
  tests/bridge_handshake_test.cpp               |   631 +
  tests/button_layout_test.cpp                  |  1232 ++
  tests/capped_log_test.cpp                     |   140 +
- tests/config_store_test.cpp                   |  1200 ++
+ tests/config_store_test.cpp                   |  1306 ++
  tests/control_caller_test.cpp                 |    73 +
  tests/default_speaker_rule_test.cpp           |   197 +
  tests/device_capabilities_test.cpp            |    80 +
@@ -488,7 +490,7 @@ ENet library, removed with the ENet transport).
  tests/tutorial_bubble_rule_test.cpp           |   372 +
  tests/tv_sessions_test.cpp                    |   202 +
  tests/uac_prompt_rule_test.cpp                |   106 +
- tests/units.h                                 |    56 +
+ tests/units.h                                 |    57 +
  tests/usb_descriptors_test.cpp                |   213 +
  tests/usbip_limits_test.cpp                   |    73 +
  tests/usbip_server_test.cpp                   |   688 +
@@ -504,5 +506,5 @@ ENet library, removed with the ENet transport).
  tools/sbc-golden-gen/ffmpeg_side.cpp          |   117 +
  tools/sbc-golden-gen/ffmpeg_side.h            |    15 +
  tools/sbc-golden-gen/main.cpp                 |   131 +
- 282 files changed, 85089 insertions(+), 6132 deletions(-)
+ 283 files changed, 85410 insertions(+), 6132 deletions(-)
 ```
