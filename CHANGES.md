@@ -214,6 +214,7 @@ carry it; upstream's own history is unchanged.
 | 2026-11-10 | Simple's line over the panel is two: the controller's name and battery, then its symbols, the polling rate and limit and the settings gear, centred under them. The window is taller for it, 0.418 of the screen's height where it was 0.3879 (0.52 large, from 0.4819), and nothing on it grows. | `30c7c69`, `7c74793`, merge `23f4ef9` |
 | 2026-11-10 | Simple's tour keeps its window at the two-finger steps: a one-finger tap there clicks nothing, and a press with the window behind brings it back instead of switching. Before, a stray tap could click the desktop, the next press ended the tour, Quick's tour started by itself, and Simple came back small. | `50e2fc0`, merge `e9a4b99`, merge `23f4ef9` |
 | 2026-11-10 | A controller's auto link is kept in its own file, controllers\<serial>.txt, as auto_link = <config>, and configs hold no serials or MACs. One answer per controller: Auto link on another config moves it there, where it was refused. A renamed config keeps its controllers, an archived one holds them until it is put back, a copy auto links nothing, and a new config has no auto_link line. An older config's own auto_link line keeps working and is moved into the controllers' files at the next bridge, so nobody's configs have to be redone. | `9cdae3c`, merge `c28f98c` |
+| 2026-11-11 | A controller's audio setting put back to its default takes effect at once, on a cable and over Bluetooth. Choosing Auto again, or the speaker dial back to 100, left the controller where the last choice put it, on the headphones or at the old volume, until its next bridge. Reset, beside Close in a controller's settings, puts every setting there back to its default but its device tag, after asking. Page 2.69.8. | `232ae69`, `0510776`, `a74f27f`, merge `6ed64ac` |
 
 ## Files changed
 
@@ -228,7 +229,7 @@ ENet library, removed with the ENet transport).
  .github/ISSUE_TEMPLATE/config.yml             |     5 +
  .github/ISSUE_TEMPLATE/feature-request.yml    |    22 +
  .gitignore                                    |    43 +-
- CHANGES.md                                    |   510 +
+ CHANGES.md                                    |   511 +
  LINK                                          |     0
  README.md                                     |   291 +-
  THIRD-PARTY-NOTICES.txt                       |   618 +
@@ -271,7 +272,7 @@ ENet library, removed with the ENet transport).
  docs/images/ds5usbip-tutorial-simple.png      |   Bin 0 -> 149160 bytes
  docs/rest_api.md                              |   218 +
  docs/steam_puck_knowledge.md                  |     5 +-
- include/ctm/audio_volume.h                    |    40 +
+ include/ctm/audio_volume.h                    |    66 +
  include/ctm/build_number.h                    |    23 +
  include/ctm/map/runtime.h                     |    51 +-
  include/ctm/product.h                         |    44 +
@@ -294,7 +295,7 @@ ENet library, removed with the ENet transport).
  profiles/descriptors/virtual_mouse.profile    |    59 +
  release.ps1                                   |   264 +
  src/app/agent.inl                             |  1597 +-
- src/app/agent_session_sweep.inl               |   336 +
+ src/app/agent_session_sweep.inl               |   375 +
  src/app/cli.inl                               |    66 +-
  src/app/common.inl                            |   166 +-
  src/app/config_move.inl                       |  1814 +++
@@ -316,7 +317,7 @@ ENet library, removed with the ENet transport).
  src/app/old_devices_rule.inl                  |    91 +
  src/app/open_on_bridge.inl                    |    93 +
  src/app/open_ui.inl                           |   985 ++
- src/app/overlay_window.inl                    |  2472 ++++
+ src/app/overlay_window.inl                    |  2472 +++
  src/app/paired_tv.inl                         |   590 +
  src/app/protocol_level.inl                    |    98 +
  src/app/quick_switch.inl                      |   743 +
@@ -362,8 +363,8 @@ ENet library, removed with the ENet transport).
  src/audio/ds4_output_overrides.inl            |    42 +
  src/audio/ds4_rumble.inl                      |    68 +
  src/audio/ds4_speaker.inl                     |    62 +
- src/audio/ds5_apply_settings.inl              |   340 +
- src/audio/ds5_output_overrides.inl            |   820 +
+ src/audio/ds5_apply_settings.inl              |   343 +
+ src/audio/ds5_output_overrides.inl            |   830 ++
  src/audio/iso_in_pacing.inl                   |   223 +
  src/audio/iso_in_test_tone.inl                |   103 +
  src/audio/mic_ring.inl                        |   229 +
@@ -371,8 +372,8 @@ ENet library, removed with the ENet transport).
  src/audio/pc_sound_capture.h                  |    52 +
  src/audio/pcm_amplitude_log.inl               |   167 +
  src/audio/rumble_floor.inl                    |    58 +
- src/backend/backend.inl                       |    56 +
- src/backend/bridge.inl                        |   396 +-
+ src/backend/backend.inl                       |    68 +
+ src/backend/bridge.inl                        |   425 +-
  src/backend/bridge_enet.inl                   |   800 -
  src/backend/bt.inl                            |    24 +-
  src/capture/amf_decoder.inl                   |   319 -
@@ -434,7 +435,7 @@ ENet library, removed with the ENet transport).
  tests/default_speaker_rule_test.cpp           |   197 +
  tests/device_capabilities_test.cpp            |    80 +
  tests/device_config_cache_test.cpp            |   148 +
- tests/device_config_test.cpp                  |   686 +
+ tests/device_config_test.cpp                  |   704 +
  tests/device_names_test.cpp                   |   110 +
  tests/device_tag_rule_test.cpp                |   120 +
  tests/device_type_test.cpp                    |    89 +
@@ -445,7 +446,7 @@ ENet library, removed with the ENet transport).
  tests/harness.h                               |    55 +
  tests/held_edges_test.cpp                     |    84 +
  tests/home_folder_test.cpp                    |   178 +
- tests/host_audio_settings_test.cpp            |   152 +
+ tests/host_audio_settings_test.cpp            |   187 +
  tests/input_pace_test.cpp                     |   184 +
  tests/iso_in_pacing_test.cpp                  |   143 +
  tests/key_pulse_test.cpp                      |   148 +
@@ -498,7 +499,7 @@ ENet library, removed with the ENet transport).
  tests/window_move_test.cpp                    |   136 +
  tests/window_open_rule_test.cpp               |    43 +
  tests/window_size_rule_test.cpp               |   129 +
- tools/controller-config-test-client.html      | 18881 ++++++++++++++++++++++++
+ tools/controller-config-test-client.html      | 18978 ++++++++++++++++++++++++
  tools/create-desktop-shortcut.bat             |    46 +
  tools/create-desktop-shortcut.ps1             |   148 +
  tools/osk-mockups.py                          |   103 +
@@ -506,5 +507,5 @@ ENet library, removed with the ENet transport).
  tools/sbc-golden-gen/ffmpeg_side.cpp          |   117 +
  tools/sbc-golden-gen/ffmpeg_side.h            |    15 +
  tools/sbc-golden-gen/main.cpp                 |   131 +
- 283 files changed, 85410 insertions(+), 6132 deletions(-)
+ 283 files changed, 85680 insertions(+), 6132 deletions(-)
 ```
