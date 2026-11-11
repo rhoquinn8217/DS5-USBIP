@@ -33,10 +33,15 @@
 //
 // FILE FORMAT
 //     [config]
-//     auto_link = aabbccddeeff         ; serials linked automatically at bridge
 //
 //     [settings]
 //     speaker_volume = 65
+//
+// ⭐ WHICH CONTROLLER AUTO LINKS TO A CONFIG IS THE CONTROLLER'S (2026-11-10):
+// its own file says `auto_link = <config>` (auto_link_store.inl). An older
+// config's `auto_link = <serials>` line under [config] is still read, for a
+// serial no controller's file names, and moved into those files at the next
+// bridge.
 //
 // ⓘ A file written before 2026-09-12 says `kind = ds5` and keeps its settings
 // in a [ds5] block. It still loads, into the same section: with no [settings]
@@ -48,6 +53,10 @@
 // !! here changes it.
 
 #pragma once
+
+// ⓘ The controllers' own files, for the config each auto links to (reload_all):
+// their keys and their parser, strings alone.
+#include "controller_settings_rule.inl"
 
 namespace config_store {
 
@@ -61,7 +70,8 @@ inline const char *kSettingsBlock = "settings";
 struct ConfigFile {
     std::string name;                       // filename stem
     std::string settingsBlock;              // "settings", or an older file's kind
-    std::vector<std::string> autoLink;      // normalised serials
+    std::vector<std::string> autoLink;      // normalised serials, from the controllers' files (reload_all)
+    std::vector<std::string> oldClaims;     // an older file's own auto_link line: auto_link_store moves them
     std::string path;
 };
 
@@ -213,7 +223,7 @@ inline std::string normalise_serial(const std::string &raw)
     //
     // ⭐ One place, so every caller inherits it: a claim of all zeros is
     // dropped as a config file is read, `auto_link_for` finds nothing, and
-    // `add_auto_link` refuses with "no usable serial" rather than writing a
+    // `auto_link_store::add` refuses with "no usable serial" rather than writing a
     // claim that would misfire later.
     //
     // ⚠️ ALL zeros, NOT leading zeros. The Switch Pro Controller reports
@@ -309,6 +319,7 @@ inline bool parse_one(const std::string &name, ConfigFile *out,
     out->path = path_for(name);
     out->settingsBlock.clear();
     out->autoLink.clear();
+    out->oldClaims.clear();
 
     std::string section, line;
     std::string legacyKind;                      // `kind =` in an older file
@@ -339,7 +350,7 @@ inline bool parse_one(const std::string &name, ConfigFile *out,
                 for (char c : value + ",") {
                     if (c == ',' || c == ' ' || c == '\t') {
                         const std::string s = normalise_serial(current);
-                        if (!s.empty()) out->autoLink.push_back(s);
+                        if (!s.empty()) out->oldClaims.push_back(s);
                         current.clear();
                     } else current.push_back(c);
                 }
@@ -432,6 +443,35 @@ inline void reload_all()
         FindClose(handle);
     }
 
+    // ⭐ WHICH CONFIG EACH CONTROLLER AUTO LINKS TO: its own file says
+    // (rhoquinn8217, 2026-11-10: "store it controller settings instead
+    // configs"; auto_link_store.inl). Read as the configs are, with no lock.
+    std::map<std::string, std::string> ownLinks;   // serial -> the config its file names
+    {
+        const std::string dir = controller_settings::kDir;
+        const std::wstring ownPattern = std::wstring(dir.begin(), dir.end()) + L"\\*.txt";
+        WIN32_FIND_DATAW own = {};
+        HANDLE ownHandle = FindFirstFileW(ownPattern.c_str(), &own);
+        if (ownHandle != INVALID_HANDLE_VALUE) {
+            do {
+                if (own.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) continue;
+                const std::wstring wname(own.cFileName);
+                const std::string fname(wname.begin(), wname.end());
+                if (fname.size() < 5) continue;
+                const std::string serial = normalise_serial(fname.substr(0, fname.size() - 4));
+                if (serial.empty()) continue;
+                std::ifstream in(dir + "\\" + fname, std::ios::binary);
+                if (!in) continue;
+                std::stringstream text;
+                text << in.rdbuf();
+                const std::map<std::string, std::string> settings = controller_settings::parse(text.str());
+                const auto link = settings.find("auto_link");
+                if (link != settings.end()) ownLinks[serial] = link->second;
+            } while (FindNextFileW(ownHandle, &own));
+            FindClose(ownHandle);
+        }
+    }
+
     // ⚠️ LOCK ORDER: g_mutex, then g_device_config_mutex. Never the reverse.
     // g_device_config is read by device_config_str/int/bool from the input
     // path at ~250 reports/sec per controller, while this runs on the agent
@@ -452,6 +492,23 @@ inline void reload_all()
         auto &section = g_device_config[config_section(one.cfg.name)];
         for (const auto &setting : one.settings) section[setting.first] = setting.second;
         g_files[one.key] = std::move(one.cfg);
+    }
+    // Each serial in one config's list at most: the config its own file names,
+    // or, for a serial no file names, an older config's own line. ⓘ A file
+    // naming a config not here (archived) gives none, and holds the name.
+    std::map<std::string, std::string> listedIn;   // serial -> the config listing it
+    for (const auto &link : ownLinks) {
+        const auto it = g_files.find(lower(link.second));
+        if (it == g_files.end()) continue;
+        it->second.autoLink.push_back(link.first);
+        listedIn[link.first] = it->second.name;
+    }
+    for (auto &entry : g_files) {
+        for (const std::string &serial : entry.second.oldClaims) {
+            if (ownLinks.count(serial) || listedIn.count(serial)) continue;
+            entry.second.autoLink.push_back(serial);
+            listedIn[serial] = entry.second.name;
+        }
     }
     // ⛔ Every input thread's copy of the answers goes with it: device_config.inl.
     device_config_changed_locked();
@@ -487,9 +544,8 @@ inline bool find_config(const std::string &name, ConfigFile *out)
     return true;
 }
 
-// The config a serial auto-links to, or empty. First match wins in whatever
-// order the map gives -- deliberately not resolved with extra ordering logic,
-// because add_auto_link refuses to create a duplicate claim in the first place.
+// The config a serial auto-links to, or empty. ⓘ A serial is in one config's
+// list at most (reload_all), so the first match is the only one.
 inline std::string auto_link_for(const std::string &serial, const std::string &kind)
 {
     const std::string s = normalise_serial(serial);
@@ -500,19 +556,6 @@ inline std::string auto_link_for(const std::string &serial, const std::string &k
     if (!kind_supports_config(kind)) return std::string();
     std::lock_guard<std::mutex> lock(g_mutex);
     for (const auto &entry : g_files) {
-        for (const std::string &claim : entry.second.autoLink) {
-            if (claim == s) return entry.second.name;
-        }
-    }
-    return std::string();
-}
-
-inline std::string claimed_by(const std::string &serial, const std::string &exceptName)
-{
-    const std::string s = normalise_serial(serial);
-    std::lock_guard<std::mutex> lock(g_mutex);
-    for (const auto &entry : g_files) {
-        if (lower(entry.second.name) == lower(exceptName)) continue;
         for (const std::string &claim : entry.second.autoLink) {
             if (claim == s) return entry.second.name;
         }
@@ -551,8 +594,8 @@ inline bool create_config(const std::string &name, std::string *error)
          << "# empty block below behaves exactly as no config at all, and every\r\n"
          << "# line added is a deliberate override.\r\n\r\n"
          << "[config]\r\n"
-         << "# Serials linked to this config automatically at bridge time.\r\n"
-         << "auto_link =\r\n\r\n"
+         << "# Which controllers read this config at every bridge is kept with\r\n"
+         << "# each controller, in controllers\\<serial>.txt, not here.\r\n\r\n"
          << "[" << kSettingsBlock << "]\r\n";
     if (!write_text_whole(path_for(name), file.str(), error)) return false;
     {
@@ -572,10 +615,12 @@ inline bool create_config(const std::string &name, std::string *error)
 
 // Renames a config file.
 //
-// ⓘ Everything that matters follows the file. auto_link lives INSIDE it, so the
-// claim moves too; the settings section is namespaced by name, and reload_all
-// rebuilds those. The only thing left behind is a live session still pointing at
-// the old name, which the caller re-points.
+// ⓘ Everything that matters follows the file: the settings section is
+// namespaced by name, and reload_all rebuilds those. Left behind: a live
+// session still pointing at the old name, and the controllers auto linking to
+// it by their own files, which the caller re-points
+// (auto_link_store::follow_rename); an older file's own auto_link line moves
+// with the file.
 //
 // ⚠️ Refuses to overwrite an existing config, and refuses reserved names -- a
 // rename onto a name in use would silently destroy the other one.
@@ -634,12 +679,12 @@ inline bool rename_config(const std::string &oldName, const std::string &newName
     return true;
 }
 
-// ⭐ COPY: the same settings under a new name, with the auto-link claim DROPPED.
+// ⭐ COPY: the same settings under a new name, and no controller's auto link.
 //
-// ⛔ The claim is the one thing that must not come along. auto_link says "this
-// physical controller reads this config at bridge time", and two configs
-// claiming one serial is the ambiguity add_auto_link exists to refuse. A copy
-// that inherited it would create exactly that, silently, from a button.
+// ⛔ An auto link is the one thing that must not come along: it says "this
+// physical controller reads this config at bridge time". A controller's own
+// file names the original, and an older file's own auto_link line is blanked
+// in the copy, so two configs never claim one serial.
 //
 // ⓘ Everything else rides across byte for byte -- comments, layout, ordering,
 // hand-written keys -- because it is a file copy with two lines rewritten, not
@@ -840,40 +885,8 @@ inline bool set_auto_link_line(const ConfigFile &cfg, const std::string &joined,
     return true;
 }
 
-inline bool add_auto_link(const std::string &name, const std::string &serial, std::string *error)
-{
-    ConfigFile cfg;
-    if (!find_config(name, &cfg)) { *error = "no config named " + name; return false; }
-    const std::string s = normalise_serial(serial);
-    if (s.empty()) { *error = "no usable serial"; return false; }
-
-    // ⭐ THIS REFUSAL IS THE POINT OF THE VERB. Two configs claiming one serial
-    // is resolvable but ambiguous; refusing here keeps it unreachable rather
-    // than merely tolerable, which is worth more than the typing it saves.
-    const std::string other = claimed_by(s, name);
-    if (!other.empty()) { *error = s + " is already claimed by " + other; return false; }
-
-    for (const std::string &existing : cfg.autoLink) if (existing == s) return true;
-
-    std::vector<std::string> updated = cfg.autoLink;
-    updated.push_back(s);
-    std::string joined;
-    for (size_t i = 0; i < updated.size(); ++i) { if (i) joined += ", "; joined += updated[i]; }
-    return set_auto_link_line(cfg, joined, error);
-}
-
-inline bool remove_auto_link(const std::string &name, const std::string &serial, std::string *error)
-{
-    ConfigFile cfg;
-    if (!find_config(name, &cfg)) { *error = "no config named " + name; return false; }
-    const std::string s = normalise_serial(serial);
-    std::string joined;
-    for (const std::string &existing : cfg.autoLink) {
-        if (existing == s) continue;
-        if (!joined.empty()) joined += ", ";
-        joined += existing;
-    }
-    return set_auto_link_line(cfg, joined, error);
-}
+// ⓘ Adding and removing an auto link: auto_link_store.inl, in the
+// controller's own file. set_auto_link_line above blanks an older file's line
+// once its serials are moved there.
 
 } // namespace config_store

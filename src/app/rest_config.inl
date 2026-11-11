@@ -1584,6 +1584,8 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
                 *out = rest_error_response(409, error);
                 return true;
             }
+            // ⭐ And the controllers auto linking to it follow (auto_link_store.inl).
+            auto_link_store::follow_rename(name, nameIt->second);
             // ⚠️ Re-point every live session that was reading it. The file moved
             // and its settings section moved with it, so a session left holding
             // the old name would silently fall back to the shared section --
@@ -1657,9 +1659,11 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
                 }
                 serial = view.serial;
             }
+            // ⭐ Kept in the controller's own file since 2026-11-10
+            // (auto_link_store.inl): auto linking to another config moves it.
             const bool ok = action == "autolink"
-                ? config_store::add_auto_link(name, serial, &error)
-                : config_store::remove_auto_link(name, serial, &error);
+                ? auto_link_store::add(name, serial, &error)
+                : auto_link_store::remove(name, serial, &error);
             if (!ok) {
                 *out = rest_error_response(action == "autolink" ? 409 : 400, error);
                 return true;

@@ -37,7 +37,7 @@ inline void ensure()
 }
 
 // ⭐ THE FIRST CONTROLLER AFTER A FRESH INSTALL: auto linked to
-// default_windows_config, unless a config auto links it already, by the config's own auto_link line,
+// default_windows_config, unless it auto links to a config already, by its own file's auto_link,
 // so it holds at every bridge after; the auto link this bridge looks up next
 // finds it. ⓘ The turn is taken atomically, so two controllers bridged
 // together cannot both have it. ⓘ Returns the config to link THIS bridge to
@@ -57,7 +57,7 @@ inline std::string first_controller_bridged(const std::string &ordinal, const st
         return std::string();
     }
     std::string error;
-    if (config_store::add_auto_link(kName, serial, &error)) {
+    if (auto_link_store::add(kName, serial, &error)) {
         device_log::config(device_log::msg() << ordinal << ": the first controller after a fresh install, auto "
                                              << "linked to " << kName);
         return std::string();
