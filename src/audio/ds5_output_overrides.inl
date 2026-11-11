@@ -376,10 +376,10 @@ static int ds5_level_for(Ds5AudioOutput output, bool speaker, const char *sectio
 }
 
 // ⭐ THE LEVEL OUR OWN SETTINGS REPORT SENDS (ds5_apply_settings.inl). It is
-// ds5_level_for's answer except in one case: once a person has chosen where
-// the audio goes (audio_output set, auto included), an output that choice
-// plays through is sent its dial even when the dial was never moved -- 100,
-// the default the configs window shows for both (rest_config.inl).
+// ds5_level_for's answer except in one case: an output that audio_output plays
+// through (auto, which is also what no audio_output means, plays through the
+// speaker) is sent its dial even when the dial was never moved -- 100, the
+// default the configs window shows for both (rest_config.inl).
 //
 // ⛔ WITHOUT IT A MODE UNDID ITSELF ON A CABLE (rhoquinn8217, 2026-11-06, a
 // cabled DualSense and Edge on the C1). "speaker" sends the headset 0, and the
@@ -389,15 +389,25 @@ static int ds5_level_for(Ds5AudioOutput output, bool speaker, const char *sectio
 // dial read 100. The speaker had the same hole after "headset",
 // "headset_mono" or "off".
 //
+// ⭐ AND NO audio_output AT ALL IS AUTO HERE TOO (rhoquinn8217, 2026-11-10, a
+// cabled DualSense on the C1). This used to send nothing for a pad with no
+// audio_output, to leave a pad nobody configured exactly as it was. But a
+// setting put back to its default is taken out of the controller's file, so
+// "headset" (the speaker sent 0) and then "(default)" claimed nothing: the pad
+// stayed on the headphones with its speaker at 0, silent with nothing in the
+// jack, until a volume was moved. With no audio_output, a dial put back to
+// 100, its default, did the same: the speaker stayed at the level before it.
+// And auto, set or not, already sends the pad its route at every bridge
+// (ds5_follow_jack), so "left as it was" no longer held anyway.
+//
 // ⓘ OUR REPORT ONLY. The overrides below keep ds5_level_for, so an unset key
-// still leaves a game's own volume write alone. And with no audio_output at
-// all nothing changes: a pad nobody configured is left exactly as it was.
+// still leaves a game's own volume write alone.
 static const int kDs5DialUnsetPercent = 100;
 
 static int ds5_settings_level_for(Ds5AudioOutput output, bool speaker, const char *section)
 {
     const int level = ds5_level_for(output, speaker, section);
-    if (level >= 0 || device_config_str(section, "audio_output").empty()) {
+    if (level >= 0) {
         return level;
     }
     // Under auto our report routes to the speaker alone (kDs5RouteToSpeaker),

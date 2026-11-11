@@ -217,12 +217,24 @@ static void apply_pending_config_to_sessions()
         }
         device_log::config(device_log::msg()
             << "pushing settings to live session busid=" << target.busIdAscii);
-        ds5_apply_initial_settings(target.backend.get(), target.linkedConfig, target.device.get());
+
+        // ⭐ What this bridge last sent the TV (audio_sent). The TV keeps the
+        // last value it was given, so a setting put back to its default is
+        // sent as that default when one was sent before
+        // (audio_volume::back_to_default).
+        uint8_t sentSpk = audio_volume::kUnset;
+        uint8_t sentHset = audio_volume::kUnset;
+        uint8_t sentMode = audio_volume::kUnset;
+        uint16_t sentLatency = audio_volume::kLatencyUnset;
+        target.backend->audio_sent(&sentSpk, &sentHset, &sentMode, &sentLatency);
+        static_assert(audio_volume::kLatencyUnset == CtmBridgeProtocol::kLatencyUnset,
+                      "audio_volume.h's unset buffer must be the protocol's");
 
         // The audio buffer is not part of the settings report -- it lives in
         // the host config, which the TV accepts at any point in a session. Sent
-        // separately for that reason, and only when the file names it: absent
-        // must leave the TV's own value alone.
+        // separately for that reason, and only when the file names it, or no
+        // longer names one this bridge sent: absent and never sent leaves the
+        // TV's own value alone.
         // ⛔ Was hardcoded to the shared "ds5" section, which ignored the
         // linked config entirely: a controller linked to a config holding
         // audio_latency_ms=100 was sent whatever the SHARED section said, and
@@ -241,12 +253,23 @@ static void apply_pending_config_to_sessions()
         // ⚠️ Uses the shared constant rather than a literal. This said 8 until
         // 2026-08-22, which was the WIRED figure -- so a Bluetooth user hitting
         // the 11-14 dead band got silence and no warning at all.
-        if (latency >= 0 && latency <= 255) {
+        // ⓘ A buffer goes back to what the bridge began with: the shared
+        // section's, as the handshake reads it (bridge.inl,
+        // configured_audio_latency), or else the TV's own 60.
+        const int sharedLatency = device_config_int("ds5", "audio_latency_ms", -1);
+        const uint16_t latencyDefault = (sharedLatency >= 0 && sharedLatency <= 255)
+            ? static_cast<uint16_t>(sharedLatency) : audio_volume::kLatencyDefault;
+        const uint16_t latencyNow = (latency >= 0 && latency <= 255)
+            ? static_cast<uint16_t>(latency) : audio_volume::kLatencyUnset;
+        const uint16_t latencyToSend =
+            audio_volume::latency_back_to_default(latencyNow, sentLatency, latencyDefault);
+        if (latencyToSend != audio_volume::kLatencyUnset) {
             std::wstring latencyError;
-            if (target.backend->send_audio_latency(static_cast<uint16_t>(latency), &latencyError)) {
+            if (target.backend->send_audio_latency(latencyToSend, &latencyError)) {
                 device_log::report(device_log::msg()
-                    << latencySection << ": audio latency set to " << latency
-                    << " ms on busid=" << target.busIdAscii);
+                    << latencySection << ": audio latency set to " << latencyToSend
+                    << " ms on busid=" << target.busIdAscii
+                    << (latencyToSend != latencyNow ? " (put back to its default)" : ""));
             } else {
                 // ⛔ This used to log NOTHING. The error was captured into
                 // latencyError and discarded, so a failed send was
@@ -307,8 +330,15 @@ static void apply_pending_config_to_sessions()
             else if (outStr == "both")         mode = 4;
 
             const bool fullWhenUnset = audio_volume::full_when_unset(settingsKind);
-            const uint8_t spkByte  = audio_volume::volume_byte(spk, fullWhenUnset);
-            const uint8_t hsetByte = audio_volume::volume_byte(hset, fullWhenUnset);
+            const uint8_t spkNow  = audio_volume::volume_byte(spk, fullWhenUnset);
+            const uint8_t hsetNow = audio_volume::volume_byte(hset, fullWhenUnset);
+            const uint8_t modeNow = mode;
+            // ⭐ Put back to its default on the TV when this bridge sent one:
+            // the mode auto, the dials 100 (audio_volume::back_to_default).
+            const uint8_t spkByte  = audio_volume::back_to_default(spkNow, sentSpk, audio_volume::kFull);
+            const uint8_t hsetByte = audio_volume::back_to_default(hsetNow, sentHset, audio_volume::kFull);
+            mode = audio_volume::back_to_default(modeNow, sentMode, audio_volume::kModeAuto);
+            const bool backToDefault = spkByte != spkNow || hsetByte != hsetNow || mode != modeNow;
 
             if (spkByte  != CtmBridgeProtocol::kAudioUnset ||
                 hsetByte != CtmBridgeProtocol::kAudioUnset ||
@@ -321,7 +351,8 @@ static void apply_pending_config_to_sessions()
                         << static_cast<int>(hsetByte) << " mode="
                         << static_cast<int>(mode)
                         << " on busid=" << target.busIdAscii
-                        << " (255 = leave the TV's value)");
+                        << " (255 = leave the TV's value)"
+                        << (backToDefault ? "; put back to its default: a setting this bridge had sent" : ""));
                 } else {
                     // ⛔ Never silent. A failed send that logs nothing is
                     // indistinguishable from code that never ran -- which is
@@ -332,5 +363,13 @@ static void apply_pending_config_to_sessions()
                 }
             }
         }
+
+        // ⭐ OUR SETTINGS REPORT AFTER THE TV HAS ITS OWN (2026-11-11). It was
+        // sent first. Over Bluetooth the TV routes each report it passes by its
+        // own mode, so a TV still on "headset" could put the pad back on the
+        // headphones after our report had routed it to the speaker, and in auto
+        // with a volume set it then leaves the route alone. Sent last, ours is
+        // the last word. ⓘ On a cable the TV leaves the reports alone.
+        ds5_apply_initial_settings(target.backend.get(), target.linkedConfig, target.device.get());
     }
 }

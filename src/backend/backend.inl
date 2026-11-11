@@ -60,6 +60,18 @@ public:
         (void)speakerPct; (void)headsetPct; (void)audioMode; (void)error;
         return false;
     }
+
+    // ⭐ What this bridge last sent the TV for the two above: the volumes, the
+    // mode and the buffer, kAudioUnset or kLatencyUnset where nothing was. The
+    // TV keeps a value until it is sent another, so a setting put back to its
+    // default is sent as that default only when one was sent before
+    // (audio_volume::back_to_default). False where there is no TV to ask.
+    virtual bool audio_sent(uint8_t *speakerPct, uint8_t *headsetPct,
+                            uint8_t *audioMode, uint16_t *latencyMs) const
+    {
+        (void)speakerPct; (void)headsetPct; (void)audioMode; (void)latencyMs;
+        return false;
+    }
     virtual bool send_output_report(const std::vector<uint8_t> &report, bool paced, std::wstring *error) = 0;
 
     // Composite: forward an OUT report tagged with the physical OUT endpoint it

@@ -383,7 +383,7 @@ int run_device_config_tests()
         CTM_CHECK_EQ(speakerLevel("ds5_edge"), 100);
     }
 
-    section("our report: a set dial wins, and nothing chosen changes nothing");
+    section("our report: a set dial wins, and nothing chosen is auto");
     {
         auto speakerLevel = [](const char *section) {
             return units::ds5_settings_level_for(units::ds5_audio_output_for(section), true, section);
@@ -396,13 +396,31 @@ int run_device_config_tests()
         CTM_CHECK_EQ(speakerLevel("ds5"), 40);
         CTM_CHECK_EQ(headsetLevel("ds5"), 0);     // 0 is a legal level: silent, as set
 
-        // No audio_output at all: an unconfigured pad is left as it was.
+        // ⛔ The fault this guards (2026-11-10, a cabled DualSense on the C1):
+        // "headset" sent the speaker 0, then audio_output was put back to its
+        // default, which takes it out of the file. Our report claimed nothing,
+        // so the pad stayed on the headphones with its speaker at 0, silent,
+        // until a volume was moved. No audio_output is auto: the speaker gets
+        // its dial, 100 when never moved, as a chosen auto does.
+        set_config("[ds5]\naudio_output = headset\n");
+        CTM_CHECK_EQ(speakerLevel("ds5"), 0);
         set_config("[ds5]\nforce_echo_cancel = true\n");
-        CTM_CHECK_EQ(speakerLevel("ds5"), -1);
-        CTM_CHECK_EQ(headsetLevel("ds5"), -1);
+        CTM_CHECK_EQ(speakerLevel("ds5"), 100);   // was -1: nothing sent, the 0 stayed
+        CTM_CHECK_EQ(headsetLevel("ds5"), -1);    // auto plays through the speaker alone
         set_config("[ds5]\nheadset_volume = 30\n");
-        CTM_CHECK_EQ(speakerLevel("ds5"), -1);
+        CTM_CHECK_EQ(speakerLevel("ds5"), 100);
         CTM_CHECK_EQ(headsetLevel("ds5"), 30);
+
+        // A dial put back to 100, its default, leaves the file too: with no
+        // audio_output it used to send nothing, so the speaker kept 30.
+        set_config("[ds5]\nspeaker_volume = 30\n");
+        CTM_CHECK_EQ(speakerLevel("ds5"), 30);
+        set_config("[ds5]\n");
+        CTM_CHECK_EQ(speakerLevel("ds5"), 100);
+
+        // The Edge reads its own section and gets the same.
+        set_config("[ds5_edge]\nheadset_volume = 30\n");
+        CTM_CHECK_EQ(speakerLevel("ds5_edge"), 100);
     }
 
     section("a game's volume write still stands for an unset dial in a chosen mode");

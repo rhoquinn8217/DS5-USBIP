@@ -37,4 +37,30 @@ inline uint8_t volume_byte(int configured, bool fullWhenUnset)
     return fullWhenUnset ? kFull : kUnset;
 }
 
+// ⭐ BACK TO ITS DEFAULT ON THE TV (rhoquinn8217, 2026-11-11). The TV keeps the
+// last value it was sent until it is sent another, and a setting put back to
+// its default is taken out of the controller's file, so the TV was sent
+// nothing: a Bluetooth DualSense stayed on the headphones after "headset" and
+// then the default, and at 30 after 30 and then 100, until its next bridge.
+// So a value this bridge sent before (sentBefore) that is unset now is sent as
+// its default. One never sent stays unset: a pad nobody changed is told
+// nothing, as before, and its volumes keep deferring to the game's.
+// ⓘ The defaults are the configs window's: the mode auto, both dials 100,
+// the buffer 60 (the TV's own too).
+constexpr uint8_t kModeAuto = 0;   // the TV's AUTO
+constexpr uint16_t kLatencyUnset = 0xFFFFu;   // CtmBridgeProtocol::kLatencyUnset
+constexpr uint16_t kLatencyDefault = 60;
+
+inline uint8_t back_to_default(uint8_t now, uint8_t sentBefore, uint8_t byDefault)
+{
+    if (now != kUnset) return now;
+    return sentBefore != kUnset ? byDefault : kUnset;
+}
+
+inline uint16_t latency_back_to_default(uint16_t now, uint16_t sentBefore, uint16_t byDefault)
+{
+    if (now != kLatencyUnset) return now;
+    return sentBefore != kLatencyUnset ? byDefault : kLatencyUnset;
+}
+
 }  // namespace audio_volume
