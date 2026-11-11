@@ -89,6 +89,7 @@ static std::vector<RestDeviceView> rest_collect_devices()
         view.ordinal = session->ordinal;
         view.nickname = session->nickname;
         view.kind = session->kind;
+        view.tvAddress = session->tvAddress; // set at its start, never changed
         // ⚠️ Reported rather than filtered. A session mid-startup has no serial
         // yet and a link against it may not survive -- but hiding it entirely
         // would make a controller that is plugged in simply not appear, which
@@ -193,6 +194,60 @@ static void rest_apply_controller_settings(const std::string &ordinal)
         if (session->device) session->device->set_controller_section(section);
         ctm_config_watcher::change_pending().store(true, std::memory_order_relaxed);
         return;
+    }
+}
+
+// ⭐ A DEVICE TAG CHANGED IN THE SETTINGS WINDOW, WAITING FOR IT TO CLOSE
+// (rhoquinn8217, 2026-11-10: "Don't change the tag until after the setting
+// window is closed"). By ordinal: the section its settings are in, and its
+// choice and custom tag before the window's first write, which stand until
+// the window closes.
+struct RestTagPending {
+    std::string section;
+    std::string mode;
+    std::string custom;
+};
+static std::mutex g_restTagPendingMutex;
+static std::map<std::string, RestTagPending> g_restTagPending;
+
+static void rest_device_tag_written(const std::string &ordinal, const std::string &section,
+                                    const std::string &modeBefore, const std::string &customBefore)
+{
+    std::lock_guard<std::mutex> lock(g_restTagPendingMutex);
+    g_restTagPending.emplace(ordinal, RestTagPending{section, modeBefore, customBefore});
+}
+
+// The window of `ordinal` closed, or with "" the page went: each controller
+// waiting is named by its tag now, if it changed (device_tag::changed), random
+// drawing a new name (agent_apply_device_tag). ⓘ One no longer bridged is
+// passed over there.
+static void rest_device_tags_settle(const std::string &ordinal)
+{
+    std::vector<std::pair<std::string, RestTagPending>> due;
+    {
+        std::lock_guard<std::mutex> lock(g_restTagPendingMutex);
+        for (auto it = g_restTagPending.begin(); it != g_restTagPending.end();) {
+            if (ordinal.empty() || it->first == ordinal) {
+                due.emplace_back(it->first, it->second);
+                it = g_restTagPending.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+    for (const auto &p : due) {
+        const auto now = controller_settings::get(p.second.section);
+        auto value = [&](const char *key) {
+            const auto it = now.find(key);
+            return it == now.end() ? std::string() : it->second;
+        };
+        if (!device_tag::changed(p.second.mode, p.second.custom, value(device_tag::kModeKey),
+                                 value(device_tag::kCustomKey))) {
+            device_log::session(device_log::msg()
+                << p.first << " keeps its name: its device tag is as it was when its settings opened");
+            continue;
+        }
+        agent_apply_device_tag(p.first, p.second.section, true);
     }
 }
 

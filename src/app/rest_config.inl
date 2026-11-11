@@ -28,6 +28,7 @@ struct RestDeviceView {
     bool ready = false;         // false = still starting or tearing down
     std::string product;        // the device's own name, from the TV at HELLO
     std::string deviceType;     // "controller", "keyboard", "mouse" or ""
+    std::string tvAddress;      // the address its TV asked for the bridge from, or ""
     std::string link;           // "USB" or "BT" by the TV's HELLO, or ""
     // ⛔ -1 is "the pad did not say", which is NOT zero percent: a flat pad and
     // a pad with no battery byte are opposite facts and must not share a value
@@ -74,6 +75,9 @@ static bool rest_find_device(const std::string &ordinal, RestDeviceView *out);
 static bool rest_controller_section(const std::string &ordinal, std::string *section);
 static std::string rest_controller_settings_json(const std::string &ordinal, const std::string &section);
 static void rest_apply_controller_settings(const std::string &ordinal);
+static void rest_device_tag_written(const std::string &ordinal, const std::string &section,
+                                    const std::string &modeBefore, const std::string &customBefore);
+static void rest_device_tags_settle(const std::string &ordinal);
 
 // The name the shared section answers to in the API. Reserved, so a real config
 // cannot take it -- see config_store::valid_name().
@@ -119,6 +123,18 @@ static std::string rest_device_json(const RestDeviceView &d)
     // ⭐ Whether it has settings of its own (a controller), and whether they are
     // kept in its file or for this bridge alone (controller_settings.inl).
     out += ",\"has_settings\":" + std::string(d.controllerSection.empty() ? "false" : "true");
+    // ⭐ What its device tag is by its type, by its serial and by its address
+    // (device_tag_rule.inl), for the settings window's Preview: the same
+    // words the agent names it by. ⓘ "" for a serial or an address it has
+    // none of.
+    if (!d.controllerSection.empty()) {
+        out += ",\"tag_type\":\"" +
+               rest_json_escape(device_tag::type_name(device_names::model_for_kind(d.kind), d.product,
+                                                      d.deviceType)) + "\"";
+        out += ",\"tag_serial\":\"" +
+               rest_json_escape(device_tag::serial_tag(config_store::normalise_serial(d.serial))) + "\"";
+        out += ",\"tag_ip\":\"" + rest_json_escape(device_tag::ip_tag(d.tvAddress)) + "\"";
+    }
     out += ",\"settings_kept\":" +
            std::string(controller_settings::is_kept_section(d.controllerSection) ? "true" : "false");
     // ⭐ The polling rate column, Advanced only on the page.
@@ -498,6 +514,8 @@ static std::string rest_keys_json()
 {"key":"gyro_stick_sens_v","type":"int","min":0,"max":100,"default":0,"name":"Gyro stick vertical sensitivity","help":"The same for up and down. 0 follows the sensitivity above."},
 {"key":"gyro_stick_axis","type":"choice","choices":["","yaw","roll"],"default":"","name":"Gyro stick: left and right come from","help":"Blank is player space: turning left and right, however the controller is held. yaw is turning the controller itself left and right. roll is tilting it like a steering wheel."},
 {"key":"gyro_stick_invert","type":"int","min":0,"max":3,"default":0,"name":"Gyro stick invert","help":"0 neither, 1 left and right, 2 up and down, 3 both."},
+{"key":"device_tag_mode","type":"choice","choices":["auto","type","serial","ip","custom"],"default":"auto","help":"What this controller is called when it is bridged: a random name, its type, its serial or MAC, the IP address of the TV it is bridged from, or a custom tag. Up to 20 characters, the rest cut off; another with the same tag gets (2), (3)."},
+{"key":"device_tag","type":"string","default":"","help":"This controller's own tag, up to 20 characters."},
 {"key":"audio_output","type":"choice","choices":["auto","headset","headset_mono","speaker","off"],"default":"auto","help":"Where controller audio goes. auto follows the controller's headphone jack: the headphones while something is plugged in, the speaker while nothing is. The mode also decides which volume keys apply."},
 {"key":"speaker_volume","type":"int","min":0,"max":100,"default":100,"help":"Controller speaker level. 100 is maximum."},
 {"key":"headset_volume","type":"int","min":0,"max":100,"default":100,"help":"Controller headset jack level. 100 is maximum."},
@@ -604,11 +622,23 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
         const size_t slash = rest.find('/');
         const std::string action =
             slash == std::string::npos ? std::string() : rest.substr(slash);
-        if (action != "/link" && action != "/polling_rate" && action != "/settings") {
+        if (action != "/link" && action != "/polling_rate" && action != "/settings" &&
+            action != "/settings_closed") {
             *out = rest_error_response(404, "unknown path");
             return true;
         }
         const std::string ordinal = rest.substr(0, slash);
+        // ⭐ ITS SETTINGS WINDOW CLOSED: its device tag names it now, if it
+        // changed while the window was open (rest_device_tags_settle).
+        if (action == "/settings_closed") {
+            if (req.method != "POST") {
+                *out = rest_error_response(405, "method not allowed", "Allow: POST, OPTIONS\r\n");
+                return true;
+            }
+            rest_device_tags_settle(ordinal);
+            *out = rest_http_response(200, R"({"ok":true})");
+            return true;
+        }
         // ⭐ A CONTROLLER'S OWN SETTINGS (controller_settings.inl; rhoquinn8217,
         // 2026-11-08): read, and set one key at a time or several, kept in its
         // file or for this bridge alone.
@@ -636,6 +666,22 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
             for (const auto &e : json.strings) writes.emplace_back(e.first, e.second);
             for (const auto &e : json.numbers) writes.emplace_back(e.first, std::to_string(e.second));
             for (const auto &e : json.bools) writes.emplace_back(e.first, e.second ? "true" : "false");
+            // ⭐ ITS DEVICE TAG WAITS FOR THE SETTINGS WINDOW TO CLOSE
+            // (rhoquinn8217, 2026-11-10: "Don't change the tag until after the
+            // setting window is closed"): written as chosen, with what the
+            // choice and the custom tag were before, and the controller named
+            // by it as the window closes, or as the page goes.
+            for (const auto &w : writes) {
+                if (w.first != device_tag::kModeKey && w.first != device_tag::kCustomKey) continue;
+                const auto before = controller_settings::get(section);
+                auto value = [&](const char *key) {
+                    const auto it = before.find(key);
+                    return it == before.end() ? std::string() : it->second;
+                };
+                rest_device_tag_written(ordinal, section, value(device_tag::kModeKey),
+                                        value(device_tag::kCustomKey));
+                break;
+            }
             for (const auto &w : writes) {
                 std::string error;
                 if (!controller_settings::set(section, w.first, w.second, &error)) {
@@ -712,6 +758,9 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
             // running and its keys are heard, so the quick config switch's
             // steps may go (quick_switch_session.inl).
             quick_switch_page_asked_view();
+            // ⓘ And a tour's window that went before it is done with
+            // (config_move::page_opened).
+            ui_page_opened();
             bool compact = false, quick = false;
             std::string ordinal;
             const bool known = ui_view_get(&compact, &quick, &ordinal);
@@ -1196,10 +1245,15 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
             // ⓘ The tutorial's words have nothing left to stand beside.
             ui_tutorial_words_hide();
             ui_tour_pad(false);
+            // ⓘ And a settings window that went with it: its device tag now.
+            rest_device_tags_settle(std::string());
             // The other way out -- the X, or the browser going away. The
             // window may still be up for a moment; if it is, its place is
             // worth having.
             ui_view_remember_pos();
+            // ⭐ A tour's window: nothing more of it kept, at this report's
+            // twin above all (config_move::tour_window_going).
+            ui_tour_window_going();
             ui_tour_shrunk(false);
             // ⓘ And a size a tour borrowed, for the next window.
             ui_tour_size(false, false);

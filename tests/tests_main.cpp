@@ -62,6 +62,7 @@ int run_stop_wait_tests();
 int run_front_rule_tests();
 int run_lock_screen_rule_tests();
 int run_uac_prompt_rule_tests();
+int run_device_tag_rule_tests();
 int run_quick_switch_tests();
 int run_window_open_rule_tests();
 int run_input_pace_tests();
@@ -189,6 +190,7 @@ int main(int argc, char **argv)
     run_front_rule_tests();
     run_lock_screen_rule_tests();
     run_uac_prompt_rule_tests();
+    run_device_tag_rule_tests();
     run_quick_switch_tests();
     run_window_open_rule_tests();
     run_input_pace_tests();

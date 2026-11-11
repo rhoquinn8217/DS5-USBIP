@@ -164,9 +164,17 @@ inline std::atomic_int g_size{0};
 // Large the same: 963 px at 0.63 against 935 wanted, where 0.611 gave 924.
 // Measured on the page, as above.
 //
-//   medium  0.505 x 0.3879   what the page opens Simple at, so the two agree
+//   medium  0.505 x 0.3879   (until 2026-11-10; below)
 //   large   0.63  x 0.4819
-inline const SizeShare kCompactSizes[2] = { { 0.505, 0.3879 }, { 0.63, 0.4819 } };
+// ⭐ AND TALLER, FOR A SECOND LINE UNDER THE NAME (rhoquinn8217, 2026-11-10:
+// *"In simple mode increase the vertical length of the config box so that you
+// can move the device symbols and the polling rate and limit centered under
+// the tag and battery"*): its page 552 px where it was 510, at 150% on a work
+// area 3840 x 2088, the page's unit (--vh) kept, so nothing on it grows.
+//
+//   medium  0.505 x 0.418    what the page opens Simple at, so the two agree
+//   large   0.63  x 0.52
+inline const SizeShare kCompactSizes[2] = { { 0.505, 0.418 }, { 0.63, 0.52 } };
 inline std::atomic_int  g_sizeCompact{0};
 inline std::atomic_bool g_compact{false};
 
@@ -488,11 +496,36 @@ inline bool rect_as_left(HWND h, RECT *out)
 // nobody's choice: a close meanwhile keeps what was remembered before.
 inline std::atomic_bool g_tourShrunk{false};
 inline void set_tour_shrunk(bool on) { g_tourShrunk.store(on); }
+// ⭐ AND NOTHING OF A TOUR'S WINDOW KEPT AS IT GOES (2026-11-10). The page
+// says it is going twice (pagehide and beforeunload: ui/closed), and the
+// first ends the shrink and gives the tour's size back (tour_size_give_back,
+// below), so the second read the window as anyone's: the tour's shrunk
+// 268x151 was kept as Simple's size and its place as Simple's place, and a
+// tour's large size as its layout's. ➡️ Once a tour's window has said it is
+// going, nothing more of it is kept, until the next page asks for its layout
+// (page_opened).
+inline std::atomic_bool g_tourWindowGoing{false};
+inline void tour_window_going()
+{
+    bool borrowed = false;
+    {
+        std::lock_guard<std::mutex> lock(g_posMutex);
+        borrowed = g_tourSize.on;
+    }
+    if (g_tourShrunk.load() || borrowed) g_tourWindowGoing.store(true);
+}
+inline void page_opened() { g_tourWindowGoing.store(false); }
 
 inline void remember_pos_now()
 {
     HWND h = page_window();
     if (h == nullptr) return;
+    if (g_tourWindowGoing.load()) {
+        device_log::input(device_log::msg()
+            << "ui/pos-remember: refused -- a tour's window, going: "
+               "not a place or a size anyone chose");
+        return;
+    }
     if (g_tourShrunk.load()) {
         device_log::input(device_log::msg()
             << "ui/pos-remember: refused -- the tour has the window shrunk, "

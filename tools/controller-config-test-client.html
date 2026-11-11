@@ -2,7 +2,7 @@
 <!--
   DS5-USBIP's Controller Configs page, served by the listener.
 
-  VERSION 2.68.8 -- see the changelog at the bottom of this comment.
+  VERSION 2.69.7 -- see the changelog at the bottom of this comment.
 
   WHAT IT STARTED AS. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -24,6 +24,44 @@
   not a tidy message about it.
 
   CHANGELOG
+    2.69.7   Simple's settings gear right after the rate and limit, centred
+             with them under the name, where it stood at the panel's right
+             edge (rhoquinn8217, 2026-11-10).
+    2.69.6   Simple's line over the panel is two: the name and its battery,
+             then the device's symbols and the rate and limit centred under
+             them, the gear where it was. The window is taller for it (0.418
+             of the screen's height, from 0.3879), its unit kept, so nothing
+             on it grows (rhoquinn8217, 2026-11-10).
+    2.69.5   A device tag of twenty whatever the choice, Device Type and
+             Serial/MAC as well as Custom. Enter in the custom tag's box gets
+             out of it as Escape does, and the DS5-USBIP keyboard may open in
+             it. Quick keeps a long name on one line, as before 2.69.4
+             (rhoquinn8217, 2026-11-10).
+    2.69.4   A device tag can be the IP address of the TV a controller is
+             bridged from, and a custom tag takes twenty characters. The
+             Preview and the Custom box are drawn alike: "Preview:" or
+             "Custom:" and a bold, framed box, side by side in the middle of
+             the row. Quick puts a long name on two lines, so the configs
+             keep their room (rhoquinn8217, 2026-11-10).
+    2.69.3   A device tag's first choice reads Auto-generated, not random, and
+             has no Preview row: the name it has is in the window's title
+             (rhoquinn8217, 2026-11-10).
+    2.69.2   A device tag's Preview on random reads "random" when the window
+             opened on another choice, since a new name is drawn as it closes;
+             on a controller already random, the name it keeps and "(current)"
+             in gray. Serial/MAC is in capitals, the name as well as its
+             Preview (rhoquinn8217, 2026-11-10).
+    2.69.1   A device tag names the controller as its settings window closes,
+             not as it is chosen, and only if it changed; and the window's
+             names follow at once: the device list's signature carries the
+             name, so a new one redraws the tabs, Simple and Quick, which kept
+             the old one until a controller was switched (rhoquinn8217,
+             2026-11-10).
+    2.69.0   Device tag, first in a controller's settings: random, Device
+             Type, Serial/MAC or Custom, the next row its Preview (the name
+             it has now and "current" on random) or on Custom the box, twelve
+             at most; the listener names it at once. "device tag" is the word
+             where "nickname" was (rhoquinn8217, 2026-11-10).
     2.68.8   The self-test's check of a hover beside the pointer points near
              the top of the window: Quick's is 243 px high, too short for a
              tip below a pointer at 200, which was rightly put above it, so
@@ -1964,8 +2002,13 @@
      halved"), its page 510.2 px, the 85.9 over the line and under the
      panel 43 each, and nothing on it smaller: 1.1694 of its vh. ⓘ The
      notices and the dialogs keep the window's own vh, so they still fit
-     it, their text 14.5% smaller. */
-  body.compact:not(.quick) { --vh:calc(1vh * 1.1694); }
+     it, their text 14.5% smaller.
+     ⭐ TALLER SINCE 2.69.6, for a second line under the name (rhoquinn8217,
+     2026-11-10: "increase the vertical length of the config box so that you
+     can move the device symbols and the polling rate and limit centered
+     under the tag and battery"): 0.418 of the screen's height, its page
+     552.05 px, the unit the same, so 596.6 / 552.05 = 1.0807 of its vh. */
+  body.compact:not(.quick) { --vh:calc(1vh * 1.0807); }
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
   /* ⓘ Bottom padding leaves room for the fixed status bar, or it would cover
@@ -2503,6 +2546,12 @@
   body.quick #compactBox .cqname { display:flex; flex-direction:column; align-items:center;
     gap:calc(0.8 * var(--vh)); grid-column:1; grid-row:1; min-width:0; }
   body.quick #compactBox .cqname > .cname { font-size:calc(11 * var(--vh)); }
+  /* ⭐ A LONG NAME ON ONE LINE (rhoquinn8217, 2026-11-10: "20 characters can
+     fit on one line and won't require the config window to be stretch
+     more"): at Quick's own size a device tag of twenty, "(2)" and all, fits
+     beside the configs, every config name whole. ⛔ Two lines were tried
+     (2.69.4): measured in a window taller than Quick's, they cut "Player"
+     from its "1" in the real one. */
   body.quick #compactBox .cqname > .crate-q { font-size:calc(8.0 * var(--vh)); font-weight:400;
     color:#c8c9ce; white-space:nowrap; }
   body.quick #compactBox .cselrow > .cpick-wrap { flex-shrink:0; }
@@ -2538,17 +2587,28 @@
   body.compact:not(.quick) #compactBox .cname > .crate { margin-top:0; font-weight:400; font-size:0.48em;
     margin-left:0.6em; }
   body.compact:not(.quick) #compactBox .cname > .crate select { font-size:1em; }
-  body.compact:not(.quick) #compactBox .cmain.cpanel .cname { justify-content:flex-start; }
-  /* ⓘ The symbol on the panel's edge itself: .devemo's own 0.3em before it
-     is for a symbol that follows a name. */
-  body.compact:not(.quick) #compactBox .cmain.cpanel .cname > .devemo { margin-left:0; }
-  /* ⭐ The rate in the middle of the room between the battery and the gear,
-     the gear at the panel's right edge (compactRateLine, 2026-11-09). */
-  body.compact:not(.quick) #compactBox .cmain.cpanel .cname > .crate { margin-left:0; flex:1 1 auto;
+  /* ⭐ BESIDE THE PANEL, TWO LINES, CENTRED (rhoquinn8217, 2026-11-10: "In
+     simple mode increase the vertical length of the config box so that you
+     can move the device symbols and the polling rate and limit centered
+     under the tag and battery"), where it was one line (2026-10-22): the
+     name and its battery, then the symbols and the rate and limit centred
+     under them, and the gear right after the limit (the same day: "move the
+     settings button next to the polling rate a limit."). The window is
+     taller for it (compactSize, kCompactSizes). ⓘ By the style's order, the
+     markup as it was: the name is the line's own text, so ::after breaks
+     the line after the battery. */
+  body.compact:not(.quick) #compactBox .cmain.cpanel .cname { justify-content:center;
+    row-gap:calc(0.6 * var(--vh)); }
+  body.compact:not(.quick) #compactBox .cmain.cpanel .cname::after { content:""; order:2; flex-basis:100%;
+    height:0; }
+  body.compact:not(.quick) #compactBox .cmain.cpanel .cname > .batt { order:1; }
+  body.compact:not(.quick) #compactBox .cmain.cpanel .cname > .devemo { order:3; margin:0 0.25em 0 0;
+    font-size:0.42em; }
+  body.compact:not(.quick) #compactBox .cmain.cpanel .cname > .crate { order:4; margin-left:0; flex:0 0 auto;
     display:flex; align-items:center; }
-  body.compact:not(.quick) #compactBox .cmain.cpanel .cname > .crate > .crate-txt { flex:1 1 auto;
-    text-align:center; padding:0 0.6em; }
-  body.compact:not(.quick) #compactBox .cmain.cpanel .cname > .crate > button.csetgear { margin-left:0; }
+  body.compact:not(.quick) #compactBox .cmain.cpanel .cname > .crate > .crate-txt { flex:0 0 auto;
+    text-align:center; padding:0; }
+  body.compact:not(.quick) #compactBox .cmain.cpanel .cname > .crate > button.csetgear { margin-left:0.5em; }
   /* ⭐ Simple's limit with R3's mark where its arrow was, as Quick's
      (rhoquinn8217, 2026-10-20: "in simple mode add the R3 symbol for the
      rate limit similar to quick mode"). */
@@ -2818,6 +2878,21 @@
   #ctlSetRows .csarr:hover { color:#e8e8ea; }
   #ctlSetRows select, #ctlSetRows input { font-size:inherit; }
   #ctlSetRows input[type=number] { width:5.5em; text-align:right; }
+  #ctlSetRows input[type=text] { width:7.5em; }
+  /* ⭐ THE ROW AFTER THE DEVICE TAG'S CHOICE (rhoquinn8217, 2026-11-10: "bold
+     the Preview name, center align the Preview label add a ":" after Preview
+     and box the preview name", then "Both the Preview Lablel the previewed
+     tag need to be centered. Custom and tag input should look th same way."):
+     its label and its box side by side in the middle of the row; the box
+     framed, bold, its words centred, as wide for the Preview as for Custom's
+     box, which takes twenty. */
+  #ctlSetRows .csrow.cspair { justify-content:center; }
+  #ctlSetRows .csrow.cspair .csname { flex:0 0 auto; }
+  #ctlSetRows .csrow.cspair .csslot { display:none; }
+  #ctlSetRows .cstag, #ctlSetRows .csrow.cspair input[type=text] { display:inline-block;
+    box-sizing:border-box; width:13em; font-weight:700; text-align:center; border:1px solid #6b6f80;
+    border-radius:6px; padding:0.15em 0.6em; line-height:1.4; background:transparent;
+    color:inherit; font-family:inherit; }
   #ctlSetFoot { display:flex; justify-content:space-between; align-items:center; gap:12px;
                 margin-top:12px; padding-top:10px; border-top:1px solid #2c2e36;
                 font-size:11px; color:#9a9caa; }
@@ -3676,7 +3751,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.68.8</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.69.7</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -4850,7 +4925,10 @@ function rateTags(parts) {
 // ⭐ SIMPLE'S RATE IN THE MIDDLE, BETWEEN THE BATTERY AND THE GEAR
 // (rhoquinn8217, 2026-11-09: "center the polling rate and limit between the
 // nickname/batter and the settings symbol", "in simple mode"): in a span of
-// its own that takes the line's room, the gear at the line's end.
+// its own that takes the line's room, the gear at the line's end. ⭐ SINCE
+// 2.69.7 UNDER THE NAME, THE GEAR RIGHT AFTER THE LIMIT (rhoquinn8217,
+// 2026-11-10: "move the settings button next to the polling rate a limit."),
+// the line centred by the style.
 function compactRateLine(ordinal, tag) {
   var rates = rateTags(partsOf(ordinal));
   var line = QUICK ? rates
@@ -4919,6 +4997,16 @@ function setRateLimitFor(ord, value) {
 // where one helps. ⓘ PC sound as vibration stands under Rumble, as the
 // picture has it: it is felt, not heard.
 var CONTROLLER_SETTINGS = [
+  // ⭐ ITS DEVICE TAG (rhoquinn8217, 2026-11-10): what it is called when it
+  // is bridged, the listener naming it as the window closes
+  // (device_tag_rule.inl). The choice, and the tag typed on Custom. ⓘ auto
+  // reads Auto-generated (*"We need a better word than "random" for the
+  // option"*, then *"auto-generated"*); ip, IP address (*"On more Device tag
+  // option, "IP address""*).
+  { key: 'device_tag_mode', name: 'Device tag', sect: 'Device',
+    words: { auto: 'Auto-generated', type: 'Device Type', serial: 'Serial/MAC', ip: 'IP address',
+             custom: 'Custom' } },
+  { key: 'device_tag', name: 'Custom:', sect: 'Device', rowClass: 'cspair' },
   { key: 'audio_output', name: 'Audio output', sect: 'Audio' },
   { key: 'speaker_volume', name: 'Speaker volume', sect: 'Audio' },
   { key: 'headset_volume', name: 'Headset volume', sect: 'Audio' },
@@ -5017,9 +5105,13 @@ function settingRowHtml(s, meta, saved) {
     control = '<span class="csarr" onclick="settingArrow(\'' + id + '\',-1)">‹</span>' +
               '<select id="' + id + '"' + on + '>' + meta.choices.map(function (c) {
                 return '<option value="' + esc(c) + '"' + (val === String(c) ? ' selected' : '') + '>' +
-                       esc(settingChoiceWords(c)) + '</option>';
+                       esc((s.words && s.words[c]) || settingChoiceWords(c)) + '</option>';
               }).join('') + '</select>' +
               '<span class="csarr" onclick="settingArrow(\'' + id + '\',1)">›</span>';
+  } else if (meta.type === 'string') {
+    // ⓘ The custom tag: twenty at most, cleaned as it is typed (tagTyped).
+    control = '<input id="' + id + '" type="text" maxlength="' + TAG_MAX + '" spellcheck="false" value="' +
+              esc(val) + '"' + on + ' oninput="tagTyped(this)"><span class="csslot"></span>';
   } else if (meta.type === 'bool') {
     var b = val === 'true' || val === '1';
     control = '<select id="' + id + '"' + on + '>' +
@@ -5033,15 +5125,117 @@ function settingRowHtml(s, meta, saved) {
     control = '<input id="' + id + '" type="number" step="1" value="' + esc(val) + '"' + range + on + '>' +
               '<span class="csslot">' + esc(s.unit || '') + '</span>';
   }
-  return '<div class="csrow" data-tip="' + esc(meta.help || '') + '">' +
+  return '<div class="csrow' + (s.rowClass ? ' ' + s.rowClass : '') + '" data-tip="' + esc(meta.help || '') + '">' +
          '<label class="csname" for="' + id + '">' + esc(s.name) + '</label>' +
          '<span class="csval">' + control + '</span></div>';
 }
 
 // ⓘ The polling limit first, "Rate limit · 1000 Hz now": the rate is live,
 // a .prate the poll keeps up to date (refreshRates).
+// ⭐ THE DEVICE SECTION, first in a controller's settings (rhoquinn8217,
+// 2026-11-10): the tag's choice, then what it gives, "Preview" (*"change
+// preview tag to just preview"*); on Custom a box to type it in, labelled
+// Custom. ⓘ Serial/MAC is not offered to a controller with none to go by.
+// ⭐ AUTO-GENERATED (rhoquinn8217, 2026-11-10: *"We need a better word than
+// "random" for the option. Also when random is selected hide the preview
+// row."*, and the word, *"auto-generated"*): no row after it, the name it has
+// being in the window's title. ⭐ Serial/MAC in capitals, as the listener
+// names it. ⭐ IP ADDRESS (*"On more Device tag option, "IP address""*): the
+// address the TV asked for the bridge from, offered when the listener has
+// one. ⭐ TWENTY AT MOST, WHATEVER THE CHOICE (*"Increase Custom Name to 20
+// characters"*, then *"Allow device type and serial to be 20 characters"*).
+var TAG_MAX = 20;
+var CTLSET_SAVED = {};     // the open window's settings as written, for the Device rows
+var CTLSET_TAGGED = false; // its device tag written since it opened: the listener names it as it closes
+var CTLSET_TAG_SENT = null; // the last write of it, which the close waits for even when already sent
+
+// What Device Type, Serial/MAC and IP address give: the listener's words for
+// its type, its serial and its address (device_tag_rule.inl).
+function tagPreview(d, mode) {
+  if (mode === 'type') return String(d.tag_type || String(deviceLabelShort(d)).split(' (')[0]).slice(0, TAG_MAX);
+  if (mode === 'ip') return String(d.tag_ip || '').slice(0, TAG_MAX);
+  return String(d.tag_serial || '').toUpperCase().slice(0, TAG_MAX);
+}
+function tagPreviewHtml(d, mode) {
+  return esc(tagPreview(d, mode));
+}
+// The row after the choice: on Custom the box, on Device Type, Serial/MAC and
+// IP address the Preview, both drawn alike (cspair), and on Auto-generated
+// none. ⓘ Anything else the listener reads as auto (device_tag_rule.inl
+// mode_of).
+function tagSecondRowHtml(d, mode, saved) {
+  if (mode === 'custom') {
+    var s = CONTROLLER_SETTINGS.filter(function (x) { return x.key === 'device_tag'; })[0];
+    return settingRowHtml(s, settingMeta('device_tag') || { type: 'string', default: '' }, saved);
+  }
+  if (mode !== 'type' && mode !== 'serial' && mode !== 'ip') return '';
+  return '<div class="csrow cspair" data-tip="The name this choice gives this controller.">' +
+         '<span class="csname">Preview:</span><span class="csval"><span class="cstag" id="cs-tag-preview">' +
+         tagPreviewHtml(d, mode) + '</span></span></div>';
+}
+function tagSectionHtml(d, saved) {
+  var mode = saved.device_tag_mode || 'auto';
+  var rows = controllerSettingRows(d).filter(function (s) { return s.sect === 'Device'; });
+  var choice = rows.filter(function (s) { return s.key === 'device_tag_mode'; })[0];
+  if (!choice) return '';
+  var meta = settingMeta('device_tag_mode'), m = {};
+  for (var k in meta) m[k] = meta[k];
+  m.choices = (meta.choices || []).filter(function (c) {
+    return (c !== 'serial' || !!d.tag_serial || mode === 'serial') && (c !== 'ip' || !!d.tag_ip || mode === 'ip');
+  });
+  return '<h4>Device</h4><div id="ctlSetTag">' + settingRowHtml(choice, m, saved) +
+         '<div id="ctlSetTagRow">' + tagSecondRowHtml(d, mode, saved) + '</div></div>';
+}
+// ⓘ PRINTABLE ASCII, without what the settings file cannot hold, as the
+// listener keeps it (device_tag_rule.inl clean): the tray takes it as ASCII.
+function tagClean(textIn) {
+  var out = '';
+  for (var i = 0; i < textIn.length; i++) {
+    var c = textIn.charCodeAt(i), ch = textIn.charAt(i);
+    if (c < 32 || c > 126 || '[]=#;'.indexOf(ch) >= 0) continue;
+    out += ch;
+  }
+  return out;
+}
+function tagTyped(el) {
+  var clean = tagClean(el.value).slice(0, TAG_MAX);
+  if (clean !== el.value) el.value = clean;
+  CTLSET_SAVED.device_tag = clean;
+  controllerSettingChanged('device_tag');
+}
+// ⭐ A NEW CHOICE SHOWS AT ONCE: the row after it drawn again, the halo kept
+// on the choice. ⓘ Only that row: the choice itself may be the list being
+// stepped (GP_SELECTING).
+function tagModeChanged(mode) {
+  var d = deviceByOrdinal(SETTINGS_OPEN), row = document.getElementById('ctlSetTagRow');
+  if (!d || !row) return;
+  CTLSET_SAVED.device_tag_mode = mode;
+  row.innerHTML = tagSecondRowHtml(d, mode, CTLSET_SAVED);
+  var sel = document.getElementById('cs-device_tag_mode');
+  gpCollect();
+  var at = GP_FOCUS.indexOf(sel);
+  if (at >= 0) GP_INDEX = at;
+  gpPaint();
+}
+// ⓘ The window's title and the Preview follow the name the listener gives,
+// on every poll. ⓘ A tag chosen here names it only as the window closes
+// (closeControllerSettings).
+function paintSettingsName() {
+  if (!SETTINGS_OPEN) return;
+  var d = deviceByOrdinal(SETTINGS_OPEN);
+  if (!d) return;
+  var t = document.getElementById('ctlSetTitle');
+  var want = (d.nickname || nameFor(d.ordinal)) + ' settings';
+  if (t && t.textContent !== want) t.textContent = want;
+  var p = document.getElementById('cs-tag-preview'), sel = document.getElementById('cs-device_tag_mode');
+  if (p && sel) {
+    var html = tagPreviewHtml(d, sel.value);
+    if (p.innerHTML !== html) p.innerHTML = html;
+  }
+}
 function settingsRowsHtml(d, saved) {
   var html = '';
+  html += tagSectionHtml(d, saved);
   if (d.takes_rate_limit) {
     var now = rateSelectValue(d);
     html += '<h4>Polling</h4><div class="csrow" data-tip="' + esc(rateLimitTitle(d)) + '">' +
@@ -5102,7 +5296,10 @@ function openControllerSettings(ord) {
     if (SETTINGS_OPEN !== ord || !now) return;
     document.getElementById('ctlSetSub').textContent =
       settingsSubtitle(now, !(r && r.kept === false));
-    document.getElementById('ctlSetRows').innerHTML = settingsRowsHtml(now, (r && r.settings) || {});
+    CTLSET_SAVED = {};
+    var got = (r && r.settings) || {};
+    for (var gk in got) CTLSET_SAVED[gk] = got[gk];
+    document.getElementById('ctlSetRows').innerHTML = settingsRowsHtml(now, CTLSET_SAVED);
     gpCollect();
     GP_INDEX = 0;
     gpPaint();
@@ -5124,12 +5321,24 @@ function closeControllerSettings() {
     GP_EDITING.blur();
     GP_EDITING = null;
   }
+  var ord = SETTINGS_OPEN, tagged = CTLSET_TAGGED, sent = [CTLSET_TAG_SENT];
   Object.keys(SETTINGS_TIMERS).forEach(function (k) {
     var t = SETTINGS_TIMERS[k];
     clearTimeout(t.timer);
     delete SETTINGS_TIMERS[k];
-    t.send();
+    sent.push(t.send());
   });
+  CTLSET_TAGGED = false;
+  CTLSET_TAG_SENT = null;
+  // ⭐ ITS DEVICE TAG AS THE WINDOW CLOSES (rhoquinn8217, 2026-11-10: "Don't
+  // change the tag until after the setting window is closed"): once what was
+  // waiting is written, the listener names it by its tag if that changed, and
+  // the window's names follow at once (deviceSignature).
+  if (tagged) {
+    Promise.all(sent).then(function () {
+      return call('POST', '/api/v1/devices/' + encodeURIComponent(ord) + '/settings_closed', {}, true);
+    }).then(function () { pollDevices(); }, function () { pollDevices(); });
+  }
   SETTINGS_OPEN = '';
   document.getElementById('ctlSetBox').style.display = 'none';
   tipHide();
@@ -5159,8 +5368,15 @@ function controllerSettingChanged(key) {
     if (meta.max !== undefined && meta.max !== null && n > Number(meta.max)) el.value = String(meta.max);
   }
   var value = settingSendValue(meta, el.value);
+  if (key === 'device_tag_mode') tagModeChanged(el.value);
   if (SETTINGS_TIMERS[key]) clearTimeout(SETTINGS_TIMERS[key].timer);
-  var send = function () { postControllerSetting(ord, key, value); };
+  var tagKey = key === 'device_tag_mode' || key === 'device_tag';
+  if (tagKey) CTLSET_TAGGED = true;
+  var send = function () {
+    var sent = postControllerSetting(ord, key, value);
+    if (tagKey) CTLSET_TAG_SENT = sent;
+    return sent;
+  };
   SETTINGS_TIMERS[key] = { send: send, timer: setTimeout(function () {
     delete SETTINGS_TIMERS[key];
     send();
@@ -7085,7 +7301,7 @@ function buildDevicePane(d) {
     });
   });
 
-  var head = '<table class="devrow"><tr><th>nickname</th><th>device</th><th>battery</th><th>polling rate / rate limit</th><th>serial</th>' +
+  var head = '<table class="devrow"><tr><th>device tag</th><th>device</th><th>battery</th><th>polling rate / rate limit</th><th>serial</th>' +
              '<th>auto linked config</th><th>settings</th></tr>' +
              // ⭐ One row for the device, all its parts in it (devHeadRow, above).
              devHeadRow(d) + '</table>';
@@ -8413,7 +8629,7 @@ function loadDevices() {
     // ⭐ THE SAME COLUMNS AS THE CONTROLLER TAB. The two tables described the
     // same thing in different words -- 'linked' here, 'auto linked config'
     // there -- so reading one taught you nothing about the other.
-    var html = '<table><tr><th>nickname</th><th>device</th><th>battery</th><th>polling rate / rate limit</th><th>serial</th>' +
+    var html = '<table><tr><th>device tag</th><th>device</th><th>battery</th><th>polling rate / rate limit</th><th>serial</th>' +
                '<th>auto linked config</th><th></th><th>settings</th></tr>';
     // ⭐ ONE ROW PER DEVICE, as on its tab (rhoquinn8217, 2026-10-02: *"Lets
     // combine the rows with the same name and combine the icons."*). Grouped
@@ -9707,7 +9923,7 @@ function gpActivate() {
     // that was the whole of the argument for calling this a coin-flip
     // preference. `config_move.inl` gives Quick a size table of ITS OWN:
     //
-    //     Simple  kCompactSizes  0.505 x 0.3879  of the screen (0.45 x 0.45 when this was written)
+    //     Simple  kCompactSizes  0.505 x 0.418   of the screen (0.45 x 0.45 when this was written)
     //     Quick   kQuickSizes    0.342 x 0.196   (0.313 wide until 2.66.130, 0.278 x 0.150 until 2.66.87)
     //
     // ➡️ **Simple's window is THREE TIMES TALLER than Quick's.** So the
@@ -9918,7 +10134,9 @@ function fieldIsEditable(el) {
 // have to keep up with that generator. Naming the three is dull and stays
 // true. ⓘ `#renameRow` is asked by CONTAINMENT because it hosts both rename
 // and copy, and could gain a second field.
-var FREE_TEXT_IDS = ['base', 'token'];
+// ⭐ AND THE CUSTOM DEVICE TAG (rhoquinn8217, 2026-11-10: "Allow DS5-USBIP
+// keyboard to open when using the custom tag input"): free text too.
+var FREE_TEXT_IDS = ['base', 'token', 'cs-device_tag'];
 
 function fieldWantsKeyboard(el) {
   if (!fieldIsEditable(el)) return false;
@@ -11294,7 +11512,12 @@ document.addEventListener('keydown', function (ev) {
   // ⓘ Blurring is enough: the page then reports `editing: false` and the
   // listener closes the keyboard -- the same route as walking away with the
   // d-pad. ⚠️ RENAMING is left alone, because its handler does more than blur.
-  if (ev.code === 'Escape' && typingInAField() && !RENAMING) {
+  // ⭐ AND ENTER, IN THE CUSTOM DEVICE TAG'S BOX (rhoquinn8217, 2026-11-10:
+  // "Pressing enter in the Custom tag input should pull you out like esc
+  // does"): what was typed is already written, so Enter is done with it.
+  var tagEnter = (ev.code === 'Enter' || ev.code === 'NumpadEnter' || ev.key === 'Enter') &&
+                 document.activeElement && document.activeElement.id === 'cs-device_tag';
+  if ((ev.code === 'Escape' || tagEnter) && typingInAField() && !RENAMING) {
     var esc = document.activeElement;
     if (esc && esc.blur) {
       ev.preventDefault();
@@ -11679,10 +11902,11 @@ function compactHome(w, h) {
 // config_move.inl is the other placer, and moves with this.
 // ⭐ 0.49 OF ITS WIDTH SINCE 2.66.132, from 0.45, just enough for the
 // footer's legend to be one line (rhoquinn8217, 2026-11-02), and 0.505
-// since 2.68.2, with R3's settings in it (2026-11-09).
+// since 2.68.2, with R3's settings in it (2026-11-09). ⭐ 0.418 OF ITS HEIGHT
+// SINCE 2.69.6, for the second line under the name (2026-11-10).
 function compactSize() {
   compactHome(Math.round(screen.availWidth * 0.505),
-              Math.round(screen.availHeight * 0.3879));
+              Math.round(screen.availHeight * 0.418));
 }
 
 // ⓘ Quick's window: the smaller of its two sizes, which rhoquinn8217 named
@@ -13156,7 +13380,10 @@ function deviceSignature(list) {
   return (list || []).map(function(d) {
     // Everything the page renders from. A change in any of it should redraw;
     // anything else should not.
-    return [d.ordinal, d.kind, d.serial, d.linked_config, d.ready].join('|');
+    // ⭐ ITS NAME TOO (2026-11-10): a device tag renames a controller with
+    // nothing else changing, and the tabs, Simple and Quick kept the old name
+    // until a controller was switched or the window opened again.
+    return [d.ordinal, d.kind, d.serial, d.linked_config, d.ready, d.nickname].join('|');
   }).join(';');
 }
 
@@ -13289,6 +13516,7 @@ function pollDevices() {
     // ⓘ Kept in step with the list even when nothing is redrawn, so a part's
     // battery or state is never read from the list before.
     groupDevices(list);
+    paintSettingsName();
 
     // ⭐ AM I STILL THE CURRENT WINDOW? Two settings windows should never
     // exist, but Ctrl+Shift+T reopens a closed one and that is the browser's
@@ -13715,29 +13943,151 @@ function selfTest() {
   {
     var keysWas = KEYS, devsWas = LAST_DEVICES;
     var kindOfKey = { audio_output: 'choice', audio_haptics_mode: 'choice',
-                      force_echo_cancel: 'bool', audio_haptics: 'bool' };
+                      force_echo_cancel: 'bool', audio_haptics: 'bool',
+                      device_tag_mode: 'choice', device_tag: 'string' };
     KEYS = CONTROLLER_SETTINGS.map(function (s) {
       var t = kindOfKey[s.key] || 'int';
+      if (s.key === 'device_tag_mode') {
+        return { key: s.key, type: t, choices: ['auto', 'type', 'serial', 'ip', 'custom'], default: 'auto' };
+      }
+      if (t === 'string') return { key: s.key, type: t, default: '' };
       return { key: s.key, type: t, choices: t === 'choice' ? ['auto', 'speaker'] : undefined,
                default: t === 'bool' ? false : t === 'choice' ? 'auto' : 100, min: 0, max: 500 };
     }).concat([{ key: 'gyro_to_mouse', type: 'bool', default: false }]);
     var keysOf = function (d) { return controllerSettingRows(d).map(function (s) { return s.key; }); };
     var dsUsb = keysOf({ kind: 'ds5_usb', has_audio: true, has_rumble_gains: true });
     ok('a cabled DualSense is offered all but the Bluetooth speaker buffer',
-       dsUsb.length === 13 && dsUsb.indexOf('audio_latency_ms') < 0, dsUsb.join(' '));
+       dsUsb.length === 15 && dsUsb.indexOf('audio_latency_ms') < 0, dsUsb.join(' '));
     ok('a Bluetooth DualSense, the buffer too',
-       keysOf({ kind: 'ds5', has_audio: true, has_rumble_gains: true }).length === 14);
+       keysOf({ kind: 'ds5', has_audio: true, has_rumble_gains: true }).length === 16);
     var ds4 = keysOf({ kind: 'ds4_usb', has_audio: true, has_rumble_gains: true });
     ok('a cabled DS4: its volumes, the gain and its rumble, and nothing it cannot use',
-       ds4.join(' ') === 'speaker_volume headset_volume audio_gain master_rumble_gain ' +
+       ds4.join(' ') === 'device_tag_mode device_tag speaker_volume headset_volume audio_gain master_rumble_gain ' +
                          'rumble_gain_heavy rumble_gain_soft rumble_floor', ds4.join(' '));
     var xb = keysOf({ kind: 'xbox', has_audio: false, has_rumble_gains: true });
     ok('an Xbox pad: its rumble alone',
-       xb.join(' ') === 'master_rumble_gain rumble_gain_heavy rumble_gain_soft rumble_floor',
+       xb.join(' ') === 'device_tag_mode device_tag master_rumble_gain rumble_gain_heavy rumble_gain_soft rumble_floor',
        xb.join(' '));
     var grp = configEditorGroups(KEYS);
     ok('a config offers no Audio and no Rumble', !grp.Audio && !grp.Rumble && !!grp.Gyro,
        Object.keys(grp).join(' '));
+    // ⭐ The device tag (2026-11-10): first, its choice in their words, no row
+    // after Auto-generated, the Preview, the box on Custom, and Serial/MAC
+    // only with a serial.
+    var tagPad = { ordinal: 'ds5_usb_9', nickname: 'Titan', kind: 'ds5_usb', has_audio: true,
+                   has_rumble_gains: true, takes_rate_limit: true, has_settings: true,
+                   tag_type: 'DualSense', tag_serial: 'a0fa9cef9b30', tag_ip: '192.168.1.87',
+                   label: 'DualSense (USB)' };
+    var tagAuto = settingsRowsHtml(tagPad, {});
+    var tagAutoSet = settingsRowsHtml(tagPad, { device_tag_mode: 'auto' });
+    var tagType = settingsRowsHtml(tagPad, { device_tag_mode: 'type' });
+    var tagSerial = settingsRowsHtml(tagPad, { device_tag_mode: 'serial' });
+    var tagIp = settingsRowsHtml(tagPad, { device_tag_mode: 'ip' });
+    var tagCustom = settingsRowsHtml(tagPad, { device_tag_mode: 'custom', device_tag: 'Bolt' });
+    var tagNoSerial = tagSectionHtml({ ordinal: 'ds5_usb_9', nickname: 'Nova', kind: 'ds5_usb',
+                                       has_settings: true, tag_type: 'DualSense', tag_serial: '' }, {});
+    ok('the device tag comes first: Auto-generated, Device Type, Serial/MAC, IP address and Custom',
+       tagAuto.indexOf('<h4>Device</h4>') >= 0 &&
+       tagAuto.indexOf('<h4>Device</h4>') < tagAuto.indexOf('<h4>Polling</h4>') &&
+       tagAuto.indexOf('>Auto-generated<') > 0 && tagAuto.indexOf('>Device Type<') > 0 &&
+       tagAuto.indexOf('>Serial/MAC<') > 0 && tagAuto.indexOf('>IP address<') > 0 &&
+       tagAuto.indexOf('>Serial/MAC<') < tagAuto.indexOf('>IP address<') &&
+       tagAuto.indexOf('>IP address<') < tagAuto.indexOf('>Custom<') &&
+       tagAuto.indexOf('id="cs-device_tag"') < 0, tagAuto.slice(0, 400));
+    ok('Auto-generated has no row after it, by default or set: no Preview, and no "random"',
+       tagAuto.indexOf('>Preview<') < 0 && tagAuto.indexOf('cs-tag-preview') < 0 &&
+       tagAutoSet.indexOf('>Preview<') < 0 && tagAutoSet.indexOf('cs-tag-preview') < 0 &&
+       tagAuto.indexOf('>random<') < 0, tagAuto.slice(0, 600));
+    ok('Device Type previews its type, "Preview:" and the name side by side in the middle of the row',
+       tagType.indexOf('<div class="csrow cspair"') > 0 && tagType.indexOf('<span class="csname">Preview:</span>') > 0 &&
+       tagType.indexOf('id="cs-tag-preview">DualSense</span>') > 0, tagType.slice(0, 600));
+    ok('IP address previews the address the TV asked for the bridge from',
+       tagIp.indexOf('<div class="csrow cspair"') > 0 &&
+       tagIp.indexOf('id="cs-tag-preview">192.168.1.87</span>') > 0, tagIp.slice(0, 600));
+    ok('Serial/MAC previews the serial in capitals, as the listener names it',
+       tagSerial.indexOf('id="cs-tag-preview">A0FA9CEF9B30</span>') > 0, tagSerial.slice(0, 600));
+    ok('Custom has a box of twenty, labelled Custom:, drawn as the Preview is, and no Preview',
+       tagCustom.indexOf('id="cs-device_tag"') > 0 && tagCustom.indexOf('maxlength="20"') > 0 &&
+       tagCustom.indexOf('value="Bolt"') > 0 && tagCustom.indexOf('>Custom:</label>') > 0 &&
+       tagCustom.indexOf('<div class="csrow cspair"') > 0 && tagCustom.indexOf('>Preview') < 0,
+       tagCustom.slice(0, 600));
+    ok('Serial/MAC and IP address are not offered to a controller with no serial and no address',
+       tagNoSerial.indexOf('value="serial"') < 0 && tagNoSerial.indexOf('value="ip"') < 0 &&
+       tagAuto.indexOf('value="serial"') > 0 && tagAuto.indexOf('value="ip"') > 0);
+    // ⭐ Quick keeps a long name on one line ("20 characters can fit on one
+    // line"): nothing in the page's styles narrows its name's column.
+    var quickWraps = Array.prototype.some.call(document.styleSheets, function (sh) {
+      try {
+        return Array.prototype.some.call(sh.cssRules || [], function (r) {
+          return r.selectorText === 'body.quick #compactBox .cqname' && !!(r.style && r.style.maxWidth);
+        });
+      } catch (e) { return false; }
+    });
+    ok('Quick keeps a long name on one line', !quickWraps);
+    // ⭐ Simple's name and battery, then the symbols and the rate and limit
+    // centred under them (rhoquinn8217, 2026-11-10).
+    if (document.body.classList.contains('compact') && !document.body.classList.contains('quick')) {
+      var nameRow = document.querySelector('#compactBox .cmain.cpanel .cname');
+      var rateBox = nameRow && nameRow.querySelector(':scope > .crate');
+      var battBox = nameRow && nameRow.querySelector(':scope > .batt');
+      var emoBox = nameRow && nameRow.querySelector(':scope > .devemo');
+      var underIt = false, centred = false, rowInfo = 'no name row with a rate line';
+      if (nameRow && rateBox) {
+        var nr = nameRow.getBoundingClientRect(), rr = rateBox.getBoundingClientRect();
+        var br = battBox ? battBox.getBoundingClientRect() : null;
+        var leftEdge = emoBox ? Math.min(emoBox.getBoundingClientRect().left, rr.left) : rr.left;
+        var middle = (leftEdge + rr.right) / 2, rowMiddle = (nr.left + nr.right) / 2;
+        underIt = !br || rr.top >= br.bottom - 1;
+        centred = Math.abs(middle - rowMiddle) <= nr.width * 0.03;
+        rowInfo = 'rate ' + Math.round(rr.top) + '-' + Math.round(rr.bottom) +
+                  (br ? ', battery to ' + Math.round(br.bottom) : '') +
+                  ', its middle ' + Math.round(middle) + ' of ' + Math.round(rowMiddle);
+      }
+      ok('Simple: the symbols and the rate and limit centred under the name and battery',
+         underIt && centred, rowInfo);
+      // ⭐ And the gear right after the limit, on its line ("move the
+      // settings button next to the polling rate a limit.").
+      var gearBox = rateBox && rateBox.querySelector('button.csetgear');
+      var txtBox = rateBox && rateBox.querySelector('.crate-txt');
+      var gearNext = false, gearInfo = 'no gear or no rate';
+      if (gearBox && txtBox) {
+        var gr = gearBox.getBoundingClientRect(), tr = txtBox.getBoundingClientRect();
+        var gearGap = gr.left - tr.right;
+        gearNext = gearGap >= 0 && gearGap <= parseFloat(getComputedStyle(gearBox).fontSize) * 1.5 &&
+                   Math.abs((gr.top + gr.bottom) / 2 - (tr.top + tr.bottom) / 2) <= tr.height * 0.6;
+        gearInfo = 'gap ' + Math.round(gearGap) + ' px, gear ' + Math.round(gr.top) + '-' + Math.round(gr.bottom) +
+                   ', rate ' + Math.round(tr.top) + '-' + Math.round(tr.bottom);
+      }
+      ok('Simple: the settings gear right after the rate and limit', gearNext, gearInfo);
+    }
+    // ⭐ The custom tag's box: twenty, the DS5-USBIP keyboard allowed in it,
+    // and Enter gets out of it as Escape does.
+    {
+      var tagBox = document.createElement('input');
+      tagBox.type = 'text';
+      tagBox.id = 'cs-device_tag';
+      document.body.appendChild(tagBox);
+      var keepStop = STOPPED, keepEdit = GP_EDITING, keepSel = GP_SELECTING, keepIdx = GP_INDEX;
+      var keepRen = RENAMING;
+      STOPPED = false; GP_EDITING = null; GP_SELECTING = null; RENAMING = false;
+      tagBox.focus();
+      var tagIn = document.activeElement === tagBox;
+      tagBox.dispatchEvent(new KeyboardEvent('keydown',
+        { key: 'Enter', code: 'Enter', bubbles: true, cancelable: true }));
+      var tagOut = document.activeElement !== tagBox;
+      STOPPED = keepStop; GP_EDITING = keepEdit; GP_SELECTING = keepSel; GP_INDEX = keepIdx;
+      RENAMING = keepRen;
+      ok('the custom tag\'s box lets the DS5-USBIP keyboard open', fieldWantsKeyboard(tagBox));
+      tagBox.parentNode.removeChild(tagBox);
+      ok('Enter in the custom tag\'s box gets out of it, as Escape does', tagIn && tagOut,
+         'in ' + tagIn + ', out ' + tagOut);
+    }
+    ok('a custom tag keeps printable ASCII without [ ] = # ;',
+       tagClean('Big [Boss]; #1=') === 'Big Boss 1' && tagClean('Se' + String.fromCharCode(241) + 'or') === 'Seor',
+       tagClean('Big [Boss]; #1='));
+    ok('a new name redraws the window: the device list\'s signature carries it',
+       deviceSignature([{ ordinal: 'ds5_usb_9', nickname: 'Titan' }]) !==
+       deviceSignature([{ ordinal: 'ds5_usb_9', nickname: 'Nova' }]));
     ok('a value put back to its default is taken out of the file',
        settingSendValue({ default: 100 }, '100') === '' && settingSendValue({ default: 100 }, '70') === '70' &&
        settingSendValue({ default: false }, 'false') === '' && settingSendValue({ default: false }, 'true') === 'true');
@@ -15157,9 +15507,9 @@ function selfTest() {
        padSeen.join(',') === 'true,true,true', padSeen.join(','));
     ok('the tutorial: Simple and Quick, shown in a tour, at their large sizes, Advanced at its small, ' +
        'and only while a tour runs',
-       shares.join(' ') === '{"w":0.63,"h":0.4819} {"w":0.47,"h":0.246} null' &&
-       homes.join(' ') === Math.round(aw * 0.63) + 'x' + Math.round(ah * 0.4819) + ' ' +
-                           Math.round(aw * 0.505) + 'x' + Math.round(ah * 0.3879),
+       shares.join(' ') === '{"w":0.63,"h":0.52} {"w":0.47,"h":0.246} null' &&
+       homes.join(' ') === Math.round(aw * 0.63) + 'x' + Math.round(ah * 0.52) + ' ' +
+                           Math.round(aw * 0.505) + 'x' + Math.round(ah * 0.418),
        shares.join(' ') + ' / ' + homes.join(' '));
     // ⭐ Skip (2.66.140): on the two finger steps, Continue is Skip with no
     // DualSense, Edge or DS4 really bridged or the switch unticked; with one
@@ -15903,7 +16253,7 @@ function tutPadKeys(code, gated, plain) {
 // display."*): their DS5 is taken as the DS4, the DualSense being the DS5.
 function tutWordsDual() {
   return 'This is ' + tutNick() + ', a practice controller for this tour. Every controller gets a ' +
-         "random nickname like this when it's bridged. Only the DualSense, DualSense Edge and " +
+         "random device tag like this when it's bridged. Only the DualSense, DualSense Edge and " +
          'DualShock 4 support battery display.';
 }
 // ⓘ `where`: Simple shows the other controllers either side; Quick does not.
@@ -16060,10 +16410,12 @@ function tutModeTo() {
 // front, the words stay up, and the swipe beside a resting thumb steps Quick's
 // wheel, as it does in front. The two finger press DS5-USBIP reports (`pad`)
 // brings it back in Quick, and the last finger lifting shrinks it again;
-// pressed twice, it comes back in Simple. ⓘ Never a real minimise: a window
-// out of the front is replaced by the switch's own, and the tour would end
-// with it. ⓘ The listener keeps no place or size from it (the words'
-// `shrunk`, config_move.inl).
+// pressed twice, it comes back in Simple. ⓘ Never a real minimise: it would
+// take the window out of the front, and the press would have to bring it
+// back, as DS5-USBIP does since 2026-11-10 for a window a click elsewhere took
+// the front from (quick_switch::arming), rather than open its own. ⓘ The
+// listener keeps no place or size from it (the words' `shrunk`,
+// config_move.inl).
 var TUT_SHRUNK = false;
 var TUT_SIZING = true;        // ⓘ false while the self-test plays it: no real window moves
 function tutShrink() {
@@ -16121,7 +16473,7 @@ function tutPadEvent(word) {
 // it gives with no tour (fitWindow): null. ⓘ A tour that starts in Advanced
 // still borrows its large size (ui/tour-size).
 function tutLargeShare() {
-  return !COMPACT ? null : QUICK ? { w: 0.47, h: 0.246 } : { w: 0.63, h: 0.4819 };
+  return !COMPACT ? null : QUICK ? { w: 0.47, h: 0.246 } : { w: 0.63, h: 0.52 };
 }
 function tutLargeSize() {
   if (!TUT_SIZING) return;
@@ -17082,7 +17434,7 @@ var TUT_ADVANCED = [
   { side: 'left', enter: tutAdvOverview,
     lit: function () { var t = tutById('devices'); return t ? [t.previousElementSibling, t] : []; },
     words: function () {
-      return tutHl('Devices') + ' lists every bridged controller: its nickname, its polling rate and ' +
+      return tutHl('Devices') + ' lists every bridged controller: its device tag, its polling rate and ' +
              'limit, its serial, and the config it auto links to.';
     } },
   // 4: the tabs, to try, and L1 and R1 in the legend lit with them, with no

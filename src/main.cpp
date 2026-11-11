@@ -207,6 +207,10 @@ void ui_tour_shrunk(bool on);
 // ⓘ A tour's large size, borrowed as it starts and given back as it ends
 // (config_move.inl). Defined below.
 void ui_tour_size(bool large, bool place);
+// ⓘ A tour's window going, and the next page asking for its layout: nothing of
+// the first kept as it goes (config_move.inl). Defined below.
+void ui_tour_window_going();
+void ui_page_opened();
 std::string ui_tutorial_words_side();
 bool ui_tutorial_words_moving();
 bool ui_tutorial_words_up();
@@ -318,6 +322,7 @@ void ctm_osk_toggle(const std::string &section, int button, int program);
 #include "input/mic_report.inl"  // which input reports are a DualSense's microphone audio
 #include "app/device_type.inl"   // controller, keyboard or mouse by descriptor; device.inl asks it
 #include "app/device_names.inl"  // what a device is listed by; pure; device.inl asks it for the link
+#include "app/device_tag_rule.inl"  // a controller's device tag: random, its type, its serial or custom; pure
 #include "usbip/fallback_serial.inl"   // the serial of a device the TV sent none for
 #include "usbip/submit_info.inl"    // what a submit reports back; pure
 #include "usbip/input_pace.inl"     // a controller's rate limit and its readout; pure
@@ -564,6 +569,14 @@ void ui_tour_size(bool large, bool place)
 {
     if (large) config_move::tour_size_borrow();
     else config_move::tour_size_give_back(place);
+}
+void ui_tour_window_going()
+{
+    config_move::tour_window_going();
+}
+void ui_page_opened()
+{
+    config_move::page_opened();
 }
 std::string ui_tutorial_words_take_press()
 {
