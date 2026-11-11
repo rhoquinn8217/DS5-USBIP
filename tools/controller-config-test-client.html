@@ -2,7 +2,7 @@
 <!--
   DS5-USBIP's Controller Configs page, served by the listener.
 
-  VERSION 2.69.2 -- see the changelog at the bottom of this comment.
+  VERSION 2.69.3 -- see the changelog at the bottom of this comment.
 
   WHAT IT STARTED AS. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -24,6 +24,9 @@
   not a tidy message about it.
 
   CHANGELOG
+    2.69.3   A device tag's first choice reads Auto-generated, not random, and
+             has no Preview row: the name it has is in the window's title
+             (rhoquinn8217, 2026-11-10).
     2.69.2   A device tag's Preview on random reads "random" when the window
              opened on another choice, since a new name is drawn as it closes;
              on a controller already random, the name it keeps and "(current)"
@@ -3694,7 +3697,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.69.2</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.69.3</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -4938,10 +4941,12 @@ function setRateLimitFor(ord, value) {
 // picture has it: it is felt, not heard.
 var CONTROLLER_SETTINGS = [
   // ⭐ ITS DEVICE TAG (rhoquinn8217, 2026-11-10): what it is called when it
-  // is bridged, the listener naming it at once (device_tag_rule.inl). The
-  // choice, and the tag typed on Custom.
+  // is bridged, the listener naming it as the window closes
+  // (device_tag_rule.inl). The choice, and the tag typed on Custom. ⓘ auto
+  // reads Auto-generated (*"We need a better word than "random" for the
+  // option"*, then *"auto-generated"*).
   { key: 'device_tag_mode', name: 'Device tag', sect: 'Device',
-    words: { auto: 'random', type: 'Device Type', serial: 'Serial/MAC', custom: 'Custom' } },
+    words: { auto: 'Auto-generated', type: 'Device Type', serial: 'Serial/MAC', custom: 'Custom' } },
   { key: 'device_tag', name: 'Custom', sect: 'Device' },
   { key: 'audio_output', name: 'Audio output', sect: 'Audio' },
   { key: 'speaker_volume', name: 'Speaker volume', sect: 'Audio' },
@@ -5072,42 +5077,35 @@ function settingRowHtml(s, meta, saved) {
 // 2026-11-10): the tag's choice, then what it gives, "Preview" (*"change
 // preview tag to just preview"*); on Custom a box to type it in, labelled
 // Custom. ⓘ Serial/MAC is not offered to a controller with none to go by.
-// ⭐ RANDOM (rhoquinn8217, 2026-11-10: *"when selecting random, show "random"
-// unless it's already set to random then just show the current name with
-// grayed "(current)""*): chosen from another choice a new name is drawn as the
-// window closes, so it reads random; on a controller already random, the name
-// it keeps. ⭐ Serial/MAC in capitals, as the listener names it.
+// ⭐ AUTO-GENERATED (rhoquinn8217, 2026-11-10: *"We need a better word than
+// "random" for the option. Also when random is selected hide the preview
+// row."*, and the word, *"auto-generated"*): no row after it, the name it has
+// being in the window's title. ⭐ Serial/MAC in capitals, as the listener
+// names it.
 var TAG_MAX = 12;
 var CTLSET_SAVED = {};     // the open window's settings as written, for the Device rows
 var CTLSET_TAGGED = false; // its device tag written since it opened: the listener names it as it closes
 var CTLSET_TAG_SENT = null; // the last write of it, which the close waits for even when already sent
-var CTLSET_TAG_OPENED = 'auto'; // its device tag's choice as the window opened
 
-// The choice as the listener reads it (device_tag_rule.inl mode_of):
-// anything else is random.
-function tagModeOf(value) {
-  return value === 'type' || value === 'serial' || value === 'custom' ? value : 'auto';
-}
-// What a choice gives: on random the name it has now, or "random" when the
-// window opened on another choice; the listener's words for its type and its
-// serial (device_tag_rule.inl), twelve at most.
+// What Device Type and Serial/MAC give: the listener's words for its type and
+// its serial (device_tag_rule.inl), twelve at most.
 function tagPreview(d, mode) {
   if (mode === 'type') return String(d.tag_type || String(deviceLabelShort(d)).split(' (')[0]).slice(0, TAG_MAX);
-  if (mode === 'serial') return String(d.tag_serial || '').toUpperCase().slice(0, TAG_MAX);
-  if (CTLSET_TAG_OPENED !== 'auto') return 'random';
-  return d.nickname || nameFor(d.ordinal);
+  return String(d.tag_serial || '').toUpperCase().slice(0, TAG_MAX);
 }
 function tagPreviewHtml(d, mode) {
-  var keeps = mode === 'auto' && CTLSET_TAG_OPENED === 'auto';
-  return esc(tagPreview(d, mode)) + (keeps ? ' <span class="csnow">(current)</span>' : '');
+  return esc(tagPreview(d, mode));
 }
-// The row after the choice: the Preview, or on Custom the box.
+// The row after the choice: on Custom the box, on Device Type and Serial/MAC
+// the Preview, and on Auto-generated none. ⓘ Anything else the listener reads
+// as auto (device_tag_rule.inl mode_of).
 function tagSecondRowHtml(d, mode, saved) {
   if (mode === 'custom') {
     var s = CONTROLLER_SETTINGS.filter(function (x) { return x.key === 'device_tag'; })[0];
     return settingRowHtml(s, settingMeta('device_tag') || { type: 'string', default: '' }, saved);
   }
-  return '<div class="csrow" data-tip="What this controller is called now, or by this choice.">' +
+  if (mode !== 'type' && mode !== 'serial') return '';
+  return '<div class="csrow" data-tip="The name this choice gives this controller.">' +
          '<span class="csname">Preview</span><span class="csval"><span class="cstag" id="cs-tag-preview">' +
          tagPreviewHtml(d, mode) + '</span><span class="csslot"></span></span></div>';
 }
@@ -5219,7 +5217,6 @@ function openControllerSettings(ord) {
   if (FOOTER_MODE) setFooterMode(false);
   if (!SETTINGS_OPEN) OVERLAY_OPENER = GP_FOCUS[GP_INDEX] || null;
   SETTINGS_OPEN = ord;
-  CTLSET_TAG_OPENED = 'auto';
   document.getElementById('ctlSetTitle').textContent = (d.nickname || nameFor(ord)) + ' settings';
   document.getElementById('ctlSetSub').textContent = settingsSubtitle(d, d.settings_kept !== false);
   document.getElementById('ctlSetRows').innerHTML = '<span class="muted">loading…</span>';
@@ -5236,7 +5233,6 @@ function openControllerSettings(ord) {
     CTLSET_SAVED = {};
     var got = (r && r.settings) || {};
     for (var gk in got) CTLSET_SAVED[gk] = got[gk];
-    CTLSET_TAG_OPENED = tagModeOf(CTLSET_SAVED.device_tag_mode);
     document.getElementById('ctlSetRows').innerHTML = settingsRowsHtml(now, CTLSET_SAVED);
     gpCollect();
     GP_INDEX = 0;
@@ -13901,36 +13897,31 @@ function selfTest() {
     var grp = configEditorGroups(KEYS);
     ok('a config offers no Audio and no Rumble', !grp.Audio && !grp.Rumble && !!grp.Gyro,
        Object.keys(grp).join(' '));
-    // ⭐ The device tag (2026-11-10): first, its choice in their words, the
-    // Preview, the box on Custom, and Serial/MAC only with a serial.
+    // ⭐ The device tag (2026-11-10): first, its choice in their words, no row
+    // after Auto-generated, the Preview, the box on Custom, and Serial/MAC
+    // only with a serial.
     var tagPad = { ordinal: 'ds5_usb_9', nickname: 'Titan', kind: 'ds5_usb', has_audio: true,
                    has_rumble_gains: true, takes_rate_limit: true, has_settings: true,
                    tag_type: 'DualSense', tag_serial: 'a0fa9cef9b30', label: 'DualSense (USB)' };
-    var tagOpenedWas = CTLSET_TAG_OPENED;
-    CTLSET_TAG_OPENED = 'auto';
-    var tagRandom = settingsRowsHtml(tagPad, {});
+    var tagAuto = settingsRowsHtml(tagPad, {});
+    var tagAutoSet = settingsRowsHtml(tagPad, { device_tag_mode: 'auto' });
     var tagType = settingsRowsHtml(tagPad, { device_tag_mode: 'type' });
     var tagSerial = settingsRowsHtml(tagPad, { device_tag_mode: 'serial' });
     var tagCustom = settingsRowsHtml(tagPad, { device_tag_mode: 'custom', device_tag: 'Bolt' });
     var tagNoSerial = tagSectionHtml({ ordinal: 'ds5_usb_9', nickname: 'Nova', kind: 'ds5_usb',
                                        has_settings: true, tag_type: 'DualSense', tag_serial: '' }, {});
-    // random chosen in a window that opened on Device Type
-    CTLSET_TAG_OPENED = tagModeOf('type');
-    var tagRandomNew = settingsRowsHtml(tagPad, { device_tag_mode: 'auto' });
-    CTLSET_TAG_OPENED = tagOpenedWas;
-    ok('the device tag comes first: random, Device Type, Serial/MAC and Custom, then the Preview',
-       tagRandom.indexOf('<h4>Device</h4>') >= 0 &&
-       tagRandom.indexOf('<h4>Device</h4>') < tagRandom.indexOf('<h4>Polling</h4>') &&
-       tagRandom.indexOf('>random<') > 0 && tagRandom.indexOf('>Device Type<') > 0 &&
-       tagRandom.indexOf('>Serial/MAC<') > 0 && tagRandom.indexOf('>Custom<') > 0 &&
-       tagRandom.indexOf('>Preview<') > 0 && tagRandom.indexOf('id="cs-device_tag"') < 0, tagRandom.slice(0, 400));
-    ok('random on a controller already random previews the name it keeps, and "(current)" in gray',
-       tagRandom.indexOf('id="cs-tag-preview">Titan <span class="csnow">(current)</span></span>') > 0,
-       tagRandom.slice(0, 600));
-    ok('random chosen from another choice previews "random": a new name is drawn as the window closes',
-       tagRandomNew.indexOf('id="cs-tag-preview">random</span>') > 0, tagRandomNew.slice(0, 600));
-    ok('Device Type previews its type, without "(current)"',
-       tagType.indexOf('id="cs-tag-preview">DualSense</span>') > 0 && tagType.indexOf('(current)') < 0);
+    ok('the device tag comes first: Auto-generated, Device Type, Serial/MAC and Custom',
+       tagAuto.indexOf('<h4>Device</h4>') >= 0 &&
+       tagAuto.indexOf('<h4>Device</h4>') < tagAuto.indexOf('<h4>Polling</h4>') &&
+       tagAuto.indexOf('>Auto-generated<') > 0 && tagAuto.indexOf('>Device Type<') > 0 &&
+       tagAuto.indexOf('>Serial/MAC<') > 0 && tagAuto.indexOf('>Custom<') > 0 &&
+       tagAuto.indexOf('id="cs-device_tag"') < 0, tagAuto.slice(0, 400));
+    ok('Auto-generated has no row after it, by default or set: no Preview, and no "random"',
+       tagAuto.indexOf('>Preview<') < 0 && tagAuto.indexOf('cs-tag-preview') < 0 &&
+       tagAutoSet.indexOf('>Preview<') < 0 && tagAutoSet.indexOf('cs-tag-preview') < 0 &&
+       tagAuto.indexOf('>random<') < 0, tagAuto.slice(0, 600));
+    ok('Device Type previews its type',
+       tagType.indexOf('id="cs-tag-preview">DualSense</span>') > 0, tagType.slice(0, 600));
     ok('Serial/MAC previews the serial in capitals, as the listener names it',
        tagSerial.indexOf('id="cs-tag-preview">A0FA9CEF9B30</span>') > 0, tagSerial.slice(0, 600));
     ok('Custom has a box of twelve, labelled Custom, and no Preview',
@@ -13938,7 +13929,7 @@ function selfTest() {
        tagCustom.indexOf('value="Bolt"') > 0 && tagCustom.indexOf('>Custom</label>') > 0 &&
        tagCustom.indexOf('>Preview<') < 0);
     ok('Serial/MAC is not offered to a controller with no serial',
-       tagNoSerial.indexOf('value="serial"') < 0 && tagRandom.indexOf('value="serial"') > 0);
+       tagNoSerial.indexOf('value="serial"') < 0 && tagAuto.indexOf('value="serial"') > 0);
     ok('a custom tag keeps printable ASCII without [ ] = # ;',
        tagClean('Big [Boss]; #1=') === 'Big Boss 1' && tagClean('Se' + String.fromCharCode(241) + 'or') === 'Seor',
        tagClean('Big [Boss]; #1='));

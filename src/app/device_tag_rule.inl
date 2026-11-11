@@ -8,11 +8,12 @@
 // always get that tag."* Then *"3 defaults or custom for device tag: none(auto),
 // Device Type - ei "DualSense", Serial/Mac"*, *"If there are two of the same
 // tag, add (2), (3) etc."*, *"change right away"* and *"12 is fine for device
-// type that are longer just cut them off"*; the choice reads random.
+// type that are longer just cut them off"*; the choice reads Auto-generated
+// (*"auto-generated"*, where it read random).
 //
 // ⓘ Kept in the controller's own settings (controller_settings.inl), as its
 // rate limit, audio and rumble are: a choice, device_tag_mode, and the tag
-// typed for Custom, device_tag. random is the name nickname.inl draws.
+// typed for Custom, device_tag. Auto-generated is the name nickname.inl draws.
 //
 // ⭐ Pure on purpose -- no Windows call, no session -- so the test binary
 // includes it as it is. agent.inl applies it (agent_apply_device_tag).
@@ -49,7 +50,7 @@ inline const char *mode_words(Mode mode)
     case Mode::Type: return "its device type";
     case Mode::Serial: return "its serial";
     case Mode::Custom: return "its custom tag";
-    default: return "random";
+    default: return "auto-generated";
     }
 }
 
