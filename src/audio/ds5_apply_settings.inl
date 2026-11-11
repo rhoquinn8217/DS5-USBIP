@@ -41,9 +41,10 @@
 // ds5_output_overrides.inl, which is included ahead of this file. Both halves
 // share them so a configured percentage always lands on the same raw value.
 
-// Build and send one settings report. Does nothing unless the kind is wired and
-// at least one setting is configured, so an unconfigured install behaves
-// exactly as it did before this existed.
+// Build and send one settings report, for a pad with DualSense audio. ⭐ Sent
+// with nothing configured too (2026-11-10): no audio_output is auto, which
+// sends the speaker its dial, 100 when never moved (ds5_settings_level_for
+// says why), so a setting put back to its default reaches the pad.
 // `linkedConfig` names a per-controller config file, or is empty for the shared
 // section. `device` is the session's virtual device, whose map shapes the
 // report for the wire the pad is on.
@@ -118,7 +119,9 @@ static void ds5_apply_initial_settings(CtmBackend *backend,
 
     if (output == Ds5AudioOutput::Auto && speakerPercent < 0 && headsetPercent < 0 &&
         !micMuted && !wantsTriggers) {
-        return;   // nothing configured
+        // ⓘ Only a file whose levels read below zero gets here now: auto
+        // always has the speaker's dial, or the headset's with headphones in.
+        return;   // nothing to send
     }
 
     std::vector<uint8_t> report(kDs5OutReportLen, 0);
