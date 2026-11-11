@@ -132,6 +132,77 @@ inline bool set(const std::string &section, const std::string &key, const std::s
     return true;
 }
 
+// ⭐ BY SERIAL, BRIDGED OR NOT (auto_link_store.inl): a controller's settings
+// as kept, its loaded section when it has one, else its file.
+inline std::map<std::string, std::string> read_for(const std::string &serial)
+{
+    if (serial.empty()) return {};
+    {
+        std::lock_guard<std::mutex> configLock(g_device_config_mutex);
+        const auto it = g_device_config.find(kept_section(serial));
+        if (it != g_device_config.end()) return it->second;
+    }
+    return read_file(serial);
+}
+
+// Sets one setting of a controller by its serial, bridged or not, as set()
+// does for a claimed one: from its loaded section when it has one, else from
+// its file, and the file written. ⛔ Never set() for a controller not loaded:
+// its section would start empty, and the file written would lose the rest.
+inline bool set_by_serial(const std::string &serial, const std::string &key, const std::string &value,
+                          std::string *error)
+{
+    if (serial.empty()) { *error = "no usable serial"; return false; }
+    if (!is_key(key)) { *error = key + " is not a controller's setting"; return false; }
+    if (!value.empty() && !config_store::valid_setting_value(value)) {
+        *error = "value may not contain [ ] = # ; or a newline (max 256)";
+        return false;
+    }
+    std::lock_guard<std::mutex> lock(g_mutex);
+    const std::string section = kept_section(serial);
+    bool loaded = false;
+    std::map<std::string, std::string> settings;
+    {
+        std::lock_guard<std::mutex> configLock(g_device_config_mutex);
+        const auto it = g_device_config.find(section);
+        if (it != g_device_config.end()) { settings = it->second; loaded = true; }
+    }
+    if (!loaded) settings = read_file(serial);
+    if (value.empty()) settings.erase(key);
+    else settings[key] = value;
+    if (!config_store::ensure_dir(kDir)) {
+        *error = std::string("could not create ") + kDir;
+        return false;
+    }
+    if (!config_store::write_text_whole(file_for(serial), format(serial, settings), error)) return false;
+    if (loaded) {
+        std::lock_guard<std::mutex> configLock(g_device_config_mutex);
+        g_device_config[section] = std::move(settings);
+        device_config_changed_locked();
+    }
+    return true;
+}
+
+// The serials with a file in controllers/, as their file names write them.
+inline std::vector<std::string> serials_with_files()
+{
+    std::vector<std::string> out;
+    const std::string dir = kDir;
+    const std::wstring pattern = std::wstring(dir.begin(), dir.end()) + L"\\*.txt";
+    WIN32_FIND_DATAW find = {};
+    HANDLE handle = FindFirstFileW(pattern.c_str(), &find);
+    if (handle == INVALID_HANDLE_VALUE) return out;
+    do {
+        if (find.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) continue;
+        const std::wstring wname(find.cFileName);
+        const std::string fname(wname.begin(), wname.end());
+        if (fname.size() < 5) continue;
+        out.push_back(fname.substr(0, fname.size() - 4));
+    } while (FindNextFileW(handle, &find));
+    FindClose(handle);
+    return out;
+}
+
 } // namespace controller_settings
 
 // device.inl's way in, declared in main.cpp ahead of it: whether a section is

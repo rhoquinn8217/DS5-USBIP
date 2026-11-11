@@ -93,6 +93,7 @@ inline void apply_change()
     // picked up on the next bridge -- touching the shared file is a way to
     // force it without reseating a controller.
     config_store::reload_all();
+    auto_link_store::move_old_claims();   // a config copied in from an older install
     // ⓘ The sound gains are re-read by each pad on its own beat
     // (audio_gain.inl), so nothing to refresh for them here.
     change_pending().store(true, std::memory_order_relaxed);

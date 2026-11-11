@@ -32,12 +32,13 @@ namespace controller_settings {
 // The settings a controller keeps for itself, as the configs window's schema
 // names them (rest_config.inl).
 // ⓘ And its device tag since 2026-11-10 (device_tag_rule.inl): the choice,
-// and the tag typed for Custom.
+// and the tag typed for Custom. ⭐ And its auto link the same day
+// (auto_link_store.inl): the config it reads at every bridge.
 inline const char *const kKeys[] = {
     "audio_output", "speaker_volume", "headset_volume", "audio_gain", "audio_latency_ms",
     "force_echo_cancel", "master_rumble_gain", "rumble_gain_heavy", "rumble_gain_soft",
     "rumble_floor", "audio_haptics", "audio_haptics_strength", "audio_haptics_bass_hz",
-    "audio_haptics_mode", "device_tag_mode", "device_tag",
+    "audio_haptics_mode", "device_tag_mode", "device_tag", "auto_link",
 };
 
 inline bool is_key(const std::string &key)

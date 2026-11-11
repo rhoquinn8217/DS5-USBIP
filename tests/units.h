@@ -52,5 +52,6 @@ namespace units {
 #include "config/config_store.inl"
 #include "config/controller_settings_rule.inl"
 #include "config/controller_settings.inl"
+#include "config/auto_link_store.inl"
 
 }  // namespace units

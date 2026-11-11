@@ -1313,6 +1313,7 @@ static bool start_bridge_session_for(const std::string &kind, uint16_t port, con
     ctm_config_watcher::ensure_started();   // live config changes, no reseat
     ctm_config_watcher::adopt_config_store();   // ...including per-controller ones
     config_store::reload_all();             // per-controller config files
+    auto_link_store::move_old_claims();     // an older config's own auto_link line, into the controllers' files
     auto session = std::make_unique<AgentBridgeSession>();
     // Assigned at CREATION, not when listed -- two consecutive device lists
     // must not disagree. Monotonic per kind and never reused: ds5_1 that

@@ -57,6 +57,29 @@ std::string read_config(const std::string &name)
     return all.str();
 }
 
+// The controllers' own files (controller_settings.inl), beside configs/.
+void wipe_controllers()
+{
+    std::error_code ignored;
+    std::filesystem::remove_all("controllers", ignored);
+}
+
+void write_controller(const std::string &serial, const std::string &body)
+{
+    std::filesystem::create_directories("controllers");
+    std::ofstream out("controllers\\" + serial + ".txt", std::ios::binary | std::ios::trunc);
+    out << body;
+    out.close();
+}
+
+std::string read_controller(const std::string &serial)
+{
+    std::ifstream in("controllers\\" + serial + ".txt", std::ios::binary);
+    std::ostringstream all;
+    all << in.rdbuf();
+    return all.str();
+}
+
 bool contains(const std::string &haystack, const std::string &needle)
 {
     return haystack.find(needle) != std::string::npos;
@@ -355,7 +378,8 @@ int run_config_store_tests()
         CTM_CHECK(cs::create_config("fresh", &error));
         const std::string body = read_config("fresh");
         CTM_CHECK(contains(body, "[config]"));
-        CTM_CHECK(contains(body, "auto_link ="));
+        // ⭐ No auto_link line: which controllers read it is theirs to say (2026-11-10).
+        CTM_CHECK(!contains(body, "auto_link"));
         CTM_CHECK(contains(body, "[settings]"));
         // ⛔ No kind line: nothing a new config holds is tied to one.
         CTM_CHECK(!contains(body, "kind ="));
@@ -370,24 +394,36 @@ int run_config_store_tests()
         CTM_CHECK(contains(error, "already exists"));
     }
 
-    section("config store: auto_link claims and refusals");
+    // ⭐ AUTO LINK IS THE CONTROLLER'S (rhoquinn8217, 2026-11-10: "store it
+    // controller settings instead configs"): its own file names the config it
+    // reads at every bridge (auto_link_store.inl), one config at a time.
+    section("auto link: in the controller's own file, one config at a time");
     {
+        namespace al = units::auto_link_store;
+        wipe_controllers();
         std::string error;
         CTM_CHECK(cs::create_config("first", &error));
         CTM_CHECK(cs::create_config("second", &error));
-        CTM_CHECK(cs::add_auto_link("first", "AA:BB:CC:DD:EE:FF", &error));
+        CTM_CHECK(al::add("first", "AA:BB:CC:DD:EE:FF", &error));
         CTM_CHECK_EQ(cs::auto_link_for("aabbccddeeff", "ds5"), std::string("first"));
+        // written in the controller's file, and nothing in the config's
+        CTM_CHECK(contains(read_controller("aabbccddeeff"), "auto_link = first"));
+        CTM_CHECK(!contains(read_config("first"), "aabbccddeeff"));
+        cs::ConfigFile listed;
+        CTM_CHECK(cs::find_config("first", &listed) && listed.autoLink.size() == 1 &&
+                  listed.autoLink[0] == "aabbccddeeff");
 
-        // ⭐ THE REFUSAL IS THE POINT OF THE VERB: two configs claiming one
-        // serial is resolvable but ambiguous, so it is kept unreachable.
-        CTM_CHECK(!cs::add_auto_link("second", "aabbccddeeff", &error));
-        CTM_CHECK(contains(error, "already claimed"));
+        // ⭐ ONE ANSWER PER CONTROLLER: auto linked to another config, it moves
+        // there; there is no second claim to refuse.
+        CTM_CHECK(al::add("second", "aabbccddeeff", &error));
+        CTM_CHECK_EQ(cs::auto_link_for("aabbccddeeff", "ds5"), std::string("second"));
+        CTM_CHECK(cs::find_config("first", &listed) && listed.autoLink.empty());
 
         // ⭐ A claim is honoured on any controller that takes a config. This
         // was "a kind that does not match does not match" until 2026-09-12;
         // a config is not tied to a controller type any more.
-        CTM_CHECK_EQ(cs::auto_link_for("aabbccddeeff", "ds5e_usb"), std::string("first"));
-        CTM_CHECK_EQ(cs::auto_link_for("aabbccddeeff", "xbox"), std::string("first"));
+        CTM_CHECK_EQ(cs::auto_link_for("aabbccddeeff", "ds5e_usb"), std::string("second"));
+        CTM_CHECK_EQ(cs::auto_link_for("aabbccddeeff", "xbox"), std::string("second"));
         // ⛔ ...but never on a device that takes no config at all.
         CTM_CHECK_EQ(cs::auto_link_for("aabbccddeeff", "hid"), std::string(""));
         CTM_CHECK_EQ(cs::auto_link_for("aabbccddeeff", "puck"), std::string(""));
@@ -397,16 +433,84 @@ int run_config_store_tests()
         // Orochi V2's dongle reports `000000000000` -- and so does every other
         // one, so a claim on it would follow the model to the next dongle.
         CTM_CHECK_EQ(cs::auto_link_for("000000000000", "ds5"), std::string(""));
-        CTM_CHECK(!cs::add_auto_link("second", "00:00:00:00:00:00", &error));
+        CTM_CHECK(!al::add("second", "00:00:00:00:00:00", &error));
         CTM_CHECK(contains(error, "no usable serial"));
         // ⚠️ A serial that merely BEGINS with zeros is a real identity, and a
         // rule written as "starts with zeros" would have taken it away: the
         // Switch Pro Controller's `000000000001` links like any other.
-        CTM_CHECK(cs::add_auto_link("second", "000000000001", &error));
-        CTM_CHECK_EQ(cs::auto_link_for("000000000001", "ds5"), std::string("second"));
+        CTM_CHECK(al::add("first", "000000000001", &error));
+        CTM_CHECK_EQ(cs::auto_link_for("000000000001", "ds5"), std::string("first"));
+        // a config that is not there is refused
+        CTM_CHECK(!al::add("nosuch", "aabbccddeeff", &error));
+        CTM_CHECK(contains(error, "no config named"));
 
-        CTM_CHECK(cs::remove_auto_link("first", "aabbccddeeff", &error));
+        // Removed from a config it does not auto link to: nothing changes.
+        CTM_CHECK(al::remove("first", "aabbccddeeff", &error));
+        CTM_CHECK_EQ(cs::auto_link_for("aabbccddeeff", "ds5"), std::string("second"));
+        CTM_CHECK(al::remove("second", "aabbccddeeff", &error));
         CTM_CHECK_EQ(cs::auto_link_for("aabbccddeeff", "ds5"), std::string(""));
+        CTM_CHECK(!contains(read_controller("aabbccddeeff"), "auto_link"));
+        // ⭐ The rest of the controller's file is kept around it.
+        CTM_CHECK(units::controller_settings::set_by_serial("aabbccddeeff", "speaker_volume", "60", &error));
+        CTM_CHECK(al::add("first", "aabbccddeeff", &error));
+        CTM_CHECK(contains(read_controller("aabbccddeeff"), "speaker_volume = 60") &&
+                  contains(read_controller("aabbccddeeff"), "auto_link = first"));
+    }
+
+    section("auto link: a rename keeps its controllers, an archive holds them until it is back");
+    {
+        namespace al = units::auto_link_store;
+        std::string error;
+        CTM_CHECK(cs::create_config("armchair", &error));
+        CTM_CHECK(al::add("armchair", "112233445566", &error));
+        CTM_CHECK(cs::rename_config("armchair", "recliner", &error));
+        al::follow_rename("armchair", "recliner");
+        CTM_CHECK_EQ(cs::auto_link_for("112233445566", "ds5"), std::string("recliner"));
+        CTM_CHECK(contains(read_controller("112233445566"), "auto_link = recliner"));
+        // Archived: no config to read, and the controller's file keeps the name.
+        std::string movedTo;
+        CTM_CHECK(cs::archive_config("recliner", &error, &movedTo));
+        CTM_CHECK_EQ(cs::auto_link_for("112233445566", "ds5"), std::string(""));
+        CTM_CHECK(contains(read_controller("112233445566"), "auto_link = recliner"));
+        // Put back by hand: auto linked again.
+        std::error_code renamed;
+        std::filesystem::rename(movedTo, "configs\\recliner.txt", renamed);
+        CTM_CHECK(!renamed);
+        cs::reload_all();
+        CTM_CHECK_EQ(cs::auto_link_for("112233445566", "ds5"), std::string("recliner"));
+        // A copy auto links nothing.
+        CTM_CHECK(cs::copy_config("recliner", "recliner_copy", &error));
+        cs::ConfigFile copied;
+        CTM_CHECK(cs::find_config("recliner_copy", &copied) && copied.autoLink.empty());
+        CTM_CHECK_EQ(cs::auto_link_for("112233445566", "ds5"), std::string("recliner"));
+    }
+
+    section("auto link: an older config's own line, moved into the controllers' files");
+    {
+        namespace al = units::auto_link_store;
+        std::string error;
+        // A controller whose own file names a config already keeps it.
+        CTM_CHECK(cs::create_config("own", &error));
+        write_controller("0a0b0c0d0e0f", "# kept\r\nauto_link = own\r\n");
+        write_config("legacy",
+            "# legacy\r\n[config]\r\nauto_link = 665544332211, 0a0b0c0d0e0f\r\n\r\n"
+            "[settings]\r\nspeaker_volume = 40\r\n");
+        // Before it is moved: honoured for a serial no controller's file names.
+        CTM_CHECK_EQ(cs::auto_link_for("665544332211", "ds5"), std::string("legacy"));
+        CTM_CHECK_EQ(cs::auto_link_for("0a0b0c0d0e0f", "ds5"), std::string("own"));
+        al::move_old_claims();
+        CTM_CHECK(contains(read_controller("665544332211"), "auto_link = legacy"));
+        CTM_CHECK(contains(read_controller("0a0b0c0d0e0f"), "auto_link = own"));
+        CTM_CHECK(!contains(read_config("legacy"), "665544332211"));
+        CTM_CHECK(contains(read_config("legacy"), "speaker_volume = 40"));
+        CTM_CHECK_EQ(cs::auto_link_for("665544332211", "ds5"), std::string("legacy"));
+        CTM_CHECK_EQ(cs::auto_link_for("0a0b0c0d0e0f", "ds5"), std::string("own"));
+        CTM_CHECK_EQ(units::device_config_int("cfg:legacy", "speaker_volume", -1), 40);
+        // Moved once: a second pass changes nothing.
+        const std::string before = read_controller("665544332211");
+        al::move_old_claims();
+        CTM_CHECK(read_controller("665544332211") == before);
+        wipe_controllers();
     }
 
     section("config store: rename carries the file, its claim and its settings");
@@ -966,7 +1070,7 @@ int run_config_store_tests()
         CTM_CHECK_EQ(units::device_config_int("cfg:original", "speaker_volume", -1), 55);
 
         // \u26d4 THE CLAIM DOES NOT COME ALONG. Two configs claiming one serial is
-        // exactly the ambiguity add_auto_link refuses; a copy must not create it.
+        // an ambiguity no controller's own file can make; a copy must not create it.
         CTM_CHECK_EQ(cs::auto_link_for("001122334455", "ds5"), std::string("original"));
         CTM_CHECK(contains(read_config("duplicate"), "auto_link ="));
         CTM_CHECK(!contains(read_config("duplicate"), "auto_link = 001122334455"));
@@ -1113,12 +1217,14 @@ int run_config_store_tests()
     // ⭐ A CONTROLLER'S OWN SETTINGS (controller_settings.inl; rhoquinn8217,
     // 2026-11-08): audio, rumble and haptics, kept by serial whatever config the
     // controller reads.
-    section("controller settings: sixteen keys of the controller's own, and nothing else");
+    section("controller settings: seventeen keys of the controller's own, and nothing else");
     {
         namespace ctl = units::controller_settings;
-        CTM_CHECK_EQ(sizeof(ctl::kKeys) / sizeof(ctl::kKeys[0]), static_cast<size_t>(16));
+        CTM_CHECK_EQ(sizeof(ctl::kKeys) / sizeof(ctl::kKeys[0]), static_cast<size_t>(17));
         // its device tag since 2026-11-10: the choice, and the custom tag
         CTM_CHECK(ctl::is_key("device_tag_mode") && ctl::is_key("device_tag"));
+        // and its auto link the same day: the config it reads at every bridge
+        CTM_CHECK(ctl::is_key("auto_link"));
         CTM_CHECK(ctl::is_key("speaker_volume") && ctl::is_key("audio_output") &&
                   ctl::is_key("rumble_floor") && ctl::is_key("audio_haptics_mode") &&
                   ctl::is_key("audio_latency_ms") && ctl::is_key("force_echo_cancel"));

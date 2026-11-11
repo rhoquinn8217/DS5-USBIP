@@ -346,6 +346,7 @@ inline bool ctm_controller_settings_for_bridge(const std::string &section);
 #include "config/polling_limits.inl" // each controller's own polling limit, by its serial
 #include "config/controller_settings_rule.inl"  // a controller's own settings: its keys, its section; strings alone
 #include "config/controller_settings.inl"  // and their store: a file per controller, in the settings map
+#include "config/auto_link_store.inl"  // a controller's auto link, kept in its own file
 #include "config/config_presets.inl"  // what a new config can start from; needs nothing but strings
 #include "config/default_config_rule.inl"  // default_windows_config and the first controller's turn; strings alone
 #include "app/device_capabilities.inl" // what a pad can use, from its settings kind; pure
