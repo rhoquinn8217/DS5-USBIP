@@ -210,6 +210,9 @@ carry it; upstream's own history is unchanged.
 | 2026-11-09 | The quick config switch: R3 pressed while a finger holds the switch's window up keeps it, as a second press of the touchpad does, and opens the controller's settings over it. While the switch holds the window with Quick switch: Window select ticked, Quick's legend ends with the d-pad, its left and right filled, and "window select", gone once the window is kept; Quick is wider for it, 0.37 of the screen from 0.342 (large 0.47 from 0.429), its text sized by the window's height as before. The box beside Window select reads Quick switch: 2-finger touchpad gesture, as do its hover, the hint under Window select and the tours. Page 2.68.5. | `aa4034a`, `260dc47`, `78b8cf2`, merge `be73eda` |
 | 2026-11-09 | Hover descriptions open just below and right of the pointer in Advanced too, the Overview's and a controller's settings', where Advanced's zoom had sent them half as far again from the window's corner, past the screen's edge in the settings window; there they are as large as the settings' names. A click pressed and let go on the dim around a controller's settings window closes it. Page 2.68.7. | `827eabd`, `3d1f060`, merge `be73eda` |
 | 2026-11-09 | DS5-USBIP now tells the TV when a Windows UAC prompt is up, and what kind it is, so the TV app can take every controller, bridged or not, and show what each button does until the prompt closes. Its STATUS answer carries uac=1 for a Yes or No prompt and uac=2 for one that can ask for a password or PIN, as Windows' own settings decide; otherwise uac=0, and always uac=0 while Windows is locked. The prompt is seen as Windows' consent.exe in the person's session, looked for four times a second. An older TV app skips the word. | `1d5d766`, merge `4511a96` |
+| 2026-11-10 | Each controller has a device tag, the name it is called by while bridged, chosen first in its settings: Auto-generated (a random name, as before), Device Type, Serial/MAC (in capitals), IP address (the TV it is bridged from) or Custom, typed in a box the DS5-USBIP keyboard opens in, Enter leaving it as Esc does. Up to 20 characters, the rest cut off; a second controller with the same tag is named with (2), (3), and every part of one device takes the same tag. It is named as its settings window closes, and only if it changed, and the window's names follow at once. Under the choice, "Preview:" or "Custom:" beside a bold, framed box; "device tag" is the window's word where it said nickname. Page 2.69.7. | `c48538d`, `2fc148e`, `5604baf`, `f3864fc`, `266e078`, `ab53b4a`, `04a695c`, merge `23f4ef9` |
+| 2026-11-10 | Simple's line over the panel is two: the controller's name and battery, then its symbols, the polling rate and limit and the settings gear, centred under them. The window is taller for it, 0.418 of the screen's height where it was 0.3879 (0.52 large, from 0.4819), and nothing on it grows. | `30c7c69`, `7c74793`, merge `23f4ef9` |
+| 2026-11-10 | Simple's tour keeps its window at the two-finger steps: a one-finger tap there clicks nothing, and a press with the window behind brings it back instead of switching. Before, a stray tap could click the desktop, the next press ended the tour, Quick's tour started by itself, and Simple came back small. | `50e2fc0`, merge `e9a4b99`, merge `23f4ef9` |
 
 ## Files changed
 
@@ -224,13 +227,13 @@ ENet library, removed with the ENet transport).
  .github/ISSUE_TEMPLATE/config.yml             |     5 +
  .github/ISSUE_TEMPLATE/feature-request.yml    |    22 +
  .gitignore                                    |    43 +-
- CHANGES.md                                    |   503 +
+ CHANGES.md                                    |   508 +
  LINK                                          |     0
  README.md                                     |   291 +-
  THIRD-PARTY-NOTICES.txt                       |   618 +
  app/compatibility.manifest                    |    27 +
  app/ctm-capture.vcxproj                       |    86 -
- app/ctm-usbip-tests.vcxproj                   |   167 +
+ app/ctm-usbip-tests.vcxproj                   |   168 +
  app/ctm-usbip.ico                             |   Bin 156019 -> 68226 bytes
  app/ctm-usbip.rc                              |    26 +-
  app/ctm-usbip.vcxproj                         |    77 +-
@@ -289,16 +292,17 @@ ENet library, removed with the ENet transport).
  profiles/descriptors/virtual_keyboard.profile |    88 +
  profiles/descriptors/virtual_mouse.profile    |    59 +
  release.ps1                                   |   264 +
- src/app/agent.inl                             |  1488 +-
+ src/app/agent.inl                             |  1596 +-
  src/app/agent_session_sweep.inl               |   336 +
  src/app/cli.inl                               |    66 +-
  src/app/common.inl                            |   166 +-
- src/app/config_move.inl                       |  1781 +++
+ src/app/config_move.inl                       |  1814 +++
  src/app/console_attach.inl                    |    82 +
  src/app/control_caller.inl                    |    48 +
  src/app/default_config.inl                    |    73 +
  src/app/device_capabilities.inl               |    86 +
  src/app/device_names.inl                      |    93 +
+ src/app/device_tag_rule.inl                   |   175 +
  src/app/device_type.inl                       |    70 +
  src/app/ds4_dongle_keep.inl                   |   110 +
  src/app/ds4_dongle_return.inl                 |    98 +
@@ -310,17 +314,17 @@ ENet library, removed with the ENet transport).
  src/app/old_devices.inl                       |   267 +
  src/app/old_devices_rule.inl                  |    91 +
  src/app/open_on_bridge.inl                    |    93 +
- src/app/open_ui.inl                           |   974 ++
+ src/app/open_ui.inl                           |   985 ++
  src/app/overlay_window.inl                    |  2472 ++++
  src/app/paired_tv.inl                         |   590 +
  src/app/protocol_level.inl                    |    98 +
- src/app/quick_switch.inl                      |   724 +
- src/app/quick_switch_session.inl              |   749 +
+ src/app/quick_switch.inl                      |   743 +
+ src/app/quick_switch_session.inl              |   773 +
  src/app/quit_request.inl                      |    28 +
  src/app/read_deadline.inl                     |    28 +
  src/app/rest.inl                              |   898 ++
- src/app/rest_config.inl                       |  1622 +++
- src/app/rest_config_sessions.inl              |   295 +
+ src/app/rest_config.inl                       |  1676 +++
+ src/app/rest_config_sessions.inl              |   350 +
  src/app/rest_sessions.inl                     |    33 +
  src/app/rest_shared_section.inl               |    55 +
  src/app/same_controller.inl                   |    38 +
@@ -332,7 +336,7 @@ ENet library, removed with the ENet transport).
  src/app/stream_start.inl                      |   159 +
  src/app/taskbar_back.inl                      |   169 +
  src/app/taskbar_rule.inl                      |    64 +
- src/app/tray_icon.inl                         |   808 ++
+ src/app/tray_icon.inl                         |   808 +
  src/app/tray_menu.inl                         |   203 +
  src/app/tutorial_bubble.inl                   |  1305 ++
  src/app/tutorial_bubble_rule.inl              |   474 +
@@ -358,7 +362,7 @@ ENet library, removed with the ENet transport).
  src/audio/ds4_rumble.inl                      |    68 +
  src/audio/ds4_speaker.inl                     |    62 +
  src/audio/ds5_apply_settings.inl              |   340 +
- src/audio/ds5_output_overrides.inl            |   820 ++
+ src/audio/ds5_output_overrides.inl            |   820 +
  src/audio/iso_in_pacing.inl                   |   223 +
  src/audio/iso_in_test_tone.inl                |   103 +
  src/audio/mic_ring.inl                        |   229 +
@@ -378,7 +382,7 @@ ENet library, removed with the ENet transport).
  src/config/config_store.inl                   |   879 ++
  src/config/config_watcher.inl                 |   171 +
  src/config/controller_settings.inl            |   143 +
- src/config/controller_settings_rule.inl       |   110 +
+ src/config/controller_settings_rule.inl       |   112 +
  src/config/default_config_rule.inl            |    80 +
  src/config/device_config.inl                  |   344 +
  src/config/polling_limits.inl                 |   150 +
@@ -407,7 +411,7 @@ ENet library, removed with the ENet transport).
  src/input/trigger_effect.inl                  |   637 +
  src/log/capped_log.inl                        |   117 +
  src/log/device_log.inl                        |   233 +
- src/main.cpp                                  |  1145 +-
+ src/main.cpp                                  |  1158 +-
  src/map/runtime.cpp                           |   205 +-
  src/usbdisplay/README.md                      |    13 +
  src/usbip/device.inl                          |  1220 +-
@@ -423,13 +427,14 @@ ENet library, removed with the ENet transport).
  tests/bridge_handshake_test.cpp               |   631 +
  tests/button_layout_test.cpp                  |  1232 ++
  tests/capped_log_test.cpp                     |   140 +
- tests/config_store_test.cpp                   |  1198 ++
+ tests/config_store_test.cpp                   |  1200 ++
  tests/control_caller_test.cpp                 |    73 +
  tests/default_speaker_rule_test.cpp           |   197 +
  tests/device_capabilities_test.cpp            |    80 +
  tests/device_config_cache_test.cpp            |   148 +
  tests/device_config_test.cpp                  |   686 +
  tests/device_names_test.cpp                   |   110 +
+ tests/device_tag_rule_test.cpp                |   120 +
  tests/device_type_test.cpp                    |    89 +
  tests/ds4_settings_test.cpp                   |   359 +
  tests/fallback_serial_test.cpp                |    79 +
@@ -457,7 +462,7 @@ ENet library, removed with the ENet transport).
  tests/polling_limits_test.cpp                 |   122 +
  tests/product_version_test.cpp                |    46 +
  tests/protocol_level_test.cpp                 |   129 +
- tests/quick_switch_test.cpp                   |   667 +
+ tests/quick_switch_test.cpp                   |   679 +
  tests/quit_request_test.cpp                   |    86 +
  tests/read_deadline_test.cpp                  |    50 +
  tests/rebind_test.cpp                         |   796 +
@@ -475,7 +480,7 @@ ENet library, removed with the ENet transport).
  tests/stop_wait_test.cpp                      |    93 +
  tests/stream_commands_test.cpp                |   118 +
  tests/taskbar_rule_test.cpp                   |    46 +
- tests/tests_main.cpp                          |   209 +
+ tests/tests_main.cpp                          |   211 +
  tests/touch_mouse_test.cpp                    |  2591 ++++
  tests/tray_menu_test.cpp                      |   247 +
  tests/trigger_click_test.cpp                  |   928 ++
@@ -491,7 +496,7 @@ ENet library, removed with the ENet transport).
  tests/window_move_test.cpp                    |   136 +
  tests/window_open_rule_test.cpp               |    43 +
  tests/window_size_rule_test.cpp               |   129 +
- tools/controller-config-test-client.html      | 18529 ++++++++++++++++++++++++
+ tools/controller-config-test-client.html      | 18881 ++++++++++++++++++++++++
  tools/create-desktop-shortcut.bat             |    46 +
  tools/create-desktop-shortcut.ps1             |   148 +
  tools/osk-mockups.py                          |   103 +
@@ -499,5 +504,5 @@ ENet library, removed with the ENet transport).
  tools/sbc-golden-gen/ffmpeg_side.cpp          |   117 +
  tools/sbc-golden-gen/ffmpeg_side.h            |    15 +
  tools/sbc-golden-gen/main.cpp                 |   131 +
- 280 files changed, 84101 insertions(+), 6132 deletions(-)
+ 282 files changed, 85089 insertions(+), 6132 deletions(-)
 ```
