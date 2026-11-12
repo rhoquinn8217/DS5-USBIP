@@ -26,13 +26,14 @@
   CHANGELOG
     2.70.4   The config preview, round 7 (rhoquinn8217, 2026-11-12): PS's line
              reads "show/hide rebind list"; Cross no longer edits in Quick,
-             and its "edit" line is gone; PS held three seconds is Edit,
-             said by a second PS line, "hold to edit", beside the first
-             under Simple's wheel and under it in Quick, so a press shows or
-             hides the list as it comes up (V on a keyboard the same); the
-             listener gives the front back to the configs window from a
-             click on the box, and stands it right, left, above or below
-             the window, in that order.
+             and its "edit" line is gone; PS held three seconds goes
+             straight to Advanced, the list closed and nothing asked ("go
+             straight to edit"), said by a second PS line, "hold to edit",
+             beside the first under Simple's wheel and under it in Quick,
+             so a press shows or hides the list as it comes up (V on a
+             keyboard the same); the listener gives the front back to the
+             configs window from a click on the box, and stands it right,
+             left, above or below the window, in that order.
     2.70.3   A DualSense Edge over Bluetooth ("ds5e") is an Edge here too, as
              the listener has it: the PlayStation marks in its legends, where
              it read as an unknown kind and drew the Xbox ones, so the config
@@ -14555,11 +14556,13 @@ function selfTest() {
   // 2026-11-11 and 12): in the moment after a click, Circle, Esc, PS and V
   // close it, and nothing there edits; its one button, Close, carries PS's
   // mark (V on a keyboard, none on an Xbox pad); Cross only selects, the box
-  // up or not; PS or V held three seconds is Simple's Edit in Simple and
-  // Quick, asked first while the box is up, nothing while a question of this
-  // window's is open, and in Advanced a press of any length shows or hides
-  // it; and its lines: "show/hide rebind list" with "hold to edit" under it
-  // in Quick, and beside it under Simple's wheel, in the box.
+  // up or not; PS or V held three seconds goes straight to Advanced in
+  // Simple and Quick, the box closed if it is up, with no question ("go
+  // straight to edit"), nothing while a question of this window's is open,
+  // and in Advanced a press of any length shows or hides it; Simple's Edit
+  // button still asks while the box is up; and its lines: "show/hide rebind
+  // list" with "hold to edit" under it in Quick, and beside it under
+  // Simple's wheel, in the box.
   var pvFoot = previewFootHtml('ps');
   var pvFootX = previewFootHtml('xbox');
   var pvFootK = previewFootHtml('keys');
@@ -14585,6 +14588,8 @@ function selfTest() {
     CONFIRM_CB = pvHoldKeep.cb;
     COMPACT = false;
     previewKeyDown('KeyP'); pvArmed = PREVIEW_PRESS ? PREVIEW_PRESS.timer : -1; previewKeyUp('KeyP');
+    COMPACT = true; QUICK = false; PREVIEW_OPEN = true;
+    compactEdit();
   } finally {
     togglePreview = pvHoldKeep.toggle; gpKeySelect = pvHoldKeep.select;
     askConfirm = pvHoldKeep.ask; setCompact = pvHoldKeep.compactSet; CONFIRM_CB = pvHoldKeep.cb;
@@ -14604,7 +14609,7 @@ function selfTest() {
               pvHint.parentNode === pvHoldLine.parentNode &&
               !!(pvHint.closest && pvHint.closest('.cpick-wrap')) &&
               (pvHint.offsetParent === null || Math.abs(pvHint.offsetTop - pvHoldLine.offsetTop) < 2)));
-  ok('config preview: clicked, Circle, Esc, PS and V close it; PS on its one button; Cross selects; PS held is Edit in Simple and Quick; its lines',
+  ok('config preview: clicked, Circle, Esc, PS and V close it; PS on its one button; Cross selects; PS held goes straight to Advanced, Simple\'s Edit asks; its lines',
      previewKeyAction('KeyZ', true) === 'close' && previewKeyAction('Escape', false) === 'close' &&
      previewKeyAction('KeyP', true) === 'close' && previewKeyAction('KeyV', false) === 'close' &&
      previewKeyAction('Enter', true) === '' && previewKeyAction('Enter', false) === '' &&
@@ -14613,7 +14618,8 @@ function selfTest() {
      pvFoot.indexOf(buttonMark(16, PAD_LEGEND_PS) + ' Close') > 0 &&
      pvFootX.indexOf('">Close</button>') > 0 &&
      pvFootK.indexOf(keyCap('V', KEY_LEGEND) + ' Close') > 0 &&
-     pvDid.join(',') === 'select,select,ask Edit,compact false,toggle,toggle' && pvArmed === 0 &&
+     pvDid.join(',') === 'select,select,toggle,compact false,compact false,toggle,toggle,ask Edit' &&
+     pvArmed === 0 &&
      typeof previewTakesCross === 'undefined' && pvHintOk,
      pvDid.join(',') + ' armed=' + pvArmed + ' ' +
      (pvHint ? pvHint.className + ':' + pvHint.textContent : 'no line') +
@@ -19314,8 +19320,9 @@ function startPage() {
 // ⓘ PS on a pad (rebind.inl sends KeyP with the gate's three modifiers) or V
 // on a keyboard shows it and hides it, from this window, and held three
 // seconds is Edit (previewKeyDown): "show/hide rebind list" and "hold to
-// edit" under Simple's wheel and Quick's auto link (2026-11-12). Editing asks
-// first while it is up. ⭐ THE BOX NEVER KEEPS THE FRONT (rhoquinn8217,
+// edit" under Simple's wheel and Quick's auto link (2026-11-12). The hold
+// goes straight to Advanced; Simple's Edit button asks first while the box is
+// up. ⭐ THE BOX NEVER KEEPS THE FRONT (rhoquinn8217,
 // 2026-11-12: "clicking the preview moves focus to the config window"): the
 // listener gives it straight back here, from a click too (preview_follow).
 // Its one button, Close, carries PS. The two windows
@@ -19464,11 +19471,13 @@ function previewSetOpen(on) {
 // functions in simple and quick"). V on a keyboard the same.
 // ⓘ The press acts as it COMES UP, under three seconds, so a hold never
 // shows or hides the list on its way to Edit; the bridge gesture's two
-// fingers do the same (quick_switch_session.inl). ⓘ Edit is Simple's Edit
-// button (compactEdit), in Quick too: asked first while the list is up,
-// Advanced at once otherwise. ⓘ Only in Simple and Quick, which have the
-// line; in Advanced a press of any length shows or hides it. Not while
-// something of this window's own is open, nor in a tour, which keeps PS.
+// fingers do the same (quick_switch_session.inl). ⭐ THE HOLD GOES STRAIGHT
+// TO ADVANCED on that config, the list closed, with no question (rhoquinn8217,
+// 2026-11-12: "go straight to edit"): three seconds held is the asking.
+// Simple's Edit button still asks first while the list is up (compactEdit).
+// ⓘ Only in Simple and Quick, which have the line; in Advanced a press of
+// any length shows or hides it. Not while something of this window's own is
+// open, nor in a tour, which keeps PS.
 var PREVIEW_HOLD_MS = 3000;
 var PREVIEW_PRESS = null;          // { code, timer, fired } while PS or V is down
 function previewKeyDown(code) {
@@ -19482,7 +19491,7 @@ function previewHoldDone(press) {
   press.fired = true;
   if (!COMPACT || TUT || CONFIRM_CB || RENAMING || PRESET_OPEN || PRESET_INFO_OPEN ||
       SETTINGS_OPEN || GP_SELECTING || GP_EDITING) return;
-  compactEdit();
+  previewEditHere();
 }
 function previewKeyUp(code) {
   var press = PREVIEW_PRESS;
@@ -19510,8 +19519,8 @@ function previewAskEdit() {
   askConfirm('Edit', 'Close the rebind list and edit ' + (name || 'this config') +
              ' in Advanced?', previewEditHere);
 }
-// ⓘ Simple's Edit, and PS held in Simple and Quick: asked first while the box
-// is up, at once otherwise.
+// ⓘ Simple's Edit: asked first while the box is up, at once otherwise. ⓘ PS
+// held asks nothing (previewHoldDone).
 function compactEdit() {
   if (PREVIEW_OPEN) { previewAskEdit(); return; }
   setCompact(false);
