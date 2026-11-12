@@ -226,8 +226,9 @@ void ui_drag_begin();
 void ui_position_tap();
 void ui_size_next();
 // ⭐ The config preview: a box of its own beside the settings window, opened
-// or brought back beside it (open_ui.inl, preview_open).
-void ui_preview_open();
+// in front or brought back beside it, or closed with the front given back to
+// the window (open_ui.inl, preview_open and preview_close).
+void ui_preview(bool open);
 // ⭐ THE SETTINGS WINDOW GOES: its place and size are read while it is still
 // there, then it is asked to close. ONE implementation for the page's own
 // Close, the tray's Quit and the listener stopping, so the three cannot drift
@@ -614,9 +615,10 @@ void ui_size_next()
 {
     config_move::size_next();
 }
-void ui_preview_open()
+void ui_preview(bool open)
 {
-    ctm_open_ui::preview_open(g_rest_port);
+    if (open) ctm_open_ui::preview_open(g_rest_port);
+    else ctm_open_ui::preview_close();
 }
 bool ui_close_window()
 {

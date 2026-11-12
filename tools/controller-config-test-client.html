@@ -3902,7 +3902,8 @@ var PREVIEW_REAL = null;
 if (PREVIEW_MODE) {
   PREVIEW_REAL = {
     setInterval: window.setInterval.bind(window),
-    listen: window.addEventListener.bind(window)
+    listen: window.addEventListener.bind(window),
+    docListen: document.addEventListener.bind(document)
   };
   window.setInterval = function () { return 0; };
   window.requestAnimationFrame = function () { return 0; };
@@ -10212,19 +10213,14 @@ function syncFocus() {
   // than not gating at all -- reach for the mouse instead.
   if (inPlainTab()) return;
   var on = document.hasFocus();
-  // ⭐ THE CONFIG PREVIEW TAKES THE FRONT AS IT OPENS, and a click on it takes
-  // it too; the listener gives it straight back. A blur while it is up is not
-  // someone leaving this window, so it is reported once it has lasted, rather
-  // than the controller going to the game and coming back.
-  if (!on && PREVIEW_OPEN) {
-    var now = Date.now();
-    if (!PREVIEW_BLUR_SINCE) PREVIEW_BLUR_SINCE = now;
-    if (now < Math.max(PREVIEW_OPENING_UNTIL, PREVIEW_BLUR_SINCE + PREVIEW_BLUR_GRACE_MS)) {
-      setTimeout(syncFocus, 150);
-      return;
-    }
-  } else if (on) {
-    PREVIEW_BLUR_SINCE = 0;
+  // ⭐ THE CONFIG PREVIEW HAS THE FRONT, AND THE CONTROLLER WITH IT: a blur
+  // of this window to the box, or around its opening or closing, is not
+  // someone leaving, so it is not reported, and the gate holds (the listener
+  // counts the box as this window's). Looked at again shortly, for when the
+  // box lets the front go.
+  if (!on && previewHoldsFocus()) {
+    setTimeout(syncFocus, 250);
+    return;
   }
   if (on === LAST_FOCUS_SENT) return;
   LAST_FOCUS_SENT = on;
@@ -14421,7 +14417,7 @@ function selfTest() {
   var pvToggles = 0, pvSent = [], pvPosts = [];
   var pvKeep = { toggle: togglePreview, call: call, ch: PREVIEW_CHANNEL, open: PREVIEW_OPEN,
                  openedAt: PREVIEW_OPENED_AT, closedAt: PREVIEW_CLOSED_AT,
-                 until: PREVIEW_OPENING_UNTIL };
+                 hold: PREVIEW_HOLD_UNTIL, focused: PREVIEW_FOCUSED };
   try {
     togglePreview = function () { pvToggles++; };
     CONFIG_MODE_KEYS.KeyP();
@@ -14441,17 +14437,32 @@ function selfTest() {
     togglePreview = pvKeep.toggle; call = pvKeep.call; PREVIEW_CHANNEL = pvKeep.ch;
     PREVIEW_OPEN = pvKeep.open; PREVIEW_OPENED_AT = pvKeep.openedAt;
     PREVIEW_CLOSED_AT = pvKeep.closedAt;
-    PREVIEW_OPENING_UNTIL = pvKeep.until;
+    PREVIEW_HOLD_UNTIL = pvKeep.hold; PREVIEW_FOCUSED = pvKeep.focused;
   }
   ok('config preview: PS and V open and close it, and it shows only the ticked settings, by section, in the editor\'s words',
      pvToggles === 2 && pvOpened && pvClosed &&
-     pvSent.length === 1 && pvSent[0].indexOf('POST /api/v1/ui/preview') === 0 &&
+     pvSent.join(';') === 'POST /api/v1/ui/preview {"open":true};POST /api/v1/ui/preview {"open":false}' &&
      pvPosts.length === 1 && pvPosts[0] === '{"close":true}' &&
      pvInOrder && pvKeys.sort().join(',') ===
        'gyro_no_passthrough,gyro_to_mouse_gate_type,left_stick_mode,rebind_0,touchpad_scroll' &&
      pvGateWord === 'on button hold' && / - rebind$/.test(pvCrossName),
      pvToggles + ' ' + pvSent.join(';') + ' ' + pvPosts.join(';') + ' ' + pvKeys.join(',') +
      ' ' + pvGateWord + ' ' + pvCrossName);
+  // ⭐ ITS KEYS AND ITS FOOT (2.70.0; rhoquinn8217: "add a close button and
+  // and edit button and when in focus, esc or circle closes it"): Circle and
+  // Esc close it, and PS and V; the d-pad and the arrows move between Edit
+  // and Close; Cross and Enter press; Edit then Close in its foot, the halo
+  // on one.
+  var pvFoot = previewFootHtml('ps', 'edit');
+  ok('config preview: Circle, Esc, PS and V close it; the d-pad moves between Edit and Close; Cross presses',
+     previewKeyAction('KeyZ', true) === 'close' && previewKeyAction('Escape', false) === 'close' &&
+     previewKeyAction('KeyP', true) === 'close' && previewKeyAction('KeyV', false) === 'close' &&
+     previewKeyAction('KeyA', true) === 'prev' && previewKeyAction('KeyD', true) === 'next' &&
+     previewKeyAction('Enter', true) === 'press' && previewKeyAction('Enter', false) === 'press' &&
+     previewKeyAction('KeyZ', false) === '' && previewKeyAction('KeyX', true) === '' &&
+     pvFoot.indexOf('id="pvEdit"') > 0 && pvFoot.indexOf('id="pvClose"') > pvFoot.indexOf('id="pvEdit"') &&
+     /class="pvbtn pvhalo" id="pvEdit"/.test(pvFoot) && !/class="pvbtn pvhalo" id="pvClose"/.test(pvFoot),
+     pvFoot);
 
   // 🔗 T-248. The hints are a plain array of strings, and the one way this
   // file has ACTUALLY broken before is an unescaped apostrophe truncating an
@@ -19120,14 +19131,17 @@ function startPage() {
 // of the currently selected config", then "Do two columns with a fixed size
 // browser box", "The enable settings are the ticked ones" and "allow the box
 // to grow from it's fixed size"). It opens to the right of this window, or
-// the left where there is no room; in Advanced it shows the tab's config, on
-// Overview the editor's; in Simple and Quick the config on the wheel.
+// the left, or above it where neither side has room for its large text; in
+// Advanced it shows the tab's config, on Overview the editor's; in Simple and
+// Quick the config on the wheel.
 // ⓘ PS on a pad (rebind.inl sends KeyP with the gate's three modifiers) or V
-// on a keyboard opens it, and again closes it. The listener opens it
-// (ui/preview), an app window like this one, and gives the front straight
-// back to this window: the controller stays here. After that the two windows
-// talk over a BroadcastChannel: this one says every half second which config
-// it is on, the box says hello every second, and a box that hears nothing
+// on a keyboard opens it. The listener opens it (ui/preview), an app window
+// like this one, IN FRONT, with the controller: Circle or Esc close it, as
+// PS and V do, and it has Edit and Close (rhoquinn8217, 2026-11-11). A click
+// on this window gives the controller back here, and the box, still up,
+// follows the config again. The two windows talk over a BroadcastChannel:
+// this one says every half second which config it is on, the box says hello
+// every second and whether it has the front, and a box that hears nothing
 // for three seconds closes itself.
 // ⓘ An Xbox pad has no button for it yet: its Guide and Share do not reach
 // the listener (rhoquinn8217 is choosing another).
@@ -19136,13 +19150,17 @@ var PREVIEW_CHANNEL = null;
 var PREVIEW_OPEN = false;          // asked for, or a box said hello
 var PREVIEW_OPENED_AT = 0;         // the last open asked for here
 var PREVIEW_CLOSED_AT = 0;         // the last close; a box heard after it goes
-var PREVIEW_OPENING_UNTIL = 0;     // the box takes the front as it opens
-var PREVIEW_BLUR_SINCE = 0;        // a blur while the box is up, not yet reported
+// ⭐⭐ THE BOX TAKES THE CONTROLLER WHILE IT HAS THE FRONT (rhoquinn8217,
+// 2026-11-11: "add a close button and and edit button and when in focus,
+// esc or circle closes it"). It opens in front; the listener counts it as
+// this window's (window_has_foreground), so the gate holds and the pad's
+// keys go to it. This window, blurred, says nothing to the listener while
+// the box has the front, nor for a moment either side of it.
+var PREVIEW_FOCUSED = false;       // the box says it has the front
+var PREVIEW_HEARD_AT = 0;          // the box's last word
+var PREVIEW_HOLD_UNTIL = 0;        // a blur until then is the box opening or closing
 var PREVIEW_FEED_MS = 500;
 var PREVIEW_QUIET_MS = 3000;       // the box closes after this long without word
-// ⓘ How long a blur waits, while the box is up, before it is believed: the
-// listener gives the front back within a quarter of a second.
-var PREVIEW_BLUR_GRACE_MS = 800;
 
 function previewChannel() {
   if (PREVIEW_CHANNEL) return PREVIEW_CHANNEL;
@@ -19151,7 +19169,24 @@ function previewChannel() {
   if (!PREVIEW_MODE) {
     PREVIEW_CHANNEL.onmessage = function (ev) {
       var m = ev.data || {};
-      if (m.bye) { PREVIEW_OPEN = false; return; }
+      PREVIEW_HEARD_AT = Date.now();
+      if (m.bye) {
+        // ⓘ The listener gives the front back here as the box goes: the
+        // moment between is not someone leaving.
+        PREVIEW_OPEN = false;
+        PREVIEW_FOCUSED = false;
+        PREVIEW_HOLD_UNTIL = Date.now() + 1500;
+        return;
+      }
+      // ⭐ ITS EDIT: what Simple's Edit does, to Advanced on this config.
+      if (m.edit) {
+        if (COMPACT) setCompact(false);
+        return;
+      }
+      if (m.focus !== undefined) {
+        PREVIEW_FOCUSED = !!m.focus;
+        syncFocus();
+      }
       if (!m.hello) return;
       // ⓘ A box heard after it was closed here (PS twice in quick succession,
       // the close sent before the box was listening) is closed again.
@@ -19212,9 +19247,15 @@ function togglePreview() {
   var ch = previewChannel();
   if (!ch) return;
   if (PREVIEW_OPEN) {
+    // ⓘ Told twice, so a box that does not answer still goes: the box
+    // closes itself, and the listener closes its window and gives the front
+    // back here.
     ch.postMessage({ close: true });
     PREVIEW_OPEN = false;
+    PREVIEW_FOCUSED = false;
     PREVIEW_CLOSED_AT = Date.now();
+    PREVIEW_HOLD_UNTIL = Date.now() + 1500;
+    call('POST', '/api/v1/ui/preview', { open: false }).catch(function () {});
     return;
   }
   PREVIEW_OPEN = true;
@@ -19222,13 +19263,21 @@ function togglePreview() {
   previewRaise();
 }
 
-// ⓘ Opens the box, or brings an open one back beside this window: the
-// listener places it and gives the front back here.
+// ⓘ Opens the box in front, or brings an open one back beside this window
+// without the front: the listener places it.
 function previewRaise() {
-  PREVIEW_OPENING_UNTIL = Date.now() + 3000;
+  PREVIEW_HOLD_UNTIL = Date.now() + 3000;
   call('POST', '/api/v1/ui/preview', { open: true }).catch(function () {
     PREVIEW_OPEN = false;
   });
+}
+
+// ⓘ Whether a blur of this window is the box's doing: it has the front (and
+// has said so lately), or it is opening or closing.
+function previewHoldsFocus() {
+  var now = Date.now();
+  if (PREVIEW_OPEN && PREVIEW_FOCUSED && now - PREVIEW_HEARD_AT < 2500) return true;
+  return now < PREVIEW_HOLD_UNTIL;
 }
 
 if (!PREVIEW_MODE) {
@@ -19248,8 +19297,61 @@ if (!PREVIEW_MODE) {
 
 var PREVIEW_STATE = {
   config: null, device: null, set: null, token: '',
-  cfg: null, cfgText: '', failed: false, heardAt: 0, base: null, origin: ''
+  cfg: null, cfgText: '', failed: false, heardAt: 0, base: null, origin: '',
+  halo: 'edit', closing: false
 };
+
+// ⭐ ITS FOOT: the buttons' legend on the left, Edit and Close on the right
+// (rhoquinn8217, 2026-11-11: "add a close button and and edit button"), the
+// halo on the one Cross or Enter presses. Edit first, so the press that
+// matters is one away; Close last, where the configs window keeps it.
+var PREVIEW_BUTTONS = ['edit', 'close'];
+function previewFootHtml(setName, halo) {
+  var L = legendByName(setName);
+  return '<span id="pvLegend">' + keyCap(L.close, L) + ' close &nbsp; ' +
+         keyCap(L.select, L) + ' select</span><span id="pvBtns">' +
+         '<button class="pvbtn' + (halo === 'edit' ? ' pvhalo' : '') +
+         '" id="pvEdit" onclick="previewPress(\'edit\')">Edit</button>' +
+         '<button class="pvbtn' + (halo === 'close' ? ' pvhalo' : '') +
+         '" id="pvClose" onclick="previewPress(\'close\')">Close</button></span>';
+}
+
+// ⓘ What a key does in the box, or '' for nothing: a gated pad's (Ctrl,
+// Shift and Alt, rebind.inl) or a keyboard's. Circle and Esc close it (their
+// words), and so do PS and V, which open it.
+function previewKeyAction(code, gate) {
+  var map = gate
+    ? { KeyZ: 'close', KeyP: 'close', KeyA: 'prev', KeyD: 'next', KeyW: 'prev', KeyS: 'next',
+        Enter: 'press' }
+    : { Escape: 'close', KeyV: 'close', ArrowLeft: 'prev', ArrowRight: 'next', ArrowUp: 'prev',
+        ArrowDown: 'next', Tab: 'next', Enter: 'press', Space: 'press' };
+  return map[code] || '';
+}
+
+// ⭐ EDIT does what Simple's Edit does, in the configs window: Advanced, on
+// this config (setCompact(false)). Both buttons then close the box.
+function previewPress(which) {
+  if (which === 'edit' && PREVIEW_CHANNEL) PREVIEW_CHANNEL.postMessage({ edit: true });
+  previewClose();
+}
+
+function previewKey(ev) {
+  if (ev.repeat) return;
+  var gate = ev.ctrlKey && ev.altKey && ev.shiftKey;
+  if (!gate && (ev.ctrlKey || ev.altKey || ev.metaKey)) return;
+  var act = previewKeyAction(ev.code, gate);
+  if (!act) return;
+  ev.preventDefault();
+  var st = PREVIEW_STATE;
+  if (act === 'close') { previewClose(); return; }
+  if (act === 'press') { previewPress(st.halo); return; }
+  var i = PREVIEW_BUTTONS.indexOf(st.halo);
+  if (act === 'prev' || (ev.code === 'Tab' && ev.shiftKey)) i = Math.max(0, i - 1);
+  else i = Math.min(PREVIEW_BUTTONS.length - 1, i + 1);
+  st.halo = PREVIEW_BUTTONS[i];
+  var foot = document.getElementById('pvFoot');
+  if (foot) foot.innerHTML = previewFootHtml(st.set, st.halo);
+}
 
 // ⓘ Its own requests: call() writes to this page's log and light, which the
 // box does not have.
@@ -19318,10 +19420,7 @@ function previewRender() {
     }).join('');
   }
   colsEl.innerHTML = html;
-  // ⓘ PS on a PlayStation pad; V on a keyboard, and on a pad with no button
-  // for it yet (an Xbox pad's Guide does not reach the listener).
-  var mark = st.set === 'keys' ? '' : buttonMark(16, legendByName(st.set));
-  footEl.innerHTML = (mark || keyCap('V', KEY_LEGEND)) + ' closes. Follows the config you’re on.';
+  footEl.innerHTML = previewFootHtml(st.set, st.halo);
   previewFit();
   setTimeout(previewFit, 300);
 }
@@ -19364,9 +19463,19 @@ function previewLoad() {
   });
 }
 
+// ⓘ The listener closes this window and gives the front back to the configs
+// window (ui/preview, open false); closing itself is the fallback.
 function previewClose() {
+  var st = PREVIEW_STATE;
+  if (st.closing) return;
+  st.closing = true;
   if (PREVIEW_CHANNEL) PREVIEW_CHANNEL.postMessage({ bye: true });
-  window.close();
+  var h = { 'Content-Type': 'application/json' };
+  if (st.token) h['Authorization'] = 'Bearer ' + st.token;
+  fetch(st.origin + '/api/v1/ui/preview',
+        { method: 'POST', headers: h, body: JSON.stringify({ open: false }) })
+    .catch(function () {});
+  setTimeout(function () { window.close(); }, 1500);
 }
 
 function previewMain() {
@@ -19376,21 +19485,30 @@ function previewMain() {
   st.origin = base();
   document.title = 'Config preview [ctm-preview]';
   document.documentElement.classList.add('pvmode');
+  // ⭐ LARGE TEXT (rhoquinn8217, 2026-11-11: "text in the preview needs to be
+  // large"): half as large again as it was, Advanced's own scale for a
+  // television across the room.
   var css = document.createElement('style');
   css.textContent =
-    'html.pvmode body{margin:0;padding:0;min-height:0;background:#15161a;color:#e8e8ea;overflow:hidden}' +
-    '#pvRoot{padding:10px 14px 44px}' +
-    '#pvHead{border-bottom:1px solid #2a2c33;padding-bottom:6px;margin-bottom:2px}' +
-    '#pvName{font-size:16px;font-weight:600;overflow-wrap:anywhere}' +
-    '#pvCount{color:#9a9ca5;font-size:12px}' +
-    '#pvCols{column-count:2;column-gap:22px}' +
-    '.pvsect{break-inside:avoid;padding-top:6px}' +
-    '.pvsh{color:#8fb0ff;font-size:12px;margin:2px 0}' +
-    '.pvrow{display:flex;justify-content:space-between;gap:10px;line-height:1.45}' +
+    'html.pvmode body{margin:0;padding:0;min-height:0;background:#15161a;color:#e8e8ea;' +
+      'overflow:hidden;font-size:20px}' +
+    '#pvRoot{padding:14px 22px 86px}' +
+    '#pvHead{border-bottom:1px solid #2a2c33;padding-bottom:8px;margin-bottom:2px}' +
+    '#pvName{font-size:26px;font-weight:600;overflow-wrap:anywhere}' +
+    '#pvCount{color:#9a9ca5;font-size:17px}' +
+    '#pvCols{column-count:2;column-gap:34px}' +
+    '.pvsect{break-inside:avoid;padding-top:10px}' +
+    '.pvsh{color:#8fb0ff;font-size:17px;margin:2px 0}' +
+    '.pvrow{display:flex;justify-content:space-between;gap:14px;line-height:1.4}' +
     '.pvk{min-width:0;overflow-wrap:anywhere}' +
     '.pvv{color:#c9cbd3;text-align:right;flex:0 1 auto;max-width:55%;overflow-wrap:anywhere}' +
-    '#pvFoot{position:fixed;left:0;right:0;bottom:0;padding:8px 14px;border-top:1px solid #2a2c33;' +
-      'color:#9a9ca5;font-size:12px;background:#15161a}';
+    '#pvFoot{position:fixed;left:0;right:0;bottom:0;display:flex;align-items:center;' +
+      'justify-content:space-between;gap:12px;padding:12px 22px;border-top:1px solid #2a2c33;' +
+      'color:#9a9ca5;font-size:17px;background:#15161a}' +
+    '#pvBtns{display:flex;gap:14px}' +
+    '.pvbtn{font:inherit;font-size:19px;color:#e8e8ea;background:#23252c;border:1px solid #3a3d48;' +
+      'border-radius:6px;padding:6px 22px;cursor:pointer}' +
+    '.pvbtn.pvhalo{background:#2a3566;border-color:#6c8cff;outline:3px solid #6c8cff;outline-offset:2px}';
   document.head.appendChild(css);
   document.body.innerHTML =
     '<div id="pvRoot"><div id="pvHead"><div id="pvName"></div><div id="pvCount"></div></div>' +
@@ -19421,13 +19539,21 @@ function previewMain() {
     if (changed && KEYS.length) previewLoad();
     else if (changed) previewRender();
   };
-  ch.postMessage({ hello: true });
+  // ⭐ THE CONTROLLER'S KEYS reach the box while it has the front: Circle or
+  // Esc close it, the d-pad or the arrows move the halo, Cross or Enter press.
+  PREVIEW_REAL.docListen('keydown', previewKey, true);
+  // ⓘ And the configs window is told when the box has the front, so it says
+  // nothing to the listener meanwhile (previewHoldsFocus).
+  var sayFocus = function () { ch.postMessage({ focus: document.hasFocus() }); };
+  PREVIEW_REAL.listen('focus', sayFocus);
+  PREVIEW_REAL.listen('blur', sayFocus);
+  ch.postMessage({ hello: true, focus: document.hasFocus() });
   PREVIEW_REAL.listen('pagehide', function () { ch.postMessage({ bye: true }); });
   // ⓘ Once a second: hello, the config again (an edit in the configs window
   // shows here within the second), and a close when the window has gone quiet.
   PREVIEW_REAL.setInterval(function () {
     if (Date.now() - st.heardAt > PREVIEW_QUIET_MS) { previewClose(); return; }
-    ch.postMessage({ hello: true });
+    ch.postMessage({ hello: true, focus: document.hasFocus() });
     if (st.config && KEYS.length) previewLoad();
   }, 1000);
 }

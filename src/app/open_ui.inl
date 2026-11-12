@@ -298,7 +298,12 @@ inline bool window_has_foreground()
     if (fg == nullptr) return false;
     wchar_t title[512] = {};
     if (GetWindowTextW(fg, title, 511) <= 0) return false;
-    return window_icon_rule::is_app_window_title(title, kTitleMarker);
+    // ⭐ THE CONFIG PREVIEW COUNTS AS THE WINDOW'S OWN (rhoquinn8217,
+    // 2026-11-11: "when in focus, esc or circle closes it"): it takes the
+    // controller while it has the front, so the gate holds and the pad's keys
+    // reach it, as they reach the window (preview_open, below).
+    return window_icon_rule::is_app_window_title(title, kTitleMarker) ||
+           window_icon_rule::is_app_window_title(title, kPreviewMarker);
 }
 
 inline bool window_exists()
@@ -566,18 +571,12 @@ inline void follow_front()
             const bool fromOurs = lastWasOurs;
             last = fg;
             wchar_t title[512] = {};
+            // ⓘ The config preview is the window's own here too: it has the
+            // front and the controller while it is in front (2026-11-11).
             lastWasOurs = GetWindowTextW(fg, title, 511) > 0 &&
-                          window_icon_rule::is_app_window_title(title, kTitleMarker);
+                          (window_icon_rule::is_app_window_title(title, kTitleMarker) ||
+                           window_icon_rule::is_app_window_title(title, kPreviewMarker));
             if (lastWasOurs) continue;
-            // ⭐ THE CONFIG PREVIEW NEVER KEEPS THE FRONT (2026-11-11). It took
-            // it from the window, opening or clicked, and the window takes it
-            // back: the controller stays with the window (preview_open).
-            if (fromOurs && window_icon_rule::is_app_window_title(title, kPreviewMarker)) {
-                raise_now(ours.found);
-                last = GetForegroundWindow();
-                lastWasOurs = last == ours.found;
-                continue;
-            }
             DWORD fgPid = 0, ourPid = 0;
             GetWindowThreadProcessId(fg, &fgPid);
             GetWindowThreadProcessId(ours.found, &ourPid);
@@ -956,16 +955,18 @@ inline void open_new(uint16_t restPort, bool withToken = true)
 // browser box"). The page asks for it with PS or V (ui/preview), and it opens
 // here in the configs window's own browser and profile, at ?preview, where the
 // page draws the box alone and talks to the window by itself.
-// ⭐ IT NEVER TAKES THE CONTROLLER. The window with the front gets the gate's
-// keystrokes, and the configs window, blurred, would hand the pad to the game.
-// So the box opens beside the window (preview_place_rule.inl) and the front
-// goes straight back to the window, and follow_front gives it back again if
-// the box is clicked.
+// ⭐ IT OPENS IN FRONT, WITH THE CONTROLLER (rhoquinn8217, 2026-11-11: "add a
+// close button and and edit button and when in focus, esc or circle closes
+// it"). window_has_foreground counts it as the window's own, so the gate holds
+// and the pad's keys reach it; it opens beside the window, or above it
+// (preview_place_rule.inl), and as it closes (preview_close) the front goes
+// back to the window.
 // ⓘ Its size as it opens, in the browser's units: the fixed size the page
 // grows from when a config needs more (rhoquinn8217: "allow the box to grow
-// from it's fixed size").
-inline const int kPreviewWidth = 600;
-inline const int kPreviewHeight = 600;
+// from it's fixed size"), for text half as large again ("text in the preview
+// needs to be large").
+inline const int kPreviewWidth = 860;
+inline const int kPreviewHeight = 660;
 inline const int kPreviewGap = 8;
 inline std::atomic_bool g_previewOpening{false};
 
@@ -1045,28 +1046,32 @@ inline void place_preview(HWND pv, const PreviewRect &r)
                  SWP_NOZORDER | SWP_NOACTIVATE);
 }
 
-// ⓘ The front back to the configs window, if the box has it.
-inline void preview_gives_front_back()
+// ⭐ THE BOX GOES, AND THE FRONT GOES BACK TO THE WINDOW: Circle, Esc, PS, V,
+// Close or Edit (the page asks: ui/preview, open false). ⓘ WM_CLOSE, as
+// close_existing does; the page closes itself too, in case.
+inline void preview_close()
 {
+    const HWND pv = find_preview();
+    if (pv != nullptr) PostMessageW(pv, WM_CLOSE, 0, 0);
     FindState ours;
     EnumWindows(find_window_proc, reinterpret_cast<LPARAM>(&ours));
-    if (ours.found == nullptr) return;
-    const HWND fg = GetForegroundWindow();
-    if (fg == ours.found || fg != find_preview()) return;
-    raise_now(ours.found);
+    if (ours.found != nullptr && GetForegroundWindow() != ours.found) raise_now(ours.found);
+    device_log::session_w() << L"config preview closed"
+                            << (ours.found != nullptr ? L", the front back with the window" : L"");
 }
 
 inline void preview_open(uint16_t restPort)
 {
     // ⓘ One already up comes back beside the window, above anything that
-    // covered it, at the height it has grown to, without the front.
+    // covered it, at the height it has grown to, WITHOUT the front: this is
+    // the window coming back after a game had it, and the controller stays
+    // with the window.
     const HWND existing = find_preview();
     if (existing != nullptr) {
         const RECT vr = visible_rect(existing);
         place_preview(existing, preview_rect(vr.bottom - vr.top));
         SetWindowPos(existing, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
         SetWindowPos(existing, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
-        preview_gives_front_back();
         return;
     }
     if (g_previewOpening.exchange(true)) return;     // one is on its way
@@ -1090,7 +1095,7 @@ inline void preview_open(uint16_t restPort)
         L" --window-size=" + std::to_wstring(window_open_rule::browser_units(r.w, r.dpi)) +
         L"," + std::to_wstring(window_open_rule::browser_units(r.h, r.dpi));
     const HINSTANCE rc = ShellExecuteW(nullptr, L"open", browser.c_str(), args.c_str(),
-                                       nullptr, SW_SHOWNOACTIVATE);
+                                       nullptr, SW_SHOWNORMAL);
     if (reinterpret_cast<INT_PTR>(rc) <= 32) {
         device_log::session_w() << L"config preview FAILED to open, code="
                                 << reinterpret_cast<INT_PTR>(rc);
@@ -1107,11 +1112,12 @@ inline void preview_open(uint16_t restPort)
         }
         if (pv != nullptr) {
             place_preview(pv, r);
-            preview_gives_front_back();
+            // ⓘ In front, with the keyboard, if the browser did not do it.
+            if (GetForegroundWindow() != pv) raise_now(pv);
             device_log::session_w() << L"config preview opened at " << r.x << L"," << r.y
                                     << L" " << r.w << L"x" << r.h << L" (" << r.dpi << L" dpi)"
-                                    << (GetForegroundWindow() == pv ? L", and it has the front"
-                                                                    : L", the front with the window");
+                                    << (GetForegroundWindow() == pv ? L", in front"
+                                                                    : L", and could not take the front");
         } else {
             device_log::session_w() << L"config preview: its window did not appear in five seconds";
         }
