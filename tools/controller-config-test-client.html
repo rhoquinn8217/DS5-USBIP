@@ -2,7 +2,7 @@
 <!--
   DS5-USBIP's Controller Configs page, served by the listener.
 
-  VERSION 2.70.1 -- see the changelog at the bottom of this comment.
+  VERSION 2.70.2 -- see the changelog at the bottom of this comment.
 
   WHAT IT STARTED AS. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -24,6 +24,14 @@
   not a tidy message about it.
 
   CHANGELOG
+    2.70.2   The config preview: its Edit gone, Close alone with PS's mark;
+             editing asks first while it is up, Simple's Edit button and
+             Cross in Quick, where "edit" shows under "show rebind list"
+             while it is up; Simple's "show rebind list" back under the
+             wheel in its box; and it stands right, above, left or below
+             the window, in that order (rhoquinn8217, 2026-11-12). And a
+             question in Simple or Quick keeps its halo on Cancel through
+             the device poll's repaint, which had put it on OK.
     2.70.1   The config preview's text larger again, its Edit and Close
              marked with Cross and PS; it never takes the front unless a
              mouse clicks it, and it follows this window, above, below,
@@ -2306,6 +2314,10 @@
     font-size:calc(8.0 * var(--vh)); color:#9a9ca5; white-space:nowrap; }
   body.quick #compactBox .chint.on { color:#7fd18c; }
   body.quick #compactBox .chint.off { opacity:0.4; }
+  /* ⭐ Quick's "edit" under "show rebind list" only while the config preview
+     is up (rhoquinn8217, 2026-11-12): body.pvopen, set as it opens and
+     closes (previewSetOpen). */
+  body.quick:not(.pvopen) #compactBox .chint.cpvedit { display:none; }
   /* Quick's selector steps and never opens: no arrow; ⇅ is in the legend. */
   /* ⭐ QUICK'S PANEL (2.66.87; rhoquinn8217, 2026-10-16: "Expand the container
      so that it covers the Label and the unlink and auto link symbols ...
@@ -3153,11 +3165,11 @@
      so the panel kept its height and the window its halved margins: each
      0.5vh of padding over and under, from 0.7, and 0.55vh between them,
      from 1, the text the size it was. */
-  /* ⭐ THE CONFIG PREVIEW'S LINE, UNDER THE CONFIG WHEEL'S BOX (2026-11-11,
-     moved out of the box 2026-11-12): a line of its own, centred under the
-     panel. */
-  body.compact:not(.quick) #compactBox .cvhint { display:flex; justify-content:center;
-    align-items:center; gap:0.35em; margin-top:calc(1.2 * var(--vh));
+  /* ⭐ THE CONFIG PREVIEW'S LINE, CENTRED UNDER THE WHEEL IN THE BOX
+     (2026-11-11; out of the box and back the next day): the panel's grid
+     sets it in the wheel's column, on a row of its own. */
+  body.compact:not(.quick) #compactBox .cvhint { grid-column:1; justify-self:center;
+    display:inline-flex; align-items:center; gap:0.35em; margin-top:calc(0.6 * var(--vh));
     font-size:calc(2.8 * var(--vh)); color:#9a9ca5; white-space:nowrap; }
   body.compact:not(.quick) #compactBox .csbtns { display:flex; flex-direction:column; align-items:stretch;
     gap:calc(0.55 * var(--vh)); }
@@ -3778,7 +3790,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.70.1</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.70.2</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -10442,9 +10454,9 @@ var CONFIG_MODE_KEYS = {
   // an open dropdown -- matching the pad, where they jump 100.
   KeyQ: function () { gpKeyCoarse(-1); },
   KeyE: function () { gpKeyCoarse(1); },
-  // ⭐ Cross is the config preview's Edit while it is up, in Simple and Quick
-  // (previewTakesCross, 2026-11-11).
-  Enter: function () { if (previewTakesCross()) { previewEditHere(); return; } gpKeySelect(); },
+  // ⭐ Cross asks to edit while the config preview is up, in Quick
+  // (previewTakesCross, previewAskEdit).
+  Enter: function () { if (previewTakesCross()) { previewAskEdit(); return; } gpKeySelect(); },
   KeyZ: function () { gpKeyBack(); },
   KeyX: function () { gpSquare(); },
   // ⭐ Triangle, which reached nothing here until 2.66.84 (rebind.inl).
@@ -11431,9 +11443,9 @@ var PLAIN_KEYS = {
   ArrowDown:  function () { gpKeyMove(1); },
   ArrowLeft:  function () { gpKeyStep(-1); },
   ArrowRight: function () { gpKeyStep(1); },
-  // ⓘ Enter as Cross: the config preview's Edit while it is up, in Simple and
-  // Quick (previewTakesCross).
-  Enter:      function () { if (previewTakesCross()) { previewEditHere(); return; } gpKeySelect(); },
+  // ⓘ Enter as Cross: asks to edit while the config preview is up, in Quick
+  // (previewTakesCross, previewAskEdit).
+  Enter:      function () { if (previewTakesCross()) { previewAskEdit(); return; } gpKeySelect(); },
   Escape:     function () { gpKeyBack(); },
   Space:      function () { gpToggleManaged(); },
   // ⭐ U UNLINKS AND A AUTO LINKS, on the config selector (2.66.84;
@@ -12832,13 +12844,20 @@ function paintCompact() {
         // show "rebind list"", then 2026-11-12: "In quick mode change "rebind
         // list" to "show rebind list""), with the button that opens it
         // (previewMark), none on an Xbox pad, which has no button for it yet.
+        // ⭐ AND "EDIT" UNDER IT, WHILE THE PREVIEW IS UP (rhoquinn8217,
+        // 2026-11-12: "in quick mode, when preview is open, show "(x) edit"
+        // under "show rebind list" but hide it if preview is not open"):
+        // Cross asks, then takes the window to Advanced on that config
+        // (previewAskEdit). ⓘ Drawn always, shown by body.pvopen.
         var pvMark = previewMark(LG);
         return '<span class="chints">' +
                '<span class="chint' + (shown ? '' : ' off') + '">' +
                keyCap(LG.unlink) + 'unlink</span>' +
                '<span class="chint' + (lit ? ' on' : idle ? ' off' : '') + '">' +
                keyCap(LG.autolink) + 'auto link</span>' +
-               (pvMark ? '<span class="chint" id="cpvHint">' + pvMark + 'show rebind list</span>' : '') +
+               (pvMark ? '<span class="chint" id="cpvHint">' + pvMark + 'show rebind list</span>' +
+                         '<span class="chint cpvedit" id="cpvEdit">' + keyCap(LG.select) + 'edit</span>'
+                       : '') +
                '</span>';
       };
       // The selector, sliding with the ring (rhoquinn8217, 2026-09-09).
@@ -12906,18 +12925,19 @@ function paintCompact() {
                 // buttons", then "make all the buttons ... consistent").
                 : title + wheel + '<span class="csbtns">' +
                   '<button onclick="newConfigFor(\'' + esc(d.ordinal) + '\')">New</button>' +
-                  '<button onclick="setCompact(false)">Edit</button>' +
-                  unlinkBtn() + autoBtn + archiveBtn + '</span>') +
+                  // ⓘ Asked first while the config preview is up (compactEdit).
+                  '<button onclick="compactEdit()">Edit</button>' +
+                  unlinkBtn() + autoBtn + archiveBtn + '</span>' +
+                  // ⭐ THE CONFIG PREVIEW UNDER THE WHEEL, IN THE BOX (rhoquinn8217,
+                  // 2026-11-11: "Centered under the wheel ... show the PS button
+                  // symbol and show "view rebind list"", 2026-11-12: "show rebind
+                  // list" under the box, then the same day: "Put back the PS
+                  // symbol under the wheel inside the container"): the panel's
+                  // grid puts it in the wheel's column, on a row of its own, with
+                  // the button that opens it (previewMark).
+                  (previewMark(LG) ? '<span class="cvhint" id="cpvHint">' + previewMark(LG) +
+                                     'show rebind list</span>' : '')) +
               '</span>' + (sidesByPanel ? side(next, 'r', shoulderMark(shoulder[1]), true) : '') + '</div>' +
-              // ⭐ THE CONFIG PREVIEW UNDER THE CONFIG WHEEL'S BOX, IN SIMPLE
-              // (rhoquinn8217, 2026-11-11: "Centered under the wheel ... show the
-              // PS button symbol and show "view rebind list"", then 2026-11-12:
-              // "Change in simple mode "view rebind list" to "show rebind list".
-              // Move the symbol and description under the Config Wheel
-              // container"): a line of its own under the panel, centred, with
-              // the button that opens it (previewMark).
-              (!QUICK && previewMark(LG) ? '<div class="cvhint" id="cpvHint">' + previewMark(LG) +
-                                           'show rebind list</div>' : '') +
               '</div>';
     }
   }
@@ -13000,6 +13020,12 @@ function paintCompact() {
   // ⓘ The tutorial keeps the halo on its own buttons (tutCollect); placing
   // it on the box here would pull it off them at every device poll.
   if (TUT) return;
+  // ⛔ NOR WHILE A QUESTION OR A BOX OF THIS WINDOW'S HOLDS IT (2026-11-12):
+  // gpCollect has given the halo to that alone, and the selector below is not
+  // in its list, so the halo fell to the question's first button, OK, at the
+  // next device poll, where every question starts on Cancel (askConfirm).
+  // Found with the config preview's Edit question; Archive's had it too.
+  if (CONFIRM_CB || SETTINGS_OPEN || RENAMING || PRESET_OPEN || PRESET_INFO_OPEN) return;
   // ⭐ THE HALO STAYS WHERE IT WAS across a repaint (rhoquinn8217, 2026-09-09:
   // it jumped back to the selector whenever the device poll redrew the box,
   // the T-148 shape again). gpCollect has just re-acquired it by key; only
@@ -14495,50 +14521,77 @@ function selfTest() {
      pvGateWord === 'on button hold' && / - rebind$/.test(pvCrossName),
      pvToggles + ' ' + pvSent.join(';') + ' ' + pvPosts.join(';') + ' ' + pvKeys.join(',') +
      ' ' + pvGateWord + ' ' + pvCrossName);
-  // ⭐ ITS KEYS, ITS FOOT, CROSS AND ITS LINE (2.70.1; rhoquinn8217,
-  // 2026-11-11): clicked, Circle, Esc, PS and V close it and Cross and Enter
-  // are its Edit; Edit carries Cross's mark and Close PS's (V on a keyboard,
-  // none on an Xbox pad); in Simple and Quick, Cross in this window is its
-  // Edit while it is up, not while something of this window's is open; and
-  // its line, under Quick's auto link or under Simple's wheel.
+  // ⭐ ITS KEYS, ITS FOOT, CROSS AND ITS LINES (2.70.2; rhoquinn8217,
+  // 2026-11-11 and 12): clicked, Circle, Esc, PS and V close it, and nothing
+  // there edits; its one button, Close, carries PS's mark (V on a keyboard,
+  // none on an Xbox pad); in Quick, Cross in this window asks to edit while
+  // it is up, not while something of this window's is open, and not in
+  // Simple, where its Edit button asks; and its lines: "show rebind list"
+  // under Quick's auto link with "edit" under it only while the box is up,
+  // and under Simple's wheel, in the box.
   var pvFoot = previewFootHtml('ps');
   var pvFootX = previewFootHtml('xbox');
   var pvFootK = previewFootHtml('keys');
-  var pvCrossKeep = { open: PREVIEW_OPEN, compact: COMPACT, settings: SETTINGS_OPEN };
-  var pvCross = [];
+  var pvCrossKeep = { open: PREVIEW_OPEN, compact: COMPACT, quick: QUICK, settings: SETTINGS_OPEN,
+                      ask: askConfirm, compactSet: setCompact };
+  var pvCross = [], pvAsked = [], pvCompacted = 0;
   try {
-    PREVIEW_OPEN = true; COMPACT = true; SETTINGS_OPEN = '';
+    PREVIEW_OPEN = true; COMPACT = true; QUICK = true; SETTINGS_OPEN = '';
     pvCross.push(previewTakesCross());
     SETTINGS_OPEN = 'ds5_usb_7';
     pvCross.push(previewTakesCross());
-    SETTINGS_OPEN = ''; COMPACT = false;
+    SETTINGS_OPEN = ''; QUICK = false;
+    pvCross.push(previewTakesCross());
+    COMPACT = false; QUICK = true;
     pvCross.push(previewTakesCross());
     PREVIEW_OPEN = false; COMPACT = true;
     pvCross.push(previewTakesCross());
+    askConfirm = function (title, message) { pvAsked.push(title + ': ' + message); };
+    setCompact = function (on) { if (!on) pvCompacted++; };
+    PREVIEW_OPEN = true;
+    compactEdit();
+    PREVIEW_OPEN = false;
+    compactEdit();
   } finally {
-    PREVIEW_OPEN = pvCrossKeep.open; COMPACT = pvCrossKeep.compact;
+    askConfirm = pvCrossKeep.ask; setCompact = pvCrossKeep.compactSet;
+    PREVIEW_OPEN = pvCrossKeep.open; COMPACT = pvCrossKeep.compact; QUICK = pvCrossKeep.quick;
     SETTINGS_OPEN = pvCrossKeep.settings;
   }
   var pvHint = document.getElementById('cpvHint');
-  // ⓘ "show rebind list" in both (2026-11-12): beside Quick's auto link, and
-  // in Simple under the wheel's box, not in it.
+  var pvEditLine = document.getElementById('cpvEdit');
   var pvHintOk = !COMPACT || !document.getElementById('cpick') ||
     (!pvHint && !previewMark(buttonMarkSet())) ||
     (!!pvHint && /show rebind list$/.test(pvHint.textContent) &&
-     (QUICK ? pvHint.className === 'chint'
-            : pvHint.className === 'cvhint' && !(pvHint.closest && pvHint.closest('.cpick-wrap'))));
-  ok('config preview: clicked, Circle, Esc, PS and V close it and Cross is its Edit; Cross and PS on its buttons; Cross its Edit in Simple and Quick; its line there',
+     (QUICK ? pvHint.className === 'chint' && !!pvEditLine && /edit$/.test(pvEditLine.textContent) &&
+              getComputedStyle(pvEditLine).display === (PREVIEW_OPEN ? 'flex' : 'none')
+            : pvHint.className === 'cvhint' && !!(pvHint.closest && pvHint.closest('.cpick-wrap')) &&
+              !pvEditLine));
+  ok('config preview: clicked, Circle, Esc, PS and V close it; PS on its one button; Cross asks to edit in Quick, Simple\'s Edit asks; its lines',
      previewKeyAction('KeyZ', true) === 'close' && previewKeyAction('Escape', false) === 'close' &&
      previewKeyAction('KeyP', true) === 'close' && previewKeyAction('KeyV', false) === 'close' &&
-     previewKeyAction('Enter', true) === 'edit' && previewKeyAction('Enter', false) === 'edit' &&
+     previewKeyAction('Enter', true) === '' && previewKeyAction('Enter', false) === '' &&
      previewKeyAction('KeyZ', false) === '' && previewKeyAction('KeyA', true) === '' &&
-     pvFoot.indexOf('id="pvEdit"') > 0 && pvFoot.indexOf('id="pvClose"') > pvFoot.indexOf('id="pvEdit"') &&
-     pvFoot.indexOf(keyCap(PAD_LEGEND_PS.select, PAD_LEGEND_PS) + ' Edit') > 0 &&
+     pvFoot.indexOf('id="pvEdit"') < 0 && pvFoot.indexOf('id="pvClose"') > 0 &&
      pvFoot.indexOf(buttonMark(16, PAD_LEGEND_PS) + ' Close') > 0 &&
      pvFootX.indexOf('">Close</button>') > 0 &&
      pvFootK.indexOf(keyCap('V', KEY_LEGEND) + ' Close') > 0 &&
-     pvCross.join(',') === 'true,false,false,false' && pvHintOk,
-     pvCross.join(',') + ' ' + (pvHint ? pvHint.className + ':' + pvHint.textContent : 'no line'));
+     pvCross.join(',') === 'true,false,false,false,false' &&
+     pvAsked.length === 1 && pvAsked[0].indexOf('Edit: ') === 0 && pvCompacted === 1 && pvHintOk,
+     pvCross.join(',') + ' ' + pvAsked.join(';') + ' ' + pvCompacted + ' ' +
+     (pvHint ? pvHint.className + ':' + pvHint.textContent : 'no line'));
+  // ⭐ A QUESTION KEEPS ITS HALO ON CANCEL THROUGH A REPAINT in Simple and
+  // Quick (2026-11-12): the device poll's repaint put it on OK.
+  var pqHaloed = 'not a compact view';
+  if (COMPACT && document.getElementById('cpick')) {
+    askConfirm('Test', 'A question for the self-test', function () {});
+    paintCompact();
+    var pqAt = GP_FOCUS[GP_INDEX];
+    pqHaloed = pqAt === document.querySelector('#confirmBox button:last-of-type') ? 'Cancel'
+             : (pqAt ? pqAt.textContent : 'nothing');
+    confirmNo();
+  }
+  ok('a question keeps its halo on Cancel through a repaint in Simple and Quick',
+     pqHaloed === 'Cancel' || pqHaloed === 'not a compact view', pqHaloed);
 
   // 🔗 T-248. The hints are a plain array of strings, and the one way this
   // file has ACTUALLY broken before is an unescaped apostrophe truncating an
@@ -19214,9 +19267,10 @@ function startPage() {
 // ⓘ PS on a pad (rebind.inl sends KeyP with the gate's three modifiers) or V
 // on a keyboard opens it and closes it, from this window: the box never
 // takes the front by itself, only from a mouse's click (rhoquinn8217,
-// 2026-11-11). Its Edit and Close carry Cross and PS, and in Simple and Quick
-// Cross here is its Edit while it is up. The two windows talk over a
-// BroadcastChannel: this one says every half second which config it is on,
+// 2026-11-11). Its one button, Close, carries PS; editing is asked for here,
+// with a question first while it is up: Simple's Edit, and Cross in Quick,
+// where "edit" shows under "show rebind list" (2026-11-12). The two windows
+// talk over a BroadcastChannel: this one says every half second which config it is on,
 // the box says hello every second and whether it has the front, and a box
 // that hears nothing for three seconds closes itself.
 // ⓘ An Xbox pad has no button for it yet: its Guide and Share do not reach
@@ -19232,9 +19286,9 @@ var PREVIEW_CLOSED_AT = 0;         // the last close; a box heard after it goes
 // opens it and gives the front straight back here, and the controller stays
 // on this window. A mouse may click it, and then it has the front, and the
 // controller with it (the listener counts it as this window's,
-// window_has_foreground): Circle, Esc, PS or V close it, Cross or Enter are
-// its Edit. This window, blurred, says nothing to the listener while the box
-// has the front, nor for a moment either side of its opening or closing.
+// window_has_foreground): Circle, Esc, PS or V close it. This window,
+// blurred, says nothing to the listener while the box has the front, nor for
+// a moment either side of its opening or closing.
 var PREVIEW_FOCUSED = false;       // the box says it has the front
 var PREVIEW_HEARD_AT = 0;          // the box's last word
 var PREVIEW_HOLD_UNTIL = 0;        // a blur until then is the box opening or closing
@@ -19252,14 +19306,9 @@ function previewChannel() {
       if (m.bye) {
         // ⓘ The listener gives the front back here as the box goes: the
         // moment between is not someone leaving.
-        PREVIEW_OPEN = false;
+        previewSetOpen(false);
         PREVIEW_FOCUSED = false;
         PREVIEW_HOLD_UNTIL = Date.now() + 1500;
-        return;
-      }
-      // ⭐ ITS EDIT: what Simple's Edit does, to Advanced on this config.
-      if (m.edit) {
-        if (COMPACT) setCompact(false);
         return;
       }
       if (m.focus !== undefined) {
@@ -19275,7 +19324,7 @@ function previewChannel() {
       }
       // ⓘ Otherwise it is this window's, or one a reloaded copy of it opened:
       // taken up, and told at once what to show.
-      PREVIEW_OPEN = true;
+      previewSetOpen(true);
       PREVIEW_CHANNEL.postMessage(previewFeed());
     };
   }
@@ -19330,14 +19379,14 @@ function togglePreview() {
     // closes itself, and the listener closes its window and gives the front
     // back here.
     ch.postMessage({ close: true });
-    PREVIEW_OPEN = false;
+    previewSetOpen(false);
     PREVIEW_FOCUSED = false;
     PREVIEW_CLOSED_AT = Date.now();
     PREVIEW_HOLD_UNTIL = Date.now() + 1500;
     call('POST', '/api/v1/ui/preview', { open: false }).catch(function () {});
     return;
   }
-  PREVIEW_OPEN = true;
+  previewSetOpen(true);
   PREVIEW_OPENED_AT = Date.now();
   // ⭐ OPENED DURING A QUICK SWITCH, THE WINDOW STAYS, IN QUICK (rhoquinn8217,
   // 2026-11-11: "If the preview is open during quick switch, make quick mode
@@ -19351,18 +19400,42 @@ function togglePreview() {
   previewRaise();
 }
 
-// ⭐ WHILE THE BOX IS UP, CROSS IS ITS EDIT IN SIMPLE AND QUICK (rhoquinn8217,
+// ⓘ Whether the box is up, as this window knows it, and Quick's "edit" line
+// shown with it (body.pvopen).
+function previewSetOpen(on) {
+  PREVIEW_OPEN = !!on;
+  if (document.body) document.body.classList.toggle('pvopen', PREVIEW_OPEN);
+}
+
+// ⭐ WHILE THE BOX IS UP, CROSS IN QUICK ASKS TO EDIT (rhoquinn8217,
 // 2026-11-11: "When the preview is up, pressing cross will trigger the edit
-// button in simple and quick modes"): Advanced, on that config, as Simple's
-// Edit does, and the box closed. Enter from a keyboard the same. ⓘ Not while
-// something of this window's own is open over it, which Cross answers.
+// button in simple and quick modes", then 2026-11-12: "Add pop when to
+// confirm edit button when the preview is open for both simple and quick
+// mode", "remove x button to edit when preview is open in simple mode", and
+// in Quick "show "(x) edit" under "show rebind list""). Asked first, then
+// Advanced on that config, as Simple's Edit does, and the box closed. Enter
+// from a keyboard the same. ⓘ In Simple, Cross presses what the halo is on,
+// its Edit button among them (compactEdit). ⓘ Not while something of this
+// window's own is open over it, which Cross answers.
 function previewTakesCross() {
-  return PREVIEW_OPEN && COMPACT && !TUT &&
+  return PREVIEW_OPEN && COMPACT && QUICK && !TUT &&
          !(CONFIRM_CB || RENAMING || PRESET_OPEN || PRESET_INFO_OPEN || SETTINGS_OPEN ||
            GP_SELECTING || GP_EDITING);
 }
 function previewEditHere() {
   togglePreview();          // open, so this closes it
+  setCompact(false);
+}
+// ⭐ THE QUESTION BEFORE EDIT, while the box is up: "Edit" titles it, the
+// config on the wheel named, and Cancel first, as every question here starts.
+function previewAskEdit() {
+  var name = previewTarget().config;
+  askConfirm('Edit', 'Close the rebind list and edit ' + (name || 'this config') +
+             ' in Advanced?', previewEditHere);
+}
+// ⓘ Simple's Edit: asked first while the box is up, at once otherwise.
+function compactEdit() {
+  if (PREVIEW_OPEN) { previewAskEdit(); return; }
   setCompact(false);
 }
 
@@ -19371,7 +19444,7 @@ function previewEditHere() {
 function previewRaise() {
   PREVIEW_HOLD_UNTIL = Date.now() + 3000;
   call('POST', '/api/v1/ui/preview', { open: true }).catch(function () {
-    PREVIEW_OPEN = false;
+    previewSetOpen(false);
   });
 }
 
@@ -19412,16 +19485,14 @@ function previewMark(set) {
   return buttonMark(16, set);
 }
 
-// ⭐ ITS FOOT: Edit and Close, each with the button that does it from the
-// configs window (rhoquinn8217, 2026-11-11: "add the the cross symbol in the
-// Edit button label in the preview. Add the PS button symbol in the close
-// button label"). For a mouse: the box takes no controller.
+// ⭐ ITS FOOT: Close, with the button that does it from the configs window
+// (rhoquinn8217, 2026-11-11: "Add the PS button symbol in the close button
+// label"), centred. ⓘ Its Edit went the next day ("remove the Edit button
+// from the preview"): editing is asked for in the configs window (Simple's
+// Edit, Quick's Cross). For a mouse: the box takes no controller.
 function previewFootHtml(setName) {
-  var L = legendByName(setName);
-  var ps = previewMark(L);
+  var ps = previewMark(legendByName(setName));
   return '<span id="pvBtns">' +
-         '<button class="pvbtn" id="pvEdit" onclick="previewPress(\'edit\')">' +
-         keyCap(L.select, L) + ' Edit</button>' +
          '<button class="pvbtn" id="pvClose" onclick="previewPress(\'close\')">' +
          (ps ? ps + ' ' : '') + 'Close</button></span>';
 }
@@ -19429,18 +19500,13 @@ function previewFootHtml(setName) {
 // ⓘ What a key does in the box, or '' for nothing: a gated pad's (Ctrl,
 // Shift and Alt, rebind.inl) or a keyboard's. The box has them only once a
 // mouse has clicked it (it never takes the front by itself): then Circle,
-// Esc, PS and V close it, and Cross and Enter are its Edit, as in the window.
+// Esc, PS and V close it.
 function previewKeyAction(code, gate) {
-  var map = gate
-    ? { KeyZ: 'close', KeyP: 'close', Enter: 'edit' }
-    : { Escape: 'close', KeyV: 'close', Enter: 'edit' };
+  var map = gate ? { KeyZ: 'close', KeyP: 'close' } : { Escape: 'close', KeyV: 'close' };
   return map[code] || '';
 }
 
-// ⭐ EDIT does what Simple's Edit does, in the configs window: Advanced, on
-// this config (setCompact(false)). Both buttons then close the box.
 function previewPress(which) {
-  if (which === 'edit' && PREVIEW_CHANNEL) PREVIEW_CHANNEL.postMessage({ edit: true });
   previewClose();
 }
 

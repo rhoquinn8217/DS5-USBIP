@@ -1,8 +1,9 @@
 // Where the config preview stands, beside the configs window.
 //
-// ⭐ WHAT THESE PROTECT (rhoquinn8217, 2026-11-11): above, below, right or left
-// of the window, the first with room, centred on it; in Advanced, on the side
-// with the most room, over the window if it must be; never off the screen.
+// ⭐ WHAT THESE PROTECT (rhoquinn8217, 2026-11-11 and 12): right, above, left
+// or below the window, in that order, the first with room, centred on it; in
+// Advanced, on the side with the most room, over the window if it must be;
+// never off the screen.
 //
 // WHAT THESE CANNOT DO. No browser starts here: the box standing and following
 // where it was asked to is looked at with the listener running.
@@ -36,6 +37,29 @@ int run_preview_place_rule_tests()
         const Place p = place(Rect{1187, 1581, 2652, 2088}, work, w, h, gap, false);
         CTM_CHECK_EQ(p.x, 1187 + (1465 - w) / 2);
         CTM_CHECK_EQ(p.y, 1581 - gap - h);
+    }
+
+    section("preview: right before above, where both have room (their order, 2026-11-12)");
+    {
+        // Quick moved to the bottom left
+        const Place p = place(Rect{200, 1581, 1665, 2088}, work, w, h, gap, false);
+        CTM_CHECK_EQ(p.x, 1665 + gap);
+        CTM_CHECK_EQ(p.y, 2088 - h);   // level with its middle, kept on the screen
+    }
+
+    section("preview: above before left, where the right has no room");
+    {
+        const Place p = place(Rect{2400, 1581, 3800, 2088}, work, w, h, gap, false);
+        // centred on the window would end 10 px past the screen: kept on it
+        CTM_CHECK_EQ(p.x, 3840 - w);
+        CTM_CHECK_EQ(p.y, 1581 - gap - h);
+    }
+
+    section("preview: left before below, where neither the right nor above has room");
+    {
+        const Place p = place(Rect{2400, 0, 3800, 500}, work, w, h, gap, false);
+        CTM_CHECK_EQ(p.x, 2400 - gap - w);
+        CTM_CHECK_EQ(p.y, 0);
     }
 
     section("preview: below a window with no room above");

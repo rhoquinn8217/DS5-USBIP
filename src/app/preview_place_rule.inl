@@ -5,11 +5,15 @@
 // move the window above it, below it, to it's right or to it's left base on
 // whether there's space. When preview is opened in advance mode, put on the
 // side with the most space even if it overlapes the config window."
-// ➡️ So: above, below, right, left, the first where the box fits on the
+// ⭐ THE ORDER IS THEIRS (2026-11-12: "preview position preference in order
+// by most preferred to least preferred: to the right, above, to the left,
+// below").
+// ➡️ So: right, above, left, below, the first where the box fits on the
 // screen without covering the window; above and below centred on the window,
 // right and left level with its middle. In Advanced, and wherever no side
 // has room, the side where the box covers the least of the window, the room
-// left over deciding a tie. It never leaves the screen's work area.
+// left over, then that order, deciding a tie. It never leaves the screen's
+// work area.
 // ⓘ The box grows taller for a longer config (the page asks), and stands
 // where this rule puts a box of that size.
 // ⓘ Its own file, with no windows.h, so the test binary can reach it;
@@ -95,7 +99,7 @@ inline int room(const Rect &window, const Rect &work, int w, int h, int gap, Sid
 
 inline Place place(const Rect &window, const Rect &work, int w, int h, int gap, bool advanced)
 {
-    const Side order[] = { Side::Above, Side::Below, Side::Right, Side::Left };
+    const Side order[] = { Side::Right, Side::Above, Side::Left, Side::Below };
     if (!advanced) {
         for (Side s : order) {
             if (fits(window, work, w, h, gap, s)) return on_screen(beside(window, w, h, gap, s), work, w, h);
