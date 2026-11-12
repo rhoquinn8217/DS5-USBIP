@@ -2,7 +2,7 @@
 <!--
   DS5-USBIP's Controller Configs page, served by the listener.
 
-  VERSION 2.70.0 -- see the changelog at the bottom of this comment.
+  VERSION 2.70.1 -- see the changelog at the bottom of this comment.
 
   WHAT IT STARTED AS. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -24,6 +24,14 @@
   not a tidy message about it.
 
   CHANGELOG
+    2.70.1   The config preview's text larger again, its Edit and Close
+             marked with Cross and PS; it never takes the front unless a
+             mouse clicks it, and it follows this window, above, below,
+             right or left of it where there is room (in Advanced on the
+             side with the most); Cross is its Edit in Simple and Quick
+             while it is up; "rebind list" under Quick's auto link and
+             "view rebind list" under Simple's wheel, with PS's mark; open
+             during a quick switch, Quick stays (rhoquinn8217, 2026-11-11).
     2.70.0   The config preview: PS on a controller, or V, with this window
              in front opens a box of its own beside it, listing the ticked
              settings of the config it is on, by section, in two columns, at
@@ -3143,6 +3151,11 @@
      so the panel kept its height and the window its halved margins: each
      0.5vh of padding over and under, from 0.7, and 0.55vh between them,
      from 1, the text the size it was. */
+  /* ⭐ THE CONFIG PREVIEW'S LINE, CENTRED UNDER THE WHEEL (2026-11-11): the
+     panel's grid sets it in the wheel's column, on a row of its own. */
+  body.compact:not(.quick) #compactBox .cvhint { grid-column:1; justify-self:center;
+    display:inline-flex; align-items:center; gap:0.35em; margin-top:calc(0.6 * var(--vh));
+    font-size:calc(2.8 * var(--vh)); color:#9a9ca5; white-space:nowrap; }
   body.compact:not(.quick) #compactBox .csbtns { display:flex; flex-direction:column; align-items:stretch;
     gap:calc(0.55 * var(--vh)); }
   /* ⭐ GREYED, YET REACHABLE AND PRESSABLE (2026-10-22: "don't skip over
@@ -3762,7 +3775,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.70.0</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.70.1</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -10422,7 +10435,9 @@ var CONFIG_MODE_KEYS = {
   // an open dropdown -- matching the pad, where they jump 100.
   KeyQ: function () { gpKeyCoarse(-1); },
   KeyE: function () { gpKeyCoarse(1); },
-  Enter: function () { gpKeySelect(); },
+  // ⭐ Cross is the config preview's Edit while it is up, in Simple and Quick
+  // (previewTakesCross, 2026-11-11).
+  Enter: function () { if (previewTakesCross()) { previewEditHere(); return; } gpKeySelect(); },
   KeyZ: function () { gpKeyBack(); },
   KeyX: function () { gpSquare(); },
   // ⭐ Triangle, which reached nothing here until 2.66.84 (rebind.inl).
@@ -11409,7 +11424,9 @@ var PLAIN_KEYS = {
   ArrowDown:  function () { gpKeyMove(1); },
   ArrowLeft:  function () { gpKeyStep(-1); },
   ArrowRight: function () { gpKeyStep(1); },
-  Enter:      function () { gpKeySelect(); },
+  // ⓘ Enter as Cross: the config preview's Edit while it is up, in Simple and
+  // Quick (previewTakesCross).
+  Enter:      function () { if (previewTakesCross()) { previewEditHere(); return; } gpKeySelect(); },
   Escape:     function () { gpKeyBack(); },
   Space:      function () { gpToggleManaged(); },
   // ⭐ U UNLINKS AND A AUTO LINKS, on the config selector (2.66.84;
@@ -12803,11 +12820,18 @@ function paintCompact() {
       var quickHints = function () {
         var lit = !!mySerial && !!claimedBy && (!shown || shown === claimedBy);
         var idle = !mySerial || (!shown && !claimedBy);
+        // ⭐ AND THE CONFIG PREVIEW UNDER AUTO LINK (rhoquinn8217, 2026-11-11:
+        // "In quick mode, under "auto link" show the PS button symbol and the
+        // show "rebind list""), with the button that opens it (previewMark),
+        // none on an Xbox pad, which has no button for it yet.
+        var pvMark = previewMark(LG);
         return '<span class="chints">' +
                '<span class="chint' + (shown ? '' : ' off') + '">' +
                keyCap(LG.unlink) + 'unlink</span>' +
                '<span class="chint' + (lit ? ' on' : idle ? ' off' : '') + '">' +
-               keyCap(LG.autolink) + 'auto link</span></span>';
+               keyCap(LG.autolink) + 'auto link</span>' +
+               (pvMark ? '<span class="chint" id="cpvHint">' + pvMark + 'rebind list</span>' : '') +
+               '</span>';
       };
       // The selector, sliding with the ring (rhoquinn8217, 2026-09-09).
       // ⭐ ITS TITLE STANDS AT ITS TOP EDGE, AT THE LEFT (2.66.87; rhoquinn8217,
@@ -12875,7 +12899,13 @@ function paintCompact() {
                 : title + wheel + '<span class="csbtns">' +
                   '<button onclick="newConfigFor(\'' + esc(d.ordinal) + '\')">New</button>' +
                   '<button onclick="setCompact(false)">Edit</button>' +
-                  unlinkBtn() + autoBtn + archiveBtn + '</span>') +
+                  unlinkBtn() + autoBtn + archiveBtn + '</span>' +
+                  // ⭐ THE CONFIG PREVIEW, CENTRED UNDER THE WHEEL (rhoquinn8217,
+                  // 2026-11-11: "Centered under the wheel ... show the PS button
+                  // symbol and show "view rebind list""): the panel's grid puts
+                  // it in the wheel's column, on a row of its own.
+                  (previewMark(LG) ? '<span class="cvhint" id="cpvHint">' + previewMark(LG) +
+                                     'view rebind list</span>' : '')) +
               '</span>' + (sidesByPanel ? side(next, 'r', shoulderMark(shoulder[1]), true) : '') + '</div></div>';
     }
   }
@@ -14448,21 +14478,47 @@ function selfTest() {
      pvGateWord === 'on button hold' && / - rebind$/.test(pvCrossName),
      pvToggles + ' ' + pvSent.join(';') + ' ' + pvPosts.join(';') + ' ' + pvKeys.join(',') +
      ' ' + pvGateWord + ' ' + pvCrossName);
-  // ⭐ ITS KEYS AND ITS FOOT (2.70.0; rhoquinn8217: "add a close button and
-  // and edit button and when in focus, esc or circle closes it"): Circle and
-  // Esc close it, and PS and V; the d-pad and the arrows move between Edit
-  // and Close; Cross and Enter press; Edit then Close in its foot, the halo
-  // on one.
-  var pvFoot = previewFootHtml('ps', 'edit');
-  ok('config preview: Circle, Esc, PS and V close it; the d-pad moves between Edit and Close; Cross presses',
+  // ⭐ ITS KEYS, ITS FOOT, CROSS AND ITS LINE (2.70.1; rhoquinn8217,
+  // 2026-11-11): clicked, Circle, Esc, PS and V close it and Cross and Enter
+  // are its Edit; Edit carries Cross's mark and Close PS's (V on a keyboard,
+  // none on an Xbox pad); in Simple and Quick, Cross in this window is its
+  // Edit while it is up, not while something of this window's is open; and
+  // its line, under Quick's auto link or under Simple's wheel.
+  var pvFoot = previewFootHtml('ps');
+  var pvFootX = previewFootHtml('xbox');
+  var pvFootK = previewFootHtml('keys');
+  var pvCrossKeep = { open: PREVIEW_OPEN, compact: COMPACT, settings: SETTINGS_OPEN };
+  var pvCross = [];
+  try {
+    PREVIEW_OPEN = true; COMPACT = true; SETTINGS_OPEN = '';
+    pvCross.push(previewTakesCross());
+    SETTINGS_OPEN = 'ds5_usb_7';
+    pvCross.push(previewTakesCross());
+    SETTINGS_OPEN = ''; COMPACT = false;
+    pvCross.push(previewTakesCross());
+    PREVIEW_OPEN = false; COMPACT = true;
+    pvCross.push(previewTakesCross());
+  } finally {
+    PREVIEW_OPEN = pvCrossKeep.open; COMPACT = pvCrossKeep.compact;
+    SETTINGS_OPEN = pvCrossKeep.settings;
+  }
+  var pvHint = document.getElementById('cpvHint');
+  var pvHintOk = !COMPACT || !document.getElementById('cpick') ||
+    (!pvHint && !previewMark(buttonMarkSet())) ||
+    (!!pvHint && (QUICK ? pvHint.className === 'chint' && /rebind list$/.test(pvHint.textContent)
+                        : pvHint.className === 'cvhint' && /view rebind list$/.test(pvHint.textContent)));
+  ok('config preview: clicked, Circle, Esc, PS and V close it and Cross is its Edit; Cross and PS on its buttons; Cross its Edit in Simple and Quick; its line there',
      previewKeyAction('KeyZ', true) === 'close' && previewKeyAction('Escape', false) === 'close' &&
      previewKeyAction('KeyP', true) === 'close' && previewKeyAction('KeyV', false) === 'close' &&
-     previewKeyAction('KeyA', true) === 'prev' && previewKeyAction('KeyD', true) === 'next' &&
-     previewKeyAction('Enter', true) === 'press' && previewKeyAction('Enter', false) === 'press' &&
-     previewKeyAction('KeyZ', false) === '' && previewKeyAction('KeyX', true) === '' &&
+     previewKeyAction('Enter', true) === 'edit' && previewKeyAction('Enter', false) === 'edit' &&
+     previewKeyAction('KeyZ', false) === '' && previewKeyAction('KeyA', true) === '' &&
      pvFoot.indexOf('id="pvEdit"') > 0 && pvFoot.indexOf('id="pvClose"') > pvFoot.indexOf('id="pvEdit"') &&
-     /class="pvbtn pvhalo" id="pvEdit"/.test(pvFoot) && !/class="pvbtn pvhalo" id="pvClose"/.test(pvFoot),
-     pvFoot);
+     pvFoot.indexOf(keyCap(PAD_LEGEND_PS.select, PAD_LEGEND_PS) + ' Edit') > 0 &&
+     pvFoot.indexOf(buttonMark(16, PAD_LEGEND_PS) + ' Close') > 0 &&
+     pvFootX.indexOf('">Close</button>') > 0 &&
+     pvFootK.indexOf(keyCap('V', KEY_LEGEND) + ' Close') > 0 &&
+     pvCross.join(',') === 'true,false,false,false' && pvHintOk,
+     pvCross.join(',') + ' ' + (pvHint ? pvHint.className + ':' + pvHint.textContent : 'no line'));
 
   // 🔗 T-248. The hints are a plain array of strings, and the one way this
   // file has ACTUALLY broken before is an unescaped apostrophe truncating an
@@ -19130,19 +19186,19 @@ function startPage() {
 // that lists out all the the enabled settings and their values in by section
 // of the currently selected config", then "Do two columns with a fixed size
 // browser box", "The enable settings are the ticked ones" and "allow the box
-// to grow from it's fixed size"). It opens to the right of this window, or
-// the left, or above it where neither side has room for its large text; in
-// Advanced it shows the tab's config, on Overview the editor's; in Simple and
-// Quick the config on the wheel.
+// to grow from it's fixed size"). It stands above, below, right or left of
+// this window, the first with room, and follows it as it moves; in Advanced
+// on the side with the most room, over the window if it must (the listener,
+// preview_place_rule.inl). In Advanced it shows the tab's config, on Overview
+// the editor's; in Simple and Quick the config on the wheel.
 // ⓘ PS on a pad (rebind.inl sends KeyP with the gate's three modifiers) or V
-// on a keyboard opens it. The listener opens it (ui/preview), an app window
-// like this one, IN FRONT, with the controller: Circle or Esc close it, as
-// PS and V do, and it has Edit and Close (rhoquinn8217, 2026-11-11). A click
-// on this window gives the controller back here, and the box, still up,
-// follows the config again. The two windows talk over a BroadcastChannel:
-// this one says every half second which config it is on, the box says hello
-// every second and whether it has the front, and a box that hears nothing
-// for three seconds closes itself.
+// on a keyboard opens it and closes it, from this window: the box never
+// takes the front by itself, only from a mouse's click (rhoquinn8217,
+// 2026-11-11). Its Edit and Close carry Cross and PS, and in Simple and Quick
+// Cross here is its Edit while it is up. The two windows talk over a
+// BroadcastChannel: this one says every half second which config it is on,
+// the box says hello every second and whether it has the front, and a box
+// that hears nothing for three seconds closes itself.
 // ⓘ An Xbox pad has no button for it yet: its Guide and Share do not reach
 // the listener (rhoquinn8217 is choosing another).
 var PREVIEW_CHANNEL_NAME = 'ds5-usbip-preview';
@@ -19150,12 +19206,15 @@ var PREVIEW_CHANNEL = null;
 var PREVIEW_OPEN = false;          // asked for, or a box said hello
 var PREVIEW_OPENED_AT = 0;         // the last open asked for here
 var PREVIEW_CLOSED_AT = 0;         // the last close; a box heard after it goes
-// ⭐⭐ THE BOX TAKES THE CONTROLLER WHILE IT HAS THE FRONT (rhoquinn8217,
-// 2026-11-11: "add a close button and and edit button and when in focus,
-// esc or circle closes it"). It opens in front; the listener counts it as
-// this window's (window_has_foreground), so the gate holds and the pad's
-// keys go to it. This window, blurred, says nothing to the listener while
-// the box has the front, nor for a moment either side of it.
+// ⭐⭐ THE BOX NEVER TAKES THE FRONT BY ITSELF (rhoquinn8217, 2026-11-11:
+// "Preview should never take focus unless a mouse can click it. Otherwise,
+// it can be opened and closed through the config window"): the listener
+// opens it and gives the front straight back here, and the controller stays
+// on this window. A mouse may click it, and then it has the front, and the
+// controller with it (the listener counts it as this window's,
+// window_has_foreground): Circle, Esc, PS or V close it, Cross or Enter are
+// its Edit. This window, blurred, says nothing to the listener while the box
+// has the front, nor for a moment either side of its opening or closing.
 var PREVIEW_FOCUSED = false;       // the box says it has the front
 var PREVIEW_HEARD_AT = 0;          // the box's last word
 var PREVIEW_HOLD_UNTIL = 0;        // a blur until then is the box opening or closing
@@ -19260,10 +19319,34 @@ function togglePreview() {
   }
   PREVIEW_OPEN = true;
   PREVIEW_OPENED_AT = Date.now();
+  // ⭐ OPENED DURING A QUICK SWITCH, THE WINDOW STAYS, IN QUICK (rhoquinn8217,
+  // 2026-11-11: "If the preview is open during quick switch, make quick mode
+  // persists when you are not touching it touchpad"): the listener keeps the
+  // window when the last finger lifts with the box up (quick_switch_session),
+  // and the d-pad is this window's again, as after a second press.
+  if (OPENED_BY_SWITCH && !SWITCH_KEPT) {
+    SWITCH_KEPT = true;
+    if (COMPACT) paintCompact();
+  }
   previewRaise();
 }
 
-// ⓘ Opens the box in front, or brings an open one back beside this window
+// ⭐ WHILE THE BOX IS UP, CROSS IS ITS EDIT IN SIMPLE AND QUICK (rhoquinn8217,
+// 2026-11-11: "When the preview is up, pressing cross will trigger the edit
+// button in simple and quick modes"): Advanced, on that config, as Simple's
+// Edit does, and the box closed. Enter from a keyboard the same. ⓘ Not while
+// something of this window's own is open over it, which Cross answers.
+function previewTakesCross() {
+  return PREVIEW_OPEN && COMPACT && !TUT &&
+         !(CONFIRM_CB || RENAMING || PRESET_OPEN || PRESET_INFO_OPEN || SETTINGS_OPEN ||
+           GP_SELECTING || GP_EDITING);
+}
+function previewEditHere() {
+  togglePreview();          // open, so this closes it
+  setCompact(false);
+}
+
+// ⓘ Opens the box, or brings an open one back beside this window, always
 // without the front: the listener places it.
 function previewRaise() {
   PREVIEW_HOLD_UNTIL = Date.now() + 3000;
@@ -19298,33 +19381,39 @@ if (!PREVIEW_MODE) {
 var PREVIEW_STATE = {
   config: null, device: null, set: null, token: '',
   cfg: null, cfgText: '', failed: false, heardAt: 0, base: null, origin: '',
-  halo: 'edit', closing: false
+  closing: false
 };
 
-// ⭐ ITS FOOT: the buttons' legend on the left, Edit and Close on the right
-// (rhoquinn8217, 2026-11-11: "add a close button and and edit button"), the
-// halo on the one Cross or Enter presses. Edit first, so the press that
-// matters is one away; Close last, where the configs window keeps it.
-var PREVIEW_BUTTONS = ['edit', 'close'];
-function previewFootHtml(setName, halo) {
+// ⓘ The button that opens and closes the box, drawn as the pad in hand's:
+// PS on a PlayStation pad, V on a keyboard, and none on an Xbox pad, which
+// has no button for it yet. ⓘ For the configs window's own labels too.
+function previewMark(set) {
+  if (set === KEY_LEGEND) return keyCap('V', KEY_LEGEND);
+  return buttonMark(16, set);
+}
+
+// ⭐ ITS FOOT: Edit and Close, each with the button that does it from the
+// configs window (rhoquinn8217, 2026-11-11: "add the the cross symbol in the
+// Edit button label in the preview. Add the PS button symbol in the close
+// button label"). For a mouse: the box takes no controller.
+function previewFootHtml(setName) {
   var L = legendByName(setName);
-  return '<span id="pvLegend">' + keyCap(L.close, L) + ' close &nbsp; ' +
-         keyCap(L.select, L) + ' select</span><span id="pvBtns">' +
-         '<button class="pvbtn' + (halo === 'edit' ? ' pvhalo' : '') +
-         '" id="pvEdit" onclick="previewPress(\'edit\')">Edit</button>' +
-         '<button class="pvbtn' + (halo === 'close' ? ' pvhalo' : '') +
-         '" id="pvClose" onclick="previewPress(\'close\')">Close</button></span>';
+  var ps = previewMark(L);
+  return '<span id="pvBtns">' +
+         '<button class="pvbtn" id="pvEdit" onclick="previewPress(\'edit\')">' +
+         keyCap(L.select, L) + ' Edit</button>' +
+         '<button class="pvbtn" id="pvClose" onclick="previewPress(\'close\')">' +
+         (ps ? ps + ' ' : '') + 'Close</button></span>';
 }
 
 // ⓘ What a key does in the box, or '' for nothing: a gated pad's (Ctrl,
-// Shift and Alt, rebind.inl) or a keyboard's. Circle and Esc close it (their
-// words), and so do PS and V, which open it.
+// Shift and Alt, rebind.inl) or a keyboard's. The box has them only once a
+// mouse has clicked it (it never takes the front by itself): then Circle,
+// Esc, PS and V close it, and Cross and Enter are its Edit, as in the window.
 function previewKeyAction(code, gate) {
   var map = gate
-    ? { KeyZ: 'close', KeyP: 'close', KeyA: 'prev', KeyD: 'next', KeyW: 'prev', KeyS: 'next',
-        Enter: 'press' }
-    : { Escape: 'close', KeyV: 'close', ArrowLeft: 'prev', ArrowRight: 'next', ArrowUp: 'prev',
-        ArrowDown: 'next', Tab: 'next', Enter: 'press', Space: 'press' };
+    ? { KeyZ: 'close', KeyP: 'close', Enter: 'edit' }
+    : { Escape: 'close', KeyV: 'close', Enter: 'edit' };
   return map[code] || '';
 }
 
@@ -19342,15 +19431,7 @@ function previewKey(ev) {
   var act = previewKeyAction(ev.code, gate);
   if (!act) return;
   ev.preventDefault();
-  var st = PREVIEW_STATE;
-  if (act === 'close') { previewClose(); return; }
-  if (act === 'press') { previewPress(st.halo); return; }
-  var i = PREVIEW_BUTTONS.indexOf(st.halo);
-  if (act === 'prev' || (ev.code === 'Tab' && ev.shiftKey)) i = Math.max(0, i - 1);
-  else i = Math.min(PREVIEW_BUTTONS.length - 1, i + 1);
-  st.halo = PREVIEW_BUTTONS[i];
-  var foot = document.getElementById('pvFoot');
-  if (foot) foot.innerHTML = previewFootHtml(st.set, st.halo);
+  previewPress(act);
 }
 
 // ⓘ Its own requests: call() writes to this page's log and light, which the
@@ -19420,16 +19501,17 @@ function previewRender() {
     }).join('');
   }
   colsEl.innerHTML = html;
-  footEl.innerHTML = previewFootHtml(st.set, st.halo);
+  footEl.innerHTML = previewFootHtml(st.set);
   previewFit();
   setTimeout(previewFit, 300);
 }
 
 // ⭐ A FIXED SIZE THAT GROWS (rhoquinn8217, 2026-11-11: "allow the box to grow
 // from it's fixed size"): the size it opened at, taller when a config needs
-// more, upward so its bottom stays level with the configs window's, and back
-// to that size for a config that fits; never past the screen.
-// ⓘ resizeTo is asynchronous, so it is asked again once the window has moved.
+// more, and back to that size for a config that fits; never past the screen.
+// ⓘ Its SIZE only: where it stands is the listener's, which follows the
+// configs window and keeps the box beside it as it grows (open_ui.inl,
+// preview_follow). ⓘ resizeTo is asynchronous, so it is asked again.
 function previewFit() {
   var st = PREVIEW_STATE;
   var root = document.getElementById('pvRoot');
@@ -19440,10 +19522,7 @@ function previewFit() {
   var room = screen.availHeight || want;
   if (want > room) want = room;
   if (Math.abs(want - window.outerHeight) < 4) return;
-  var bottom = window.screenY + window.outerHeight;
-  var top = Math.max(screen.availTop || 0, bottom - want);
   window.resizeTo(window.outerWidth, want);
-  window.moveTo(window.screenX, top);
 }
 
 function previewLoad() {
@@ -19486,29 +19565,29 @@ function previewMain() {
   document.title = 'Config preview [ctm-preview]';
   document.documentElement.classList.add('pvmode');
   // ⭐ LARGE TEXT (rhoquinn8217, 2026-11-11: "text in the preview needs to be
-  // large"): half as large again as it was, Advanced's own scale for a
-  // television across the room.
+  // large", then "text can be a little bigger"): 23 px, two thirds as large
+  // again as at first, past Advanced's own scale for a television across the
+  // room.
   var css = document.createElement('style');
   css.textContent =
     'html.pvmode body{margin:0;padding:0;min-height:0;background:#15161a;color:#e8e8ea;' +
-      'overflow:hidden;font-size:20px}' +
-    '#pvRoot{padding:14px 22px 86px}' +
+      'overflow:hidden;font-size:23px}' +
+    '#pvRoot{padding:14px 24px 92px}' +
     '#pvHead{border-bottom:1px solid #2a2c33;padding-bottom:8px;margin-bottom:2px}' +
-    '#pvName{font-size:26px;font-weight:600;overflow-wrap:anywhere}' +
-    '#pvCount{color:#9a9ca5;font-size:17px}' +
-    '#pvCols{column-count:2;column-gap:34px}' +
+    '#pvName{font-size:30px;font-weight:600;overflow-wrap:anywhere}' +
+    '#pvCount{color:#9a9ca5;font-size:19px}' +
+    '#pvCols{column-count:2;column-gap:38px}' +
     '.pvsect{break-inside:avoid;padding-top:10px}' +
-    '.pvsh{color:#8fb0ff;font-size:17px;margin:2px 0}' +
-    '.pvrow{display:flex;justify-content:space-between;gap:14px;line-height:1.4}' +
+    '.pvsh{color:#8fb0ff;font-size:19px;margin:2px 0}' +
+    '.pvrow{display:flex;justify-content:space-between;gap:16px;line-height:1.4}' +
     '.pvk{min-width:0;overflow-wrap:anywhere}' +
     '.pvv{color:#c9cbd3;text-align:right;flex:0 1 auto;max-width:55%;overflow-wrap:anywhere}' +
     '#pvFoot{position:fixed;left:0;right:0;bottom:0;display:flex;align-items:center;' +
-      'justify-content:space-between;gap:12px;padding:12px 22px;border-top:1px solid #2a2c33;' +
-      'color:#9a9ca5;font-size:17px;background:#15161a}' +
-    '#pvBtns{display:flex;gap:14px}' +
-    '.pvbtn{font:inherit;font-size:19px;color:#e8e8ea;background:#23252c;border:1px solid #3a3d48;' +
-      'border-radius:6px;padding:6px 22px;cursor:pointer}' +
-    '.pvbtn.pvhalo{background:#2a3566;border-color:#6c8cff;outline:3px solid #6c8cff;outline-offset:2px}';
+      'justify-content:flex-end;gap:12px;padding:12px 24px;border-top:1px solid #2a2c33;' +
+      'background:#15161a}' +
+    '#pvBtns{display:flex;gap:16px}' +
+    '.pvbtn{font:inherit;font-size:21px;color:#e8e8ea;background:#23252c;border:1px solid #3a3d48;' +
+      'border-radius:6px;padding:6px 22px;cursor:pointer;display:flex;align-items:center;gap:0.4em}';
   document.head.appendChild(css);
   document.body.innerHTML =
     '<div id="pvRoot"><div id="pvHead"><div id="pvName"></div><div id="pvCount"></div></div>' +

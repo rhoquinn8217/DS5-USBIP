@@ -1452,6 +1452,21 @@ inline void drop_quick_view()
         << "quick switch: a layout was picked in its window -- it stands, rather than the one from before");
 }
 
+// ...and kept with the config preview up, the window stays IN QUICK
+// (rhoquinn8217, 2026-11-11: "If the preview is open during quick switch,
+// make quick mode persists when you are not touching it touchpad"): what the
+// switch saved is let go, as a layout picked in its window is, and Quick
+// stands. ⓘ From quick_switch_session.inl, as the last finger lifts.
+inline void stay_quick_view()
+{
+    {
+        std::lock_guard<std::mutex> lock(g_quickViewMutex);
+        if (!g_quickView.on) return;
+        g_quickView = SavedView();
+    }
+    state_save();
+}
+
 // Whether the window up now is the quick config switch's: told to the page as
 // it opens (ui/view), so no tutorial starts by itself in it.
 inline bool quick_view_on()

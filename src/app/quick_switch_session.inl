@@ -216,8 +216,8 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
     // for nothing.
     const bool wheelInFront = fingers == 2 && window_wheel_in_front();
     const bool inFront = pressed && fingers == 2 && (wheelInFront || ctm_rebind_config_mode_effective());
-    enum class Did { Nothing, Armed, Opened, TooLong, Stepped, Lifted, Kept, InFront, SomeoneElse,
-                     Closing, Closed, CloseTooLong, TourBack };
+    enum class Did { Nothing, Armed, Opened, TooLong, Stepped, Lifted, Kept, KeptQuick, InFront,
+                     SomeoneElse, Closing, Closed, CloseTooLong, TourBack };
     Did did = Did::Nothing;
     int step = 0;
     bool byStick = false;
@@ -226,6 +226,7 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
     unsigned closer = 0;
     unsigned opened = 0;
     unsigned kept = 0;
+    unsigned keptQuick = 0;
     long long heldMs = 0;
     {
         std::lock_guard<std::mutex> lock(g_mutex);
@@ -283,6 +284,20 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
             switch (quick_switch::while_held(switching ? false : keepPress, fingers,
                                              switching ? 0 : steps)) {
             case quick_switch::Held::Close:
+                // ⭐ THE CONFIG PREVIEW UP: THE WINDOW STAYS, IN QUICK
+                // (rhoquinn8217, 2026-11-11: "If the preview is open during
+                // quick switch, make quick mode persists when you are not
+                // touching it touchpad"). As a second press keeps it, but in
+                // the Quick it shows: no layout key for the page, and what the
+                // switch saved let go (config_move::stay_quick_view).
+                if (ctm_open_ui::preview_up()) {
+                    s.ending = true;
+                    s.kept = true;
+                    keptQuick = s.id;
+                    quick_switch::app_switch_end(ps.app);
+                    did = Did::KeptQuick;
+                    break;
+                }
                 s.ending = true;
                 s.endAt = now_ms();
                 closer = s.id;
@@ -417,6 +432,7 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
     // ⓘ The layout from before is the listener's again at once, so the page
     // finds it when the layout key asks, or as it opens if it has not yet.
     if (kept != 0) config_move::keep_quick_view();
+    if (keptQuick != 0) config_move::stay_quick_view();
     if (did == Did::Nothing || did == Did::Lifted) return;
 
     const std::string ordinal = ctm_ordinal_for_device(deviceKey);
@@ -494,6 +510,8 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
                                        "layout it had before, and the touchpad is the config's again"
                                      : "pressed again: the window stays, in the layout it had before, "
                                        "and the touchpad is the config's again") :
+            did == Did::KeptQuick ? "the last finger lifted with the config preview up: the window "
+                                    "stays, in Quick, and the touchpad is the config's again" :
             did == Did::InFront ? "two fingers pressed, with the window in front already" :
             did == Did::TourBack ? "two fingers pressed, the tour's window not in front: brought back "
                                    "for the tour, and no window of the switch's own" :

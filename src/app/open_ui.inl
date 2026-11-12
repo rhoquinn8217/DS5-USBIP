@@ -955,20 +955,26 @@ inline void open_new(uint16_t restPort, bool withToken = true)
 // browser box"). The page asks for it with PS or V (ui/preview), and it opens
 // here in the configs window's own browser and profile, at ?preview, where the
 // page draws the box alone and talks to the window by itself.
-// ⭐ IT OPENS IN FRONT, WITH THE CONTROLLER (rhoquinn8217, 2026-11-11: "add a
-// close button and and edit button and when in focus, esc or circle closes
-// it"). window_has_foreground counts it as the window's own, so the gate holds
-// and the pad's keys reach it; it opens beside the window, or above it
-// (preview_place_rule.inl), and as it closes (preview_close) the front goes
-// back to the window.
+// ⭐ IT NEVER TAKES THE FRONT BY ITSELF (rhoquinn8217, 2026-11-11: "Preview
+// should never take focus unless a mouse can click it. Otherwise, it can be
+// opened and closed through the config window"): the front goes straight
+// back to the window as it opens, and the controller stays there. Clicked, it
+// has the front: window_has_foreground counts it as the window's own, so the
+// gate holds and the pad's keys reach it; as it closes (preview_close) the
+// front goes back to the window.
+// ⭐ AND IT FOLLOWS THE WINDOW (the same evening: "Make the preview follow the
+// main config and move the window above it, below it, to it's right or to
+// it's left base on whether there's space"): preview_follow keeps it where
+// preview_place_rule.inl says, as the window moves and as the box grows.
 // ⓘ Its size as it opens, in the browser's units: the fixed size the page
-// grows from when a config needs more (rhoquinn8217: "allow the box to grow
-// from it's fixed size"), for text half as large again ("text in the preview
-// needs to be large").
-inline const int kPreviewWidth = 860;
-inline const int kPreviewHeight = 660;
+// grows from when a config needs more ("allow the box to grow from it's fixed
+// size"), for text two thirds as large again as at first ("text in the
+// preview needs to be large", then "text can be a little bigger").
+inline const int kPreviewWidth = 1000;
+inline const int kPreviewHeight = 720;
 inline const int kPreviewGap = 8;
 inline std::atomic_bool g_previewOpening{false};
+inline std::atomic_bool g_previewFollowing{false};
 
 inline BOOL CALLBACK find_preview_proc(HWND hwnd, LPARAM param)
 {
@@ -998,10 +1004,11 @@ inline RECT visible_rect(HWND hwnd)
 }
 
 // Where the box's visible frame goes, in physical pixels: beside the configs
-// window, `height` tall (0 for its fixed size), or in the middle of the
-// screen when there is no window.
+// window, `width` x `height` (0 for its fixed size), or in the middle of the
+// screen when there is no window. ⓘ In Advanced, on the side with the most
+// room, over the window if it must be (ui_view_advanced, preview_place_rule).
 struct PreviewRect { int x, y, w, h; UINT dpi; };
-inline PreviewRect preview_rect(int height)
+inline PreviewRect preview_rect(int width, int height)
 {
     FindState ours;
     EnumWindows(find_window_proc, reinterpret_cast<LPARAM>(&ours));
@@ -1015,7 +1022,7 @@ inline PreviewRect preview_rect(int height)
     if (FAILED(GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &dx, &dy)) || dx == 0) dx = 96;
     PreviewRect out{};
     out.dpi = dx;
-    out.w = MulDiv(kPreviewWidth, static_cast<int>(dx), 96);
+    out.w = width > 0 ? width : MulDiv(kPreviewWidth, static_cast<int>(dx), 96);
     out.h = height > 0 ? height : MulDiv(kPreviewHeight, static_cast<int>(dx), 96);
     const preview_place_rule::Rect work{ mi.rcWork.left, mi.rcWork.top,
                                          mi.rcWork.right, mi.rcWork.bottom };
@@ -1027,7 +1034,7 @@ inline PreviewRect preview_rect(int height)
     const RECT win = visible_rect(ours.found);
     const preview_place_rule::Place p = preview_place_rule::place(
         preview_place_rule::Rect{ win.left, win.top, win.right, win.bottom }, work,
-        out.w, out.h, MulDiv(kPreviewGap, static_cast<int>(dx), 96));
+        out.w, out.h, MulDiv(kPreviewGap, static_cast<int>(dx), 96), ui_view_advanced());
     out.x = p.x;
     out.y = p.y;
     return out;
@@ -1060,18 +1067,69 @@ inline void preview_close()
                             << (ours.found != nullptr ? L", the front back with the window" : L"");
 }
 
+// ⓘ Whether the box is up, or on its way: the quick switch keeps its window
+// for it (quick_switch_session.inl).
+inline bool preview_up()
+{
+    return g_previewOpening.load() || find_preview() != nullptr;
+}
+
+// ⭐ THE BOX FOLLOWS THE WINDOW: where preview_place_rule says, at the size the
+// page has grown it to, put back whenever the window moves, changes size or
+// layout, or the box grows. ⓘ A look every 120 ms while the box is up, and
+// done a second after it has gone; a box that came meanwhile is followed by a
+// new look-out, as the claim is let go.
+inline void preview_follow()
+{
+    bool expected = false;
+    if (!g_previewFollowing.compare_exchange_strong(expected, true)) return;
+    std::thread([]() {
+        RECT lastWin = {}, lastBox = {};
+        bool lastAdvanced = false;
+        bool first = true;
+        int gone = 0;
+        while (gone < 8) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(120));
+            const HWND pv = find_preview();
+            if (pv == nullptr) { ++gone; continue; }
+            gone = 0;
+            FindState ours;
+            EnumWindows(find_window_proc, reinterpret_cast<LPARAM>(&ours));
+            if (ours.found == nullptr || IsIconic(ours.found) || IsIconic(pv)) continue;
+            const RECT win = visible_rect(ours.found);
+            const RECT box = visible_rect(pv);
+            const bool advanced = ui_view_advanced();
+            if (!first && EqualRect(&win, &lastWin) && EqualRect(&box, &lastBox) &&
+                advanced == lastAdvanced) continue;
+            first = false;
+            const PreviewRect r = preview_rect(box.right - box.left, box.bottom - box.top);
+            if (r.x != box.left || r.y != box.top) {
+                RECT wr = {};
+                GetWindowRect(pv, &wr);
+                SetWindowPos(pv, nullptr, r.x - (box.left - wr.left), r.y - (box.top - wr.top), 0, 0,
+                             SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+            }
+            lastWin = win;
+            lastBox = visible_rect(pv);
+            lastAdvanced = advanced;
+        }
+        g_previewFollowing.store(false);
+        if (find_preview() != nullptr) preview_follow();
+    }).detach();
+}
+
 inline void preview_open(uint16_t restPort)
 {
     // ⓘ One already up comes back beside the window, above anything that
-    // covered it, at the height it has grown to, WITHOUT the front: this is
-    // the window coming back after a game had it, and the controller stays
-    // with the window.
+    // covered it, at the size it has grown to, without the front: this is the
+    // window coming back after a game had it.
     const HWND existing = find_preview();
     if (existing != nullptr) {
         const RECT vr = visible_rect(existing);
-        place_preview(existing, preview_rect(vr.bottom - vr.top));
+        place_preview(existing, preview_rect(vr.right - vr.left, vr.bottom - vr.top));
         SetWindowPos(existing, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
         SetWindowPos(existing, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+        preview_follow();
         return;
     }
     if (g_previewOpening.exchange(true)) return;     // one is on its way
@@ -1081,7 +1139,7 @@ inline void preview_open(uint16_t restPort)
         g_previewOpening.store(false);
         return;
     }
-    const PreviewRect r = preview_rect(0);
+    const PreviewRect r = preview_rect(0, 0);
     wchar_t profile[MAX_PATH] = {};
     GetTempPathW(MAX_PATH, profile);
     // ⓘ The configs window's profile, so the two windows hear each other.
@@ -1112,12 +1170,16 @@ inline void preview_open(uint16_t restPort)
         }
         if (pv != nullptr) {
             place_preview(pv, r);
-            // ⓘ In front, with the keyboard, if the browser did not do it.
-            if (GetForegroundWindow() != pv) raise_now(pv);
+            // ⭐ The front straight back to the window: the browser gives a new
+            // window the front, and the box takes it only from a click.
+            FindState ours;
+            EnumWindows(find_window_proc, reinterpret_cast<LPARAM>(&ours));
+            if (ours.found != nullptr && GetForegroundWindow() == pv) raise_now(ours.found);
+            preview_follow();
             device_log::session_w() << L"config preview opened at " << r.x << L"," << r.y
                                     << L" " << r.w << L"x" << r.h << L" (" << r.dpi << L" dpi)"
-                                    << (GetForegroundWindow() == pv ? L", in front"
-                                                                    : L", and could not take the front");
+                                    << (ours.found != nullptr && GetForegroundWindow() == ours.found
+                                            ? L", the front with the window" : L"");
         } else {
             device_log::session_w() << L"config preview: its window did not appear in five seconds";
         }

@@ -1,21 +1,22 @@
-// Where the config preview opens: beside the configs window.
+// Where the config preview stands: beside the configs window, and with it as
+// it moves.
 //
-// ⭐ rhoquinn8217, 2026-11-11: the preview is "a separate browser box" beside
-// the configs window, and asked "The box opens to the right of the configs
-// window, or to the left if there's no room", *"yes"*. Its bottom is level
-// with the window's, so in Simple and Quick, which sit at the bottom of the
-// screen, the two stand side by side, and a box that grows (the page asks
-// for that itself) grows upward.
-// ⭐ ABOVE THE WINDOW when neither side has room, centred on it: the box's
-// text was made half as large again the same day ("text in the preview needs
-// to be large"), and at that size it no longer fits beside Simple's window at
-// the bottom of a screen at 150%, where above it there is room.
-// ⓘ No room there either (Advanced's window, most of the screen): the box goes
-// to the screen's right edge, over the window. It never leaves the screen's
-// work area.
+// ⭐ rhoquinn8217, 2026-11-11: "Make the preview follow the main config and
+// move the window above it, below it, to it's right or to it's left base on
+// whether there's space. When preview is opened in advance mode, put on the
+// side with the most space even if it overlapes the config window."
+// ➡️ So: above, below, right, left, the first where the box fits on the
+// screen without covering the window; above and below centred on the window,
+// right and left level with its middle. In Advanced, and wherever no side
+// has room, the side where the box covers the least of the window, the room
+// left over deciding a tie. It never leaves the screen's work area.
+// ⓘ The box grows taller for a longer config (the page asks), and stands
+// where this rule puts a box of that size.
 // ⓘ Its own file, with no windows.h, so the test binary can reach it;
-// open_ui.inl reads the window and the screen and starts the browser.
+// open_ui.inl reads the windows and the screen.
 #pragma once
+
+#include <algorithm>
 
 namespace preview_place_rule {
 
@@ -31,29 +32,89 @@ struct Place {
     int y;
 };
 
-// The box's top-left, w x h, beside `window`, `gap` from it, on the screen
-// whose work area is `work`. All in the same pixels.
-inline Place place(const Rect &window, const Rect &work, int w, int h, int gap)
+enum class Side { Above, Below, Right, Left };
+
+// The box's top-left, w x h, `gap` from the window on `side`.
+inline Place beside(const Rect &window, int w, int h, int gap, Side side)
 {
-    Place p{};
-    if (window.right + gap + w <= work.right) {
-        p.x = window.right + gap;
-        p.y = window.bottom - h;
-    } else if (window.left - gap - w >= work.left) {
-        p.x = window.left - gap - w;
-        p.y = window.bottom - h;
-    } else if (window.top - gap - h >= work.top) {
-        p.x = window.left + (window.right - window.left - w) / 2;
-        p.y = window.top - gap - h;
-    } else {
-        p.x = work.right - w;
-        p.y = window.bottom - h;
+    const int midX = window.left + (window.right - window.left - w) / 2;
+    const int midY = window.top + (window.bottom - window.top - h) / 2;
+    switch (side) {
+    case Side::Above: return Place{ midX, window.top - gap - h };
+    case Side::Below: return Place{ midX, window.bottom + gap };
+    case Side::Right: return Place{ window.right + gap, midY };
+    case Side::Left:  return Place{ window.left - gap - w, midY };
     }
+    return Place{ midX, midY };
+}
+
+// ...kept on the screen.
+inline Place on_screen(Place p, const Rect &work, int w, int h)
+{
     if (p.x + w > work.right) p.x = work.right - w;
     if (p.x < work.left) p.x = work.left;
     if (p.y + h > work.bottom) p.y = work.bottom - h;
     if (p.y < work.top) p.y = work.top;
     return p;
+}
+
+// Whether a box w x h fits on `side` without covering the window.
+inline bool fits(const Rect &window, const Rect &work, int w, int h, int gap, Side side)
+{
+    const bool wide = w <= work.right - work.left;
+    const bool tall = h <= work.bottom - work.top;
+    switch (side) {
+    case Side::Above: return wide && window.top - gap - h >= work.top;
+    case Side::Below: return wide && window.bottom + gap + h <= work.bottom;
+    case Side::Right: return tall && window.right + gap + w <= work.right;
+    case Side::Left:  return tall && window.left - gap - w >= work.left;
+    }
+    return false;
+}
+
+// How much of the window a box at p covers, in square pixels.
+inline long long covered(const Rect &window, Place p, int w, int h)
+{
+    const int x0 = std::max(window.left, p.x), x1 = std::min(window.right, p.x + w);
+    const int y0 = std::max(window.top, p.y), y1 = std::min(window.bottom, p.y + h);
+    if (x1 <= x0 || y1 <= y0) return 0;
+    return static_cast<long long>(x1 - x0) * static_cast<long long>(y1 - y0);
+}
+
+// The room on `side` beyond the box, negative where the box does not fit.
+inline int room(const Rect &window, const Rect &work, int w, int h, int gap, Side side)
+{
+    switch (side) {
+    case Side::Above: return window.top - gap - h - work.top;
+    case Side::Below: return work.bottom - (window.bottom + gap + h);
+    case Side::Right: return work.right - (window.right + gap + w);
+    case Side::Left:  return window.left - gap - w - work.left;
+    }
+    return 0;
+}
+
+inline Place place(const Rect &window, const Rect &work, int w, int h, int gap, bool advanced)
+{
+    const Side order[] = { Side::Above, Side::Below, Side::Right, Side::Left };
+    if (!advanced) {
+        for (Side s : order) {
+            if (fits(window, work, w, h, gap, s)) return on_screen(beside(window, w, h, gap, s), work, w, h);
+        }
+    }
+    Place best = on_screen(beside(window, w, h, gap, order[0]), work, w, h);
+    long long bestCovered = covered(window, best, w, h);
+    int bestRoom = room(window, work, w, h, gap, order[0]);
+    for (Side s : order) {
+        const Place p = on_screen(beside(window, w, h, gap, s), work, w, h);
+        const long long c = covered(window, p, w, h);
+        const int r = room(window, work, w, h, gap, s);
+        if (c < bestCovered || (c == bestCovered && r > bestRoom)) {
+            best = p;
+            bestCovered = c;
+            bestRoom = r;
+        }
+    }
+    return best;
 }
 
 }  // namespace preview_place_rule
