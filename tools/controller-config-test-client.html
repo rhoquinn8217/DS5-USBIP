@@ -29,9 +29,11 @@
              mouse clicks it, and it follows this window, above, below,
              right or left of it where there is room (in Advanced on the
              side with the most); Cross is its Edit in Simple and Quick
-             while it is up; "rebind list" under Quick's auto link and
-             "view rebind list" under Simple's wheel, with PS's mark; open
-             during a quick switch, Quick stays (rhoquinn8217, 2026-11-11).
+             while it is up; "show rebind list" under Quick's auto link and
+             under Simple's config wheel box, with PS's mark; its buttons
+             centred; open during a quick switch, Quick stays; and Quick's
+             rate line ends in the settings gear again (rhoquinn8217,
+             2026-11-11 and 12).
     2.70.0   The config preview: PS on a controller, or V, with this window
              in front opens a box of its own beside it, listing the ticked
              settings of the config it is on, by section, in two columns, at
@@ -3151,10 +3153,11 @@
      so the panel kept its height and the window its halved margins: each
      0.5vh of padding over and under, from 0.7, and 0.55vh between them,
      from 1, the text the size it was. */
-  /* ⭐ THE CONFIG PREVIEW'S LINE, CENTRED UNDER THE WHEEL (2026-11-11): the
-     panel's grid sets it in the wheel's column, on a row of its own. */
-  body.compact:not(.quick) #compactBox .cvhint { grid-column:1; justify-self:center;
-    display:inline-flex; align-items:center; gap:0.35em; margin-top:calc(0.6 * var(--vh));
+  /* ⭐ THE CONFIG PREVIEW'S LINE, UNDER THE CONFIG WHEEL'S BOX (2026-11-11,
+     moved out of the box 2026-11-12): a line of its own, centred under the
+     panel. */
+  body.compact:not(.quick) #compactBox .cvhint { display:flex; justify-content:center;
+    align-items:center; gap:0.35em; margin-top:calc(1.2 * var(--vh));
     font-size:calc(2.8 * var(--vh)); color:#9a9ca5; white-space:nowrap; }
   body.compact:not(.quick) #compactBox .csbtns { display:flex; flex-direction:column; align-items:stretch;
     gap:calc(0.55 * var(--vh)); }
@@ -4967,12 +4970,16 @@ function rateTags(parts) {
                       .join(' <span class="muted">·</span> ');
 }
 
-// The rate and its limit after the battery in Simple and Quick, with the
-// gear in Simple: nothing for a device that is no controller. `tag`: a span
-// on the name's line, a div under it in Quick's panel.
-// ⭐ NO GEAR IN QUICK (rhoquinn8217, 2026-11-09: "remove settings symbol and
-// r3 symbol next to the polling rate in quick mode"): R3 opens the
-// settings there, as its legend says.
+// The rate and its limit after the battery in Simple and Quick, the gear
+// after them: nothing for a device that is no controller. `tag`: a span on
+// the name's line, a div under it in Quick's panel.
+// ⭐ THE GEAR IN QUICK AGAIN, RIGHT OF THE RATE AND LIMIT (rhoquinn8217,
+// 2026-11-12: "Add the settings symbol to the right of the polling rate and
+// limit in quick mode"), where 2026-11-09 had taken it and R3's mark out
+// ("remove settings symbol and r3 symbol next to the polling rate in quick
+// mode"). Without R3's mark still, and for the mouse: the d-pad skips the
+// rate line in Quick (gpCollect), and R3 opens the settings, as the legend
+// says.
 // ⭐ SIMPLE'S RATE IN THE MIDDLE, BETWEEN THE BATTERY AND THE GEAR
 // (rhoquinn8217, 2026-11-09: "center the polling rate and limit between the
 // nickname/batter and the settings symbol", "in simple mode"): in a span of
@@ -4982,7 +4989,7 @@ function rateTags(parts) {
 // the line centred by the style.
 function compactRateLine(ordinal, tag) {
   var rates = rateTags(partsOf(ordinal));
-  var line = QUICK ? rates
+  var line = QUICK ? rates + settingsGearHtml(ordinal, true)
                    : (rates ? '<span class="crate-txt">' + rates + '</span>' : '') +
                      settingsGearHtml(ordinal, true);
   return line ? '<' + tag + ' class="' + (QUICK ? 'crate-q' : 'crate') + '">' + line + '</' + tag + '>' : '';
@@ -12822,15 +12829,16 @@ function paintCompact() {
         var idle = !mySerial || (!shown && !claimedBy);
         // ⭐ AND THE CONFIG PREVIEW UNDER AUTO LINK (rhoquinn8217, 2026-11-11:
         // "In quick mode, under "auto link" show the PS button symbol and the
-        // show "rebind list""), with the button that opens it (previewMark),
-        // none on an Xbox pad, which has no button for it yet.
+        // show "rebind list"", then 2026-11-12: "In quick mode change "rebind
+        // list" to "show rebind list""), with the button that opens it
+        // (previewMark), none on an Xbox pad, which has no button for it yet.
         var pvMark = previewMark(LG);
         return '<span class="chints">' +
                '<span class="chint' + (shown ? '' : ' off') + '">' +
                keyCap(LG.unlink) + 'unlink</span>' +
                '<span class="chint' + (lit ? ' on' : idle ? ' off' : '') + '">' +
                keyCap(LG.autolink) + 'auto link</span>' +
-               (pvMark ? '<span class="chint" id="cpvHint">' + pvMark + 'rebind list</span>' : '') +
+               (pvMark ? '<span class="chint" id="cpvHint">' + pvMark + 'show rebind list</span>' : '') +
                '</span>';
       };
       // The selector, sliding with the ring (rhoquinn8217, 2026-09-09).
@@ -12899,14 +12907,18 @@ function paintCompact() {
                 : title + wheel + '<span class="csbtns">' +
                   '<button onclick="newConfigFor(\'' + esc(d.ordinal) + '\')">New</button>' +
                   '<button onclick="setCompact(false)">Edit</button>' +
-                  unlinkBtn() + autoBtn + archiveBtn + '</span>' +
-                  // ⭐ THE CONFIG PREVIEW, CENTRED UNDER THE WHEEL (rhoquinn8217,
-                  // 2026-11-11: "Centered under the wheel ... show the PS button
-                  // symbol and show "view rebind list""): the panel's grid puts
-                  // it in the wheel's column, on a row of its own.
-                  (previewMark(LG) ? '<span class="cvhint" id="cpvHint">' + previewMark(LG) +
-                                     'view rebind list</span>' : '')) +
-              '</span>' + (sidesByPanel ? side(next, 'r', shoulderMark(shoulder[1]), true) : '') + '</div></div>';
+                  unlinkBtn() + autoBtn + archiveBtn + '</span>') +
+              '</span>' + (sidesByPanel ? side(next, 'r', shoulderMark(shoulder[1]), true) : '') + '</div>' +
+              // ⭐ THE CONFIG PREVIEW UNDER THE CONFIG WHEEL'S BOX, IN SIMPLE
+              // (rhoquinn8217, 2026-11-11: "Centered under the wheel ... show the
+              // PS button symbol and show "view rebind list"", then 2026-11-12:
+              // "Change in simple mode "view rebind list" to "show rebind list".
+              // Move the symbol and description under the Config Wheel
+              // container"): a line of its own under the panel, centred, with
+              // the button that opens it (previewMark).
+              (!QUICK && previewMark(LG) ? '<div class="cvhint" id="cpvHint">' + previewMark(LG) +
+                                           'show rebind list</div>' : '') +
+              '</div>';
     }
   }
   // ⭐ The footer area: the legend and the way back, as large as the rest.
@@ -14374,8 +14386,13 @@ function selfTest() {
        wsSeen.join(' ') === 'true false false false false' &&
        wsMark.split('class="karm"').length === 3 && dpadArm('up').split('class="karm"').length === 2,
        wsSeen.join(' '));
-    ok("Quick's rate line has no gear, Simple's the gear without R3's mark",
-       qLine.indexOf('csetgear') < 0 && sLine.indexOf('csetgear') >= 0 && sLine.indexOf('kps') < 0,
+    // ⭐ QUICK'S GEAR BACK, RIGHT OF THE RATE AND LIMIT (rhoquinn8217,
+    // 2026-11-12: "Add the settings symbol to the right of the polling rate
+    // and limit in quick mode"), where 2026-11-09 had taken it out.
+    ok("Quick's and Simple's rate lines each end in the gear, without R3's mark",
+       qLine.indexOf('csetgear') > qLine.indexOf('prate') && qLine.indexOf('prate') >= 0 &&
+       qLine.indexOf('kps') < 0 &&
+       sLine.indexOf('csetgear') >= 0 && sLine.indexOf('kps') < 0,
        qLine + ' / ' + sLine);
     // ⭐ R3 in Advanced (2026-11-09): the controller on its tab, and on
     // Overview the row the halo is on. A stand-in catches the opening.
@@ -14503,10 +14520,13 @@ function selfTest() {
     SETTINGS_OPEN = pvCrossKeep.settings;
   }
   var pvHint = document.getElementById('cpvHint');
+  // ⓘ "show rebind list" in both (2026-11-12): beside Quick's auto link, and
+  // in Simple under the wheel's box, not in it.
   var pvHintOk = !COMPACT || !document.getElementById('cpick') ||
     (!pvHint && !previewMark(buttonMarkSet())) ||
-    (!!pvHint && (QUICK ? pvHint.className === 'chint' && /rebind list$/.test(pvHint.textContent)
-                        : pvHint.className === 'cvhint' && /view rebind list$/.test(pvHint.textContent)));
+    (!!pvHint && /show rebind list$/.test(pvHint.textContent) &&
+     (QUICK ? pvHint.className === 'chint'
+            : pvHint.className === 'cvhint' && !(pvHint.closest && pvHint.closest('.cpick-wrap'))));
   ok('config preview: clicked, Circle, Esc, PS and V close it and Cross is its Edit; Cross and PS on its buttons; Cross its Edit in Simple and Quick; its line there',
      previewKeyAction('KeyZ', true) === 'close' && previewKeyAction('Escape', false) === 'close' &&
      previewKeyAction('KeyP', true) === 'close' && previewKeyAction('KeyV', false) === 'close' &&
@@ -19582,8 +19602,10 @@ function previewMain() {
     '.pvrow{display:flex;justify-content:space-between;gap:16px;line-height:1.4}' +
     '.pvk{min-width:0;overflow-wrap:anywhere}' +
     '.pvv{color:#c9cbd3;text-align:right;flex:0 1 auto;max-width:55%;overflow-wrap:anywhere}' +
+    // ⓘ Its buttons centred (rhoquinn8217, 2026-11-12: "center the bottom
+    // buttons of the preview browser box").
     '#pvFoot{position:fixed;left:0;right:0;bottom:0;display:flex;align-items:center;' +
-      'justify-content:flex-end;gap:12px;padding:12px 24px;border-top:1px solid #2a2c33;' +
+      'justify-content:center;gap:12px;padding:12px 24px;border-top:1px solid #2a2c33;' +
       'background:#15161a}' +
     '#pvBtns{display:flex;gap:16px}' +
     '.pvbtn{font:inherit;font-size:21px;color:#e8e8ea;background:#23252c;border:1px solid #3a3d48;' +
