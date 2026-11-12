@@ -7,8 +7,9 @@
 // side with the most space even if it overlapes the config window."
 // ⭐ THE ORDER IS THEIRS (2026-11-12: "preview position preference in order
 // by most preferred to least preferred: to the right, above, to the left,
-// below").
-// ➡️ So: right, above, left, below, the first where the box fits on the
+// below", then later that day: "right of box, left of box, above box, below
+// box").
+// ➡️ So: right, left, above, below, the first where the box fits on the
 // screen without covering the window; above and below centred on the window,
 // right and left level with its middle. In Advanced, and wherever no side
 // has room, the side where the box covers the least of the window, the room
@@ -99,7 +100,7 @@ inline int room(const Rect &window, const Rect &work, int w, int h, int gap, Sid
 
 inline Place place(const Rect &window, const Rect &work, int w, int h, int gap, bool advanced)
 {
-    const Side order[] = { Side::Right, Side::Above, Side::Left, Side::Below };
+    const Side order[] = { Side::Right, Side::Left, Side::Above, Side::Below };
     if (!advanced) {
         for (Side s : order) {
             if (fits(window, work, w, h, gap, s)) return on_screen(beside(window, w, h, gap, s), work, w, h);

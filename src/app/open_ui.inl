@@ -299,9 +299,9 @@ inline bool window_has_foreground()
     wchar_t title[512] = {};
     if (GetWindowTextW(fg, title, 511) <= 0) return false;
     // ⭐ THE CONFIG PREVIEW COUNTS AS THE WINDOW'S OWN (rhoquinn8217,
-    // 2026-11-11: "when in focus, esc or circle closes it"): it takes the
-    // controller while it has the front, so the gate holds and the pad's keys
-    // reach it, as they reach the window (preview_open, below).
+    // 2026-11-11: "when in focus, esc or circle closes it"): in the moment a
+    // click gives it the front, before preview_follow gives it back (since
+    // 2026-11-12), the gate holds and the pad's keys reach it, not a game.
     return window_icon_rule::is_app_window_title(title, kTitleMarker) ||
            window_icon_rule::is_app_window_title(title, kPreviewMarker);
 }
@@ -958,10 +958,11 @@ inline void open_new(uint16_t restPort, bool withToken = true)
 // ⭐ IT NEVER TAKES THE FRONT BY ITSELF (rhoquinn8217, 2026-11-11: "Preview
 // should never take focus unless a mouse can click it. Otherwise, it can be
 // opened and closed through the config window"): the front goes straight
-// back to the window as it opens, and the controller stays there. Clicked, it
-// has the front: window_has_foreground counts it as the window's own, so the
-// gate holds and the pad's keys reach it; as it closes (preview_close) the
-// front goes back to the window.
+// back to the window as it opens, and the controller stays there. ⭐ Clicked,
+// too, since 2026-11-12 ("clicking the preview moves focus to the config
+// window"): preview_follow gives the front back within a look. For that
+// moment window_has_foreground counts the box as the window's own, so the
+// gate holds; as it closes (preview_close) the front goes back to the window.
 // ⭐ AND IT FOLLOWS THE WINDOW (the same evening: "Make the preview follow the
 // main config and move the window above it, below it, to it's right or to
 // it's left base on whether there's space"): preview_follow keeps it where
@@ -1053,8 +1054,8 @@ inline void place_preview(HWND pv, const PreviewRect &r)
                  SWP_NOZORDER | SWP_NOACTIVATE);
 }
 
-// ⭐ THE BOX GOES, AND THE FRONT GOES BACK TO THE WINDOW: Circle, Esc, PS, V,
-// Close or Edit (the page asks: ui/preview, open false). ⓘ WM_CLOSE, as
+// ⭐ THE BOX GOES, AND THE FRONT GOES BACK TO THE WINDOW: PS or V, its Close,
+// or Edit (the page asks: ui/preview, open false). ⓘ WM_CLOSE, as
 // close_existing does; the page closes itself too, in case.
 inline void preview_close()
 {
@@ -1088,6 +1089,7 @@ inline void preview_follow()
         bool lastAdvanced = false;
         bool first = true;
         int gone = 0;
+        int giveBackTries = 0;
         while (gone < 8) {
             std::this_thread::sleep_for(std::chrono::milliseconds(120));
             const HWND pv = find_preview();
@@ -1096,6 +1098,28 @@ inline void preview_follow()
             FindState ours;
             EnumWindows(find_window_proc, reinterpret_cast<LPARAM>(&ours));
             if (ours.found == nullptr || IsIconic(ours.found) || IsIconic(pv)) continue;
+            // ⭐⭐ THE BOX NEVER KEEPS THE FRONT, A CLICK'S EITHER (rhoquinn8217,
+            // 2026-11-12: "clicking the preview moves focus to the config
+            // window"): it goes back to the window within a look, and the box is
+            // stood over the window again, where it covers it in Advanced. A
+            // click on Close still lands: the button is still under the pointer
+            // when it comes up. ⓘ Three tries a time, so a Windows that keeps
+            // refusing is not asked eight times a second.
+            if (GetForegroundWindow() == pv) {
+                if (giveBackTries < 3) {
+                    ++giveBackTries;
+                    raise_now(ours.found);
+                    SetWindowPos(pv, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+                    SetWindowPos(pv, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+                    const bool back = GetForegroundWindow() == ours.found;
+                    if (back || giveBackTries == 3) {
+                        device_log::session_w() << (back ? L"config preview had the front: back with the window"
+                                                         : L"config preview had the front: Windows kept it there, three tries");
+                    }
+                }
+            } else {
+                giveBackTries = 0;
+            }
             const RECT win = visible_rect(ours.found);
             const RECT box = visible_rect(pv);
             const bool advanced = ui_view_advanced();

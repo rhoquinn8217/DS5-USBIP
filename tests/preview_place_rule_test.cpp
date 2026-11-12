@@ -1,6 +1,6 @@
 // Where the config preview stands, beside the configs window.
 //
-// ⭐ WHAT THESE PROTECT (rhoquinn8217, 2026-11-11 and 12): right, above, left
+// ⭐ WHAT THESE PROTECT (rhoquinn8217, 2026-11-11 and 12): right, left, above
 // or below the window, in that order, the first with room, centred on it; in
 // Advanced, on the side with the most room, over the window if it must be;
 // never off the screen.
@@ -23,7 +23,7 @@ int run_preview_place_rule_tests()
     const Rect work{0, 0, 3840, 2088};
     const int w = 1500, h = 1080, gap = 12;
 
-    section("preview: above Simple at the bottom of the screen, centred on it");
+    section("preview: above Simple at the bottom of the screen, centred on it, neither side having room");
     {
         // Simple at the bottom centre, 1323 x 647 at 150%
         const Place p = place(Rect{927, 1118, 2912, 2088}, work, w, h, gap, false);
@@ -39,7 +39,7 @@ int run_preview_place_rule_tests()
         CTM_CHECK_EQ(p.y, 1581 - gap - h);
     }
 
-    section("preview: right before above, where both have room (their order, 2026-11-12)");
+    section("preview: right before the rest, where it has room (their order, 2026-11-12)");
     {
         // Quick moved to the bottom left
         const Place p = place(Rect{200, 1581, 1665, 2088}, work, w, h, gap, false);
@@ -47,15 +47,15 @@ int run_preview_place_rule_tests()
         CTM_CHECK_EQ(p.y, 2088 - h);   // level with its middle, kept on the screen
     }
 
-    section("preview: above before left, where the right has no room");
+    section("preview: left before above, where the right has no room (their order, later on 2026-11-12)");
     {
+        // Quick at the bottom right: above has room too, and left comes first
         const Place p = place(Rect{2400, 1581, 3800, 2088}, work, w, h, gap, false);
-        // centred on the window would end 10 px past the screen: kept on it
-        CTM_CHECK_EQ(p.x, 3840 - w);
-        CTM_CHECK_EQ(p.y, 1581 - gap - h);
+        CTM_CHECK_EQ(p.x, 2400 - gap - w);
+        CTM_CHECK_EQ(p.y, 2088 - h);   // level with its middle, kept on the screen
     }
 
-    section("preview: left before below, where neither the right nor above has room");
+    section("preview: left at the top of the screen too, where the right has no room");
     {
         const Place p = place(Rect{2400, 0, 3800, 500}, work, w, h, gap, false);
         CTM_CHECK_EQ(p.x, 2400 - gap - w);
