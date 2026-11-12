@@ -251,6 +251,7 @@ using ctm_rebind::kBtnR2;
 using ctm_rebind::kBtnStart;
 using ctm_rebind::kBtnDpadUp;
 using ctm_rebind::kBtnR3;
+using ctm_rebind::kBtnHome;
 
 int g_padA = 0;
 int g_padB = 0;
@@ -606,6 +607,33 @@ int run_rebind_tests()
         send(kPadA, pressing({kBtnR3}));
         CTM_CHECK(keys_are(kPadA, {}));
         ctm_rebind_set_editing_field(false);
+        g_compactView = false;
+        g_quickView = false;
+    }
+
+    section("config mode: PS types Ctrl+Shift+Alt+P in every view, for the config preview");
+    {
+        // ⓘ The page opens the preview on it, and closes it on the next
+        // (2026-11-11). The game sees the pad at rest, PS let go.
+        reset();
+        ctm_rebind_set_config_mode(true);
+        g_windowInFront = true;
+        g_compactView = false;                          // Advanced
+        g_quickView = false;
+        const std::vector<uint8_t> advanced = send(kPadA, pressing({kBtnHome}));
+        CTM_CHECK(keys_are(kPadA, {0x13}));            // P
+        CTM_CHECK_EQ(static_cast<int>(mods_of(kPadA)), 0x07);
+        CTM_CHECK(advanced == at_rest());
+        g_compactView = true;                           // Simple
+        const std::vector<uint8_t> simple = send(kPadA, pressing({kBtnHome}));
+        CTM_CHECK(keys_are(kPadA, {0x13}));            // P
+        CTM_CHECK(simple == at_rest());
+        g_quickView = true;                             // Quick
+        const std::vector<uint8_t> quick = send(kPadA, pressing({kBtnHome}));
+        CTM_CHECK(keys_are(kPadA, {0x13}));            // P
+        CTM_CHECK(quick == at_rest());
+        send(kPadA, at_rest());
+        CTM_CHECK(keys_are(kPadA, {}));
         g_compactView = false;
         g_quickView = false;
     }

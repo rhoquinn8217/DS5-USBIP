@@ -320,6 +320,14 @@ inline const GateBinding kConfigModeKeys[] = {
     // config's, clicks over the window included.
     { kBtnL2,        "KeyG",  CTM_GATE_MODS },   // L2: a tour's Go back
     { kBtnR2,        "KeyF",  CTM_GATE_MODS },   // R2: a tour's Continue
+    // ⭐ PS OPENS THE CONFIG PREVIEW, AND CLOSES IT (rhoquinn8217, 2026-11-11:
+    // "When the config window is up, pressing the PS/XBOX button open a
+    // separate browser box that lists out all the the enabled settings"): a
+    // box of its own beside the window, which the page asks for (ui/preview).
+    // ⓘ It reached nothing over the window until then. An Xbox pad's Guide
+    // has no byte in its report (button_layout.inl), so it has no button for
+    // the preview yet.
+    { kBtnHome,      "KeyP",  CTM_GATE_MODS },   // PS: the config preview
 };
 
 // ⓘ Whether the page has this button: every one in the table, but L3

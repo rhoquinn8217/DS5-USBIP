@@ -2,7 +2,7 @@
 <!--
   DS5-USBIP's Controller Configs page, served by the listener.
 
-  VERSION 2.69.8 -- see the changelog at the bottom of this comment.
+  VERSION 2.70.0 -- see the changelog at the bottom of this comment.
 
   WHAT IT STARTED AS. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -24,6 +24,12 @@
   not a tidy message about it.
 
   CHANGELOG
+    2.70.0   The config preview: PS on a controller, or V, with this window
+             in front opens a box of its own beside it, listing the ticked
+             settings of the config it is on, by section, in two columns, at
+             a fixed size that grows for a longer config; it follows the
+             config from one to the next, and PS or V again closes it
+             (rhoquinn8217, 2026-11-11).
     2.69.8   Reset in a controller's settings window, beside Close: every
              setting there back to its default but the device tag, after a
              question that starts on Cancel (rhoquinn8217, 2026-11-11).
@@ -3756,7 +3762,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.69.8</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.70.0</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -3879,6 +3885,31 @@
 </div>
 
 <script>
+// ⭐⭐ THE CONFIG PREVIEW IS THIS PAGE TOO (rhoquinn8217, 2026-11-11: "When the
+// config window is up, pressing the PS/XBOX button open a separate browser box
+// that lists out all the the enabled settings and their values in by section
+// of the currently selected config"). Opened at ?preview, by the listener,
+// beside the configs window, it draws the box alone (previewMain, at the end)
+// with the editor's own sections and words, so the two cannot drift apart.
+// ⛔ NOTHING OF THE CONFIGS WINDOW RUNS IN IT: no timer, no listener, no pad.
+// Its focus reports would hand the controller to the game, its pagehide would
+// say the configs window had closed, and its keys and pad polling would drive
+// a page nobody sees. So the three ways this page starts anything are blank
+// in the box before any of it runs, and the box keeps the real ones for its
+// own few.
+var PREVIEW_MODE = /[?&]preview(?:&|$)/.test(location.search);
+var PREVIEW_REAL = null;
+if (PREVIEW_MODE) {
+  PREVIEW_REAL = {
+    setInterval: window.setInterval.bind(window),
+    listen: window.addEventListener.bind(window)
+  };
+  window.setInterval = function () { return 0; };
+  window.requestAnimationFrame = function () { return 0; };
+  window.addEventListener = function () {};
+  document.addEventListener = function () {};
+}
+
 // ⭐ Display names for controller tabs.
 //
 // ⓘ DISPLAY ONLY. The API still uses the ordinal -- ds5_usb_1 -- for linking,
@@ -7685,6 +7716,109 @@ function configEditorGroups(keys) {
   return groups;
 }
 
+// ⭐ THE SECTIONS, IN ORDER, THAT A DEVICE CAN USE: the editor's tabs, and the
+// config preview's sections in the same order (2026-11-11). capDev is the
+// device in hand, or null where there is none (Overview), and then nothing is
+// left out.
+function configSectionOrder(groups, capDev) {
+  var can = function(flag) {
+    if (!capDev) return true;
+    return capDev[flag] === undefined ? true : !!capDev[flag];
+  };
+  var SECTION_NEEDS = {
+    'Touchpad': 'has_touchpad',
+    'Gyro': 'has_gyro',
+    'Edge buttons': 'has_edge_buttons'
+  };
+  var shows = function(g) {
+    if (SECTION_NEEDS[g] && !can(SECTION_NEEDS[g])) return false;
+    return (groups[g] || []).some(function(meta) {
+      return !hiddenSetting(meta.key);
+    });
+  };
+  // ⭐ LEFT BEFORE RIGHT (rhoquinn8217, 2026-09-03). The tab strip is read as
+  // a LAYOUT, so a "Right stick" tab sitting to the left of "Left stick" looks
+  // wrong before anyone reads the words -- and that reading is involuntary.
+  //
+  // ⚠️ It costs the ordering we wanted: right is the stick most people point
+  // with, so it is what they came for. That is one tab press, against a thing
+  // that looks broken to everyone who sees it.
+  //
+  // ⓘ Right still comes first WITHIN each section -- mode, switch, gate, then
+  // tuning -- so the top of whichever tab you open is the thing you wanted.
+  return ['Gyro', 'Touchpad', 'Triggers',
+          'Left stick', 'Right stick',
+          'Face buttons', 'Shoulder/stick buttons', 'System buttons', 'Edge buttons',
+          'Other'].filter(shows);
+}
+
+// ⓘ Whether the editor draws a row at all, for the device in hand (dev, or {}
+// where there is none): the editor and the config preview ask the same.
+function configRowShown(meta, dev) {
+  // ⛔ Debug keys are for someone reading the log, not for the person
+  // adjusting a controller -- and every row is one more to scroll past.
+  // Set them by hand in the config file when they are needed.
+  if (hiddenSetting(meta.key)) return false;
+  // ⭐ ON A DS4, A ROW THAT DOES NOTHING IS HIDDEN, NOT GREYED
+  // (rhoquinn8217, 2026-11-04: "hide them"). A DualSense keeps its greyed
+  // rows and their reasons, as before.
+  if (dev && dev.kind && settingsKindOf(dev.kind) === 'ds4' && inertReason(meta.key, dev.kind)) return false;
+  return true;
+}
+
+// ⭐ A ROW'S NAME, AS THE EDITOR WRITES IT: { text, html }. The editor's rows
+// and the config preview's take it from here, so the two read alike. `only`
+// is the transport a key acts on alone (TRANSPORT_ONLY), or nothing; `set`
+// the legend whose marks the buttons are drawn in (buttonMark), or the pad in
+// hand's.
+function configRowName(meta, only, set) {
+  var prettyKey = meta.key;
+  var markHtml = '';
+  // ⭐ A rebind row is labelled by its BUTTON, not by rebind_7.
+  //
+  // ⓘ The KEY stays numeric because it is the W3C standard gamepad index,
+  // which is what makes a config portable -- index 0 is the bottom face
+  // button on any pad. But nobody navigating this page should have to
+  // know that, so the label comes from the help text's own name.
+  // ⭐ THE NAME IS ITS OWN FIELD NOW (2026-09-01). It used to be the
+  // first words of the help text, which meant the help could not be
+  // shortened without every row losing its label -- and the help was 255
+  // characters of the same boilerplate on all seventeen buttons.
+  //
+  // ⓘ Still falls back to parsing the help, so an older agent that sends
+  // no name keeps its labels.
+  var m = /^(rebind|turbo)_(\d+)$/.exec(meta.key);
+  if (m) {
+    // ⭐ THE ACTION IS IN THE TITLE (rhoquinn8217, 2026-09-01), because
+    // "what this row does" was otherwise buried in the help. The name
+    // reads as a button -- (✕) | (A) -- and the row says what happens.
+    var name = meta.name || (meta.help ? meta.help.split(' -- ')[0] : meta.key);
+    // ⭐ "✕ - rebind": the config's own word, rebind_N, after a plain
+    // hyphen (rhoquinn8217, 2026-10-28: "use the word rebind instead of
+    // remap and use a single normal "-" between symbol and rebind"),
+    // where a long dash stood until they asked whether it suited a
+    // drawn button. The one still in words: "(PS) | (Home) - rebind".
+    prettyKey = name + (m[1] === 'turbo' ? ' - rapid fire' : ' - rebind');
+    // ⭐ The button drawn as the legend draws it, the listener's words for
+    // it kept for the one with no mark (buttonMark).
+    markHtml = buttonMark(Number(m[2]), set);
+  }
+  var shownKey = only ? (prettyKey + ' (' + only + ' only)') : prettyKey;
+  var nameHtml = markHtml
+    ? markHtml + esc((m[1] === 'turbo' ? ' - rapid fire' : ' - rebind') +
+                     (only ? ' (' + only + ' only)' : ''))
+    : esc(shownKey);
+  return { text: shownKey, html: nameHtml };
+}
+
+// ⓘ A ticked value in the editor's words: what its dropdown shows for it. A
+// switch reads true or false, as its dropdown does; everything else is the
+// label choiceLabel gives it, which is the value itself where it has none.
+function configValueText(meta, val) {
+  if (meta.type === 'bool') return String(val);
+  return choiceLabel(meta.key, String(val));
+}
+
 // ⭐ ONE settings editor, used by both a controller tab and Overview.
 //
 // It was two before: the tabs had this, and Overview had a
@@ -7752,35 +7886,9 @@ function renderConfigEditor(hostId, configName, prefix, ordinal) {
     var capDev = ordinal
       ? deviceByOrdinal(ordinal)
       : null;
-    var can = function(flag) {
-      if (!capDev) return true;
-      return capDev[flag] === undefined ? true : !!capDev[flag];
-    };
-    var SECTION_NEEDS = {
-      'Touchpad': 'has_touchpad',
-      'Gyro': 'has_gyro',
-      'Edge buttons': 'has_edge_buttons'
-    };
-    var shows = function(g) {
-      if (SECTION_NEEDS[g] && !can(SECTION_NEEDS[g])) return false;
-      return (groups[g] || []).some(function(meta) {
-        return !hiddenSetting(meta.key);
-      });
-    };
-    // ⭐ LEFT BEFORE RIGHT (rhoquinn8217, 2026-09-03). The tab strip is read as
-    // a LAYOUT, so a "Right stick" tab sitting to the left of "Left stick" looks
-    // wrong before anyone reads the words -- and that reading is involuntary.
-    //
-    // ⚠️ It costs the ordering we wanted: right is the stick most people point
-    // with, so it is what they came for. That is one tab press, against a thing
-    // that looks broken to everyone who sees it.
-    //
-    // ⓘ Right still comes first WITHIN each section -- mode, switch, gate, then
-    // tuning -- so the top of whichever tab you open is the thing you wanted.
-    var order = ['Gyro', 'Touchpad', 'Triggers',
-                 'Left stick', 'Right stick',
-                 'Face buttons', 'Shoulder/stick buttons', 'System buttons', 'Edge buttons',
-                 'Other'].filter(shows);
+    // ⓘ The order, and the sections the device can use: configSectionOrder,
+    // which the config preview draws by too.
+    var order = configSectionOrder(groups, capDev);
 
     // ⭐ ONE SECTION AT A TIME. The others are not scrolled past, they are not
     // rendered visible at all -- which also means the D-pad cannot wander into
@@ -7818,15 +7926,10 @@ function renderConfigEditor(hostId, configName, prefix, ordinal) {
               // button now, as the legend does (2026-10-28, buttonMark).
               '';
       groups[g].forEach(function(meta) {
-        // ⛔ Debug keys are for someone reading the log, not for the person
-        // adjusting a controller -- and every row is one more to scroll past.
-        // Set them by hand in the config file when they are needed.
-        if (hiddenSetting(meta.key)) return;
         var rowDev = ordinal ? (deviceByOrdinal(ordinal) || {}) : {};
-        // ⭐ ON A DS4, A ROW THAT DOES NOTHING IS HIDDEN, NOT GREYED
-        // (rhoquinn8217, 2026-11-04: "hide them"). A DualSense keeps its greyed
-        // rows and their reasons, as before.
-        if (rowDev.kind && settingsKindOf(rowDev.kind) === 'ds4' && inertReason(meta.key, rowDev.kind)) return;
+        // ⓘ Debug keys, and on a DS4 a row that does nothing, are not drawn:
+        // configRowShown, which the config preview asks too.
+        if (!configRowShown(meta, rowDev)) return;
         var val = current[meta.key];
         // ⚠️ Present-but-empty counts as UNMANAGED, not as a value. That is
         // what the agent does too: "" fails to parse and falls back, and an
@@ -7975,42 +8078,11 @@ function renderConfigEditor(hostId, configName, prefix, ordinal) {
         // ⭐ On the NAME, not only in the help. Someone changing a value reads
         // the label; the help is what you read when the value does not work.
         var only = TRANSPORT_ONLY[meta.key];
-        // ⭐ A rebind row is labelled by its BUTTON, not by rebind_7.
-        //
-        // ⓘ The KEY stays numeric because it is the W3C standard gamepad index,
-        // which is what makes a config portable -- index 0 is the bottom face
-        // button on any pad. But nobody navigating this page should have to
-        // know that, so the label comes from the help text's own name.
-        // ⭐ THE NAME IS ITS OWN FIELD NOW (2026-09-01). It used to be the
-        // first words of the help text, which meant the help could not be
-        // shortened without every row losing its label -- and the help was 255
-        // characters of the same boilerplate on all seventeen buttons.
-        //
-        // ⓘ Still falls back to parsing the help, so an older agent that sends
-        // no name keeps its labels.
-        var prettyKey = meta.key;
-        var markHtml = '';
-        var m = /^(rebind|turbo)_(\d+)$/.exec(meta.key);
-        if (m) {
-          // ⭐ THE ACTION IS IN THE TITLE (rhoquinn8217, 2026-09-01), because
-          // "what this row does" was otherwise buried in the help. The name
-          // reads as a button -- (✕) | (A) -- and the row says what happens.
-          var name = meta.name || (meta.help ? meta.help.split(' -- ')[0] : meta.key);
-          // ⭐ "✕ - rebind": the config's own word, rebind_N, after a plain
-          // hyphen (rhoquinn8217, 2026-10-28: "use the word rebind instead of
-          // remap and use a single normal "-" between symbol and rebind"),
-          // where a long dash stood until they asked whether it suited a
-          // drawn button. The one still in words: "(PS) | (Home) - rebind".
-          prettyKey = name + (m[1] === 'turbo' ? ' - rapid fire' : ' - rebind');
-          // ⭐ The button drawn as the legend draws it, the listener's words for
-          // it kept for the one with no mark (buttonMark).
-          markHtml = buttonMark(Number(m[2]));
-        }
-        var shownKey = only ? (prettyKey + ' (' + only + ' only)') : prettyKey;
-        var nameHtml = markHtml
-          ? markHtml + esc((m[1] === 'turbo' ? ' - rapid fire' : ' - rebind') +
-                           (only ? ' (' + only + ' only)' : ''))
-          : esc(shownKey);
+        // ⓘ The button's mark and "- rebind", or the key: configRowName, which
+        // the config preview names its rows by too.
+        var rowName = configRowName(meta, only);
+        var shownKey = rowName.text;
+        var nameHtml = rowName.html;
 
         html += '<div class="row' + (managed ? '' : ' off') + (inert ? ' inert' : '') +
                 '" id="row-' + id + '">' +
@@ -10140,9 +10212,25 @@ function syncFocus() {
   // than not gating at all -- reach for the mouse instead.
   if (inPlainTab()) return;
   var on = document.hasFocus();
+  // ⭐ THE CONFIG PREVIEW TAKES THE FRONT AS IT OPENS, and a click on it takes
+  // it too; the listener gives it straight back. A blur while it is up is not
+  // someone leaving this window, so it is reported once it has lasted, rather
+  // than the controller going to the game and coming back.
+  if (!on && PREVIEW_OPEN) {
+    var now = Date.now();
+    if (!PREVIEW_BLUR_SINCE) PREVIEW_BLUR_SINCE = now;
+    if (now < Math.max(PREVIEW_OPENING_UNTIL, PREVIEW_BLUR_SINCE + PREVIEW_BLUR_GRACE_MS)) {
+      setTimeout(syncFocus, 150);
+      return;
+    }
+  } else if (on) {
+    PREVIEW_BLUR_SINCE = 0;
+  }
   if (on === LAST_FOCUS_SENT) return;
   LAST_FOCUS_SENT = on;
   reportFocus(on);
+  // ⓘ Back in front after a game had it: the box comes back beside it.
+  if (on && PREVIEW_OPEN) previewRaise();
 }
 
 window.addEventListener('focus', syncFocus);
@@ -10356,7 +10444,9 @@ var CONFIG_MODE_KEYS = {
   KeyV: function () { quickSwitchKeep(); },
   // ⭐ L3: Simple's next tip (2.66.116). The listener sends it only while
   // Simple is in front.
-  KeyH: function () { tipNextByButton(); }
+  KeyH: function () { tipNextByButton(); },
+  // ⭐ PS: the config preview, open and closed (2026-11-11, rebind.inl).
+  KeyP: function () { togglePreview(); }
   // ⛔ NO KeyC. Create resizes the window now (rhoquinn8217, 2026-09-20) and
   // the listener reads it from the raw report, so it no longer sends a key --
   // see rebind.inl. It used to cycle compact and full, then after T-233 only
@@ -11361,7 +11451,10 @@ var PLAIN_KEYS = {
   // 🔗 They POST to the listener, which does the work, exactly as `ui/drag`
   // does for the mouse.
   KeyP:       function () { uiAsk('position'); },
-  KeyR:       function () { uiAsk('resize'); }
+  KeyR:       function () { uiAsk('resize'); },
+  // ⭐ V, AS PS DOES ON A PAD: the config preview, open and closed
+  // (2026-11-11). ⓘ P is position already.
+  KeyV:       function () { togglePreview(); }
 };
 
 // ⓘ One line for the two window actions a keyboard has no other way to
@@ -14302,6 +14395,63 @@ function selfTest() {
     LAST_DEVICES = devsWas;
     groupDevices(LAST_DEVICES);
   }
+
+  // ⓘ Outside the block above, which swaps KEYS for a made-up list of the
+  // controller's own settings: the preview reads the configs' real one.
+  // ⭐ THE CONFIG PREVIEW (2.70.0): PS's key and V open and close it; it
+  // lists a config's ticked settings and nothing else, in the editor's
+  // sections and their order, named and worded as the editor does; opening
+  // asks the listener for the box and closing tells the box.
+  var pvCfg = { settings: { rebind_0: 'Enter', touchpad_scroll: '2', gyro_no_passthrough: 'true',
+                            left_stick_mode: 'scroll', gyro_to_mouse_gate_type: 'while_held',
+                            right_stick_mode: '', trigger_probe: 'true' } };
+  var pvSecs = previewSections(pvCfg, { kind: 'ds5_usb' });
+  var pvOrder = configSectionOrder(configEditorGroups(KEYS), null);
+  var pvKeys = [], pvInOrder = true, pvLast = -1, pvGateWord = '', pvCrossName = '';
+  pvSecs.forEach(function (s) {
+    var at = pvOrder.indexOf(s.section);
+    if (at <= pvLast) pvInOrder = false;
+    pvLast = at;
+    s.rows.forEach(function (r) {
+      pvKeys.push(r.meta.key);
+      if (r.meta.key === 'gyro_to_mouse_gate_type') pvGateWord = configValueText(r.meta, r.value);
+      if (r.meta.key === 'rebind_0') pvCrossName = configRowName(r.meta, undefined, PAD_LEGEND_PS).text;
+    });
+  });
+  var pvToggles = 0, pvSent = [], pvPosts = [];
+  var pvKeep = { toggle: togglePreview, call: call, ch: PREVIEW_CHANNEL, open: PREVIEW_OPEN,
+                 openedAt: PREVIEW_OPENED_AT, closedAt: PREVIEW_CLOSED_AT,
+                 until: PREVIEW_OPENING_UNTIL };
+  try {
+    togglePreview = function () { pvToggles++; };
+    CONFIG_MODE_KEYS.KeyP();
+    PLAIN_KEYS.KeyV();
+    togglePreview = pvKeep.toggle;
+    call = function (method, path, body) {
+      pvSent.push(method + ' ' + path + ' ' + JSON.stringify(body));
+      return Promise.resolve({});
+    };
+    PREVIEW_CHANNEL = { postMessage: function (m) { pvPosts.push(JSON.stringify(m)); } };
+    PREVIEW_OPEN = false;
+    togglePreview();
+    var pvOpened = PREVIEW_OPEN;
+    togglePreview();
+    var pvClosed = !PREVIEW_OPEN;
+  } finally {
+    togglePreview = pvKeep.toggle; call = pvKeep.call; PREVIEW_CHANNEL = pvKeep.ch;
+    PREVIEW_OPEN = pvKeep.open; PREVIEW_OPENED_AT = pvKeep.openedAt;
+    PREVIEW_CLOSED_AT = pvKeep.closedAt;
+    PREVIEW_OPENING_UNTIL = pvKeep.until;
+  }
+  ok('config preview: PS and V open and close it, and it shows only the ticked settings, by section, in the editor\'s words',
+     pvToggles === 2 && pvOpened && pvClosed &&
+     pvSent.length === 1 && pvSent[0].indexOf('POST /api/v1/ui/preview') === 0 &&
+     pvPosts.length === 1 && pvPosts[0] === '{"close":true}' &&
+     pvInOrder && pvKeys.sort().join(',') ===
+       'gyro_no_passthrough,gyro_to_mouse_gate_type,left_stick_mode,rebind_0,touchpad_scroll' &&
+     pvGateWord === 'on button hold' && / - rebind$/.test(pvCrossName),
+     pvToggles + ' ' + pvSent.join(';') + ' ' + pvPosts.join(';') + ' ' + pvKeys.join(',') +
+     ' ' + pvGateWord + ' ' + pvCrossName);
 
   // 🔗 T-248. The hints are a plain array of strings, and the one way this
   // file has ACTUALLY broken before is an unescaped apostrophe truncating an
@@ -18962,7 +19112,330 @@ function startPage() {
   restoreView();      // ⭐ the layout, controller, size and place it went away in
 }
 
-if (location.search.indexOf('selftest') >= 0) {
+// ---- The config preview ------------------------------------------------------
+//
+// ⭐⭐ A BOX OF ITS OWN BESIDE THIS WINDOW (rhoquinn8217, 2026-11-11: "When the
+// config window is up, pressing the PS/XBOX button open a separate browser box
+// that lists out all the the enabled settings and their values in by section
+// of the currently selected config", then "Do two columns with a fixed size
+// browser box", "The enable settings are the ticked ones" and "allow the box
+// to grow from it's fixed size"). It opens to the right of this window, or
+// the left where there is no room; in Advanced it shows the tab's config, on
+// Overview the editor's; in Simple and Quick the config on the wheel.
+// ⓘ PS on a pad (rebind.inl sends KeyP with the gate's three modifiers) or V
+// on a keyboard opens it, and again closes it. The listener opens it
+// (ui/preview), an app window like this one, and gives the front straight
+// back to this window: the controller stays here. After that the two windows
+// talk over a BroadcastChannel: this one says every half second which config
+// it is on, the box says hello every second, and a box that hears nothing
+// for three seconds closes itself.
+// ⓘ An Xbox pad has no button for it yet: its Guide and Share do not reach
+// the listener (rhoquinn8217 is choosing another).
+var PREVIEW_CHANNEL_NAME = 'ds5-usbip-preview';
+var PREVIEW_CHANNEL = null;
+var PREVIEW_OPEN = false;          // asked for, or a box said hello
+var PREVIEW_OPENED_AT = 0;         // the last open asked for here
+var PREVIEW_CLOSED_AT = 0;         // the last close; a box heard after it goes
+var PREVIEW_OPENING_UNTIL = 0;     // the box takes the front as it opens
+var PREVIEW_BLUR_SINCE = 0;        // a blur while the box is up, not yet reported
+var PREVIEW_FEED_MS = 500;
+var PREVIEW_QUIET_MS = 3000;       // the box closes after this long without word
+// ⓘ How long a blur waits, while the box is up, before it is believed: the
+// listener gives the front back within a quarter of a second.
+var PREVIEW_BLUR_GRACE_MS = 800;
+
+function previewChannel() {
+  if (PREVIEW_CHANNEL) return PREVIEW_CHANNEL;
+  if (typeof BroadcastChannel === 'undefined') return null;
+  PREVIEW_CHANNEL = new BroadcastChannel(PREVIEW_CHANNEL_NAME);
+  if (!PREVIEW_MODE) {
+    PREVIEW_CHANNEL.onmessage = function (ev) {
+      var m = ev.data || {};
+      if (m.bye) { PREVIEW_OPEN = false; return; }
+      if (!m.hello) return;
+      // ⓘ A box heard after it was closed here (PS twice in quick succession,
+      // the close sent before the box was listening) is closed again.
+      if (PREVIEW_CLOSED_AT > PREVIEW_OPENED_AT) {
+        PREVIEW_CHANNEL.postMessage({ close: true });
+        return;
+      }
+      // ⓘ Otherwise it is this window's, or one a reloaded copy of it opened:
+      // taken up, and told at once what to show.
+      PREVIEW_OPEN = true;
+      PREVIEW_CHANNEL.postMessage(previewFeed());
+    };
+  }
+  return PREVIEW_CHANNEL;
+}
+
+// Which config the box shows, and the controller it is for: the wheel's
+// choice in Simple and Quick, the tab's in Advanced, the editor's on Overview.
+function previewTarget() {
+  if (COMPACT) {
+    var c = document.getElementById('cpick');
+    return { ordinal: c ? (c.dataset.ordinal || '') : '', config: c ? c.value : '' };
+  }
+  if (ACTIVE === 'overview') return { ordinal: '', config: OV_CONFIG || '' };
+  var p = document.getElementById('pick-' + ACTIVE);
+  var d = deviceByOrdinal(ACTIVE);
+  return { ordinal: ACTIVE, config: p ? p.value : ((d && d.linked_config) || '') };
+}
+
+// ⓘ All the box needs, sent whole every time: its config, the controller's
+// kind and what it has (the sections and rows the editor would draw for it),
+// the legend its buttons are drawn in, and the access token if one is typed.
+function previewFeed() {
+  var t = previewTarget();
+  var d = t.ordinal ? deviceByOrdinal(t.ordinal) : null;
+  var tok = document.getElementById('token');
+  return {
+    config: t.config || '',
+    device: d ? { kind: d.kind, has_touchpad: d.has_touchpad, has_gyro: d.has_gyro,
+                  has_edge_buttons: d.has_edge_buttons } : null,
+    set: legendNameOf(buttonMarkSet()),
+    token: tok ? tok.value.trim() : '',
+    at: Date.now()
+  };
+}
+
+// ⓘ A legend set crosses to the box by NAME: the marks ask which set by
+// identity (keyCap), and a copy of one is none of them.
+function legendNameOf(set) {
+  return set === PAD_LEGEND_XBOX ? 'xbox' : set === KEY_LEGEND ? 'keys' : 'ps';
+}
+function legendByName(name) {
+  return name === 'xbox' ? PAD_LEGEND_XBOX : name === 'keys' ? KEY_LEGEND : PAD_LEGEND_PS;
+}
+
+function togglePreview() {
+  if (PREVIEW_MODE) return;
+  var ch = previewChannel();
+  if (!ch) return;
+  if (PREVIEW_OPEN) {
+    ch.postMessage({ close: true });
+    PREVIEW_OPEN = false;
+    PREVIEW_CLOSED_AT = Date.now();
+    return;
+  }
+  PREVIEW_OPEN = true;
+  PREVIEW_OPENED_AT = Date.now();
+  previewRaise();
+}
+
+// ⓘ Opens the box, or brings an open one back beside this window: the
+// listener places it and gives the front back here.
+function previewRaise() {
+  PREVIEW_OPENING_UNTIL = Date.now() + 3000;
+  call('POST', '/api/v1/ui/preview', { open: true }).catch(function () {
+    PREVIEW_OPEN = false;
+  });
+}
+
+if (!PREVIEW_MODE) {
+  setInterval(function () {
+    if (!PREVIEW_OPEN || !previewChannel()) return;
+    PREVIEW_CHANNEL.postMessage(previewFeed());
+  }, PREVIEW_FEED_MS);
+  // ⓘ The box goes with this window.
+  window.addEventListener('pagehide', function () {
+    if (PREVIEW_OPEN && PREVIEW_CHANNEL) PREVIEW_CHANNEL.postMessage({ close: true });
+  });
+  // ⓘ A box made by an earlier copy of this window is heard from at once.
+  previewChannel();
+}
+
+// ---- The box itself (?preview) ------------------------------------------------
+
+var PREVIEW_STATE = {
+  config: null, device: null, set: null, token: '',
+  cfg: null, cfgText: '', failed: false, heardAt: 0, base: null, origin: ''
+};
+
+// ⓘ Its own requests: call() writes to this page's log and light, which the
+// box does not have.
+function previewGet(path) {
+  var h = {};
+  if (PREVIEW_STATE.token) h['Authorization'] = 'Bearer ' + PREVIEW_STATE.token;
+  return fetch(PREVIEW_STATE.origin + path, { headers: h }).then(function (r) {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  });
+}
+
+// ⭐ THE TICKED SETTINGS OF A CONFIG, BY SECTION: the editor's sections in its
+// order, its rows in theirs, for the device in hand ({} for none), and only
+// the rows whose box is ticked (a value that is present and not empty, which
+// is what the editor and the listener both call managed).
+function previewSections(cfg, dev) {
+  var current = (cfg && cfg.settings) || {};
+  var groups = configEditorGroups(KEYS);
+  var devOrNull = dev && dev.kind ? dev : null;
+  var out = [];
+  configSectionOrder(groups, devOrNull).forEach(function (g) {
+    var rows = [];
+    (groups[g] || []).forEach(function (meta) {
+      if (!configRowShown(meta, dev || {})) return;
+      var val = current[meta.key];
+      if (val === undefined || val === '') return;
+      rows.push({ meta: meta, value: val });
+    });
+    if (rows.length) out.push({ section: g, rows: rows });
+  });
+  return out;
+}
+
+function previewRender() {
+  var st = PREVIEW_STATE;
+  var nameEl = document.getElementById('pvName');
+  var countEl = document.getElementById('pvCount');
+  var colsEl = document.getElementById('pvCols');
+  var footEl = document.getElementById('pvFoot');
+  if (!nameEl) return;
+  var html = '';
+  if (st.config === null) {
+    nameEl.textContent = '';
+    countEl.textContent = 'Waiting for the configs window…';
+  } else if (!st.config) {
+    nameEl.textContent = 'No config';
+    countEl.textContent = 'Every setting is left to the game.';
+  } else if (st.failed) {
+    nameEl.textContent = st.config;
+    countEl.textContent = 'This config could not be read.';
+  } else if (st.cfg) {
+    var sections = previewSections(st.cfg, st.device);
+    var n = sections.reduce(function (a, s) { return a + s.rows.length; }, 0);
+    nameEl.textContent = st.config;
+    countEl.textContent = n === 0
+      ? 'Nothing is ticked. Every setting is left to the game.'
+      : n + (n === 1 ? ' setting ticked.' : ' settings ticked.') + ' The rest are left to the game.';
+    html = sections.map(function (s) {
+      return '<div class="pvsect"><div class="pvsh">' + esc(s.section) + '</div>' +
+        s.rows.map(function (r) {
+          var nm = configRowName(r.meta, TRANSPORT_ONLY[r.meta.key], legendByName(st.set));
+          return '<div class="pvrow"><span class="pvk" title="' + esc(nm.text) + '">' + nm.html +
+                 '</span><span class="pvv">' + esc(configValueText(r.meta, r.value)) + '</span></div>';
+        }).join('') + '</div>';
+    }).join('');
+  }
+  colsEl.innerHTML = html;
+  // ⓘ PS on a PlayStation pad; V on a keyboard, and on a pad with no button
+  // for it yet (an Xbox pad's Guide does not reach the listener).
+  var mark = st.set === 'keys' ? '' : buttonMark(16, legendByName(st.set));
+  footEl.innerHTML = (mark || keyCap('V', KEY_LEGEND)) + ' closes. Follows the config you’re on.';
+  previewFit();
+  setTimeout(previewFit, 300);
+}
+
+// ⭐ A FIXED SIZE THAT GROWS (rhoquinn8217, 2026-11-11: "allow the box to grow
+// from it's fixed size"): the size it opened at, taller when a config needs
+// more, upward so its bottom stays level with the configs window's, and back
+// to that size for a config that fits; never past the screen.
+// ⓘ resizeTo is asynchronous, so it is asked again once the window has moved.
+function previewFit() {
+  var st = PREVIEW_STATE;
+  var root = document.getElementById('pvRoot');
+  if (!root) return;
+  if (!st.base) st.base = { h: window.outerHeight };
+  var chrome = window.outerHeight - window.innerHeight;
+  var want = Math.max(st.base.h, root.offsetHeight + chrome);
+  var room = screen.availHeight || want;
+  if (want > room) want = room;
+  if (Math.abs(want - window.outerHeight) < 4) return;
+  var bottom = window.screenY + window.outerHeight;
+  var top = Math.max(screen.availTop || 0, bottom - want);
+  window.resizeTo(window.outerWidth, want);
+  window.moveTo(window.screenX, top);
+}
+
+function previewLoad() {
+  var st = PREVIEW_STATE;
+  if (!st.config) { st.cfg = null; st.cfgText = ''; st.failed = false; previewRender(); return; }
+  var asked = st.config;
+  previewGet('/api/v1/configs/' + encodeURIComponent(asked)).then(function (cfg) {
+    if (st.config !== asked) return;
+    var text = JSON.stringify(cfg && cfg.settings || {});
+    var same = !st.failed && st.cfg && text === st.cfgText;
+    st.cfg = cfg; st.cfgText = text; st.failed = false;
+    if (!same) previewRender();
+  }).catch(function () {
+    if (st.config !== asked) return;
+    st.failed = true; st.cfg = null; st.cfgText = '';
+    previewRender();
+  });
+}
+
+function previewClose() {
+  if (PREVIEW_CHANNEL) PREVIEW_CHANNEL.postMessage({ bye: true });
+  window.close();
+}
+
+function previewMain() {
+  var st = PREVIEW_STATE;
+  // ⓘ The listener's address as the page reads it (adoptServingOrigin), taken
+  // before the body it is kept in is replaced.
+  st.origin = base();
+  document.title = 'Config preview [ctm-preview]';
+  document.documentElement.classList.add('pvmode');
+  var css = document.createElement('style');
+  css.textContent =
+    'html.pvmode body{margin:0;padding:0;min-height:0;background:#15161a;color:#e8e8ea;overflow:hidden}' +
+    '#pvRoot{padding:10px 14px 44px}' +
+    '#pvHead{border-bottom:1px solid #2a2c33;padding-bottom:6px;margin-bottom:2px}' +
+    '#pvName{font-size:16px;font-weight:600;overflow-wrap:anywhere}' +
+    '#pvCount{color:#9a9ca5;font-size:12px}' +
+    '#pvCols{column-count:2;column-gap:22px}' +
+    '.pvsect{break-inside:avoid;padding-top:6px}' +
+    '.pvsh{color:#8fb0ff;font-size:12px;margin:2px 0}' +
+    '.pvrow{display:flex;justify-content:space-between;gap:10px;line-height:1.45}' +
+    '.pvk{min-width:0;overflow-wrap:anywhere}' +
+    '.pvv{color:#c9cbd3;text-align:right;flex:0 1 auto;max-width:55%;overflow-wrap:anywhere}' +
+    '#pvFoot{position:fixed;left:0;right:0;bottom:0;padding:8px 14px;border-top:1px solid #2a2c33;' +
+      'color:#9a9ca5;font-size:12px;background:#15161a}';
+  document.head.appendChild(css);
+  document.body.innerHTML =
+    '<div id="pvRoot"><div id="pvHead"><div id="pvName"></div><div id="pvCount"></div></div>' +
+    '<div id="pvCols"></div></div><div id="pvFoot"></div>';
+  previewRender();
+
+  previewGet('/api/v1/keys').then(function (d) {
+    KEYS = d.keys || [];
+    KEY_NAMES = d.key_names || [];
+    previewRender();
+    if (st.config) previewLoad();
+  }).catch(function () {});
+
+  var ch = previewChannel();
+  if (!ch) return;
+  st.heardAt = Date.now();
+  ch.onmessage = function (ev) {
+    var m = ev.data || {};
+    if (m.close) { previewClose(); return; }
+    if (m.config === undefined) return;
+    st.heardAt = Date.now();
+    if (m.token) st.token = m.token;
+    var changed = m.config !== st.config || m.set !== st.set ||
+                  JSON.stringify(m.device || null) !== JSON.stringify(st.device || null);
+    st.config = m.config;
+    st.device = m.device || null;
+    st.set = m.set || null;
+    if (changed && KEYS.length) previewLoad();
+    else if (changed) previewRender();
+  };
+  ch.postMessage({ hello: true });
+  PREVIEW_REAL.listen('pagehide', function () { ch.postMessage({ bye: true }); });
+  // ⓘ Once a second: hello, the config again (an edit in the configs window
+  // shows here within the second), and a close when the window has gone quiet.
+  PREVIEW_REAL.setInterval(function () {
+    if (Date.now() - st.heardAt > PREVIEW_QUIET_MS) { previewClose(); return; }
+    ch.postMessage({ hello: true });
+    if (st.config && KEYS.length) previewLoad();
+  }, 1000);
+}
+
+if (PREVIEW_MODE) {
+  // ⓘ The box alone: none of the configs window starts (PREVIEW_MODE, above).
+  previewMain();
+} else if (location.search.indexOf('selftest') >= 0) {
   // ⓘ After refreshAll so KEYS and CONFIGS are populated the way they would be
   // in use; the interesting failures need real data shapes, not empty ones.
   startPage();

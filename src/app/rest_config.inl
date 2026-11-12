@@ -1198,6 +1198,15 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
             *out = rest_http_response(200, R"({"ok":true})");
             return true;
         }
+        // ⭐ THE CONFIG PREVIEW (rhoquinn8217, 2026-11-11): PS on a pad, or V,
+        // opens a box of its own beside the window, or brings one back beside
+        // it, and the front stays with the window (open_ui.inl, preview_open).
+        // ⓘ The box closes itself, told by the page.
+        if (what == "preview") {
+            ui_preview_open();
+            *out = rest_http_response(200, R"({"ok":true})");
+            return true;
+        }
         // ⭐ A TOUR'S LARGE SIZE (rhoquinn8217, 2026-11-06: *"when tutorial
         // starts, resize the window to its large mode"*): {"large": true} as a
         // tour starts borrows the layout's large size; {"large": false,

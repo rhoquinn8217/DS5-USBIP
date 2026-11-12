@@ -143,6 +143,7 @@
     <ClCompile Include="..\tests\device_tag_rule_test.cpp" />
     <ClCompile Include="..\tests\quick_switch_test.cpp" />
     <ClCompile Include="..\tests\window_open_rule_test.cpp" />
+    <ClCompile Include="..\tests\preview_place_rule_test.cpp" />
     <ClCompile Include="..\tests\input_pace_test.cpp" />
     <ClCompile Include="..\tests\polling_limits_test.cpp" />
     <ClCompile Include="..\tests\keyboard_device_test.cpp" />

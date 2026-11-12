@@ -65,6 +65,7 @@ int run_uac_prompt_rule_tests();
 int run_device_tag_rule_tests();
 int run_quick_switch_tests();
 int run_window_open_rule_tests();
+int run_preview_place_rule_tests();
 int run_input_pace_tests();
 int run_polling_limits_tests();
 int run_keyboard_device_tests();
@@ -193,6 +194,7 @@ int main(int argc, char **argv)
     run_device_tag_rule_tests();
     run_quick_switch_tests();
     run_window_open_rule_tests();
+    run_preview_place_rule_tests();
     run_input_pace_tests();
     run_polling_limits_tests();
     run_keyboard_device_tests();
