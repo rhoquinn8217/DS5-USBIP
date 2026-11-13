@@ -87,6 +87,20 @@ inline int tv_level(const std::string &command)
     return word_value(command, "level=", 1);
 }
 
+// ⭐ DESKTOP MODE HANDS OVER (rhoquinn8217, 2026-11-12: "when desktop mode is
+// on it transistion to DS5-USBIP with the same button rebinds. if desktop mode
+// is off, it has nothing to transition so when a bridge happens it should take
+// is auto link"): aurora-tv's Desktop Mode drives the PC with its own rebinds
+// while DS5-USBIP is not there, and once it is, every BRIDGE_START Auto Bridge
+// sends while Desktop Mode hands over ends "desktop_link=1". That bridge reads
+// default_windows_config for the bridge alone (default_config::start_link).
+// ⓘ A whole word, as level= is; any other number is no hand-over. An older
+// listener reads three words and leaves the rest, so it auto links as ever.
+inline bool desktop_link(const std::string &command)
+{
+    return word_value(command, "desktop_link=", 0) == 1;
+}
+
 // "" when a TV of that BRIDGE_START's level may bridge, or the refusal to send.
 // ⚠️ The TV reads it by its first words, "ERR update the TV app".
 inline std::string refusal_for(const std::string &command)

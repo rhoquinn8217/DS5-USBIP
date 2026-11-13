@@ -103,6 +103,19 @@ int run_protocol_level_tests()
         CTM_CHECK_EQ(protocol_level::tv_level("BRIDGE_START ds5 0 ctm-ds5-1 PROOF=n:f:alevel=9"), 1);
     }
 
+    section("protocol level: Desktop Mode's hand-over, desktop_link=1, from a BRIDGE_START (2026-11-12)");
+    {
+        CTM_CHECK(protocol_level::desktop_link("BRIDGE_START ds5_usb 0 ctm-ds5-1 level=1 desktop_link=1"));
+        CTM_CHECK(protocol_level::desktop_link("BRIDGE_START ds5 0 ctm-ds5-1 level=1 desktop_link=1 PROOF=n:f:s"));
+        CTM_CHECK(!protocol_level::desktop_link("BRIDGE_START ds5 0 ctm-ds5-1 level=1"));       // no word: auto link
+        CTM_CHECK(!protocol_level::desktop_link("BRIDGE_START ds5 0 ctm-ds5-1 level=1 desktop_link=0"));
+        CTM_CHECK(!protocol_level::desktop_link("BRIDGE_START ds5 0 ctm-ds5-1 level=1 desktop_link="));
+        // ⓘ Inside another word, as a signature could hold it: no hand-over.
+        CTM_CHECK(!protocol_level::desktop_link("BRIDGE_START ds5 0 ctm-ds5-1 PROOF=n:f:adesktop_link=1"));
+        // ⓘ And the level is read as before beside it.
+        CTM_CHECK_EQ(protocol_level::tv_level("BRIDGE_START ds5 0 ctm-ds5-1 level=1 desktop_link=1"), 1);
+    }
+
     section("protocol level: who is turned away");
     {
         CTM_CHECK(protocol_level::refusal_for("BRIDGE_START ds5 48055 ctm-ds5-1").empty());

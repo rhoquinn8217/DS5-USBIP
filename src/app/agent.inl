@@ -23,6 +23,11 @@ struct AgentBridgeSession {
     // another site comes through its router: that site's address. Set at the
     // start and never changed, so it is read without a lock.
     std::string tvAddress;
+    // ⭐ Desktop Mode handed this bridge over (protocol_level::desktop_link):
+    // it reads default_windows_config for the bridge alone
+    // (default_config::start_link). Set at the start and never changed, so it
+    // is read without a lock.
+    bool desktopLink = false;
     std::shared_ptr<CtmUsbipDevice> device;
     // ⛔ SHARED, NOT UNIQUE (code review, 2026-10-05). The settings push sends
     // on it from the agent loop after letting go of the session list lock, and
@@ -917,6 +922,13 @@ static void bridge_session_worker(AgentBridgeSession *session)
         // random keeps the name it was born with. ⓘ Before the session's lock
         // below, as agent_apply_device_tag takes the sessions' lock first.
         if (!controllerSection.empty()) agent_apply_device_tag(session->ordinal, controllerSection, false);
+        // ⭐ DESKTOP MODE HANDED IT OVER (protocol_level::desktop_link): it
+        // reads default_windows_config for this bridge alone, where there is
+        // one (default_config::start_link). ⓘ Before the session's lock, as the
+        // look-ups above.
+        config_store::ConfigFile desktopConfig;
+        const bool desktopThere = session->desktopLink && isController &&
+                                  config_store::find_config(default_config::kName, &desktopConfig);
         std::lock_guard<std::mutex> lock(session->mutex);
         session->physicalSerial = serial;
         session->tvPath = myTvPath;
@@ -926,9 +938,19 @@ static void bridge_session_worker(AgentBridgeSession *session)
             session->device->set_controller_section(controllerSection);
         }
         if (session->linkedConfig.empty()) {
-            std::string autoLink = config_store::auto_link_for(serial, session->kind);
-            const bool thisBridgeOnly = autoLink.empty() && !firstLink.empty();
-            if (thisBridgeOnly) autoLink = firstLink;
+            const std::string ownAutoLink = config_store::auto_link_for(serial, session->kind);
+            const default_config::StartLink start =
+                default_config::start_link(session->desktopLink, desktopThere, ownAutoLink, firstLink);
+            std::string autoLink = start.config;
+            const bool thisBridgeOnly = start.thisBridgeOnly;
+            if (session->desktopLink && isController) {
+                device_log::config(device_log::msg() << session->ordinal << ": Desktop Mode handed it over, "
+                    << (start.why == default_config::StartWhy::DesktopMode
+                            ? std::string(default_config::kName) + " for this bridge" +
+                                  (ownAutoLink.empty() ? std::string()
+                                                       : ", its auto link " + ownAutoLink + " kept for the next")
+                            : std::string("but there is no ") + default_config::kName + ": as without it"));
+            }
             // ⭐ NOT WHILE WINDOWS IS LOCKED (lock_screen_rule.inl): the auto link
             // waits for the unlock, and the controller's own buttons reach the
             // PIN prompt meanwhile.
@@ -1230,11 +1252,12 @@ static void bridge_session_worker(AgentBridgeSession *session)
 // ⓘ owner: the TV asking, as tv_sessions.inl names it. `port` 0 asks for one
 // from [global] bridge_port_range -- from its top for a caller at home
 // (`fromHome`), from its bottom for one at another site -- and the session's
-// port goes back in *startedPort either way.
+// port goes back in *startedPort either way. ⓘ desktopLink: Desktop Mode
+// handed it over (protocol_level::desktop_link).
 static bool start_bridge_session_for(const std::string &kind, uint16_t port, const std::wstring &busId,
                                      uint32_t onlyPeer, const std::string &owner,
                                      const std::string &tvAddress, bool fromHome,
-                                     std::wstring *error, uint16_t *startedPort)
+                                     std::wstring *error, uint16_t *startedPort, bool desktopLink = false)
 {
     const std::string busIdAscii = narrow_ascii(busId);
     if (busIdAscii.empty() || busIdAscii.size() > 31) {
@@ -1346,6 +1369,7 @@ static bool start_bridge_session_for(const std::string &kind, uint16_t port, con
     session->onlyPeer = onlyPeer;
     session->owner = owner;
     session->tvAddress = tvAddress;
+    session->desktopLink = desktopLink;
     session->device = std::make_shared<CtmUsbipDevice>();
     AgentBridgeSession *sessionPtr = session.get();
     const std::string ordinalForLog = session->ordinal;
@@ -1359,7 +1383,8 @@ static bool start_bridge_session_for(const std::string &kind, uint16_t port, con
                << widen_ascii(ordinalForLog.c_str(), ordinalForLog.size())
                << L" (" << widen_ascii(nicknameForLog.c_str(), nicknameForLog.size()) << L")"
                << L" kind=" << widen_ascii(kind.c_str(), kind.size())
-               << L" port=" << port << L" busid=" << busId << L" tv=" << tvForLog;
+               << L" port=" << port << L" busid=" << busId << L" tv=" << tvForLog
+               << (desktopLink ? L" desktop_link=1" : L"");
     if (startedPort) *startedPort = port;
     return true;
 }
@@ -1705,7 +1730,8 @@ static void handle_agent_client(SOCKET client, const sockaddr_in &peer)
         char askedFrom[INET_ADDRSTRLEN] = {};
         inet_ntop(AF_INET, &peer.sin_addr, askedFrom, sizeof(askedFrom));
         if (start_bridge_session_for(kind, static_cast<uint16_t>(port), widen_ascii(busIdAscii.c_str(), busIdAscii.size()),
-                                     onlyPeer, owner, askedFrom, fromHome, &error, &startedPort)) {
+                                     onlyPeer, owner, askedFrom, fromHome, &error, &startedPort,
+                                     protocol_level::desktop_link(line))) {
             // ⭐ The port it was given, to a TV that asked for one with port 0;
             // an older TV chose its own and reads only the OK.
             send_text(client, port == 0 ? "OK bridge starting port=" + std::to_string(startedPort) + "\n"

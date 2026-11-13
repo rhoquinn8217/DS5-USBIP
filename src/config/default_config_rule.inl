@@ -77,4 +77,40 @@ inline First first_controller(bool waiting, bool takesConfig, bool alreadyAutoLi
     return alreadyAutoLinked ? First::Leave : First::Claim;
 }
 
+// ⭐ THE CONFIG A BRIDGE READS AS IT STARTS. Desktop Mode handing over
+// (protocol_level::desktop_link, 2026-11-12: "The transition between aurora-tv
+// managing controllers and DS5-USBIP managing controllers needs to be
+// seemless"): default_windows_config, which does what Desktop Mode did, for
+// this bridge alone; the controller's own auto link is not touched, and is
+// what it reads at its next bridge without the word. Otherwise its auto link,
+// or else the first controller's link for this bridge (first_controller).
+// ⓘ A hand-over with no default_windows_config (archived, or deleted) takes
+// the auto link, as a bridge without the word does.
+enum class StartWhy { None, AutoLink, FirstController, DesktopMode };
+
+struct StartLink {
+    std::string config;            // "" for none: the controller's own buttons
+    bool thisBridgeOnly = false;   // not its auto link: gone with the bridge
+    StartWhy why = StartWhy::None;
+};
+
+inline StartLink start_link(bool handedOver, bool defaultThere, const std::string &autoLink,
+                            const std::string &firstLink)
+{
+    StartLink s;
+    if (handedOver && defaultThere) {
+        s.config = kName;
+        s.thisBridgeOnly = true;
+        s.why = StartWhy::DesktopMode;
+    } else if (!autoLink.empty()) {
+        s.config = autoLink;
+        s.why = StartWhy::AutoLink;
+    } else if (!firstLink.empty()) {
+        s.config = firstLink;
+        s.thisBridgeOnly = true;
+        s.why = StartWhy::FirstController;
+    }
+    return s;
+}
+
 } // namespace default_config

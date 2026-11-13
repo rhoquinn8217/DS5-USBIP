@@ -794,6 +794,31 @@ int run_config_store_tests()
                   !default_config::parse_first(""));
     }
 
+    section("default_windows_config: Desktop Mode's hand-over reads it for that bridge alone (2026-11-12)");
+    {
+        using default_config::StartWhy;
+        // ⭐ Handed over, the config there: it, for this bridge, over any auto link.
+        auto s = default_config::start_link(true, true, "touchpad_to_mouse", "");
+        CTM_CHECK(s.config == "default_windows_config" && s.thisBridgeOnly && s.why == StartWhy::DesktopMode);
+        s = default_config::start_link(true, true, "", "");
+        CTM_CHECK(s.config == "default_windows_config" && s.thisBridgeOnly && s.why == StartWhy::DesktopMode);
+        // ⓘ Over the first controller's link as well: the hand-over decides this bridge.
+        s = default_config::start_link(true, true, "", "default_windows_config");
+        CTM_CHECK(s.config == "default_windows_config" && s.thisBridgeOnly && s.why == StartWhy::DesktopMode);
+        // Not handed over: the auto link, kept, as ever.
+        s = default_config::start_link(false, true, "touchpad_to_mouse", "");
+        CTM_CHECK(s.config == "touchpad_to_mouse" && !s.thisBridgeOnly && s.why == StartWhy::AutoLink);
+        // Handed over with no default_windows_config (archived): as without the word.
+        s = default_config::start_link(true, false, "touchpad_to_mouse", "");
+        CTM_CHECK(s.config == "touchpad_to_mouse" && !s.thisBridgeOnly && s.why == StartWhy::AutoLink);
+        // The first controller's link for this bridge, with no auto link and no hand-over.
+        s = default_config::start_link(false, true, "", "default_windows_config");
+        CTM_CHECK(s.config == "default_windows_config" && s.thisBridgeOnly && s.why == StartWhy::FirstController);
+        // Nothing at all: the controller's own buttons.
+        s = default_config::start_link(false, false, "", "");
+        CTM_CHECK(s.config.empty() && !s.thisBridgeOnly && s.why == StartWhy::None);
+    }
+
     section("presets: a label names a button as {btn:N}, for the page to draw");
     {
         // ⭐ As a preset's words do (rhoquinn8217, 2026-10-28, asked whether
