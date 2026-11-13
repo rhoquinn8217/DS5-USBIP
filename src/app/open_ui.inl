@@ -966,7 +966,11 @@ inline void open_new(uint16_t restPort, bool withToken = true)
 // ⭐ AND IT FOLLOWS THE WINDOW (the same evening: "Make the preview follow the
 // main config and move the window above it, below it, to it's right or to
 // it's left base on whether there's space"): preview_follow keeps it where
-// preview_place_rule.inl says, as the window moves and as the box grows.
+// preview_place_rule.inl says, as the window moves and as the box grows; in
+// Advanced centred on the window since 2026-11-12.
+// ⭐ IN FRONT OF THE WINDOW, THE FRONT STAYING WITH THE WINDOW (2026-11-12:
+// "Preview alway above config box but config box retains focus"): the box is
+// the window's own (preview_stay_above).
 // ⓘ Its size as it opens, in the browser's units: the fixed size the page
 // grows from when a config needs more ("allow the box to grow from it's fixed
 // size"), for text two thirds as large again as at first ("text in the
@@ -1020,6 +1024,36 @@ inline HWND find_preview()
     FindState state;
     EnumWindows(find_preview_proc, reinterpret_cast<LPARAM>(&state));
     return state.found;
+}
+
+// ⭐ THE BOX IN FRONT OF THE WINDOW, ALWAYS, AND THE FRONT LEFT WITH THE
+// WINDOW (rhoquinn8217, 2026-11-12: "Preview alway above config box but
+// config box retains focus"): the box is made the configs window's own, its
+// owner set with GWLP_HWNDPARENT (a top-level window's owner, not a parent),
+// and Windows then keeps an owned window in front of its owner, whatever has
+// the front: a click on the window, the window back from behind a game,
+// Advanced's box over it. Nothing moves the front. It goes behind another
+// program with the window, and hides while the window is minimised
+// (preview_follow keeps looking for it then). Both are the same browser's.
+// ⓘ Set for each box and window the look finds, said once in the log.
+inline std::atomic<HWND> g_previewOwnedBox{nullptr};
+inline std::atomic<HWND> g_previewOwner{nullptr};
+
+inline void preview_stay_above(HWND pv, HWND ours)
+{
+    if (pv == nullptr || ours == nullptr || GetWindow(pv, GW_OWNER) == ours) return;
+    SetLastError(0);
+    SetWindowLongPtrW(pv, GWLP_HWNDPARENT, reinterpret_cast<LONG_PTR>(ours));
+    const DWORD err = GetLastError();
+    const bool held = GetWindow(pv, GW_OWNER) == ours;
+    if (g_previewOwnedBox.load() == pv && g_previewOwner.load() == ours) return;
+    g_previewOwnedBox.store(pv);
+    g_previewOwner.store(ours);
+    if (held) {
+        device_log::session_w() << L"config preview: in front of the configs window, the window's own";
+    } else {
+        device_log::session_w() << L"config preview: Windows would not make it the window's own, code=" << err;
+    }
 }
 
 // A window's visible frame, without the shadow Windows draws around it.
@@ -1121,11 +1155,22 @@ inline void preview_follow()
         while (gone < 8) {
             std::this_thread::sleep_for(std::chrono::milliseconds(120));
             const HWND pv = find_preview();
-            if (pv == nullptr) { ++gone; continue; }
+            if (pv == nullptr) {
+                // ⓘ Hidden with the window while that is minimised, as the
+                // window's own (preview_stay_above): still there, still looked for.
+                const HWND kept = g_previewOwnedBox.load();
+                wchar_t keptTitle[512] = {};
+                if (kept != nullptr && IsWindow(kept) && !IsWindowVisible(kept) &&
+                    GetWindowTextW(kept, keptTitle, 511) > 0 &&
+                    window_icon_rule::is_app_window_title(keptTitle, kPreviewMarker)) continue;
+                ++gone;
+                continue;
+            }
             gone = 0;
             preview_see_through(pv);
             FindState ours;
             EnumWindows(find_window_proc, reinterpret_cast<LPARAM>(&ours));
+            preview_stay_above(pv, ours.found);
             if (ours.found == nullptr || IsIconic(ours.found) || IsIconic(pv)) continue;
             // ⭐⭐ THE BOX NEVER KEEPS THE FRONT, A CLICK'S EITHER (rhoquinn8217,
             // 2026-11-12: "clicking the preview moves focus to the config
@@ -1228,6 +1273,7 @@ inline void preview_open(uint16_t restPort)
             // window the front, and the box takes it only from a click.
             FindState ours;
             EnumWindows(find_window_proc, reinterpret_cast<LPARAM>(&ours));
+            preview_stay_above(pv, ours.found);
             if (ours.found != nullptr && GetForegroundWindow() == pv) raise_now(ours.found);
             preview_follow();
             device_log::session_w() << L"config preview opened at " << r.x << L"," << r.y

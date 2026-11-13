@@ -2,8 +2,8 @@
 //
 // ⭐ WHAT THESE PROTECT (rhoquinn8217, 2026-11-11 and 12): right, left, above
 // or below the window, in that order, the first with room, centred on it; in
-// Advanced, on the side with the most room, over the window if it must be;
-// never off the screen.
+// Advanced, centred on the window, over it ("In advance view, center the
+// preview on the config box"); never off the screen.
 //
 // WHAT THESE CANNOT DO. No browser starts here: the box standing and following
 // where it was asked to is looked at with the listener running.
@@ -83,22 +83,29 @@ int run_preview_place_rule_tests()
         CTM_CHECK_EQ(p.y, (2088 - h) / 2);
     }
 
-    section("preview: in Advanced, the side with the most room, over the window if it must be");
+    section("preview: in Advanced, centred on the window, over it (their word, 2026-11-12)");
     {
-        // Advanced at its opening size, most of the screen: the right covers least
+        // Advanced at its opening size, most of the screen
         const Place p = place(Rect{490, 233, 3349, 1855}, work, w, h, gap, true);
-        CTM_CHECK_EQ(p.x, 3840 - w);
+        CTM_CHECK_EQ(p.x, 490 + (2859 - w) / 2);
         CTM_CHECK_EQ(p.y, 233 + (1622 - h) / 2);
-        CTM_CHECK(covered(Rect{490, 233, 3349, 1855}, p, w, h) > 0);
+        CTM_CHECK_EQ(covered(Rect{490, 233, 3349, 1855}, p, w, h), static_cast<long long>(w) * h);
     }
 
-    section("preview: in Advanced, a side with room wins over one without");
+    section("preview: in Advanced, centred even where a side has room");
     {
-        // a small Advanced window: only the right has room
+        // a small Advanced window, the right with room: centred on it all the same
         const Place p = place(Rect{1000, 600, 2000, 1400}, work, w, h, gap, true);
-        CTM_CHECK_EQ(p.x, 2000 + gap);
+        CTM_CHECK_EQ(p.x, 1000 + (1000 - w) / 2);
         CTM_CHECK_EQ(p.y, 600 + (800 - h) / 2);
-        CTM_CHECK_EQ(covered(Rect{1000, 600, 2000, 1400}, p, w, h), 0);
+        CTM_CHECK(covered(Rect{1000, 600, 2000, 1400}, p, w, h) > 0);
+    }
+
+    section("preview: in Advanced near the screen's corner, centred but kept on the screen");
+    {
+        const Place p = place(Rect{0, 0, 1200, 800}, work, w, h, gap, true);
+        CTM_CHECK_EQ(p.x, 0);
+        CTM_CHECK_EQ(p.y, 0);
     }
 
     section("preview: nowhere with room outside Advanced, the least covered, on the screen");

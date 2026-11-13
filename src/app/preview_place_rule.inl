@@ -11,10 +11,13 @@
 // box").
 // ➡️ So: right, left, above, below, the first where the box fits on the
 // screen without covering the window; above and below centred on the window,
-// right and left level with its middle. In Advanced, and wherever no side
-// has room, the side where the box covers the least of the window, the room
-// left over, then that order, deciding a tie. It never leaves the screen's
-// work area.
+// right and left level with its middle. Wherever no side has room, the side
+// where the box covers the least of the window, the room left over, then
+// that order, deciding a tie. It never leaves the screen's work area.
+// ⭐ IN ADVANCED, CENTRED ON THE WINDOW (rhoquinn8217, 2026-11-12: "In
+// advance view, center the preview on the config box"), over it, the
+// listener keeping it in front (open_ui.inl, preview_stay_above); until then
+// Advanced took the side with the most room.
 // ⓘ The box grows taller for a longer config (the page asks), and stands
 // where this rule puts a box of that size.
 // ⓘ Its own file, with no windows.h, so the test binary can reach it;
@@ -98,13 +101,19 @@ inline int room(const Rect &window, const Rect &work, int w, int h, int gap, Sid
     return 0;
 }
 
+// The box's top-left, w x h, centred on the window.
+inline Place centred(const Rect &window, int w, int h)
+{
+    return Place{ window.left + (window.right - window.left - w) / 2,
+                  window.top + (window.bottom - window.top - h) / 2 };
+}
+
 inline Place place(const Rect &window, const Rect &work, int w, int h, int gap, bool advanced)
 {
+    if (advanced) return on_screen(centred(window, w, h), work, w, h);
     const Side order[] = { Side::Right, Side::Left, Side::Above, Side::Below };
-    if (!advanced) {
-        for (Side s : order) {
-            if (fits(window, work, w, h, gap, s)) return on_screen(beside(window, w, h, gap, s), work, w, h);
-        }
+    for (Side s : order) {
+        if (fits(window, work, w, h, gap, s)) return on_screen(beside(window, w, h, gap, s), work, w, h);
     }
     Place best = on_screen(beside(window, w, h, gap, order[0]), work, w, h);
     long long bestCovered = covered(window, best, w, h);
