@@ -977,6 +977,32 @@ inline const int kPreviewGap = 8;
 inline std::atomic_bool g_previewOpening{false};
 inline std::atomic_bool g_previewFollowing{false};
 
+// ⭐ SEE-THROUGH (rhoquinn8217, 2026-11-12: "make the preview window
+// transparent"): the whole box, its words with it, at kPreviewAlpha of 255,
+// so what is behind it shows. ⓘ WS_EX_LAYERED with one alpha for the window,
+// as the on-screen keyboard had at first (overlay_window.inl), which went
+// solid because at 55% it was hard to read: 80% here, for a box of words.
+// The browser draws the box in software (--disable-gpu, preview_open), and
+// Windows lays a layered window's picture over what is behind it.
+// ⓘ Once for each box the look finds (preview_follow), and said in the log.
+inline const BYTE kPreviewAlpha = 204;
+inline std::atomic<HWND> g_previewSeeThrough{nullptr};
+
+inline void preview_see_through(HWND pv)
+{
+    if (pv == nullptr || g_previewSeeThrough.load() == pv) return;
+    g_previewSeeThrough.store(pv);
+    const LONG_PTR ex = GetWindowLongPtrW(pv, GWL_EXSTYLE);
+    if ((ex & WS_EX_LAYERED) == 0) SetWindowLongPtrW(pv, GWL_EXSTYLE, ex | WS_EX_LAYERED);
+    if (SetLayeredWindowAttributes(pv, 0, kPreviewAlpha, LWA_ALPHA)) {
+        device_log::session_w() << L"config preview: see-through, "
+                                << (static_cast<int>(kPreviewAlpha) * 100 / 255) << L"% solid";
+    } else {
+        device_log::session_w() << L"config preview: Windows refused it see-through, code="
+                                << GetLastError();
+    }
+}
+
 inline BOOL CALLBACK find_preview_proc(HWND hwnd, LPARAM param)
 {
     if (!IsWindowVisible(hwnd)) return TRUE;
@@ -1095,6 +1121,7 @@ inline void preview_follow()
             const HWND pv = find_preview();
             if (pv == nullptr) { ++gone; continue; }
             gone = 0;
+            preview_see_through(pv);
             FindState ours;
             EnumWindows(find_window_proc, reinterpret_cast<LPARAM>(&ours));
             if (ours.found == nullptr || IsIconic(ours.found) || IsIconic(pv)) continue;
@@ -1194,6 +1221,7 @@ inline void preview_open(uint16_t restPort)
         }
         if (pv != nullptr) {
             place_preview(pv, r);
+            preview_see_through(pv);
             // ⭐ The front straight back to the window: the browser gives a new
             // window the front, and the box takes it only from a click.
             FindState ours;

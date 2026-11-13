@@ -2,7 +2,7 @@
 <!--
   DS5-USBIP's Controller Configs page, served by the listener.
 
-  VERSION 2.70.5 -- see the changelog at the bottom of this comment.
+  VERSION 2.70.6 -- see the changelog at the bottom of this comment.
 
   WHAT IT STARTED AS. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -24,6 +24,20 @@
   not a tidy message about it.
 
   CHANGELOG
+    2.70.6   Rebind List lit while the config preview is up ("light up
+             Rebind List while the preview is open"); the pre-set selector's
+             card scrolls with the halo, which ran below its foot ("I meant
+             scroll follows in the pre-set selector not the settings"); no
+             settings gear in Quick ("remove the clickable settings gear in
+             quick mode"); "hold to edit" moved from under the wheel and
+             under Quick's auto link to the box's foot, before Close ("move
+             the PS button hold to edit legend from the config window and
+             back on the footer of the preview window"); and the box asks for
+             its size every second, so a config cut short at the screen's
+             foot (gyro_to_mouse_DS5_AT: "one of it's settings cut off at the
+             bottom") grows once it stands where it fits (rhoquinn8217,
+             2026-11-12). The listener makes the box see-through, 80% solid
+             ("make the preview window transparent").
     2.70.5   Simple's wheel and the PS lines under it as tall as the buttons
              at its right, the wheel's top level with New's and the lines'
              bottom with Archive's, its 5 lines kept ("shrink the wheel so
@@ -2449,6 +2463,10 @@
   #compactBox .cauto-btn,
   #compactBox .cunlink-btn { font-size:calc(4.2 * var(--vh)); padding:calc(0.6 * var(--vh)) 1.4vw; line-height:1; }
   #compactBox .cauto-btn.on { color:#7fd18c; border-color:#7fd18c; opacity:1; }
+  /* ⭐ REBIND LIST LIT WHILE THE LIST IS UP (rhoquinn8217, 2026-11-12: "light
+     up Rebind List while the preview is open"), as a standing auto link
+     lights Auto link: body.pvopen follows the box (previewSetOpen). */
+  body.pvopen #compactBox .crebind-btn { color:#7fd18c; border-color:#7fd18c; }
   /* ⛔ NO GREEN IN THE LIST (rhoquinn8217, 2026-09-09). A native option is
      one run of text in one colour, so the mark could never be green on its
      own: colouring the option coloured the name with it, colouring the
@@ -3829,7 +3847,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.70.5</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.70.6</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -4636,6 +4654,9 @@ function focusElement(el) {
   // browser's own scroll is what was clipping the top, so letting it run and
   // then correcting would fight it every time.
   if (el === firstControlInSection() && scrollSectionIntoView(el)) return true;
+  // ⓘ The pre-set selector's card was put right by gpPaint, which the
+  // browser's own scroll would undo (presetKeepInView).
+  if (presetKeepInView(el)) return true;
   el.scrollIntoView({ block: 'nearest' });
   return true;
 }
@@ -5040,7 +5061,12 @@ function rateTags(parts) {
 // the line centred by the style.
 function compactRateLine(ordinal, tag) {
   var rates = rateTags(partsOf(ordinal));
-  var line = QUICK ? rates + settingsGearHtml(ordinal, true)
+  // ⭐ NO GEAR IN QUICK (rhoquinn8217, 2026-11-12: "remove the clickable
+  // settings gear in quick mode"), which had it back since that morning
+  // ("Add the settings symbol to the right of the polling rate and limit in
+  // quick mode"). R3 still opens the settings window there (gpRate), and
+  // Simple keeps its gear.
+  var line = QUICK ? rates
                    : (rates ? '<span class="crate-txt">' + rates + '</span>' : '') +
                      settingsGearHtml(ordinal, true);
   return line ? '<' + tag + ' class="' + (QUICK ? 'crate-q' : 'crate') + '">' + line + '</' + tag + '>' : '';
@@ -5580,6 +5606,34 @@ function settingsKeepInView(el) {
   if (head && head.tagName === 'H4') top = head.previousElementSibling ? head.offsetTop : 0;
   if (top < box.scrollTop) box.scrollTop = top;
   else if (bottom > box.scrollTop + box.clientHeight) box.scrollTop = bottom - box.clientHeight;
+  return true;
+}
+
+// ⭐ THE PRE-SET SELECTOR FOLLOWS THE HALO TOO (rhoquinn8217, 2026-11-12:
+// "have scroll follow ring selector", then "I meant scroll follows in the
+// pre-set selector not the settings"): in Simple its card scrolls inside the
+// window, and the halo's row, its ring with it, is scrolled into the card;
+// the first row brings the card's top and title, Cancel its foot. True when
+// the halo is in the card.
+// ⛔ Not scrollIntoView, which left the card where it was (measured
+// 2026-11-12: scrollTop 0 with the halo below the card's foot): every button
+// carries the sticky header's scroll margins (--stickH), which a card a
+// window high has no room for. Read from the rows' places on screen, which
+// is the card's own units here: only Advanced is zoomed, and there the card
+// does not scroll.
+var PRESET_RING_PX = 8;       // the ring, drawn outside its row
+function presetKeepInView(el) {
+  if (!PRESET_OPEN || !el) return false;
+  var card = document.querySelector('#presetBox .confirmCard');
+  if (!card || !card.contains(el)) return false;
+  if (card.scrollHeight <= card.clientHeight) return true;
+  var row = (el.closest && el.closest('.prow')) || el;
+  var top0 = card.getBoundingClientRect().top + card.clientTop - card.scrollTop;
+  var rr = row.getBoundingClientRect();
+  var top = rr.top - top0 - PRESET_RING_PX, bottom = rr.bottom - top0 + PRESET_RING_PX;
+  if (row.classList.contains('prow') && !row.previousElementSibling) top = 0;
+  if (top < card.scrollTop) card.scrollTop = top;
+  else if (bottom > card.scrollTop + card.clientHeight) card.scrollTop = bottom - card.clientHeight;
   return true;
 }
 
@@ -9699,8 +9753,11 @@ function gpPaint() {
   if (stripHost) stripHost.classList.toggle('here', onStripNow);
   // Keep the focused control on screen -- on a TV the page is often scrolled
   // past what the D-pad is pointing at.
-  // ⓘ In the settings window, its list scrolls instead (settingsKeepInView).
-  if (!settingsKeepInView(el)) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  // ⓘ In the settings window, its list scrolls instead (settingsKeepInView),
+  // and in the pre-set selector its card (presetKeepInView).
+  if (!settingsKeepInView(el) && !presetKeepInView(el)) {
+    el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
 }
 
 // ⛔ CLAMPS, does not wrap.
@@ -12893,19 +12950,18 @@ function paintCompact() {
         // list" to "show rebind list"", then the same day "show/hide rebind
         // list"), with the button that opens it (previewMark), none on an
         // Xbox pad, which has no button for it yet.
-        // ⭐ AND "HOLD TO EDIT" UNDER IT, ALWAYS (rhoquinn8217, 2026-11-12:
-        // "add another PS symbol and the description reads "hold to edit"",
-        // in place of Cross's "edit", which showed only while it was up): PS
-        // held three seconds is Edit (previewKeyDown).
+        // ⓘ "Hold to edit" stood under it for a day, and went to the box's
+        // foot (rhoquinn8217, 2026-11-12: "move the PS button hold to edit
+        // legend from the config window and back on the footer of the
+        // preview window"): PS held three seconds is still Edit here
+        // (previewKeyDown).
         var pvMark = previewMark(LG);
         return '<span class="chints">' +
                '<span class="chint' + (shown ? '' : ' off') + '">' +
                keyCap(LG.unlink) + 'unlink</span>' +
                '<span class="chint' + (lit ? ' on' : idle ? ' off' : '') + '">' +
                keyCap(LG.autolink) + 'auto link</span>' +
-               (pvMark ? '<span class="chint" id="cpvHint">' + pvMark + 'show/hide rebind list</span>' +
-                         '<span class="chint" id="cpvHold">' + pvMark + 'hold to edit</span>'
-                       : '') +
+               (pvMark ? '<span class="chint" id="cpvHint">' + pvMark + 'show/hide rebind list</span>' : '') +
                '</span>';
       };
       // The selector, sliding with the ring (rhoquinn8217, 2026-09-09).
@@ -12990,13 +13046,13 @@ function paintCompact() {
                   // symbol under the wheel inside the container"): the panel's
                   // grid puts it in the wheel's column, on a row of its own, with
                   // the button that opens it (previewMark). ⭐ "show/hide rebind
-                  // list", and "hold to edit" beside it (2026-11-12: "add
-                  // another PS symbol ... next to PS symbol under wheel in
-                  // simple"): PS held three seconds is Edit (previewKeyDown).
+                  // list". ⓘ "Hold to edit" stood beside it for a day and went
+                  // to the box's foot (2026-11-12: "move the PS button hold to
+                  // edit legend from the config window and back on the footer
+                  // of the preview window"); PS held three seconds is still
+                  // Edit (previewKeyDown).
                   (previewMark(LG) ? '<span class="cvhints"><span class="cvhint" id="cpvHint">' +
-                                     previewMark(LG) + 'show/hide rebind list</span>' +
-                                     '<span class="cvhint" id="cpvHold">' + previewMark(LG) +
-                                     'hold to edit</span></span>' : '')) +
+                                     previewMark(LG) + 'show/hide rebind list</span></span>' : '')) +
               '</span>' + (sidesByPanel ? side(next, 'r', shoulderMark(shoulder[1]), true) : '') + '</div>' +
               '</div>';
     }
@@ -14472,12 +14528,12 @@ function selfTest() {
        wsSeen.join(' ') === 'true false false false false' &&
        wsMark.split('class="karm"').length === 3 && dpadArm('up').split('class="karm"').length === 2,
        wsSeen.join(' '));
-    // ⭐ QUICK'S GEAR BACK, RIGHT OF THE RATE AND LIMIT (rhoquinn8217,
-    // 2026-11-12: "Add the settings symbol to the right of the polling rate
-    // and limit in quick mode"), where 2026-11-09 had taken it out.
-    ok("Quick's and Simple's rate lines each end in the gear, without R3's mark",
-       qLine.indexOf('csetgear') > qLine.indexOf('prate') && qLine.indexOf('prate') >= 0 &&
-       qLine.indexOf('kps') < 0 &&
+    // ⭐ QUICK'S GEAR GONE AGAIN (rhoquinn8217, 2026-11-12: "remove the
+    // clickable settings gear in quick mode"), the same day it came back
+    // ("Add the settings symbol to the right of the polling rate and limit
+    // in quick mode"); Simple's stays.
+    ok("Simple's rate line ends in the gear, without R3's mark; Quick's has the rate and no gear",
+       qLine.indexOf('prate') >= 0 && qLine.indexOf('csetgear') < 0 && qLine.indexOf('kps') < 0 &&
        sLine.indexOf('csetgear') >= 0 && sLine.indexOf('kps') < 0,
        qLine + ' / ' + sLine);
     // ⭐ R3 in Advanced (2026-11-09): the controller on its tab, and on
@@ -14595,8 +14651,10 @@ function selfTest() {
   // straight to edit"), nothing while a question of this window's is open,
   // and in Advanced a press of any length shows or hides it; Simple's Edit
   // button still asks while the box is up; and its lines: "show/hide rebind
-  // list" with "hold to edit" under it in Quick, and beside it under
-  // Simple's wheel, in the box.
+  // list" under Quick's auto link and Simple's wheel, in its panel, and
+  // "hold to edit" in the box's foot before Close, with the same mark, since
+  // 2.70.6 ("move the PS button hold to edit legend from the config window
+  // and back on the footer of the preview window").
   var pvFoot = previewFootHtml('ps');
   var pvFootX = previewFootHtml('xbox');
   var pvFootK = previewFootHtml('keys');
@@ -14633,17 +14691,15 @@ function selfTest() {
   }
   var pvHint = document.getElementById('cpvHint');
   var pvHoldLine = document.getElementById('cpvHold');
-  var pvHintOk = !COMPACT || !document.getElementById('cpick') ||
-    (!pvHint && !pvHoldLine && !previewMark(buttonMarkSet())) ||
-    (!!pvHint && !!pvHoldLine && /show\/hide rebind list$/.test(pvHint.textContent) &&
-     /hold to edit$/.test(pvHoldLine.textContent) && !document.getElementById('cpvEdit') &&
-     (QUICK ? pvHint.className === 'chint' && pvHoldLine.className === 'chint' &&
-              pvHint.nextElementSibling === pvHoldLine
-            : pvHint.className === 'cvhint' && pvHoldLine.className === 'cvhint' &&
-              pvHint.parentNode === pvHoldLine.parentNode &&
-              !!(pvHint.closest && pvHint.closest('.cpick-wrap')) &&
-              (pvHint.offsetParent === null || Math.abs(pvHint.offsetTop - pvHoldLine.offsetTop) < 2)));
-  ok('config preview: clicked, Circle, Esc, PS and V close it; PS on its one button; Cross selects; PS held goes straight to Advanced, Simple\'s Edit asks; its lines',
+  var pvHintOk = !pvHoldLine && (!COMPACT || !document.getElementById('cpick') ||
+    (!pvHint && !previewMark(buttonMarkSet())) ||
+    (!!pvHint && /show\/hide rebind list$/.test(pvHint.textContent) &&
+     !document.getElementById('cpvEdit') &&
+     (QUICK ? pvHint.className === 'chint'
+            : pvHint.className === 'cvhint' && !!(pvHint.closest && pvHint.closest('.cpick-wrap')))));
+  var pvHoldPs = '<span id="pvHold">' + buttonMark(16, PAD_LEGEND_PS) + ' hold to edit</span><span id="pvBtns">';
+  var pvHoldK = '<span id="pvHold">' + keyCap('V', KEY_LEGEND) + ' hold to edit</span><span id="pvBtns">';
+  ok('config preview: clicked, Circle, Esc, PS and V close it; PS on its one button; Cross selects; PS held goes straight to Advanced, Simple\'s Edit asks; its line, and hold to edit in its foot',
      previewKeyAction('KeyZ', true) === 'close' && previewKeyAction('Escape', false) === 'close' &&
      previewKeyAction('KeyP', true) === 'close' && previewKeyAction('KeyV', false) === 'close' &&
      previewKeyAction('Enter', true) === '' && previewKeyAction('Enter', false) === '' &&
@@ -14652,12 +14708,14 @@ function selfTest() {
      pvFoot.indexOf(buttonMark(16, PAD_LEGEND_PS) + ' Close') > 0 &&
      pvFootX.indexOf('">Close</button>') > 0 &&
      pvFootK.indexOf(keyCap('V', KEY_LEGEND) + ' Close') > 0 &&
-     pvDid.join(',') === 'select,select,toggle,compact false,compact false,toggle,toggle,ask Edit' &&
+     pvFoot.indexOf(pvHoldPs) === 0 && pvFootK.indexOf(pvHoldK) === 0 && pvFootX.indexOf('pvHold') < 0 &&
+     pvDid.join(',') ==='select,select,toggle,compact false,compact false,toggle,toggle,ask Edit' &&
      pvArmed === 0 &&
      typeof previewTakesCross === 'undefined' && pvHintOk,
      pvDid.join(',') + ' armed=' + pvArmed + ' ' +
      (pvHint ? pvHint.className + ':' + pvHint.textContent : 'no line') +
-     (pvHoldLine ? ' / ' + pvHoldLine.textContent : ''));
+     (pvHoldLine ? ' / a hold line in the window: ' + pvHoldLine.textContent : '') +
+     ' / foot: ' + pvFoot.replace(/<[^>]+>/g, ' ').replace(/ +/g, ' '));
   // ⭐ SIMPLE'S REBIND LIST, AND THE WHEEL AS TALL AS THE BUTTONS (2.70.5;
   // rhoquinn8217, 2026-11-12: "shrink the wheel so that horizontal length of
   // the wheel and the PS button legend under it matches the horizontal
@@ -14698,6 +14756,54 @@ function selfTest() {
   }
   ok('Simple: Rebind List under Auto link shows and hides the list; the wheel and its PS lines as tall as the buttons, 5 lines',
      rlOk, rlNote);
+  // ⭐ REBIND LIST LIT WHILE THE LIST IS UP, AND THE PRE-SET SELECTOR'S CARD
+  // FOLLOWS THE HALO (2.70.6; rhoquinn8217, 2026-11-12: "light up Rebind
+  // List while the preview is open", and "I meant scroll follows in the
+  // pre-set selector not the settings"): Auto link's green while the box is
+  // up; and fourteen made-up presets walked down, the halo's row in the
+  // card's sight at every step, the card scrolled to keep it there.
+  var litNote = 'not Simple', litOk = true;
+  var psNote = 'not Simple', psOk = true;
+  if (COMPACT && !QUICK && document.getElementById('cpick')) {
+    var litBtn = document.querySelector('#compactBox .crebind-btn');
+    var litKeep = PREVIEW_OPEN, litOn = '', litOff = '';
+    try {
+      previewSetOpen(true);  litOn = litBtn ? getComputedStyle(litBtn).color : '';
+      previewSetOpen(false); litOff = litBtn ? getComputedStyle(litBtn).color : '';
+    } finally { previewSetOpen(litKeep); }
+    litOk = litOn === 'rgb(127, 209, 140)' && litOff !== litOn;
+    litNote = 'up ' + litOn + ', down ' + litOff;
+    var psOrd = document.getElementById('cpick').getAttribute('data-ordinal') || '';
+    var psDev = deviceByOrdinal(psOrd) || null;
+    var psKind = psDev ? settingsKindOf(psDev.kind) : null;
+    var psKeep = PRESETS, psSteps = 0, psHidden = 0, psScrolled = 0, psOver = false;
+    try {
+      PRESETS = [];
+      for (var psi = 0; psi < 14; psi++) {
+        PRESETS.push({ name: 'selftest-preset-' + psi, kinds: psKind ? [psKind] : [] });
+      }
+      openPresetPicker(psOrd, psDev);
+      var psCard = document.querySelector('#presetBox .confirmCard');
+      psOver = !!psCard && psCard.scrollHeight > psCard.clientHeight;
+      for (var pss = 0; pss < 18 && psCard; pss++) {
+        gpKeyMove(1);
+        var psEl = GP_FOCUS[GP_INDEX];
+        if (!psEl) break;
+        var psR = psEl.getBoundingClientRect(), psC = psCard.getBoundingClientRect();
+        psSteps++;
+        if (psR.top < psC.top - 1 || psR.bottom > psC.bottom + 1) psHidden++;
+        psScrolled = Math.max(psScrolled, psCard.scrollTop);
+      }
+    } finally {
+      presetCancel();
+      PRESETS = psKeep;
+    }
+    psOk = psSteps > 0 && psHidden === 0 && (!psOver || psScrolled > 0);
+    psNote = psSteps + ' steps, ' + psHidden + ' out of sight, card ' +
+             (psOver ? 'scrolled to ' + Math.round(psScrolled) : 'fits without scrolling');
+  }
+  ok('Simple: Rebind List lit while the list is up', litOk, litNote);
+  ok('Simple: the pre-set selector scrolls with the halo, every row in sight', psOk, psNote);
   // ⭐ A QUESTION KEEPS ITS HALO ON CANCEL THROUGH A REPAINT in Simple and
   // Quick (2026-11-12): the device poll's repaint put it on OK.
   var pqHaloed = 'not a compact view';
@@ -19658,9 +19764,16 @@ function previewMark(set) {
 // label"), centred. ⓘ Its Edit went the next day ("remove the Edit button
 // from the preview"): editing is asked for in the configs window (Simple's
 // Edit, PS held). For a mouse: the box takes no controller.
+// ⭐ AND "HOLD TO EDIT" BACK IN IT, BEFORE CLOSE (rhoquinn8217, 2026-11-12:
+// "move the PS button hold to edit legend from the config window and back
+// on the footer of the preview window"): a legend, not a button, with the
+// same mark (V on a keyboard), where Edit stood; none on an Xbox pad, which
+// has no button for it yet. PS held three seconds in the configs window is
+// Edit (previewKeyDown).
 function previewFootHtml(setName) {
   var ps = previewMark(legendByName(setName));
-  return '<span id="pvBtns">' +
+  return (ps ? '<span id="pvHold">' + ps + ' hold to edit</span>' : '') +
+         '<span id="pvBtns">' +
          '<button class="pvbtn" id="pvClose" onclick="previewPress(\'close\')">' +
          (ps ? ps + ' ' : '') + 'Close</button></span>';
 }
@@ -19765,7 +19878,9 @@ function previewRender() {
 // more, and back to that size for a config that fits; never past the screen.
 // ⓘ Its SIZE only: where it stands is the listener's, which follows the
 // configs window and keeps the box beside it as it grows (open_ui.inl,
-// preview_follow). ⓘ resizeTo is asynchronous, so it is asked again.
+// preview_follow). ⓘ resizeTo is asynchronous, so it is asked again, and
+// every second after (previewMain): a size cut short at the screen's foot
+// is grown once the box stands where it fits.
 function previewFit() {
   var st = PREVIEW_STATE;
   var root = document.getElementById('pvRoot');
@@ -19842,6 +19957,8 @@ function previewMain() {
       'justify-content:center;gap:12px;padding:12px 24px;border-top:1px solid #2a2c33;' +
       'background:#15161a}' +
     '#pvBtns{display:flex;gap:16px}' +
+    '#pvHold{display:inline-flex;align-items:center;gap:0.35em;color:#9a9ca5;font-size:19px;' +
+      'margin-right:22px}' +
     '.pvbtn{font:inherit;font-size:21px;color:#e8e8ea;background:#23252c;border:1px solid #3a3d48;' +
       'border-radius:6px;padding:6px 22px;cursor:pointer;display:flex;align-items:center;gap:0.4em}';
   document.head.appendChild(css);
@@ -19886,10 +20003,17 @@ function previewMain() {
   PREVIEW_REAL.listen('pagehide', function () { ch.postMessage({ bye: true }); });
   // ⓘ Once a second: hello, the config again (an edit in the configs window
   // shows here within the second), and a close when the window has gone quiet.
+  // ⭐ AND ITS SIZE ASKED FOR AGAIN (rhoquinn8217, 2026-11-12:
+  // "gyro_to_mouse_DS5_AT config preview has one of it's settings cut off at
+  // the bottom"): seen with the box at 748 px of the 994 that config needs,
+  // as if grown while it stood low and cut short at the screen's foot (its
+  // height was the room from where it would have stood to the foot), then
+  // moved by the listener; asked once, it stayed short.
   PREVIEW_REAL.setInterval(function () {
     if (Date.now() - st.heardAt > PREVIEW_QUIET_MS) { previewClose(); return; }
     ch.postMessage({ hello: true, focus: document.hasFocus() });
     if (st.config && KEYS.length) previewLoad();
+    previewFit();
   }, 1000);
 }
 
