@@ -181,12 +181,17 @@ void quick_switch_page_asked_view();
 bool ui_quick_view_on();
 /* The tutorials (tutorial_state.inl): whether Simple's, Quick's and Advanced's
  * have been seen, kept in window-state.txt, and the tray's request for one, by its
- * tutorial_state::Kind. Defined below, after config_move.inl. */
+ * tutorial_state::Kind, with the part of it asked for (-1 the whole tour); and the
+ * parts done, a bit each by their place in tutorial_state::kParts. Defined below,
+ * after config_move.inl. */
 bool ui_tutorial_seen(int kind);
 void ui_set_tutorial_seen(int kind, bool seen);
-void ui_tutorial_ask(int kind);
+void ui_tutorial_ask(int kind, int part);
 int ui_tutorial_asked();
+int ui_tutorial_asked_part();
 void ui_tutorial_take();
+uint32_t ui_tutorial_parts_done();
+void ui_set_tutorial_part_done(int part);
 /* The tutorial's words, drawn beside the configs window rather than in it
  * (tutorial_bubble.inl): shown with what a step says and the buttons under
  * it, hidden, a click on one of those buttons handed over once, and the side
@@ -201,6 +206,9 @@ std::string ui_tutorial_words_take_press();
 // its words for the page (quick_switch_session.inl). Defined below.
 void ui_tour_pad(bool on);
 std::string ui_tour_pad_take();
+// ⓘ And whether its step lets the d-pad's window switcher open, for the tour
+// to try window select (quick_switch_session.inl). Defined below.
+void ui_tour_switcher(bool on);
 // ⓘ The tour's window shrunk in place of a close: no place or size kept from
 // it (config_move.inl). Defined below.
 void ui_tour_shrunk(bool on);
@@ -539,17 +547,29 @@ void ui_set_tutorial_seen(int kind, bool seen)
 {
     config_move::set_tutorial_seen(kind, seen);
 }
-void ui_tutorial_ask(int kind)
+void ui_tutorial_ask(int kind, int part)
 {
-    config_move::ask_tutorial(kind);
+    config_move::ask_tutorial(kind, part);
 }
 int ui_tutorial_asked()
 {
     return config_move::tutorial_asked();
 }
+int ui_tutorial_asked_part()
+{
+    return config_move::tutorial_asked_part();
+}
 void ui_tutorial_take()
 {
     config_move::take_tutorial();
+}
+uint32_t ui_tutorial_parts_done()
+{
+    return config_move::tutorial_parts_done();
+}
+void ui_set_tutorial_part_done(int part)
+{
+    config_move::set_tutorial_part_done(part);
 }
 void ui_tutorial_words_show(const std::string &title, const std::string &count, const std::string &words,
                             const std::string &buttons, const std::string &focus, bool arrow,
@@ -566,6 +586,10 @@ void ui_tutorial_words_hide()
 void ui_tour_pad(bool on)
 {
     quick_switch_session::mock_on(on);
+}
+void ui_tour_switcher(bool on)
+{
+    quick_switch_session::mock_switcher(on);
 }
 std::string ui_tour_pad_take()
 {

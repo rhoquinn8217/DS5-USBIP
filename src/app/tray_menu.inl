@@ -48,6 +48,7 @@
 #include <vector>
 
 #include "ctm/product.h"
+#include "tutorial_state.inl"
 
 namespace tray_menu {
 
@@ -176,6 +177,55 @@ inline constexpr Tutorial kTutorials[3] = {
     { L"Advanced mode", 0, 3 },
 };
 inline constexpr int kTutorialCount = 3;
+
+// ⭐⭐ EACH TOUR IN PARTS, AND BY TOPIC (rhoquinn8217, 2026-11-13: "I want to
+// expand the Tutorial selection in the tray so that the user can select to go
+// through the entire one or one of the parts", then "Add a last section that
+// shows all the parts without duplicating them", named By topic). Each mode's
+// line opens Whole tutorial, a line, and that tour's parts in the order it
+// runs them; below a line, By topic opens every part once, in
+// tutorial_state::kParts' order. A part done has a tick wherever it is listed.
+inline const wchar_t *const kWholeTutorial = L"Whole tutorial";
+inline const wchar_t *const kByTopic = L"By topic";
+
+// ⓘ The menu's ids for them, counted from the first the menu gives the
+// tutorials: a block of kTourIds for each tour in kTutorials' order, its
+// first the whole tour and the rest a part each by its place in kParts, then
+// By topic's block, whose first is unused.
+inline constexpr unsigned kTourIds = 20;
+static_assert(tutorial_state::kPartCount < static_cast<int>(kTourIds), "a block holds every part");
+
+// What a choice asks for: `tour` a place in kTutorials, or -1 for By topic;
+// `part` a place in kParts, or -1 for the whole tour.
+struct TutorialChoice {
+    int tour = -1;
+    int part = -1;
+};
+
+inline unsigned tutorial_id(unsigned first, int tour, int part)
+{
+    const unsigned block = tour < 0 ? static_cast<unsigned>(kTutorialCount) : static_cast<unsigned>(tour);
+    return first + block * kTourIds + (part < 0 ? 0u : 1u + static_cast<unsigned>(part));
+}
+
+// The choice an id from the menu stands for; false for an id that is none of
+// the tutorials'. ⓘ A part a tour does not have is none: the menu never lists one.
+inline bool tutorial_choice(unsigned first, unsigned id, TutorialChoice *out)
+{
+    if (id < first) return false;
+    const unsigned offset = id - first;
+    const unsigned block = offset / kTourIds;
+    const unsigned slot = offset % kTourIds;
+    if (block > static_cast<unsigned>(kTutorialCount)) return false;
+    TutorialChoice c;
+    c.tour = block == static_cast<unsigned>(kTutorialCount) ? -1 : static_cast<int>(block);
+    c.part = slot == 0 ? -1 : static_cast<int>(slot) - 1;
+    if (c.part >= tutorial_state::kPartCount) return false;
+    if (c.tour < 0 && c.part < 0) return false;    // By topic has no whole tour
+    if (c.tour >= 0 && c.part >= 0 && !tutorial_state::kParts[c.part].tours[kTutorials[c.tour].kind]) return false;
+    if (out != nullptr) *out = c;
+    return true;
+}
 
 // Which of the three the window is in, or -1 when the listener has not been
 // told: it has just started for the first time and no window has opened yet.

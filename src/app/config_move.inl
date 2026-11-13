@@ -1049,6 +1049,10 @@ inline std::atomic_bool g_tutorialSimpleSeen{false};
 inline std::atomic_bool g_tutorialQuickSeen{false};
 inline std::atomic_bool g_tutorialAdvancedSeen{false};
 inline std::atomic_int  g_tutorialAsked{tutorial_state::None};
+// ⓘ The parts done, a bit each by their place in tutorial_state::kParts, and
+// the part of the tour the tray asked for, or -1 for all of it.
+inline std::atomic<uint32_t> g_tutorialPartsDone{0};
+inline std::atomic_int  g_tutorialAskedPart{-1};
 inline std::mutex g_stampMutex;
 inline std::string g_installStamp;
 
@@ -1111,7 +1115,8 @@ inline void state_save()
     out << quick_switch::app_switcher_line(g_appSwitcher.load());
     out << tutorial_state::seen_line(tutorial_state::kSimpleSeenKey, g_tutorialSimpleSeen.load())
         << tutorial_state::seen_line(tutorial_state::kQuickSeenKey, g_tutorialQuickSeen.load())
-        << tutorial_state::seen_line(tutorial_state::kAdvancedSeenKey, g_tutorialAdvancedSeen.load());
+        << tutorial_state::seen_line(tutorial_state::kAdvancedSeenKey, g_tutorialAdvancedSeen.load())
+        << tutorial_state::parts_line(g_tutorialPartsDone.load());
     {
         std::lock_guard<std::mutex> lock(g_stampMutex);
         if (!g_installStamp.empty()) {
@@ -1226,6 +1231,10 @@ inline void state_load()
             g_tutorialAdvancedSeen.store(tutorial_state::parse_seen(val));
             continue;
         }
+        if (key == tutorial_state::kPartsDoneKey) {
+            g_tutorialPartsDone.store(tutorial_state::parse_parts(val));
+            continue;
+        }
         if (key == tutorial_state::kInstallStampKey) {
             std::lock_guard<std::mutex> lock(g_stampMutex);
             g_installStamp = val;
@@ -1301,7 +1310,8 @@ inline void state_load()
         << " " << quick_switch::kAppSwitcherKey << "=" << (g_appSwitcher.load() ? 1 : 0)
         << " tutorial_simple_seen=" << (g_tutorialSimpleSeen.load() ? 1 : 0)
         << " tutorial_quick_seen=" << (g_tutorialQuickSeen.load() ? 1 : 0)
-        << " tutorial_advanced_seen=" << (g_tutorialAdvancedSeen.load() ? 1 : 0));
+        << " tutorial_advanced_seen=" << (g_tutorialAdvancedSeen.load() ? 1 : 0)
+        << " " << tutorial_state::kPartsDoneKey << "=" << tutorial_state::parts_list(g_tutorialPartsDone.load()));
 }
 
 // ⭐ THE FIRST START AFTER AN INSTALL (tutorial_state.inl): the window opens
@@ -1336,6 +1346,7 @@ inline void install_check(const std::wstring &exeFolder)
     g_tutorialSimpleSeen.store(false);
     g_tutorialQuickSeen.store(false);
     g_tutorialAdvancedSeen.store(false);
+    g_tutorialPartsDone.store(0);
     state_save();
     device_log::input(device_log::msg()
         << "ui/install: the first start after an install (" << stamp
@@ -1493,10 +1504,32 @@ inline void set_tutorial_seen(int kind, bool seen)
     state_save();
 }
 
-// The tray's list of tutorials: one asked for there, taken by the page.
-inline void ask_tutorial(int kind) { g_tutorialAsked.store(kind); }
+// The tray's list of tutorials: one asked for there, taken by the page, with
+// the part of it asked for, or -1 for the whole tour. ⓘ The part first, so
+// a page reading between the two never takes a part as the whole tour.
+inline void ask_tutorial(int kind, int part)
+{
+    g_tutorialAskedPart.store(part);
+    g_tutorialAsked.store(kind);
+}
 inline int tutorial_asked() { return g_tutorialAsked.load(); }
-inline void take_tutorial() { g_tutorialAsked.store(tutorial_state::None); }
+inline int tutorial_asked_part() { return g_tutorialAskedPart.load(); }
+inline void take_tutorial()
+{
+    g_tutorialAsked.store(tutorial_state::None);
+    g_tutorialAskedPart.store(-1);
+}
+
+// ⭐ A PART DONE (tutorial_state.inl): set by the page as its last step is
+// passed, and kept at once; never undone but by an install.
+inline uint32_t tutorial_parts_done() { return g_tutorialPartsDone.load(); }
+inline void set_tutorial_part_done(int part)
+{
+    if (part < 0 || part >= tutorial_state::kPartCount) return;
+    const uint32_t bit = 1u << part;
+    if (g_tutorialPartsDone.fetch_or(bit) & bit) return;
+    state_save();
+}
 
 // This layout's slot, and the table it indexes.
 inline std::atomic_int &size_slot()

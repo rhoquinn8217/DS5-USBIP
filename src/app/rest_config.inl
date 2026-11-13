@@ -850,7 +850,10 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
         // asked for, once a second while the page is in view, as Open on
         // bridge is read. A POST of {"seen": "simple"}, "quick" or "advanced"
         // keeps that one seen; {"taken": true} clears the tray's request once
-        // the page has it (tutorial_state.inl).
+        // the page has it (tutorial_state.inl). ⭐ And the parts (2026-11-13):
+        // the GET says which part of its tour the tray asked for ("part", empty
+        // for the whole tour) and which parts are done ("parts_done", their ids
+        // in a line); a POST of {"part_done": "modes"} keeps a part done.
         if (what == "tutorial") {
             if (req.method == "POST") {
                 RestJson json;
@@ -861,14 +864,22 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
                 }
                 auto seen = json.strings.find("seen");
                 auto taken = json.bools.find("taken");
+                auto partDone = json.strings.find("part_done");
+                const int part = partDone == json.strings.end() ? -1
+                                                                : tutorial_state::part_index(partDone->second);
+                if (partDone != json.strings.end() && part < 0) {
+                    *out = rest_error_response(400, "part_done is the id of a part");
+                    return true;
+                }
                 const int kind = seen == json.strings.end() ? tutorial_state::None
                                                             : tutorial_state::kind_of(seen->second);
                 if (seen != json.strings.end() && kind == tutorial_state::None) {
                     *out = rest_error_response(400, "seen is simple, quick or advanced");
                     return true;
                 }
-                if (seen == json.strings.end() && taken == json.bools.end()) {
-                    *out = rest_error_response(400, "say seen (simple, quick or advanced) or taken (true)");
+                if (seen == json.strings.end() && taken == json.bools.end() && part < 0) {
+                    *out = rest_error_response(400, "say seen (simple, quick or advanced), taken (true) "
+                                                    "or part_done (a part's id)");
                     return true;
                 }
                 if (kind != tutorial_state::None) {
@@ -879,6 +890,11 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
                                                                                    : L"Simple")
                                             << L" tutorial is seen now";
                 }
+                if (part >= 0 && !(ui_tutorial_parts_done() & (1u << part))) {
+                    ui_set_tutorial_part_done(part);
+                    device_log::session_w() << L"settings page: the tutorials' part "
+                                            << tutorial_state::kParts[part].name << L" is done now";
+                }
                 if (taken != json.bools.end() && taken->second) ui_tutorial_take();
             } else if (req.method != "GET") {
                 *out = rest_error_response(405, "method not allowed", "Allow: GET, POST, OPTIONS\r\n");
@@ -887,7 +903,9 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
             *out = rest_http_response(200, tutorial_state::json(ui_tutorial_seen(tutorial_state::Simple),
                                                                 ui_tutorial_seen(tutorial_state::Quick),
                                                                 ui_tutorial_seen(tutorial_state::Advanced),
-                                                                ui_tutorial_asked()));
+                                                                ui_tutorial_asked(),
+                                                                ui_tutorial_asked_part(),
+                                                                ui_tutorial_parts_done()));
             return true;
         }
 
@@ -945,6 +963,9 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
             // ⓘ The two finger press reported while the step shown asks
             // ("pad"), and only then (quick_switch::mock_report).
             ui_tour_pad(flag("show") && flag("pad"));
+            // ⓘ And, on the step that tries window select ("switcher"), the
+            // d-pad's window switcher let open while the press holds Quick up.
+            ui_tour_switcher(flag("show") && flag("pad") && flag("switcher"));
             // ⓘ And the window shrunk for the tour ("shrunk"): nothing of it kept.
             ui_tour_shrunk(flag("show") && flag("shrunk"));
             *out = rest_http_response(200, R"({"ok":true})");
