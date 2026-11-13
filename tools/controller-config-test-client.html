@@ -2,7 +2,7 @@
 <!--
   DS5-USBIP's Controller Configs page, served by the listener.
 
-  VERSION 2.70.7 -- see the changelog at the bottom of this comment.
+  VERSION 2.71.0 -- see the changelog at the bottom of this comment.
 
   WHAT IT STARTED AS. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -24,6 +24,13 @@
   not a tidy message about it.
 
   CHANGELOG
+    2.71.0   The touchpad drawn, as the DualSense's, alone or with one or two
+             fingers: the touchpad settings named by it and the rest of
+             their key, "touchpad_one_finger_tap changes to [symbol] - tap";
+             a dropdown that chooses fingers with the chosen one's after
+             it; each saying on hover "touchpad", "touchpad - 1 finger" or
+             "touchpad - 2 finger"; and the config preview with a key for
+             the three above its foot's line (rhoquinn8217, 2026-11-13).
     2.70.7   The pre-set selector's Cancel anchored at the card's foot and its
              title at the top, the list alone scrolling between them ("In
              the preset selector, cancel should be anchored"). The listener
@@ -2339,6 +2346,20 @@
   .kshoulder { width:1.296em; height:1.08em; flex:0 0 auto; vertical-align:-0.17em;
                fill:none; stroke:currentColor; stroke-width:1.25; stroke-linejoin:round; }
   .kshoulder text { fill:currentColor; stroke:none; font-size:12px; }
+  /* ⭐ THE TOUCHPAD, DRAWN, WITH ITS FINGERS (rhoquinn8217, 2026-11-13: "a
+     one-finger touchpad and a two-finger touchpad, with the action said in
+     words beside it"): the DualSense's touchpad, its top "a slight curve",
+     its corners rounded alike ("top corners are too sharp and bottom corners
+     are not sharp enough"), and a solid circle for each finger in the same
+     colour, partly see-through, "not as bright as the touchpad outline"
+     (their pick: 40%). The round marks' height and 1.4 times their width
+     (touchpadMark). */
+  .ktp { width:1.512em; height:1.08em; flex:0 0 auto; vertical-align:-0.17em;
+         fill:none; stroke:currentColor; stroke-width:1.25; stroke-linejoin:round; }
+  .ktp .kfg { fill:currentColor; fill-opacity:0.4; stroke:none; }
+  /* ⓘ A dropdown whose choice is a number of fingers, with the mark of the
+     one chosen after it: a list's own lines are text only. */
+  .tpctl { display:inline-flex; align-items:center; gap:7px; }
   .lgi { white-space:nowrap; }
   /* ⭐ The legend's entries a short gap apart (rhoquinn8217, 2026-10-16:
      "less space between button in the legend"), wrapping between entries
@@ -3868,7 +3889,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.70.7</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.71.0</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -6230,6 +6251,70 @@ function dpadArms(dirs) {
          dirs.map(function (d) { return '<path class="karm" d="' + DPAD_ARMS[d] + '"/>'; }).join('') +
          '</svg>';
 }
+// ⭐⭐ THE TOUCHPAD WITH ONE FINGER OR TWO, wherever the window names a touchpad
+// gesture (rhoquinn8217, 2026-11-13: a touchpad symbol "drawn like the PS
+// mark", in "1, 2, 3": the settings, the config preview, and the Overview's
+// quick switch box). The DualSense's touchpad on a 28 by 20 grid, the round
+// marks' 20 high: a trapezoid whose top is a slight arch (a circle of 60.3, its
+// middle at 1.9), the four corners on 2.7, each tangent to its side and to the
+// top or the bottom; a solid circle for each finger (.kfg). Aurora's Desktop
+// Mode draws the same numbers.
+// ⭐ HOVERED, IT SAYS WHICH (rhoquinn8217, 2026-11-13: "a hover tooltip to say
+// "touchpad - 1 finger" or "touchpad - 2 finger""): its own title, which a
+// title on what holds it does not override.
+var TOUCHPAD_OUTLINE = 'M4.25 2.69A60.3 60.3 0 0 1 23.75 2.69A2.7 2.7 0 0 1 25.97 5.8L24.44 14.75' +
+                       'A2.7 2.7 0 0 1 21.78 17H6.22A2.7 2.7 0 0 1 3.56 14.75L2.03 5.8A2.7 2.7 0 0 1 4.25 2.69Z';
+// ⭐ AND THE TOUCHPAD ALONE, no finger on it (rhoquinn8217, 2026-11-13: "Add
+// a touch pad symbol with no circles"), for a touchpad setting that names no
+// fingers: 0. Its title says "touchpad".
+function touchpadMark(fingers) {
+  var words = fingers === 2 ? 'touchpad - 2 finger' : (fingers === 1 ? 'touchpad - 1 finger' : 'touchpad');
+  // ⓘ Two fingers side by side, the second a little higher, as a middle
+  // finger stands beside the first.
+  var dots = fingers === 2 ? '<circle class="kfg" cx="10.4" cy="10.1" r="2.89"/><circle class="kfg" cx="17.6" cy="9.6" r="2.89"/>'
+           : (fingers === 1 ? '<circle class="kfg" cx="14" cy="9.9" r="3.4"/>' : '');
+  return '<svg class="ktp" viewBox="0 0 28 20" role="img" aria-label="' + words + '"><title>' + words + '</title>' +
+         '<path d="' + TOUCHPAD_OUTLINE + '"/>' + dots + '</svg>';
+}
+// ⭐⭐ A TOUCHPAD SETTING'S NAME (rhoquinn8217, 2026-11-13: "in settings rename
+// touch pad settings to not use underscores and replace touchpad_one_finger and
+// touchpad_two_finger with symbols", as "touchpad_one_finger_tap changes to
+// [symbol] - tap" and "touchpad_press_touch_drag changes to [symbol] - press
+// touch drag"): the key's touchpad_one_finger_, touchpad_two_finger_ or
+// touchpad_ drawn, and the rest of it in words. Null for any other key.
+// ⓘ The key itself is unchanged, in the config file and on the row's hover.
+function touchpadName(key) {
+  var m = /^touchpad_(one_finger_|two_finger_)?(.+)$/.exec(String(key));
+  if (!m) return null;
+  return { fingers: m[1] === 'one_finger_' ? 1 : (m[1] === 'two_finger_' ? 2 : 0),
+           words: m[2].replace(/_/g, ' ') };
+}
+// And the ones whose VALUE is a number of fingers: how many scroll, and a
+// gyro gate on one finger only or two. 0 for none.
+function touchpadFingersOf(key, value) {
+  var v = String(value);
+  if (key === 'touchpad_scroll') return v === '1' ? 1 : (v === '2' ? 2 : 0);
+  if (key === 'gyro_to_mouse_gate_button' || key === 'gyro_to_stick_gate_button') {
+    if (/^touchpad_only_1_touch/.test(v)) return 1;
+    if (/^touchpad_only_2_touch/.test(v)) return 2;
+  }
+  return 0;
+}
+// The settings whose value can be a number of fingers (touchpadFingersOf).
+function touchpadChoiceKey(key) {
+  return key === 'touchpad_scroll' || key === 'gyro_to_mouse_gate_button' || key === 'gyro_to_stick_gate_button';
+}
+// ⓘ Its mark redrawn as its dropdown changes, by the mouse or by a pad, whose
+// change the page sends as an event as well.
+function touchpadChoiceChanged(ev) {
+  var sel = ev.target;
+  if (!sel || !sel.getAttribute || !sel.getAttribute('data-tpkey')) return;
+  var slot = sel.parentNode && sel.parentNode.querySelector('.tpnow');
+  if (!slot) return;
+  var n = touchpadFingersOf(sel.getAttribute('data-tpkey'), sel.value);
+  slot.innerHTML = n ? touchpadMark(n) : '';
+}
+document.addEventListener('change', touchpadChoiceChanged, true);
 function buttonMarkSet() {
   var legend = padLegend();
   if (legend !== KEY_LEGEND) return legend;
@@ -7961,6 +8046,14 @@ function configRowName(meta, only, set) {
     markHtml = buttonMark(Number(m[2]), set);
   }
   var shownKey = only ? (prettyKey + ' (' + only + ' only)') : prettyKey;
+  // ⭐ A touchpad setting's row: the touchpad drawn, then the rest of its key
+  // in words, "[symbol] - tap" (touchpadName). The key stays the text, which
+  // the row's hover shows.
+  var tpName = m ? null : touchpadName(meta.key);
+  if (tpName) {
+    return { text: shownKey,
+             html: touchpadMark(tpName.fingers) + esc(' - ' + tpName.words + (only ? ' (' + only + ' only)' : '')) };
+  }
   var nameHtml = markHtml
     ? markHtml + esc((m[1] === 'turbo' ? ' - rapid fire' : ' - rebind') +
                      (only ? ' (' + only + ' only)' : ''))
@@ -8175,6 +8268,14 @@ function renderConfigEditor(hostId, configName, prefix, ordinal) {
             return '<option value="' + esc(c) + '"' +
                    (String(shown) === c ? ' selected' : '') + '>' + esc(label) + '</option>';
           }).join('') + '</select>';
+          // ⓘ A choice that is a number of fingers: the mark of the one chosen
+          // after the dropdown, whose own list is text only, kept up to date
+          // as it changes (touchpadChoiceChanged).
+          if (touchpadChoiceKey(meta.key)) {
+            var tpChosen = touchpadFingersOf(meta.key, shown);
+            control = '<span class="tpctl">' + control.replace('<select ', '<select data-tpkey="' + esc(meta.key) + '" ') +
+                      '<span class="tpnow">' + (tpChosen ? touchpadMark(tpChosen) : '') + '</span></span>';
+          }
         } else if (meta.type === 'bool') {
           // ⭐ AN UNMANAGED BOOL SHOWS true, whatever its default.
           // (rhoquinn8217, 2026-08-31.) Ticking the box next to a switch means
@@ -14742,6 +14843,44 @@ function selfTest() {
      (pvHint ? pvHint.className + ':' + pvHint.textContent : 'no line') +
      (pvHoldLine ? ' / a hold line in the window: ' + pvHoldLine.textContent : '') +
      ' / foot: ' + pvFoot.replace(/<[^>]+>/g, ' ').replace(/ +/g, ' '));
+  // ⭐ THE TOUCHPAD DRAWN (2.71.0; rhoquinn8217, 2026-11-13: "touchpad_one_finger_tap
+  // changes to [symbol] - tap"): a touchpad setting named by the touchpad drawn
+  // and the rest of its key in words, the key kept as its text; each mark's
+  // hover; a choice of fingers told by its value, its mark redrawn as it changes.
+  var tpOne = configRowName({ key: 'touchpad_one_finger_tap' });
+  var tpPress = configRowName({ key: 'touchpad_press_touch_drag' });
+  var tpSwipe = configRowName({ key: 'touchpad_two_finger_swipe_up' });
+  var tpSel = document.createElement('span');
+  tpSel.innerHTML = '<select data-tpkey="touchpad_scroll"><option value="1">1</option><option value="2">2</option>' +
+                    '<option value="0">0</option></select><span class="tpnow"></span>';
+  document.body.appendChild(tpSel);
+  var tpSelect = tpSel.querySelector('select'), tpSlot = tpSel.querySelector('.tpnow');
+  tpSelect.value = '2'; tpSelect.dispatchEvent(new Event('change', { bubbles: true }));
+  // ⓘ Read back by what it holds: the browser writes a drawing out again in
+  // its own way, so its text is never the string that made it.
+  var tpTwoTitle = tpSlot.querySelector('title');
+  var tpTwoShown = tpSlot.querySelectorAll('circle.kfg').length === 2 &&
+                   !!tpTwoTitle && tpTwoTitle.textContent === 'touchpad - 2 finger';
+  tpSelect.value = '0'; tpSelect.dispatchEvent(new Event('change', { bubbles: true }));
+  var tpNoneShown = tpSlot.innerHTML === '';
+  tpSel.remove();
+  ok('touchpad: its settings named by the touchpad drawn and the rest of the key, each mark saying which on ' +
+     'hover, a choice of fingers drawn by its value and redrawn as it changes',
+     tpOne.html === touchpadMark(1) + ' - tap' && tpOne.text === 'touchpad_one_finger_tap' &&
+     tpPress.html === touchpadMark(0) + ' - press touch drag' &&
+     tpSwipe.html === touchpadMark(2) + ' - swipe up' &&
+     configRowName({ key: 'gyro_no_passthrough' }).html === 'gyro_no_passthrough' &&
+     touchpadMark(0).indexOf('<title>touchpad</title>') > 0 &&
+     touchpadMark(1).indexOf('<title>touchpad - 1 finger</title>') > 0 &&
+     touchpadMark(2).indexOf('<title>touchpad - 2 finger</title>') > 0 &&
+     (touchpadMark(0).match(/<circle/g) || []).length === 0 &&
+     (touchpadMark(1).match(/<circle/g) || []).length === 1 &&
+     (touchpadMark(2).match(/<circle/g) || []).length === 2 &&
+     touchpadFingersOf('touchpad_scroll', '2') === 2 && touchpadFingersOf('touchpad_scroll', '0') === 0 &&
+     touchpadFingersOf('gyro_to_mouse_gate_button', 'touchpad_only_1_touch_press') === 1 &&
+     touchpadFingersOf('gyro_to_mouse_gate_button', 'touchpad_touch') === 0 &&
+     tpTwoShown && tpNoneShown,
+     tpOne.html.replace(/<svg[\s\S]*?<\/svg>/g, '[mark]') + ' / ' + tpPress.text + ' / redrawn ' + tpTwoShown + ',' + tpNoneShown);
   // ⭐ SIMPLE'S REBIND LIST, AND THE WHEEL AS TALL AS THE BUTTONS (2.70.5;
   // rhoquinn8217, 2026-11-12: "shrink the wheel so that horizontal length of
   // the wheel and the PS button legend under it matches the horizontal
@@ -19907,13 +20046,24 @@ function previewRender() {
       return '<div class="pvsect"><div class="pvsh">' + esc(s.section) + '</div>' +
         s.rows.map(function (r) {
           var nm = configRowName(r.meta, TRANSPORT_ONLY[r.meta.key], legendByName(st.set));
+          // ⓘ A value that is a number of fingers has the touchpad drawn before
+          // it, as the editor has after its dropdown.
+          var tpChosen = touchpadFingersOf(r.meta.key, r.value);
           return '<div class="pvrow"><span class="pvk" title="' + esc(nm.text) + '">' + nm.html +
-                 '</span><span class="pvv">' + esc(configValueText(r.meta, r.value)) + '</span></div>';
+                 '</span><span class="pvv">' + (tpChosen ? touchpadMark(tpChosen) + ' ' : '') +
+                 esc(configValueText(r.meta, r.value)) + '</span></div>';
         }).join('') + '</div>';
     }).join('');
   }
   colsEl.innerHTML = html;
-  footEl.innerHTML = previewFootHtml(st.set);
+  // ⭐ THE TOUCHPAD'S THREE MARKS EXPLAINED, ABOVE THE FOOT'S LINE (rhoquinn8217,
+  // 2026-11-13: "in the preview add a key above the footer break line for the 3
+  // touchpad symbols touchpad, 1-finger touchpad, 2-finger touchpad"), while the
+  // box shows any of them.
+  var key = html.indexOf('class="ktp"') < 0 ? '' :
+    '<div id="pvKey"><span>' + touchpadMark(0) + ' touchpad</span><span>' + touchpadMark(1) +
+    ' 1-finger touchpad</span><span>' + touchpadMark(2) + ' 2-finger touchpad</span></div>';
+  footEl.innerHTML = key + '<div id="pvBar">' + previewFootHtml(st.set) + '</div>';
   previewFit();
   setTimeout(previewFit, 300);
 }
@@ -19986,7 +20136,7 @@ function previewMain() {
   css.textContent =
     'html.pvmode body{margin:0;padding:0;min-height:0;background:#15161a;color:#e8e8ea;' +
       'overflow:hidden;font-size:23px}' +
-    '#pvRoot{padding:14px 24px 92px}' +
+    '#pvRoot{padding:14px 24px 140px}' +
     '#pvHead{border-bottom:1px solid #2a2c33;padding-bottom:8px;margin-bottom:2px}' +
     '#pvName{font-size:30px;font-weight:600;overflow-wrap:anywhere}' +
     '#pvCount{color:#9a9ca5;font-size:19px}' +
@@ -19998,9 +20148,15 @@ function previewMain() {
     '.pvv{color:#c9cbd3;text-align:right;flex:0 1 auto;max-width:55%;overflow-wrap:anywhere}' +
     // ⓘ Its buttons centred (rhoquinn8217, 2026-11-12: "center the bottom
     // buttons of the preview browser box").
-    '#pvFoot{position:fixed;left:0;right:0;bottom:0;display:flex;align-items:center;' +
-      'justify-content:center;gap:12px;padding:12px 24px;border-top:1px solid #2a2c33;' +
-      'background:#15161a}' +
+    // ⓘ The foot is the touchpad's key (pvKey, when there is one) over the
+    // line, and under it the bar of buttons (pvBar). The root leaves room
+    // for both.
+    '#pvFoot{position:fixed;left:0;right:0;bottom:0;background:#15161a}' +
+    '#pvKey{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 30px;padding:8px 24px;' +
+      'color:#9a9ca5;font-size:19px}' +
+    '#pvKey span{display:inline-flex;align-items:center;gap:0.35em}' +
+    '#pvBar{display:flex;align-items:center;justify-content:center;gap:12px;padding:12px 24px;' +
+      'border-top:1px solid #2a2c33}' +
     '#pvBtns{display:flex;gap:16px}' +
     '#pvHold{display:inline-flex;align-items:center;gap:0.35em;color:#9a9ca5;font-size:19px;' +
       'margin-right:22px}' +
