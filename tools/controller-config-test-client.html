@@ -2,7 +2,7 @@
 <!--
   DS5-USBIP's Controller Configs page, served by the listener.
 
-  VERSION 2.69.8 -- see the changelog at the bottom of this comment.
+  VERSION 2.70.7 -- see the changelog at the bottom of this comment.
 
   WHAT IT STARTED AS. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -24,6 +24,77 @@
   not a tidy message about it.
 
   CHANGELOG
+    2.70.7   The pre-set selector's Cancel anchored at the card's foot and its
+             title at the top, the list alone scrolling between them ("In
+             the preset selector, cancel should be anchored"). The listener
+             keeps the config preview in front of the configs window and
+             centres it on Advanced, and a quick switch's second press now
+             keeps the touchpad held until the last finger lifts ("pressing
+             the touchpad should restrict whatever it's rebound to and make
+             the config stay") (rhoquinn8217, 2026-11-12).
+    2.70.6   Rebind List lit while the config preview is up ("light up
+             Rebind List while the preview is open"); the pre-set selector's
+             card scrolls with the halo, which ran below its foot ("I meant
+             scroll follows in the pre-set selector not the settings"); no
+             settings gear in Quick ("remove the clickable settings gear in
+             quick mode"); "hold to edit" moved from under the wheel and
+             under Quick's auto link to the box's foot, before Close ("move
+             the PS button hold to edit legend from the config window and
+             back on the footer of the preview window"); and the box asks for
+             its size every second, so a config cut short at the screen's
+             foot (gyro_to_mouse_DS5_AT: "one of it's settings cut off at the
+             bottom") grows once it stands where it fits (rhoquinn8217,
+             2026-11-12). The listener makes the box see-through, 80% solid
+             ("make the preview window transparent").
+    2.70.5   Simple's wheel and the PS lines under it as tall as the buttons
+             at its right, the wheel's top level with New's and the lines'
+             bottom with Archive's, its 5 lines kept ("shrink the wheel so
+             that ... matches the horizontal length of the buttons to the
+             right of the wheel"); and a Rebind List button under Auto
+             link, which shows or hides the config preview as PS does
+             ("add "Rebind List" button under "Auto link"") (rhoquinn8217,
+             2026-11-12).
+    2.70.4   The config preview, round 7 (rhoquinn8217, 2026-11-12): PS's line
+             reads "show/hide rebind list"; Cross no longer edits in Quick,
+             and its "edit" line is gone; PS held three seconds goes
+             straight to Advanced, the list closed and nothing asked ("go
+             straight to edit"), said by a second PS line, "hold to edit",
+             beside the first under Simple's wheel and under it in Quick,
+             so a press shows or hides the list as it comes up (V on a
+             keyboard the same); the listener gives the front back to the
+             configs window from a click on the box, and stands it right,
+             left, above or below the window, in that order.
+    2.70.3   A DualSense Edge over Bluetooth ("ds5e") is an Edge here too, as
+             the listener has it: the PlayStation marks in its legends, where
+             it read as an unknown kind and drew the Xbox ones, so the config
+             preview's PS lines did not show for it (rhoquinn8217,
+             2026-11-12: "I don't see simple or quick mode changes with the
+             PS symbol"). The same gap greyed its trigger effects and haptics
+             in the editor as hardware it lacked; and it is Bluetooth.
+    2.70.2   The config preview: its Edit gone, Close alone with PS's mark;
+             editing asks first while it is up, Simple's Edit button and
+             Cross in Quick, where "edit" shows under "show rebind list"
+             while it is up; Simple's "show rebind list" back under the
+             wheel in its box; and it stands right, above, left or below
+             the window, in that order (rhoquinn8217, 2026-11-12). And a
+             question in Simple or Quick keeps its halo on Cancel through
+             the device poll's repaint, which had put it on OK.
+    2.70.1   The config preview's text larger again, its Edit and Close
+             marked with Cross and PS; it never takes the front unless a
+             mouse clicks it, and it follows this window, above, below,
+             right or left of it where there is room (in Advanced on the
+             side with the most); Cross is its Edit in Simple and Quick
+             while it is up; "show rebind list" under Quick's auto link and
+             under Simple's config wheel box, with PS's mark; its buttons
+             centred; open during a quick switch, Quick stays; and Quick's
+             rate line ends in the settings gear again (rhoquinn8217,
+             2026-11-11 and 12).
+    2.70.0   The config preview: PS on a controller, or V, with this window
+             in front opens a box of its own beside it, listing the ticked
+             settings of the config it is on, by section, in two columns, at
+             a fixed size that grows for a longer config; it follows the
+             config from one to the next, and PS or V again closes it
+             (rhoquinn8217, 2026-11-11).
     2.69.8   Reset in a controller's settings window, beside Close: every
              setting there back to its default but the device tag, after a
              question that starts on Cancel (rhoquinn8217, 2026-11-11).
@@ -2400,6 +2471,10 @@
   #compactBox .cauto-btn,
   #compactBox .cunlink-btn { font-size:calc(4.2 * var(--vh)); padding:calc(0.6 * var(--vh)) 1.4vw; line-height:1; }
   #compactBox .cauto-btn.on { color:#7fd18c; border-color:#7fd18c; opacity:1; }
+  /* ⭐ REBIND LIST LIT WHILE THE LIST IS UP (rhoquinn8217, 2026-11-12: "light
+     up Rebind List while the preview is open"), as a standing auto link
+     lights Auto link: body.pvopen follows the box (previewSetOpen). */
+  body.pvopen #compactBox .crebind-btn { color:#7fd18c; border-color:#7fd18c; }
   /* ⛔ NO GREEN IN THE LIST (rhoquinn8217, 2026-09-09). A native option is
      one run of text in one colour, so the mark could never be green on its
      own: colouring the option coloured the name with it, colouring the
@@ -2797,6 +2872,19 @@
     font-size:3vh; padding:1.2vh 2.5vw; }
   body.compact #presetList .prow > button:first-child { font-size:3vh; padding:1.4vh 2vw; }
   body.compact #presetList small { font-size:2.4vh; }
+  /* ⭐ CANCEL ANCHORED (rhoquinn8217, 2026-11-12: "In the preset selector,
+     cancel should be anchored"): the pre-set selector's card a column, its
+     title at the top and Cancel at the foot standing still, the list alone
+     scrolling between them (presetKeepInView), where the whole card scrolled
+     and Cancel came into sight only at the list's end. */
+  /* ⓘ The list keeps room round its rows for the ring, drawn outside its
+     row, which its own scrolling would cut: 8px each side, and the rows
+     back where they stood (its margins); its hairline on the first row. */
+  body.compact #presetBox .confirmCard { display:flex; flex-direction:column; overflow:hidden; }
+  body.compact #presetBox #presetList { flex:1 1 auto; min-height:0; overflow:auto;
+    margin-left:-8px; margin-right:-8px; padding:6px 8px; border-top:none; }
+  body.compact #presetBox #presetList .prow:first-child { border-top:1px solid #2c2e36; }
+  body.compact #presetBox .confirmBtns { flex:0 0 auto; }
   /* ⭐ The settings window fits the compact windows as the pre-set boxes do,
      and scrolls inside itself; the halo's row is kept in sight. */
   body.compact #ctlSetBox .confirmCard { font-size:3vh; width:auto; max-width:72vw;
@@ -3096,15 +3184,29 @@
   body.compact:not(.quick) #compactBox .cpick-label { font-size:calc(3.6 * var(--vh)); top:0; bottom:auto;
     transform:translateY(-50%); background:linear-gradient(to bottom, #15161a 50%, #1d1f26 50%); }
   body.compact:not(.quick) #compactBox .cname .devemo { font-size:0.8em; margin-right:0.3em; }
-  body.compact:not(.quick) #compactBox .cpick-wrap { display:inline-grid; grid-template-columns:auto auto; align-items:center;
+  /* ⭐ THE WHEEL AND THE PS LINES UNDER IT AS TALL AS THE BUTTONS (rhoquinn8217,
+     2026-11-12: "shrink the wheel so that horizontal length of the wheel and
+     the PS button legend under it matches the horizontal length of the
+     buttons to the right of the wheel"): the buttons span both of the
+     panel's rows, the lines take the second, and the wheel the rest, so the
+     wheel's top meets New's and the lines' bottom Archive's. Its 5 lines
+     stay ("go back to the wheel being 5 lines long"): the drum's text is a
+     sixth of the wheel's height, 5 lines of 1.2, so it shrinks and grows
+     with it. With no lines (an Xbox pad's legend, no button for the list
+     yet) the wheel is the buttons' height. ⓘ Six buttons the same day
+     (Rebind List): the wheel with the lines is as tall as it was alone. */
+  body.compact:not(.quick) #compactBox .cpick-wrap { display:inline-grid; grid-template-columns:auto auto;
+    grid-template-rows:1fr auto; align-items:center;
     column-gap:2vw; padding:calc(3 * var(--vh)) 2vw; min-width:0; box-sizing:border-box;
     background:#1d1f26; border:1px solid #2c2e36; border-radius:8px; }
-  body.compact:not(.quick) #compactBox .cwheel { position:relative; display:inline-flex; min-width:50vw; }
-  body.compact:not(.quick) #compactBox .cwheel > select { opacity:0; height:calc(32.4 * var(--vh));
+  body.compact:not(.quick) #compactBox .cwheel { position:relative; display:inline-flex; min-width:50vw;
+    grid-column:1; grid-row:1; align-self:stretch; }
+  body.compact:not(.quick) #compactBox .cwheel > select { opacity:0; height:auto; align-self:stretch;
     font-size:calc(5.4 * var(--vh)); appearance:none; -webkit-appearance:none;
     width:100%; min-width:0; border:0; padding:0 0.9em; }
   body.compact:not(.quick) #compactBox .cdrum { position:absolute; inset:0; pointer-events:none; border-radius:6px;
-    font-size:calc(5.4 * var(--vh)); }
+    font-size:calc(5.4 * var(--vh)); container-type:size; }
+  body.compact:not(.quick) #compactBox .cdrum > * { font-size:calc(100cqh / 6); }
   body.compact:not(.quick) #compactBox .cdrum-frame { position:absolute; left:0.18em; right:0.18em; top:50%;
     height:1.3em; margin-top:-0.65em; box-sizing:border-box;
     border:2px solid #3a3d47; border-radius:0.22em; background:#262833; }
@@ -3136,9 +3238,19 @@
   /* ⓘ Five buttons since 2026-10-22 (Archive), in the wheel's 32.4vh still,
      so the panel kept its height and the window its halved margins: each
      0.5vh of padding over and under, from 0.7, and 0.55vh between them,
-     from 1, the text the size it was. */
+     from 1, the text the size it was. ⓘ Six since 2026-11-12 (Rebind List),
+     the same size: the wheel and the PS lines under it take their height
+     (above), which the wheel and the lines had already. */
+  /* ⭐ THE CONFIG PREVIEW'S LINE, CENTRED UNDER THE WHEEL IN THE BOX
+     (2026-11-11; out of the box and back the next day): the panel's grid
+     sets it in the wheel's column, on a row of its own. ⭐ Two of them side
+     by side since 2026-11-12, "show/hide rebind list" and "hold to edit". */
+  body.compact:not(.quick) #compactBox .cvhints { grid-column:1; grid-row:2; justify-self:center;
+    display:inline-flex; align-items:center; gap:1.4em; margin-top:calc(0.6 * var(--vh));
+    font-size:calc(2.8 * var(--vh)); color:#9a9ca5; white-space:nowrap; }
+  body.compact:not(.quick) #compactBox .cvhint { display:inline-flex; align-items:center; gap:0.35em; }
   body.compact:not(.quick) #compactBox .csbtns { display:flex; flex-direction:column; align-items:stretch;
-    gap:calc(0.55 * var(--vh)); }
+    gap:calc(0.55 * var(--vh)); grid-column:2; grid-row:1 / span 2; }
   /* ⭐ GREYED, YET REACHABLE AND PRESSABLE (2026-10-22: "don't skip over
      disable buttons in simple mode. When click, show pop up why they are
      disabled"): dimmed by its own colours rather than by opacity, which
@@ -3756,7 +3868,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.69.8</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.70.7</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -3879,6 +3991,32 @@
 </div>
 
 <script>
+// ⭐⭐ THE CONFIG PREVIEW IS THIS PAGE TOO (rhoquinn8217, 2026-11-11: "When the
+// config window is up, pressing the PS/XBOX button open a separate browser box
+// that lists out all the the enabled settings and their values in by section
+// of the currently selected config"). Opened at ?preview, by the listener,
+// beside the configs window, it draws the box alone (previewMain, at the end)
+// with the editor's own sections and words, so the two cannot drift apart.
+// ⛔ NOTHING OF THE CONFIGS WINDOW RUNS IN IT: no timer, no listener, no pad.
+// Its focus reports would hand the controller to the game, its pagehide would
+// say the configs window had closed, and its keys and pad polling would drive
+// a page nobody sees. So the three ways this page starts anything are blank
+// in the box before any of it runs, and the box keeps the real ones for its
+// own few.
+var PREVIEW_MODE = /[?&]preview(?:&|$)/.test(location.search);
+var PREVIEW_REAL = null;
+if (PREVIEW_MODE) {
+  PREVIEW_REAL = {
+    setInterval: window.setInterval.bind(window),
+    listen: window.addEventListener.bind(window),
+    docListen: document.addEventListener.bind(document)
+  };
+  window.setInterval = function () { return 0; };
+  window.requestAnimationFrame = function () { return 0; };
+  window.addEventListener = function () {};
+  document.addEventListener = function () {};
+}
+
 // ⭐ Display names for controller tabs.
 //
 // ⓘ DISPLAY ONLY. The API still uses the ordinal -- ds5_usb_1 -- for linking,
@@ -4537,6 +4675,9 @@ function focusElement(el) {
   // browser's own scroll is what was clipping the top, so letting it run and
   // then correcting would fight it every time.
   if (el === firstControlInSection() && scrollSectionIntoView(el)) return true;
+  // ⓘ The pre-set selector's card was put right by gpPaint, which the
+  // browser's own scroll would undo (presetKeepInView).
+  if (presetKeepInView(el)) return true;
   el.scrollIntoView({ block: 'nearest' });
   return true;
 }
@@ -4922,12 +5063,16 @@ function rateTags(parts) {
                       .join(' <span class="muted">·</span> ');
 }
 
-// The rate and its limit after the battery in Simple and Quick, with the
-// gear in Simple: nothing for a device that is no controller. `tag`: a span
-// on the name's line, a div under it in Quick's panel.
-// ⭐ NO GEAR IN QUICK (rhoquinn8217, 2026-11-09: "remove settings symbol and
-// r3 symbol next to the polling rate in quick mode"): R3 opens the
-// settings there, as its legend says.
+// The rate and its limit after the battery in Simple and Quick, the gear
+// after them: nothing for a device that is no controller. `tag`: a span on
+// the name's line, a div under it in Quick's panel.
+// ⭐ THE GEAR IN QUICK AGAIN, RIGHT OF THE RATE AND LIMIT (rhoquinn8217,
+// 2026-11-12: "Add the settings symbol to the right of the polling rate and
+// limit in quick mode"), where 2026-11-09 had taken it and R3's mark out
+// ("remove settings symbol and r3 symbol next to the polling rate in quick
+// mode"). Without R3's mark still, and for the mouse: the d-pad skips the
+// rate line in Quick (gpCollect), and R3 opens the settings, as the legend
+// says.
 // ⭐ SIMPLE'S RATE IN THE MIDDLE, BETWEEN THE BATTERY AND THE GEAR
 // (rhoquinn8217, 2026-11-09: "center the polling rate and limit between the
 // nickname/batter and the settings symbol", "in simple mode"): in a span of
@@ -4937,6 +5082,11 @@ function rateTags(parts) {
 // the line centred by the style.
 function compactRateLine(ordinal, tag) {
   var rates = rateTags(partsOf(ordinal));
+  // ⭐ NO GEAR IN QUICK (rhoquinn8217, 2026-11-12: "remove the clickable
+  // settings gear in quick mode"), which had it back since that morning
+  // ("Add the settings symbol to the right of the polling rate and limit in
+  // quick mode"). R3 still opens the settings window there (gpRate), and
+  // Simple keeps its gear.
   var line = QUICK ? rates
                    : (rates ? '<span class="crate-txt">' + rates + '</span>' : '') +
                      settingsGearHtml(ordinal, true);
@@ -5480,6 +5630,39 @@ function settingsKeepInView(el) {
   return true;
 }
 
+// ⭐ THE PRE-SET SELECTOR FOLLOWS THE HALO TOO (rhoquinn8217, 2026-11-12:
+// "have scroll follow ring selector", then "I meant scroll follows in the
+// pre-set selector not the settings"): in Simple its card scrolls inside the
+// window, and the halo's row, its ring with it, is scrolled into the card;
+// the first row brings the card's top and title, Cancel its foot. True when
+// the halo is in the card.
+// ⛔ Not scrollIntoView, which left the card where it was (measured
+// 2026-11-12: scrollTop 0 with the halo below the card's foot): every button
+// carries the sticky header's scroll margins (--stickH), which a card a
+// window high has no room for. Read from the rows' places on screen, which
+// is the card's own units here: only Advanced is zoomed, and there the card
+// does not scroll.
+// ⭐ The list alone scrolls in Simple, between the title and Cancel, which
+// stand still (2026-11-12: "cancel should be anchored"): Cancel needs no
+// scrolling to. Where the list does not scroll, the card does, as before.
+var PRESET_RING_PX = 8;       // the ring, drawn outside its row
+function presetKeepInView(el) {
+  if (!PRESET_OPEN || !el) return false;
+  var card = document.querySelector('#presetBox .confirmCard');
+  if (!card || !card.contains(el)) return false;
+  var list = document.getElementById('presetList');
+  var box = list && list.scrollHeight > list.clientHeight ? list : card;
+  if (!box.contains(el) || box.scrollHeight <= box.clientHeight) return true;
+  var row = (el.closest && el.closest('.prow')) || el;
+  var top0 = box.getBoundingClientRect().top + box.clientTop - box.scrollTop;
+  var rr = row.getBoundingClientRect();
+  var top = rr.top - top0 - PRESET_RING_PX, bottom = rr.bottom - top0 + PRESET_RING_PX;
+  if (row.classList.contains('prow') && !row.previousElementSibling) top = 0;
+  if (top < box.scrollTop) box.scrollTop = top;
+  else if (bottom > box.scrollTop + box.clientHeight) box.scrollTop = bottom - box.clientHeight;
+  return true;
+}
+
 // ◄ ► in the window: a choice steps, a number moves by 10 within its range,
 // as a value box's ◄ ► do, and anything else is a step sideways.
 function settingsStep(dir) {
@@ -5644,7 +5827,8 @@ function renderTabs(devices) {
 // The wire strings are left alone -- the TV sends them, so renaming is a
 // two-repo protocol change rather than a rename.
 function transportOf(sessionKind) {
-  if (sessionKind === 'ds5' || sessionKind === 'ds4') return 'Bluetooth';
+  // ⓘ "ds5e" is an Edge over Bluetooth (2026-11-12), as device_names.inl has it.
+  if (sessionKind === 'ds5' || sessionKind === 'ds5e' || sessionKind === 'ds4') return 'Bluetooth';
   // ⓘ "USB", not "wired": it pairs like-for-like with BT -- both name the
   // transport -- and matches the wire string ds5_usb.
   // ⓘ A DS4 since its Audio section (2026-11-04): ds4 is the Bluetooth one,
@@ -6112,7 +6296,11 @@ function padLegend() {
 
 function settingsKindOf(sessionKind) {
   if (sessionKind === 'ds5' || sessionKind === 'ds5_usb') return 'ds5';
-  if (sessionKind === 'ds5e_usb' || sessionKind === 'ds5_edge') return 'ds5_edge';
+  // ⛔ AND "ds5e", AN EDGE OVER BLUETOOTH (2026-11-12), as the listener has it
+  // (config_store::settings_kind_for). Missing here, a Bluetooth Edge read as
+  // a kind of its own: its legends drew the Xbox marks, and the config
+  // preview's PS lines, which an Xbox pad has no button for, did not show.
+  if (sessionKind === 'ds5e' || sessionKind === 'ds5e_usb' || sessionKind === 'ds5_edge') return 'ds5_edge';
   // ⛔ A cabled DS4 is "ds4_usb" on the wire and "ds4" as a settings kind, the
   // same collapse config_store::settings_kind_for() makes. Without it the preset
   // picker, which filters by settings kind, offered a cabled DS4 nothing.
@@ -7685,6 +7873,109 @@ function configEditorGroups(keys) {
   return groups;
 }
 
+// ⭐ THE SECTIONS, IN ORDER, THAT A DEVICE CAN USE: the editor's tabs, and the
+// config preview's sections in the same order (2026-11-11). capDev is the
+// device in hand, or null where there is none (Overview), and then nothing is
+// left out.
+function configSectionOrder(groups, capDev) {
+  var can = function(flag) {
+    if (!capDev) return true;
+    return capDev[flag] === undefined ? true : !!capDev[flag];
+  };
+  var SECTION_NEEDS = {
+    'Touchpad': 'has_touchpad',
+    'Gyro': 'has_gyro',
+    'Edge buttons': 'has_edge_buttons'
+  };
+  var shows = function(g) {
+    if (SECTION_NEEDS[g] && !can(SECTION_NEEDS[g])) return false;
+    return (groups[g] || []).some(function(meta) {
+      return !hiddenSetting(meta.key);
+    });
+  };
+  // ⭐ LEFT BEFORE RIGHT (rhoquinn8217, 2026-09-03). The tab strip is read as
+  // a LAYOUT, so a "Right stick" tab sitting to the left of "Left stick" looks
+  // wrong before anyone reads the words -- and that reading is involuntary.
+  //
+  // ⚠️ It costs the ordering we wanted: right is the stick most people point
+  // with, so it is what they came for. That is one tab press, against a thing
+  // that looks broken to everyone who sees it.
+  //
+  // ⓘ Right still comes first WITHIN each section -- mode, switch, gate, then
+  // tuning -- so the top of whichever tab you open is the thing you wanted.
+  return ['Gyro', 'Touchpad', 'Triggers',
+          'Left stick', 'Right stick',
+          'Face buttons', 'Shoulder/stick buttons', 'System buttons', 'Edge buttons',
+          'Other'].filter(shows);
+}
+
+// ⓘ Whether the editor draws a row at all, for the device in hand (dev, or {}
+// where there is none): the editor and the config preview ask the same.
+function configRowShown(meta, dev) {
+  // ⛔ Debug keys are for someone reading the log, not for the person
+  // adjusting a controller -- and every row is one more to scroll past.
+  // Set them by hand in the config file when they are needed.
+  if (hiddenSetting(meta.key)) return false;
+  // ⭐ ON A DS4, A ROW THAT DOES NOTHING IS HIDDEN, NOT GREYED
+  // (rhoquinn8217, 2026-11-04: "hide them"). A DualSense keeps its greyed
+  // rows and their reasons, as before.
+  if (dev && dev.kind && settingsKindOf(dev.kind) === 'ds4' && inertReason(meta.key, dev.kind)) return false;
+  return true;
+}
+
+// ⭐ A ROW'S NAME, AS THE EDITOR WRITES IT: { text, html }. The editor's rows
+// and the config preview's take it from here, so the two read alike. `only`
+// is the transport a key acts on alone (TRANSPORT_ONLY), or nothing; `set`
+// the legend whose marks the buttons are drawn in (buttonMark), or the pad in
+// hand's.
+function configRowName(meta, only, set) {
+  var prettyKey = meta.key;
+  var markHtml = '';
+  // ⭐ A rebind row is labelled by its BUTTON, not by rebind_7.
+  //
+  // ⓘ The KEY stays numeric because it is the W3C standard gamepad index,
+  // which is what makes a config portable -- index 0 is the bottom face
+  // button on any pad. But nobody navigating this page should have to
+  // know that, so the label comes from the help text's own name.
+  // ⭐ THE NAME IS ITS OWN FIELD NOW (2026-09-01). It used to be the
+  // first words of the help text, which meant the help could not be
+  // shortened without every row losing its label -- and the help was 255
+  // characters of the same boilerplate on all seventeen buttons.
+  //
+  // ⓘ Still falls back to parsing the help, so an older agent that sends
+  // no name keeps its labels.
+  var m = /^(rebind|turbo)_(\d+)$/.exec(meta.key);
+  if (m) {
+    // ⭐ THE ACTION IS IN THE TITLE (rhoquinn8217, 2026-09-01), because
+    // "what this row does" was otherwise buried in the help. The name
+    // reads as a button -- (✕) | (A) -- and the row says what happens.
+    var name = meta.name || (meta.help ? meta.help.split(' -- ')[0] : meta.key);
+    // ⭐ "✕ - rebind": the config's own word, rebind_N, after a plain
+    // hyphen (rhoquinn8217, 2026-10-28: "use the word rebind instead of
+    // remap and use a single normal "-" between symbol and rebind"),
+    // where a long dash stood until they asked whether it suited a
+    // drawn button. The one still in words: "(PS) | (Home) - rebind".
+    prettyKey = name + (m[1] === 'turbo' ? ' - rapid fire' : ' - rebind');
+    // ⭐ The button drawn as the legend draws it, the listener's words for
+    // it kept for the one with no mark (buttonMark).
+    markHtml = buttonMark(Number(m[2]), set);
+  }
+  var shownKey = only ? (prettyKey + ' (' + only + ' only)') : prettyKey;
+  var nameHtml = markHtml
+    ? markHtml + esc((m[1] === 'turbo' ? ' - rapid fire' : ' - rebind') +
+                     (only ? ' (' + only + ' only)' : ''))
+    : esc(shownKey);
+  return { text: shownKey, html: nameHtml };
+}
+
+// ⓘ A ticked value in the editor's words: what its dropdown shows for it. A
+// switch reads true or false, as its dropdown does; everything else is the
+// label choiceLabel gives it, which is the value itself where it has none.
+function configValueText(meta, val) {
+  if (meta.type === 'bool') return String(val);
+  return choiceLabel(meta.key, String(val));
+}
+
 // ⭐ ONE settings editor, used by both a controller tab and Overview.
 //
 // It was two before: the tabs had this, and Overview had a
@@ -7752,35 +8043,9 @@ function renderConfigEditor(hostId, configName, prefix, ordinal) {
     var capDev = ordinal
       ? deviceByOrdinal(ordinal)
       : null;
-    var can = function(flag) {
-      if (!capDev) return true;
-      return capDev[flag] === undefined ? true : !!capDev[flag];
-    };
-    var SECTION_NEEDS = {
-      'Touchpad': 'has_touchpad',
-      'Gyro': 'has_gyro',
-      'Edge buttons': 'has_edge_buttons'
-    };
-    var shows = function(g) {
-      if (SECTION_NEEDS[g] && !can(SECTION_NEEDS[g])) return false;
-      return (groups[g] || []).some(function(meta) {
-        return !hiddenSetting(meta.key);
-      });
-    };
-    // ⭐ LEFT BEFORE RIGHT (rhoquinn8217, 2026-09-03). The tab strip is read as
-    // a LAYOUT, so a "Right stick" tab sitting to the left of "Left stick" looks
-    // wrong before anyone reads the words -- and that reading is involuntary.
-    //
-    // ⚠️ It costs the ordering we wanted: right is the stick most people point
-    // with, so it is what they came for. That is one tab press, against a thing
-    // that looks broken to everyone who sees it.
-    //
-    // ⓘ Right still comes first WITHIN each section -- mode, switch, gate, then
-    // tuning -- so the top of whichever tab you open is the thing you wanted.
-    var order = ['Gyro', 'Touchpad', 'Triggers',
-                 'Left stick', 'Right stick',
-                 'Face buttons', 'Shoulder/stick buttons', 'System buttons', 'Edge buttons',
-                 'Other'].filter(shows);
+    // ⓘ The order, and the sections the device can use: configSectionOrder,
+    // which the config preview draws by too.
+    var order = configSectionOrder(groups, capDev);
 
     // ⭐ ONE SECTION AT A TIME. The others are not scrolled past, they are not
     // rendered visible at all -- which also means the D-pad cannot wander into
@@ -7818,15 +8083,10 @@ function renderConfigEditor(hostId, configName, prefix, ordinal) {
               // button now, as the legend does (2026-10-28, buttonMark).
               '';
       groups[g].forEach(function(meta) {
-        // ⛔ Debug keys are for someone reading the log, not for the person
-        // adjusting a controller -- and every row is one more to scroll past.
-        // Set them by hand in the config file when they are needed.
-        if (hiddenSetting(meta.key)) return;
         var rowDev = ordinal ? (deviceByOrdinal(ordinal) || {}) : {};
-        // ⭐ ON A DS4, A ROW THAT DOES NOTHING IS HIDDEN, NOT GREYED
-        // (rhoquinn8217, 2026-11-04: "hide them"). A DualSense keeps its greyed
-        // rows and their reasons, as before.
-        if (rowDev.kind && settingsKindOf(rowDev.kind) === 'ds4' && inertReason(meta.key, rowDev.kind)) return;
+        // ⓘ Debug keys, and on a DS4 a row that does nothing, are not drawn:
+        // configRowShown, which the config preview asks too.
+        if (!configRowShown(meta, rowDev)) return;
         var val = current[meta.key];
         // ⚠️ Present-but-empty counts as UNMANAGED, not as a value. That is
         // what the agent does too: "" fails to parse and falls back, and an
@@ -7975,42 +8235,11 @@ function renderConfigEditor(hostId, configName, prefix, ordinal) {
         // ⭐ On the NAME, not only in the help. Someone changing a value reads
         // the label; the help is what you read when the value does not work.
         var only = TRANSPORT_ONLY[meta.key];
-        // ⭐ A rebind row is labelled by its BUTTON, not by rebind_7.
-        //
-        // ⓘ The KEY stays numeric because it is the W3C standard gamepad index,
-        // which is what makes a config portable -- index 0 is the bottom face
-        // button on any pad. But nobody navigating this page should have to
-        // know that, so the label comes from the help text's own name.
-        // ⭐ THE NAME IS ITS OWN FIELD NOW (2026-09-01). It used to be the
-        // first words of the help text, which meant the help could not be
-        // shortened without every row losing its label -- and the help was 255
-        // characters of the same boilerplate on all seventeen buttons.
-        //
-        // ⓘ Still falls back to parsing the help, so an older agent that sends
-        // no name keeps its labels.
-        var prettyKey = meta.key;
-        var markHtml = '';
-        var m = /^(rebind|turbo)_(\d+)$/.exec(meta.key);
-        if (m) {
-          // ⭐ THE ACTION IS IN THE TITLE (rhoquinn8217, 2026-09-01), because
-          // "what this row does" was otherwise buried in the help. The name
-          // reads as a button -- (✕) | (A) -- and the row says what happens.
-          var name = meta.name || (meta.help ? meta.help.split(' -- ')[0] : meta.key);
-          // ⭐ "✕ - rebind": the config's own word, rebind_N, after a plain
-          // hyphen (rhoquinn8217, 2026-10-28: "use the word rebind instead of
-          // remap and use a single normal "-" between symbol and rebind"),
-          // where a long dash stood until they asked whether it suited a
-          // drawn button. The one still in words: "(PS) | (Home) - rebind".
-          prettyKey = name + (m[1] === 'turbo' ? ' - rapid fire' : ' - rebind');
-          // ⭐ The button drawn as the legend draws it, the listener's words for
-          // it kept for the one with no mark (buttonMark).
-          markHtml = buttonMark(Number(m[2]));
-        }
-        var shownKey = only ? (prettyKey + ' (' + only + ' only)') : prettyKey;
-        var nameHtml = markHtml
-          ? markHtml + esc((m[1] === 'turbo' ? ' - rapid fire' : ' - rebind') +
-                           (only ? ' (' + only + ' only)' : ''))
-          : esc(shownKey);
+        // ⓘ The button's mark and "- rebind", or the key: configRowName, which
+        // the config preview names its rows by too.
+        var rowName = configRowName(meta, only);
+        var shownKey = rowName.text;
+        var nameHtml = rowName.html;
 
         html += '<div class="row' + (managed ? '' : ' off') + (inert ? ' inert' : '') +
                 '" id="row-' + id + '">' +
@@ -8608,7 +8837,10 @@ function drumRowAt(sel, clientY) {
   var drum = sel.parentNode && sel.parentNode.querySelector('.cdrum');
   if (!drum || sel.options.length < 2) return 0;
   var box = drum.getBoundingClientRect();
-  var em = parseFloat(getComputedStyle(drum).fontSize) || 0;
+  // ⓘ The rows' own size, which Simple sets on the drum's parts rather than
+  // on the drum (a sixth of the wheel's height); Quick's parts inherit it.
+  var view = drum.querySelector('.cdrum-view') || drum;
+  var em = parseFloat(getComputedStyle(view).fontSize) || 0;
   if (!em || !box.height) return 0;
   var at = (clientY - box.top - box.height / 2) / em;
   var half = box.height / 2 / em;
@@ -9547,8 +9779,11 @@ function gpPaint() {
   if (stripHost) stripHost.classList.toggle('here', onStripNow);
   // Keep the focused control on screen -- on a TV the page is often scrolled
   // past what the D-pad is pointing at.
-  // ⓘ In the settings window, its list scrolls instead (settingsKeepInView).
-  if (!settingsKeepInView(el)) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  // ⓘ In the settings window, its list scrolls instead (settingsKeepInView),
+  // and in the pre-set selector its card (presetKeepInView).
+  if (!settingsKeepInView(el) && !presetKeepInView(el)) {
+    el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
 }
 
 // ⛔ CLAMPS, does not wrap.
@@ -10140,9 +10375,20 @@ function syncFocus() {
   // than not gating at all -- reach for the mouse instead.
   if (inPlainTab()) return;
   var on = document.hasFocus();
+  // ⭐ THE CONFIG PREVIEW HAS THE FRONT, AND THE CONTROLLER WITH IT: a blur
+  // of this window to the box, or around its opening or closing, is not
+  // someone leaving, so it is not reported, and the gate holds (the listener
+  // counts the box as this window's). Looked at again shortly, for when the
+  // box lets the front go.
+  if (!on && previewHoldsFocus()) {
+    setTimeout(syncFocus, 250);
+    return;
+  }
   if (on === LAST_FOCUS_SENT) return;
   LAST_FOCUS_SENT = on;
   reportFocus(on);
+  // ⓘ Back in front after a game had it: the box comes back beside it.
+  if (on && PREVIEW_OPEN) previewRaise();
 }
 
 window.addEventListener('focus', syncFocus);
@@ -10338,6 +10584,8 @@ var CONFIG_MODE_KEYS = {
   // an open dropdown -- matching the pad, where they jump 100.
   KeyQ: function () { gpKeyCoarse(-1); },
   KeyE: function () { gpKeyCoarse(1); },
+  // ⓘ Cross selects, the config preview up or not: its edit is PS held
+  // (rhoquinn8217, 2026-11-12: "remove (x) button to edit functions").
   Enter: function () { gpKeySelect(); },
   KeyZ: function () { gpKeyBack(); },
   KeyX: function () { gpSquare(); },
@@ -10356,7 +10604,11 @@ var CONFIG_MODE_KEYS = {
   KeyV: function () { quickSwitchKeep(); },
   // ⭐ L3: Simple's next tip (2.66.116). The listener sends it only while
   // Simple is in front.
-  KeyH: function () { tipNextByButton(); }
+  KeyH: function () { tipNextByButton(); },
+  // ⭐ PS (2026-11-11, rebind.inl): a press shows or hides the config preview
+  // as it comes up; held three seconds, it is Edit (2026-11-12). ⓘ The
+  // release is a keyup, which previewKeyUp hears.
+  KeyP: function () { previewKeyDown('KeyP'); }
   // ⛔ NO KeyC. Create resizes the window now (rhoquinn8217, 2026-09-20) and
   // the listener reads it from the raw report, so it no longer sends a key --
   // see rebind.inl. It used to cycle compact and full, then after T-233 only
@@ -11361,7 +11613,11 @@ var PLAIN_KEYS = {
   // 🔗 They POST to the listener, which does the work, exactly as `ui/drag`
   // does for the mouse.
   KeyP:       function () { uiAsk('position'); },
-  KeyR:       function () { uiAsk('resize'); }
+  KeyR:       function () { uiAsk('resize'); },
+  // ⭐ V, AS PS DOES ON A PAD: a press shows or hides the config preview,
+  // held three seconds it is Edit (2026-11-11 and 12). ⓘ P is position
+  // already.
+  KeyV:       function () { previewKeyDown('KeyV'); }
 };
 
 // ⓘ One line for the two window actions a keyboard has no other way to
@@ -12714,11 +12970,25 @@ function paintCompact() {
       var quickHints = function () {
         var lit = !!mySerial && !!claimedBy && (!shown || shown === claimedBy);
         var idle = !mySerial || (!shown && !claimedBy);
+        // ⭐ AND THE CONFIG PREVIEW UNDER AUTO LINK (rhoquinn8217, 2026-11-11:
+        // "In quick mode, under "auto link" show the PS button symbol and the
+        // show "rebind list"", then 2026-11-12: "In quick mode change "rebind
+        // list" to "show rebind list"", then the same day "show/hide rebind
+        // list"), with the button that opens it (previewMark), none on an
+        // Xbox pad, which has no button for it yet.
+        // ⓘ "Hold to edit" stood under it for a day, and went to the box's
+        // foot (rhoquinn8217, 2026-11-12: "move the PS button hold to edit
+        // legend from the config window and back on the footer of the
+        // preview window"): PS held three seconds is still Edit here
+        // (previewKeyDown).
+        var pvMark = previewMark(LG);
         return '<span class="chints">' +
                '<span class="chint' + (shown ? '' : ' off') + '">' +
                keyCap(LG.unlink) + 'unlink</span>' +
                '<span class="chint' + (lit ? ' on' : idle ? ' off' : '') + '">' +
-               keyCap(LG.autolink) + 'auto link</span></span>';
+               keyCap(LG.autolink) + 'auto link</span>' +
+               (pvMark ? '<span class="chint" id="cpvHint">' + pvMark + 'show/hide rebind list</span>' : '') +
+               '</span>';
       };
       // The selector, sliding with the ring (rhoquinn8217, 2026-09-09).
       // ⭐ ITS TITLE STANDS AT ITS TOP EDGE, AT THE LEFT (2.66.87; rhoquinn8217,
@@ -12785,9 +13055,32 @@ function paintCompact() {
                 // buttons", then "make all the buttons ... consistent").
                 : title + wheel + '<span class="csbtns">' +
                   '<button onclick="newConfigFor(\'' + esc(d.ordinal) + '\')">New</button>' +
-                  '<button onclick="setCompact(false)">Edit</button>' +
-                  unlinkBtn() + autoBtn + archiveBtn + '</span>') +
-              '</span>' + (sidesByPanel ? side(next, 'r', shoulderMark(shoulder[1]), true) : '') + '</div></div>';
+                  // ⓘ Asked first while the config preview is up (compactEdit).
+                  '<button onclick="compactEdit()">Edit</button>' +
+                  unlinkBtn() + autoBtn +
+                  // ⭐ REBIND LIST UNDER AUTO LINK (rhoquinn8217, 2026-11-12: "add
+                  // "Rebind List" button under "Auto link""): a press shows or hides
+                  // the config preview, as PS and V do (togglePreview), for a mouse
+                  // and for a pad with no button for it.
+                  '<button class="crebind-btn" onclick="togglePreview()" title="show or hide the ' +
+                  'rebind list of the config on the wheel">Rebind List</button>' +
+                  archiveBtn + '</span>' +
+                  // ⭐ THE CONFIG PREVIEW UNDER THE WHEEL, IN THE BOX (rhoquinn8217,
+                  // 2026-11-11: "Centered under the wheel ... show the PS button
+                  // symbol and show "view rebind list"", 2026-11-12: "show rebind
+                  // list" under the box, then the same day: "Put back the PS
+                  // symbol under the wheel inside the container"): the panel's
+                  // grid puts it in the wheel's column, on a row of its own, with
+                  // the button that opens it (previewMark). ⭐ "show/hide rebind
+                  // list". ⓘ "Hold to edit" stood beside it for a day and went
+                  // to the box's foot (2026-11-12: "move the PS button hold to
+                  // edit legend from the config window and back on the footer
+                  // of the preview window"); PS held three seconds is still
+                  // Edit (previewKeyDown).
+                  (previewMark(LG) ? '<span class="cvhints"><span class="cvhint" id="cpvHint">' +
+                                     previewMark(LG) + 'show/hide rebind list</span></span>' : '')) +
+              '</span>' + (sidesByPanel ? side(next, 'r', shoulderMark(shoulder[1]), true) : '') + '</div>' +
+              '</div>';
     }
   }
   // ⭐ The footer area: the legend and the way back, as large as the rest.
@@ -12869,6 +13162,12 @@ function paintCompact() {
   // ⓘ The tutorial keeps the halo on its own buttons (tutCollect); placing
   // it on the box here would pull it off them at every device poll.
   if (TUT) return;
+  // ⛔ NOR WHILE A QUESTION OR A BOX OF THIS WINDOW'S HOLDS IT (2026-11-12):
+  // gpCollect has given the halo to that alone, and the selector below is not
+  // in its list, so the halo fell to the question's first button, OK, at the
+  // next device poll, where every question starts on Cancel (askConfirm).
+  // Found with the config preview's Edit question; Archive's had it too.
+  if (CONFIRM_CB || SETTINGS_OPEN || RENAMING || PRESET_OPEN || PRESET_INFO_OPEN) return;
   // ⭐ THE HALO STAYS WHERE IT WAS across a repaint (rhoquinn8217, 2026-09-09:
   // it jumped back to the selector whenever the device poll redrew the box,
   // the T-148 shape again). gpCollect has just re-acquired it by key; only
@@ -14255,8 +14554,13 @@ function selfTest() {
        wsSeen.join(' ') === 'true false false false false' &&
        wsMark.split('class="karm"').length === 3 && dpadArm('up').split('class="karm"').length === 2,
        wsSeen.join(' '));
-    ok("Quick's rate line has no gear, Simple's the gear without R3's mark",
-       qLine.indexOf('csetgear') < 0 && sLine.indexOf('csetgear') >= 0 && sLine.indexOf('kps') < 0,
+    // ⭐ QUICK'S GEAR GONE AGAIN (rhoquinn8217, 2026-11-12: "remove the
+    // clickable settings gear in quick mode"), the same day it came back
+    // ("Add the settings symbol to the right of the polling rate and limit
+    // in quick mode"); Simple's stays.
+    ok("Simple's rate line ends in the gear, without R3's mark; Quick's has the rate and no gear",
+       qLine.indexOf('prate') >= 0 && qLine.indexOf('csetgear') < 0 && qLine.indexOf('kps') < 0 &&
+       sLine.indexOf('csetgear') >= 0 && sLine.indexOf('kps') < 0,
        qLine + ' / ' + sLine);
     // ⭐ R3 in Advanced (2026-11-09): the controller on its tab, and on
     // Overview the row the halo is on. A stand-in catches the opening.
@@ -14302,6 +14606,266 @@ function selfTest() {
     LAST_DEVICES = devsWas;
     groupDevices(LAST_DEVICES);
   }
+
+  // ⓘ Outside the block above, which swaps KEYS for a made-up list of the
+  // controller's own settings: the preview reads the configs' real one.
+  // ⭐ THE CONFIG PREVIEW (2.70.0): PS's key and V open and close it; it
+  // lists a config's ticked settings and nothing else, in the editor's
+  // sections and their order, named and worded as the editor does; opening
+  // asks the listener for the box and closing tells the box.
+  var pvCfg = { settings: { rebind_0: 'Enter', touchpad_scroll: '2', gyro_no_passthrough: 'true',
+                            left_stick_mode: 'scroll', gyro_to_mouse_gate_type: 'while_held',
+                            right_stick_mode: '', trigger_probe: 'true' } };
+  var pvSecs = previewSections(pvCfg, { kind: 'ds5_usb' });
+  var pvOrder = configSectionOrder(configEditorGroups(KEYS), null);
+  var pvKeys = [], pvInOrder = true, pvLast = -1, pvGateWord = '', pvCrossName = '';
+  pvSecs.forEach(function (s) {
+    var at = pvOrder.indexOf(s.section);
+    if (at <= pvLast) pvInOrder = false;
+    pvLast = at;
+    s.rows.forEach(function (r) {
+      pvKeys.push(r.meta.key);
+      if (r.meta.key === 'gyro_to_mouse_gate_type') pvGateWord = configValueText(r.meta, r.value);
+      if (r.meta.key === 'rebind_0') pvCrossName = configRowName(r.meta, undefined, PAD_LEGEND_PS).text;
+    });
+  });
+  var pvToggles = 0, pvSent = [], pvPosts = [], pvOnPress = -1;
+  var pvKeep = { toggle: togglePreview, call: call, ch: PREVIEW_CHANNEL, open: PREVIEW_OPEN,
+                 openedAt: PREVIEW_OPENED_AT, closedAt: PREVIEW_CLOSED_AT,
+                 hold: PREVIEW_HOLD_UNTIL, focused: PREVIEW_FOCUSED };
+  try {
+    togglePreview = function () { pvToggles++; };
+    // ⓘ As they come up (2.70.4): nothing on the press itself.
+    CONFIG_MODE_KEYS.KeyP();
+    pvOnPress = pvToggles;
+    previewKeyUp('KeyP');
+    PLAIN_KEYS.KeyV();
+    previewKeyUp('KeyV');
+    togglePreview = pvKeep.toggle;
+    call = function (method, path, body) {
+      pvSent.push(method + ' ' + path + ' ' + JSON.stringify(body));
+      return Promise.resolve({});
+    };
+    PREVIEW_CHANNEL = { postMessage: function (m) { pvPosts.push(JSON.stringify(m)); } };
+    PREVIEW_OPEN = false;
+    togglePreview();
+    var pvOpened = PREVIEW_OPEN;
+    togglePreview();
+    var pvClosed = !PREVIEW_OPEN;
+  } finally {
+    togglePreview = pvKeep.toggle; call = pvKeep.call; PREVIEW_CHANNEL = pvKeep.ch;
+    PREVIEW_OPEN = pvKeep.open; PREVIEW_OPENED_AT = pvKeep.openedAt;
+    PREVIEW_CLOSED_AT = pvKeep.closedAt;
+    PREVIEW_HOLD_UNTIL = pvKeep.hold; PREVIEW_FOCUSED = pvKeep.focused;
+    previewKeyCancel();
+  }
+  ok('config preview: PS and V show and hide it as they come up, and it shows only the ticked settings, by section, in the editor\'s words',
+     pvOnPress === 0 && pvToggles === 2 && pvOpened && pvClosed &&
+     pvSent.join(';') === 'POST /api/v1/ui/preview {"open":true};POST /api/v1/ui/preview {"open":false}' &&
+     pvPosts.length === 1 && pvPosts[0] === '{"close":true}' &&
+     pvInOrder && pvKeys.sort().join(',') ===
+       'gyro_no_passthrough,gyro_to_mouse_gate_type,left_stick_mode,rebind_0,touchpad_scroll' &&
+     pvGateWord === 'on button hold' && / - rebind$/.test(pvCrossName),
+     pvToggles + ' ' + pvSent.join(';') + ' ' + pvPosts.join(';') + ' ' + pvKeys.join(',') +
+     ' ' + pvGateWord + ' ' + pvCrossName);
+  // ⭐ ITS KEYS, ITS FOOT, PS HELD AND ITS LINES (2.70.4; rhoquinn8217,
+  // 2026-11-11 and 12): in the moment after a click, Circle, Esc, PS and V
+  // close it, and nothing there edits; its one button, Close, carries PS's
+  // mark (V on a keyboard, none on an Xbox pad); Cross only selects, the box
+  // up or not; PS or V held three seconds goes straight to Advanced in
+  // Simple and Quick, the box closed if it is up, with no question ("go
+  // straight to edit"), nothing while a question of this window's is open,
+  // and in Advanced a press of any length shows or hides it; Simple's Edit
+  // button still asks while the box is up; and its lines: "show/hide rebind
+  // list" under Quick's auto link and Simple's wheel, in its panel, and
+  // "hold to edit" in the box's foot before Close, with the same mark, since
+  // 2.70.6 ("move the PS button hold to edit legend from the config window
+  // and back on the footer of the preview window").
+  var pvFoot = previewFootHtml('ps');
+  var pvFootX = previewFootHtml('xbox');
+  var pvFootK = previewFootHtml('keys');
+  var pvHoldKeep = { open: PREVIEW_OPEN, compact: COMPACT, quick: QUICK, settings: SETTINGS_OPEN,
+                     cb: CONFIRM_CB, ask: askConfirm, compactSet: setCompact, toggle: togglePreview,
+                     select: gpKeySelect };
+  var pvDid = [], pvArmed = -1;
+  try {
+    togglePreview = function () { pvDid.push('toggle'); };
+    gpKeySelect = function () { pvDid.push('select'); };
+    askConfirm = function (title) { pvDid.push('ask ' + title); };
+    setCompact = function (on) { pvDid.push('compact ' + on); };
+    COMPACT = true; QUICK = true; PREVIEW_OPEN = true; SETTINGS_OPEN = '';
+    CONFIG_MODE_KEYS.Enter();
+    PLAIN_KEYS.Enter();
+    previewKeyDown('KeyP'); previewHoldDone(PREVIEW_PRESS); previewKeyUp('KeyP');
+    PREVIEW_OPEN = false;
+    previewKeyDown('KeyV'); previewHoldDone(PREVIEW_PRESS); previewKeyUp('KeyV');
+    QUICK = false;
+    previewKeyDown('KeyP'); previewKeyUp('KeyP');
+    CONFIRM_CB = function () {};
+    previewKeyDown('KeyP'); previewHoldDone(PREVIEW_PRESS); previewKeyUp('KeyP');
+    CONFIRM_CB = pvHoldKeep.cb;
+    COMPACT = false;
+    previewKeyDown('KeyP'); pvArmed = PREVIEW_PRESS ? PREVIEW_PRESS.timer : -1; previewKeyUp('KeyP');
+    COMPACT = true; QUICK = false; PREVIEW_OPEN = true;
+    compactEdit();
+  } finally {
+    togglePreview = pvHoldKeep.toggle; gpKeySelect = pvHoldKeep.select;
+    askConfirm = pvHoldKeep.ask; setCompact = pvHoldKeep.compactSet; CONFIRM_CB = pvHoldKeep.cb;
+    PREVIEW_OPEN = pvHoldKeep.open; COMPACT = pvHoldKeep.compact; QUICK = pvHoldKeep.quick;
+    SETTINGS_OPEN = pvHoldKeep.settings;
+    previewKeyCancel();
+  }
+  var pvHint = document.getElementById('cpvHint');
+  var pvHoldLine = document.getElementById('cpvHold');
+  var pvHintOk = !pvHoldLine && (!COMPACT || !document.getElementById('cpick') ||
+    (!pvHint && !previewMark(buttonMarkSet())) ||
+    (!!pvHint && /show\/hide rebind list$/.test(pvHint.textContent) &&
+     !document.getElementById('cpvEdit') &&
+     (QUICK ? pvHint.className === 'chint'
+            : pvHint.className === 'cvhint' && !!(pvHint.closest && pvHint.closest('.cpick-wrap')))));
+  var pvHoldPs = '<span id="pvHold">' + buttonMark(16, PAD_LEGEND_PS) + ' hold to edit</span><span id="pvBtns">';
+  var pvHoldK = '<span id="pvHold">' + keyCap('V', KEY_LEGEND) + ' hold to edit</span><span id="pvBtns">';
+  ok('config preview: clicked, Circle, Esc, PS and V close it; PS on its one button; Cross selects; PS held goes straight to Advanced, Simple\'s Edit asks; its line, and hold to edit in its foot',
+     previewKeyAction('KeyZ', true) === 'close' && previewKeyAction('Escape', false) === 'close' &&
+     previewKeyAction('KeyP', true) === 'close' && previewKeyAction('KeyV', false) === 'close' &&
+     previewKeyAction('Enter', true) === '' && previewKeyAction('Enter', false) === '' &&
+     previewKeyAction('KeyZ', false) === '' && previewKeyAction('KeyA', true) === '' &&
+     pvFoot.indexOf('id="pvEdit"') < 0 && pvFoot.indexOf('id="pvClose"') > 0 &&
+     pvFoot.indexOf(buttonMark(16, PAD_LEGEND_PS) + ' Close') > 0 &&
+     pvFootX.indexOf('">Close</button>') > 0 &&
+     pvFootK.indexOf(keyCap('V', KEY_LEGEND) + ' Close') > 0 &&
+     pvFoot.indexOf(pvHoldPs) === 0 && pvFootK.indexOf(pvHoldK) === 0 && pvFootX.indexOf('pvHold') < 0 &&
+     pvDid.join(',') ==='select,select,toggle,compact false,compact false,toggle,toggle,ask Edit' &&
+     pvArmed === 0 &&
+     typeof previewTakesCross === 'undefined' && pvHintOk,
+     pvDid.join(',') + ' armed=' + pvArmed + ' ' +
+     (pvHint ? pvHint.className + ':' + pvHint.textContent : 'no line') +
+     (pvHoldLine ? ' / a hold line in the window: ' + pvHoldLine.textContent : '') +
+     ' / foot: ' + pvFoot.replace(/<[^>]+>/g, ' ').replace(/ +/g, ' '));
+  // ⭐ SIMPLE'S REBIND LIST, AND THE WHEEL AS TALL AS THE BUTTONS (2.70.5;
+  // rhoquinn8217, 2026-11-12: "shrink the wheel so that horizontal length of
+  // the wheel and the PS button legend under it matches the horizontal
+  // length of the buttons to the right of the wheel", then "add "Rebind
+  // List" button under "Auto link""): Rebind List between Auto link and
+  // Archive, its press showing or hiding the list; the wheel's top level
+  // with New's, the lines' bottom (the wheel's, with none) with Archive's;
+  // and 5 lines of the drum's text in the wheel.
+  var rlNote = 'not Simple', rlOk = true;
+  if (COMPACT && !QUICK && document.getElementById('cpick')) {
+    var rlBtns = Array.prototype.slice.call(document.querySelectorAll('#compactBox .csbtns > button'));
+    var rlBtn = document.querySelector('#compactBox .csbtns > .crebind-btn');
+    var rlAt = rlBtns.indexOf(rlBtn);
+    var rlToggled = 0, rlKeep = togglePreview;
+    try {
+      togglePreview = function () { rlToggled++; };
+      if (rlBtn && rlBtn.onclick) rlBtn.onclick();     // the handler alone, not a click's others
+    } finally { togglePreview = rlKeep; }
+    var rlWheel = document.querySelector('#compactBox .cwheel');
+    var rlLines = document.querySelector('#compactBox .cvhints');
+    var rlView = document.querySelector('#compactBox .cdrum-view');
+    var rlRect = function (el) { return el ? el.getBoundingClientRect() : null; };
+    var rlW = rlRect(rlWheel), rlL = rlRect(rlLines);
+    var rlF = rlRect(rlBtns[0]), rlZ = rlRect(rlBtns[rlBtns.length - 1]);
+    var rlEm = rlView ? parseFloat(getComputedStyle(rlView).fontSize) || 0 : 0;
+    var rlFoot = rlL ? rlL.bottom : rlW ? rlW.bottom : 0;
+    var rlLaid = !!(rlW && rlW.height && rlF && rlZ);
+    rlOk = !!rlBtn && rlAt > 0 && rlBtns[rlAt - 1].classList.contains('cauto-btn') &&
+           !!rlBtns[rlAt + 1] && rlBtns[rlAt + 1].classList.contains('carchive-btn') &&
+           rlBtn.textContent === 'Rebind List' && rlToggled === 1 &&
+           (!rlLaid || (Math.abs(rlW.top - rlF.top) < 1.5 && Math.abs(rlFoot - rlZ.bottom) < 1.5 &&
+                        rlEm > 0 && Math.abs(rlW.height - 6 * rlEm) < 1.5));
+    rlNote = 'at ' + rlAt + ' of ' + rlBtns.length + ', toggled ' + rlToggled +
+             (rlLaid ? ', wheel top ' + rlW.top.toFixed(1) + ' / New ' + rlF.top.toFixed(1) +
+                       ', foot ' + rlFoot.toFixed(1) + ' / Archive ' + rlZ.bottom.toFixed(1) +
+                       ', wheel ' + rlW.height.toFixed(1) + ' / 6 x ' + rlEm.toFixed(2)
+                     : ', not laid out');
+  }
+  ok('Simple: Rebind List under Auto link shows and hides the list; the wheel and its PS lines as tall as the buttons, 5 lines',
+     rlOk, rlNote);
+  // ⭐ REBIND LIST LIT WHILE THE LIST IS UP, AND THE PRE-SET SELECTOR'S CARD
+  // FOLLOWS THE HALO (2.70.6; rhoquinn8217, 2026-11-12: "light up Rebind
+  // List while the preview is open", and "I meant scroll follows in the
+  // pre-set selector not the settings"): Auto link's green while the box is
+  // up; and fourteen made-up presets walked down, the halo's row in the
+  // card's sight at every step, the card scrolled to keep it there.
+  var litNote = 'not Simple', litOk = true;
+  var psNote = 'not Simple', psOk = true;
+  if (COMPACT && !QUICK && document.getElementById('cpick')) {
+    var litBtn = document.querySelector('#compactBox .crebind-btn');
+    var litKeep = PREVIEW_OPEN, litOn = '', litOff = '';
+    try {
+      previewSetOpen(true);  litOn = litBtn ? getComputedStyle(litBtn).color : '';
+      previewSetOpen(false); litOff = litBtn ? getComputedStyle(litBtn).color : '';
+    } finally { previewSetOpen(litKeep); }
+    litOk = litOn === 'rgb(127, 209, 140)' && litOff !== litOn;
+    litNote = 'up ' + litOn + ', down ' + litOff;
+    var psOrd = document.getElementById('cpick').getAttribute('data-ordinal') || '';
+    var psDev = deviceByOrdinal(psOrd) || null;
+    var psKind = psDev ? settingsKindOf(psDev.kind) : null;
+    var psKeep = PRESETS, psSteps = 0, psHidden = 0, psScrolled = 0, psOver = false;
+    var psByList = false, psCancelIn = false, psCancelStill = true;
+    try {
+      PRESETS = [];
+      for (var psi = 0; psi < 14; psi++) {
+        PRESETS.push({ name: 'selftest-preset-' + psi, kinds: psKind ? [psKind] : [] });
+      }
+      openPresetPicker(psOrd, psDev);
+      var psCard = document.querySelector('#presetBox .confirmCard');
+      var psList = document.getElementById('presetList');
+      var psCancel = document.querySelector('#presetBox .confirmBtns button');
+      // ⭐ Cancel anchored (2.70.7, "cancel should be anchored"): the list
+      // scrolls, not the card, and Cancel is in sight before any step and
+      // stays where it is.
+      psByList = !!psList && psList.scrollHeight > psList.clientHeight;
+      var psScroller = psByList ? psList : psCard;
+      psOver = !!psScroller && psScroller.scrollHeight > psScroller.clientHeight;
+      var psC0 = psCard ? psCard.getBoundingClientRect() : null;
+      var psX0 = psCancel ? psCancel.getBoundingClientRect() : null;
+      psCancelIn = !!psX0 && !!psC0 && psX0.top >= psC0.top - 1 && psX0.bottom <= psC0.bottom + 1;
+      for (var pss = 0; pss < 18 && psCard; pss++) {
+        gpKeyMove(1);
+        var psEl = GP_FOCUS[GP_INDEX];
+        if (!psEl) break;
+        var psR = psEl.getBoundingClientRect(), psC = psCard.getBoundingClientRect();
+        psSteps++;
+        if (psR.top < psC.top - 1 || psR.bottom > psC.bottom + 1) psHidden++;
+        psScrolled = Math.max(psScrolled, psScroller.scrollTop);
+        if (psCancel && psX0 && Math.abs(psCancel.getBoundingClientRect().top - psX0.top) > 1) psCancelStill = false;
+      }
+    } finally {
+      presetCancel();
+      PRESETS = psKeep;
+    }
+    psOk = psSteps > 0 && psHidden === 0 && (!psOver || (psScrolled > 0 && psByList)) &&
+           psCancelIn && psCancelStill;
+    psNote = psSteps + ' steps, ' + psHidden + ' out of sight, ' +
+             (psOver ? (psByList ? 'the list' : 'the card') + ' scrolled to ' + Math.round(psScrolled)
+                     : 'fits without scrolling') +
+             ', Cancel ' + (psCancelIn ? 'in sight' : 'OUT of sight') + ' at the start, ' +
+             (psCancelStill ? 'still' : 'MOVED');
+  }
+  ok('Simple: Rebind List lit while the list is up', litOk, litNote);
+  ok('Simple: the pre-set selector scrolls its list with the halo, every row in sight, Cancel anchored', psOk, psNote);
+  // ⭐ A QUESTION KEEPS ITS HALO ON CANCEL THROUGH A REPAINT in Simple and
+  // Quick (2026-11-12): the device poll's repaint put it on OK.
+  var pqHaloed = 'not a compact view';
+  if (COMPACT && document.getElementById('cpick')) {
+    askConfirm('Test', 'A question for the self-test', function () {});
+    paintCompact();
+    var pqAt = GP_FOCUS[GP_INDEX];
+    pqHaloed = pqAt === document.querySelector('#confirmBox button:last-of-type') ? 'Cancel'
+             : (pqAt ? pqAt.textContent : 'nothing');
+    confirmNo();
+  }
+  ok('a question keeps its halo on Cancel through a repaint in Simple and Quick',
+     pqHaloed === 'Cancel' || pqHaloed === 'not a compact view', pqHaloed);
+  // ⭐ AN EDGE OVER BLUETOOTH ("ds5e") IS AN EDGE (2026-11-12): the PlayStation
+  // legend, and the config preview's PS line, which the Xbox set has none for.
+  ok('a Bluetooth Edge ("ds5e") is an Edge: its settings kind, Bluetooth, the PlayStation legend, PS\'s mark, its triggers and haptics',
+     settingsKindOf('ds5e') === 'ds5_edge' && transportOf('ds5e') === 'Bluetooth' &&
+     padLegendForKind('ds5e') === PAD_LEGEND_PS && previewMark(padLegendForKind('ds5e')) !== '' &&
+     !inertReason('left_trigger_effect', 'ds5e') && !inertReason('audio_haptics', 'ds5e'),
+     settingsKindOf('ds5e') + ' ' + transportOf('ds5e'));
 
   // 🔗 T-248. The hints are a plain array of strings, and the one way this
   // file has ACTUALLY broken before is an unescaped apostrophe truncating an
@@ -18962,7 +19526,546 @@ function startPage() {
   restoreView();      // ⭐ the layout, controller, size and place it went away in
 }
 
-if (location.search.indexOf('selftest') >= 0) {
+// ---- The config preview ------------------------------------------------------
+//
+// ⭐⭐ A BOX OF ITS OWN BESIDE THIS WINDOW (rhoquinn8217, 2026-11-11: "When the
+// config window is up, pressing the PS/XBOX button open a separate browser box
+// that lists out all the the enabled settings and their values in by section
+// of the currently selected config", then "Do two columns with a fixed size
+// browser box", "The enable settings are the ticked ones" and "allow the box
+// to grow from it's fixed size"). It stands right, left, above or below this
+// window, the first with room (their order, 2026-11-12), and follows it as it
+// moves; in Advanced centred on the window (2026-11-12: "In advance view,
+// center the preview on the config box"), always in front of it with the
+// front left on this window ("Preview alway above config box but config box
+// retains focus"; the listener, preview_place_rule.inl and
+// preview_stay_above). In Advanced it shows the tab's
+// config, on Overview the editor's; in Simple and Quick the config on the
+// wheel.
+// ⓘ PS on a pad (rebind.inl sends KeyP with the gate's three modifiers) or V
+// on a keyboard shows it and hides it, from this window, and held three
+// seconds is Edit (previewKeyDown): "show/hide rebind list" and "hold to
+// edit" under Simple's wheel and Quick's auto link (2026-11-12). Simple's
+// Rebind List button shows and hides it too (the same day). The hold
+// goes straight to Advanced; Simple's Edit button asks first while the box is
+// up. ⭐ THE BOX NEVER KEEPS THE FRONT (rhoquinn8217,
+// 2026-11-12: "clicking the preview moves focus to the config window"): the
+// listener gives it straight back here, from a click too (preview_follow).
+// Its one button, Close, carries PS. The two windows
+// talk over a BroadcastChannel: this one says every half second which config it is on,
+// the box says hello every second and whether it has the front, and a box
+// that hears nothing for three seconds closes itself.
+// ⓘ An Xbox pad has no button for it yet: its Guide and Share do not reach
+// the listener (rhoquinn8217 is choosing another).
+var PREVIEW_CHANNEL_NAME = 'ds5-usbip-preview';
+var PREVIEW_CHANNEL = null;
+var PREVIEW_OPEN = false;          // asked for, or a box said hello
+var PREVIEW_OPENED_AT = 0;         // the last open asked for here
+var PREVIEW_CLOSED_AT = 0;         // the last close; a box heard after it goes
+// ⭐⭐ THE BOX NEVER TAKES THE FRONT BY ITSELF (rhoquinn8217, 2026-11-11:
+// "Preview should never take focus unless a mouse can click it. Otherwise,
+// it can be opened and closed through the config window"): the listener
+// opens it and gives the front straight back here, and the controller stays
+// on this window. ⭐ A click on it as well, since 2026-11-12 ("clicking the
+// preview moves focus to the config window"): the listener gives the front
+// back within an eighth of a second (preview_follow), and keeps the box
+// standing over this window. For that moment the box has the front, and
+// the listener counts it as this window's (window_has_foreground): Circle,
+// Esc, PS or V there close it. This window, blurred, says nothing to the
+// listener while the box has the front, nor for a moment either side of its
+// opening or closing.
+var PREVIEW_FOCUSED = false;       // the box says it has the front
+var PREVIEW_HEARD_AT = 0;          // the box's last word
+var PREVIEW_HOLD_UNTIL = 0;        // a blur until then is the box opening or closing
+var PREVIEW_FEED_MS = 500;
+var PREVIEW_QUIET_MS = 3000;       // the box closes after this long without word
+
+function previewChannel() {
+  if (PREVIEW_CHANNEL) return PREVIEW_CHANNEL;
+  if (typeof BroadcastChannel === 'undefined') return null;
+  PREVIEW_CHANNEL = new BroadcastChannel(PREVIEW_CHANNEL_NAME);
+  if (!PREVIEW_MODE) {
+    PREVIEW_CHANNEL.onmessage = function (ev) {
+      var m = ev.data || {};
+      PREVIEW_HEARD_AT = Date.now();
+      if (m.bye) {
+        // ⓘ The listener gives the front back here as the box goes: the
+        // moment between is not someone leaving.
+        previewSetOpen(false);
+        PREVIEW_FOCUSED = false;
+        PREVIEW_HOLD_UNTIL = Date.now() + 1500;
+        return;
+      }
+      if (m.focus !== undefined) {
+        PREVIEW_FOCUSED = !!m.focus;
+        syncFocus();
+      }
+      if (!m.hello) return;
+      // ⓘ A box heard after it was closed here (PS twice in quick succession,
+      // the close sent before the box was listening) is closed again.
+      if (PREVIEW_CLOSED_AT > PREVIEW_OPENED_AT) {
+        PREVIEW_CHANNEL.postMessage({ close: true });
+        return;
+      }
+      // ⓘ Otherwise it is this window's, or one a reloaded copy of it opened:
+      // taken up, and told at once what to show.
+      previewSetOpen(true);
+      PREVIEW_CHANNEL.postMessage(previewFeed());
+    };
+  }
+  return PREVIEW_CHANNEL;
+}
+
+// Which config the box shows, and the controller it is for: the wheel's
+// choice in Simple and Quick, the tab's in Advanced, the editor's on Overview.
+function previewTarget() {
+  if (COMPACT) {
+    var c = document.getElementById('cpick');
+    return { ordinal: c ? (c.dataset.ordinal || '') : '', config: c ? c.value : '' };
+  }
+  if (ACTIVE === 'overview') return { ordinal: '', config: OV_CONFIG || '' };
+  var p = document.getElementById('pick-' + ACTIVE);
+  var d = deviceByOrdinal(ACTIVE);
+  return { ordinal: ACTIVE, config: p ? p.value : ((d && d.linked_config) || '') };
+}
+
+// ⓘ All the box needs, sent whole every time: its config, the controller's
+// kind and what it has (the sections and rows the editor would draw for it),
+// the legend its buttons are drawn in, and the access token if one is typed.
+function previewFeed() {
+  var t = previewTarget();
+  var d = t.ordinal ? deviceByOrdinal(t.ordinal) : null;
+  var tok = document.getElementById('token');
+  return {
+    config: t.config || '',
+    device: d ? { kind: d.kind, has_touchpad: d.has_touchpad, has_gyro: d.has_gyro,
+                  has_edge_buttons: d.has_edge_buttons } : null,
+    set: legendNameOf(buttonMarkSet()),
+    token: tok ? tok.value.trim() : '',
+    at: Date.now()
+  };
+}
+
+// ⓘ A legend set crosses to the box by NAME: the marks ask which set by
+// identity (keyCap), and a copy of one is none of them.
+function legendNameOf(set) {
+  return set === PAD_LEGEND_XBOX ? 'xbox' : set === KEY_LEGEND ? 'keys' : 'ps';
+}
+function legendByName(name) {
+  return name === 'xbox' ? PAD_LEGEND_XBOX : name === 'keys' ? KEY_LEGEND : PAD_LEGEND_PS;
+}
+
+function togglePreview() {
+  if (PREVIEW_MODE) return;
+  var ch = previewChannel();
+  if (!ch) return;
+  if (PREVIEW_OPEN) {
+    // ⓘ Told twice, so a box that does not answer still goes: the box
+    // closes itself, and the listener closes its window and gives the front
+    // back here.
+    ch.postMessage({ close: true });
+    previewSetOpen(false);
+    PREVIEW_FOCUSED = false;
+    PREVIEW_CLOSED_AT = Date.now();
+    PREVIEW_HOLD_UNTIL = Date.now() + 1500;
+    call('POST', '/api/v1/ui/preview', { open: false }).catch(function () {});
+    return;
+  }
+  previewSetOpen(true);
+  PREVIEW_OPENED_AT = Date.now();
+  // ⭐ OPENED DURING A QUICK SWITCH, THE WINDOW STAYS, IN QUICK (rhoquinn8217,
+  // 2026-11-11: "If the preview is open during quick switch, make quick mode
+  // persists when you are not touching it touchpad"): the listener keeps the
+  // window when the last finger lifts with the box up (quick_switch_session),
+  // and the d-pad is this window's again, as after a second press.
+  if (OPENED_BY_SWITCH && !SWITCH_KEPT) {
+    SWITCH_KEPT = true;
+    if (COMPACT) paintCompact();
+  }
+  previewRaise();
+}
+
+// ⓘ Whether the box is up, as this window knows it (and body.pvopen with it).
+function previewSetOpen(on) {
+  PREVIEW_OPEN = !!on;
+  if (document.body) document.body.classList.toggle('pvopen', PREVIEW_OPEN);
+}
+
+// ⭐⭐ PS: A PRESS SHOWS OR HIDES THE LIST, A HOLD EDITS (rhoquinn8217,
+// 2026-11-12: "add another PS symbol and the description reads "hold to
+// edit" 3sec hold triggers edit button", with "remove (x) button to edit
+// functions in simple and quick"). V on a keyboard the same.
+// ⓘ The press acts as it COMES UP, under three seconds, so a hold never
+// shows or hides the list on its way to Edit; the bridge gesture's two
+// fingers do the same (quick_switch_session.inl). ⭐ THE HOLD GOES STRAIGHT
+// TO ADVANCED on that config, the list closed, with no question (rhoquinn8217,
+// 2026-11-12: "go straight to edit"): three seconds held is the asking.
+// Simple's Edit button still asks first while the list is up (compactEdit).
+// ⓘ Only in Simple and Quick, which have the line; in Advanced a press of
+// any length shows or hides it. Not while something of this window's own is
+// open, nor in a tour, which keeps PS.
+var PREVIEW_HOLD_MS = 3000;
+var PREVIEW_PRESS = null;          // { code, timer, fired } while PS or V is down
+function previewKeyDown(code) {
+  if (PREVIEW_PRESS) return;       // the other one, while one is held
+  var press = { code: code, timer: 0, fired: false };
+  PREVIEW_PRESS = press;
+  if (COMPACT) press.timer = setTimeout(function () { previewHoldDone(press); }, PREVIEW_HOLD_MS);
+}
+function previewHoldDone(press) {
+  if (PREVIEW_PRESS !== press || press.fired) return;
+  press.fired = true;
+  if (!COMPACT || TUT || CONFIRM_CB || RENAMING || PRESET_OPEN || PRESET_INFO_OPEN ||
+      SETTINGS_OPEN || GP_SELECTING || GP_EDITING) return;
+  previewEditHere();
+}
+function previewKeyUp(code) {
+  var press = PREVIEW_PRESS;
+  if (!press || press.code !== code) return;
+  PREVIEW_PRESS = null;
+  clearTimeout(press.timer);
+  if (!press.fired) togglePreview();
+}
+// ⓘ A press whose release this window will not hear, as the front goes
+// elsewhere: forgotten, so it never edits by itself three seconds on.
+function previewKeyCancel() {
+  if (!PREVIEW_PRESS) return;
+  clearTimeout(PREVIEW_PRESS.timer);
+  PREVIEW_PRESS = null;
+}
+
+function previewEditHere() {
+  if (PREVIEW_OPEN) togglePreview();   // closes it, if PS has not already
+  setCompact(false);
+}
+// ⭐ THE QUESTION BEFORE EDIT, while the box is up: "Edit" titles it, the
+// config on the wheel named, and Cancel first, as every question here starts.
+function previewAskEdit() {
+  var name = previewTarget().config;
+  askConfirm('Edit', 'Close the rebind list and edit ' + (name || 'this config') +
+             ' in Advanced?', previewEditHere);
+}
+// ⓘ Simple's Edit: asked first while the box is up, at once otherwise. ⓘ PS
+// held asks nothing (previewHoldDone).
+function compactEdit() {
+  if (PREVIEW_OPEN) { previewAskEdit(); return; }
+  setCompact(false);
+}
+
+// ⓘ Opens the box, or brings an open one back beside this window, always
+// without the front: the listener places it.
+function previewRaise() {
+  PREVIEW_HOLD_UNTIL = Date.now() + 3000;
+  call('POST', '/api/v1/ui/preview', { open: true }).catch(function () {
+    previewSetOpen(false);
+  });
+}
+
+// ⓘ Whether a blur of this window is the box's doing: it has the front (and
+// has said so lately), or it is opening or closing.
+function previewHoldsFocus() {
+  var now = Date.now();
+  if (PREVIEW_OPEN && PREVIEW_FOCUSED && now - PREVIEW_HEARD_AT < 2500) return true;
+  return now < PREVIEW_HOLD_UNTIL;
+}
+
+if (!PREVIEW_MODE) {
+  setInterval(function () {
+    if (!PREVIEW_OPEN || !previewChannel()) return;
+    PREVIEW_CHANNEL.postMessage(previewFeed());
+  }, PREVIEW_FEED_MS);
+  // ⓘ PS's and V's release (previewKeyUp), by code alone: the gate's
+  // modifiers may come up first. And a press forgotten as the front goes.
+  document.addEventListener('keyup', function (ev) {
+    if (ev.code === 'KeyP' || ev.code === 'KeyV') previewKeyUp(ev.code);
+  }, true);
+  window.addEventListener('blur', previewKeyCancel);
+  // ⓘ The box goes with this window.
+  window.addEventListener('pagehide', function () {
+    if (PREVIEW_OPEN && PREVIEW_CHANNEL) PREVIEW_CHANNEL.postMessage({ close: true });
+  });
+  // ⓘ A box made by an earlier copy of this window is heard from at once.
+  previewChannel();
+}
+
+// ---- The box itself (?preview) ------------------------------------------------
+
+var PREVIEW_STATE = {
+  config: null, device: null, set: null, token: '',
+  cfg: null, cfgText: '', failed: false, heardAt: 0, base: null, origin: '',
+  closing: false
+};
+
+// ⓘ The button that opens and closes the box, drawn as the pad in hand's:
+// PS on a PlayStation pad, V on a keyboard, and none on an Xbox pad, which
+// has no button for it yet. ⓘ For the configs window's own labels too.
+function previewMark(set) {
+  if (set === KEY_LEGEND) return keyCap('V', KEY_LEGEND);
+  return buttonMark(16, set);
+}
+
+// ⭐ ITS FOOT: Close, with the button that does it from the configs window
+// (rhoquinn8217, 2026-11-11: "Add the PS button symbol in the close button
+// label"), centred. ⓘ Its Edit went the next day ("remove the Edit button
+// from the preview"): editing is asked for in the configs window (Simple's
+// Edit, PS held). For a mouse: the box takes no controller.
+// ⭐ AND "HOLD TO EDIT" BACK IN IT, BEFORE CLOSE (rhoquinn8217, 2026-11-12:
+// "move the PS button hold to edit legend from the config window and back
+// on the footer of the preview window"): a legend, not a button, with the
+// same mark (V on a keyboard), where Edit stood; none on an Xbox pad, which
+// has no button for it yet. PS held three seconds in the configs window is
+// Edit (previewKeyDown).
+function previewFootHtml(setName) {
+  var ps = previewMark(legendByName(setName));
+  return (ps ? '<span id="pvHold">' + ps + ' hold to edit</span>' : '') +
+         '<span id="pvBtns">' +
+         '<button class="pvbtn" id="pvClose" onclick="previewPress(\'close\')">' +
+         (ps ? ps + ' ' : '') + 'Close</button></span>';
+}
+
+// ⓘ What a key does in the box, or '' for nothing: a gated pad's (Ctrl,
+// Shift and Alt, rebind.inl) or a keyboard's. The box has them only in the
+// moment after a click, before the listener gives the front back to the
+// configs window (preview_follow): Circle, Esc, PS and V close it.
+function previewKeyAction(code, gate) {
+  var map = gate ? { KeyZ: 'close', KeyP: 'close' } : { Escape: 'close', KeyV: 'close' };
+  return map[code] || '';
+}
+
+function previewPress(which) {
+  previewClose();
+}
+
+function previewKey(ev) {
+  if (ev.repeat) return;
+  var gate = ev.ctrlKey && ev.altKey && ev.shiftKey;
+  if (!gate && (ev.ctrlKey || ev.altKey || ev.metaKey)) return;
+  var act = previewKeyAction(ev.code, gate);
+  if (!act) return;
+  ev.preventDefault();
+  previewPress(act);
+}
+
+// ⓘ Its own requests: call() writes to this page's log and light, which the
+// box does not have.
+function previewGet(path) {
+  var h = {};
+  if (PREVIEW_STATE.token) h['Authorization'] = 'Bearer ' + PREVIEW_STATE.token;
+  return fetch(PREVIEW_STATE.origin + path, { headers: h }).then(function (r) {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  });
+}
+
+// ⭐ THE TICKED SETTINGS OF A CONFIG, BY SECTION: the editor's sections in its
+// order, its rows in theirs, for the device in hand ({} for none), and only
+// the rows whose box is ticked (a value that is present and not empty, which
+// is what the editor and the listener both call managed).
+function previewSections(cfg, dev) {
+  var current = (cfg && cfg.settings) || {};
+  var groups = configEditorGroups(KEYS);
+  var devOrNull = dev && dev.kind ? dev : null;
+  var out = [];
+  configSectionOrder(groups, devOrNull).forEach(function (g) {
+    var rows = [];
+    (groups[g] || []).forEach(function (meta) {
+      if (!configRowShown(meta, dev || {})) return;
+      var val = current[meta.key];
+      if (val === undefined || val === '') return;
+      rows.push({ meta: meta, value: val });
+    });
+    if (rows.length) out.push({ section: g, rows: rows });
+  });
+  return out;
+}
+
+function previewRender() {
+  var st = PREVIEW_STATE;
+  var nameEl = document.getElementById('pvName');
+  var countEl = document.getElementById('pvCount');
+  var colsEl = document.getElementById('pvCols');
+  var footEl = document.getElementById('pvFoot');
+  if (!nameEl) return;
+  var html = '';
+  if (st.config === null) {
+    nameEl.textContent = '';
+    countEl.textContent = 'Waiting for the configs window…';
+  } else if (!st.config) {
+    nameEl.textContent = 'No config';
+    countEl.textContent = 'Every setting is left to the game.';
+  } else if (st.failed) {
+    nameEl.textContent = st.config;
+    countEl.textContent = 'This config could not be read.';
+  } else if (st.cfg) {
+    var sections = previewSections(st.cfg, st.device);
+    var n = sections.reduce(function (a, s) { return a + s.rows.length; }, 0);
+    nameEl.textContent = st.config;
+    countEl.textContent = n === 0
+      ? 'Nothing is ticked. Every setting is left to the game.'
+      : n + (n === 1 ? ' setting ticked.' : ' settings ticked.') + ' The rest are left to the game.';
+    html = sections.map(function (s) {
+      return '<div class="pvsect"><div class="pvsh">' + esc(s.section) + '</div>' +
+        s.rows.map(function (r) {
+          var nm = configRowName(r.meta, TRANSPORT_ONLY[r.meta.key], legendByName(st.set));
+          return '<div class="pvrow"><span class="pvk" title="' + esc(nm.text) + '">' + nm.html +
+                 '</span><span class="pvv">' + esc(configValueText(r.meta, r.value)) + '</span></div>';
+        }).join('') + '</div>';
+    }).join('');
+  }
+  colsEl.innerHTML = html;
+  footEl.innerHTML = previewFootHtml(st.set);
+  previewFit();
+  setTimeout(previewFit, 300);
+}
+
+// ⭐ A FIXED SIZE THAT GROWS (rhoquinn8217, 2026-11-11: "allow the box to grow
+// from it's fixed size"): the size it opened at, taller when a config needs
+// more, and back to that size for a config that fits; never past the screen.
+// ⓘ Its SIZE only: where it stands is the listener's, which follows the
+// configs window and keeps the box beside it as it grows (open_ui.inl,
+// preview_follow). ⓘ resizeTo is asynchronous, so it is asked again, and
+// every second after (previewMain): a size cut short at the screen's foot
+// is grown once the box stands where it fits.
+function previewFit() {
+  var st = PREVIEW_STATE;
+  var root = document.getElementById('pvRoot');
+  if (!root) return;
+  if (!st.base) st.base = { h: window.outerHeight };
+  var chrome = window.outerHeight - window.innerHeight;
+  var want = Math.max(st.base.h, root.offsetHeight + chrome);
+  var room = screen.availHeight || want;
+  if (want > room) want = room;
+  if (Math.abs(want - window.outerHeight) < 4) return;
+  window.resizeTo(window.outerWidth, want);
+}
+
+function previewLoad() {
+  var st = PREVIEW_STATE;
+  if (!st.config) { st.cfg = null; st.cfgText = ''; st.failed = false; previewRender(); return; }
+  var asked = st.config;
+  previewGet('/api/v1/configs/' + encodeURIComponent(asked)).then(function (cfg) {
+    if (st.config !== asked) return;
+    var text = JSON.stringify(cfg && cfg.settings || {});
+    var same = !st.failed && st.cfg && text === st.cfgText;
+    st.cfg = cfg; st.cfgText = text; st.failed = false;
+    if (!same) previewRender();
+  }).catch(function () {
+    if (st.config !== asked) return;
+    st.failed = true; st.cfg = null; st.cfgText = '';
+    previewRender();
+  });
+}
+
+// ⓘ The listener closes this window and gives the front back to the configs
+// window (ui/preview, open false); closing itself is the fallback.
+function previewClose() {
+  var st = PREVIEW_STATE;
+  if (st.closing) return;
+  st.closing = true;
+  if (PREVIEW_CHANNEL) PREVIEW_CHANNEL.postMessage({ bye: true });
+  var h = { 'Content-Type': 'application/json' };
+  if (st.token) h['Authorization'] = 'Bearer ' + st.token;
+  fetch(st.origin + '/api/v1/ui/preview',
+        { method: 'POST', headers: h, body: JSON.stringify({ open: false }) })
+    .catch(function () {});
+  setTimeout(function () { window.close(); }, 1500);
+}
+
+function previewMain() {
+  var st = PREVIEW_STATE;
+  // ⓘ The listener's address as the page reads it (adoptServingOrigin), taken
+  // before the body it is kept in is replaced.
+  st.origin = base();
+  document.title = 'Config preview [ctm-preview]';
+  document.documentElement.classList.add('pvmode');
+  // ⭐ LARGE TEXT (rhoquinn8217, 2026-11-11: "text in the preview needs to be
+  // large", then "text can be a little bigger"): 23 px, two thirds as large
+  // again as at first, past Advanced's own scale for a television across the
+  // room.
+  var css = document.createElement('style');
+  css.textContent =
+    'html.pvmode body{margin:0;padding:0;min-height:0;background:#15161a;color:#e8e8ea;' +
+      'overflow:hidden;font-size:23px}' +
+    '#pvRoot{padding:14px 24px 92px}' +
+    '#pvHead{border-bottom:1px solid #2a2c33;padding-bottom:8px;margin-bottom:2px}' +
+    '#pvName{font-size:30px;font-weight:600;overflow-wrap:anywhere}' +
+    '#pvCount{color:#9a9ca5;font-size:19px}' +
+    '#pvCols{column-count:2;column-gap:38px}' +
+    '.pvsect{break-inside:avoid;padding-top:10px}' +
+    '.pvsh{color:#8fb0ff;font-size:19px;margin:2px 0}' +
+    '.pvrow{display:flex;justify-content:space-between;gap:16px;line-height:1.4}' +
+    '.pvk{min-width:0;overflow-wrap:anywhere}' +
+    '.pvv{color:#c9cbd3;text-align:right;flex:0 1 auto;max-width:55%;overflow-wrap:anywhere}' +
+    // ⓘ Its buttons centred (rhoquinn8217, 2026-11-12: "center the bottom
+    // buttons of the preview browser box").
+    '#pvFoot{position:fixed;left:0;right:0;bottom:0;display:flex;align-items:center;' +
+      'justify-content:center;gap:12px;padding:12px 24px;border-top:1px solid #2a2c33;' +
+      'background:#15161a}' +
+    '#pvBtns{display:flex;gap:16px}' +
+    '#pvHold{display:inline-flex;align-items:center;gap:0.35em;color:#9a9ca5;font-size:19px;' +
+      'margin-right:22px}' +
+    '.pvbtn{font:inherit;font-size:21px;color:#e8e8ea;background:#23252c;border:1px solid #3a3d48;' +
+      'border-radius:6px;padding:6px 22px;cursor:pointer;display:flex;align-items:center;gap:0.4em}';
+  document.head.appendChild(css);
+  document.body.innerHTML =
+    '<div id="pvRoot"><div id="pvHead"><div id="pvName"></div><div id="pvCount"></div></div>' +
+    '<div id="pvCols"></div></div><div id="pvFoot"></div>';
+  previewRender();
+
+  previewGet('/api/v1/keys').then(function (d) {
+    KEYS = d.keys || [];
+    KEY_NAMES = d.key_names || [];
+    previewRender();
+    if (st.config) previewLoad();
+  }).catch(function () {});
+
+  var ch = previewChannel();
+  if (!ch) return;
+  st.heardAt = Date.now();
+  ch.onmessage = function (ev) {
+    var m = ev.data || {};
+    if (m.close) { previewClose(); return; }
+    if (m.config === undefined) return;
+    st.heardAt = Date.now();
+    if (m.token) st.token = m.token;
+    var changed = m.config !== st.config || m.set !== st.set ||
+                  JSON.stringify(m.device || null) !== JSON.stringify(st.device || null);
+    st.config = m.config;
+    st.device = m.device || null;
+    st.set = m.set || null;
+    if (changed && KEYS.length) previewLoad();
+    else if (changed) previewRender();
+  };
+  // ⓘ THE CONTROLLER'S KEYS reach the box only while it has the front, the
+  // moment after a click (previewKeyAction): Circle, Esc, PS or V close it.
+  PREVIEW_REAL.docListen('keydown', previewKey, true);
+  // ⓘ And the configs window is told when the box has the front, so it says
+  // nothing to the listener meanwhile (previewHoldsFocus).
+  var sayFocus = function () { ch.postMessage({ focus: document.hasFocus() }); };
+  PREVIEW_REAL.listen('focus', sayFocus);
+  PREVIEW_REAL.listen('blur', sayFocus);
+  ch.postMessage({ hello: true, focus: document.hasFocus() });
+  PREVIEW_REAL.listen('pagehide', function () { ch.postMessage({ bye: true }); });
+  // ⓘ Once a second: hello, the config again (an edit in the configs window
+  // shows here within the second), and a close when the window has gone quiet.
+  // ⭐ AND ITS SIZE ASKED FOR AGAIN (rhoquinn8217, 2026-11-12:
+  // "gyro_to_mouse_DS5_AT config preview has one of it's settings cut off at
+  // the bottom"): seen with the box at 748 px of the 994 that config needs,
+  // as if grown while it stood low and cut short at the screen's foot (its
+  // height was the room from where it would have stood to the foot), then
+  // moved by the listener; asked once, it stayed short.
+  PREVIEW_REAL.setInterval(function () {
+    if (Date.now() - st.heardAt > PREVIEW_QUIET_MS) { previewClose(); return; }
+    ch.postMessage({ hello: true, focus: document.hasFocus() });
+    if (st.config && KEYS.length) previewLoad();
+    previewFit();
+  }, 1000);
+}
+
+if (PREVIEW_MODE) {
+  // ⓘ The box alone: none of the configs window starts (PREVIEW_MODE, above).
+  previewMain();
+} else if (location.search.indexOf('selftest') >= 0) {
   // ⓘ After refreshAll so KEYS and CONFIGS are populated the way they would be
   // in use; the interesting failures need real data shapes, not empty ones.
   startPage();

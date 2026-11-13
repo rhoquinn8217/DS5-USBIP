@@ -17,9 +17,12 @@
 // windows or the game"): the gate takes the pad only once the window has the
 // front, half a second on, so until then the touches and the press went out
 // with the report. mouse_exclusive.inl blanks them while holds_touchpad says
-// so. ⭐ A second press keeps the window, in the layout it had before, and
-// lets the touchpad go (quick_switch::while_held; config_move::keep_quick_view;
-// the page's KeyV). ⭐ AND SO DOES R3, which opens the controller's settings
+// so. ⭐ A second press keeps the window, in the layout it had before
+// (quick_switch::while_held; config_move::keep_quick_view; the page's KeyV),
+// and since 2026-11-12 the touchpad stays held, that press included, until
+// the last finger lifts ("pressing the touchpad should restrict whatever it's
+// rebound to and make the config stay"; quick_switch::KeptHold), where it was
+// let go at once. ⭐ AND SO DOES R3, which opens the controller's settings
 // over it (rhoquinn8217, 2026-11-09: "when quick switching, if R3 is press to
 // open settings treat it like the user has pressed the touchpad again to keep
 // the config window up and open the settings window"): the gate hands the
@@ -95,6 +98,7 @@ struct PadState {
     quick_switch::Armed closeArmed;    // pressed with two fingers, the window in front: it closes as it comes up
     quick_switch::AppSwitch app;       // the d-pad's app switcher: Alt, and the Tabs on their way
     quick_switch::Press r3;            // R3 going in: while the window is held up, a keep
+    quick_switch::KeptHold keptHold;   // kept: the touchpad held until the last finger lifts
 };
 
 inline std::mutex g_mutex;
@@ -216,8 +220,8 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
     // for nothing.
     const bool wheelInFront = fingers == 2 && window_wheel_in_front();
     const bool inFront = pressed && fingers == 2 && (wheelInFront || ctm_rebind_config_mode_effective());
-    enum class Did { Nothing, Armed, Opened, TooLong, Stepped, Lifted, Kept, InFront, SomeoneElse,
-                     Closing, Closed, CloseTooLong, TourBack };
+    enum class Did { Nothing, Armed, Opened, TooLong, Stepped, Lifted, Kept, KeptQuick, InFront,
+                     SomeoneElse, Closing, Closed, CloseTooLong, TourBack };
     Did did = Did::Nothing;
     int step = 0;
     bool byStick = false;
@@ -226,6 +230,7 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
     unsigned closer = 0;
     unsigned opened = 0;
     unsigned kept = 0;
+    unsigned keptQuick = 0;
     long long heldMs = 0;
     {
         std::lock_guard<std::mutex> lock(g_mutex);
@@ -236,6 +241,8 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
         // ⓘ Read on every report, as the press is, so R3 held as the window
         // came is no press.
         const bool r3Edge = quick_switch::press_edge(ps.r3, r3);
+        // ⓘ A keep's hold on the touchpad goes as the last finger lifts.
+        quick_switch::kept_hold_report(ps.keptHold, fingers);
         // ⭐ A press of the touchpad while the d-pad's app switcher has Alt down
         // picks, as Cross does (quick_switch::app_switch_press). The press is
         // the switcher's then: it arms, keeps and closes nothing.
@@ -283,6 +290,20 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
             switch (quick_switch::while_held(switching ? false : keepPress, fingers,
                                              switching ? 0 : steps)) {
             case quick_switch::Held::Close:
+                // ⭐ THE CONFIG PREVIEW UP: THE WINDOW STAYS, IN QUICK
+                // (rhoquinn8217, 2026-11-11: "If the preview is open during
+                // quick switch, make quick mode persists when you are not
+                // touching it touchpad"). As a second press keeps it, but in
+                // the Quick it shows: no layout key for the page, and what the
+                // switch saved let go (config_move::stay_quick_view).
+                if (ctm_open_ui::preview_up()) {
+                    s.ending = true;
+                    s.kept = true;
+                    keptQuick = s.id;
+                    quick_switch::app_switch_end(ps.app);
+                    did = Did::KeptQuick;
+                    break;
+                }
                 s.ending = true;
                 s.endAt = now_ms();
                 closer = s.id;
@@ -290,10 +311,13 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
                 did = Did::Lifted;
                 break;
             case quick_switch::Held::Keep:
-                // ⭐ The window is the person's now: the touchpad goes back to
-                // the config, the window stays when the fingers lift, and it
-                // takes the layout it had before, the page told by the layout
-                // key after any steps still on their way (key()).
+                // ⭐ The window is the person's now: it stays when the fingers
+                // lift, and it takes the layout it had before, the page told by
+                // the layout key after any steps still on their way (key()).
+                // ⭐ The touchpad stays the switch's, this press included, until
+                // the last finger lifts (quick_switch::KeptHold, 2026-11-12);
+                // then it goes back to the config.
+                quick_switch::keep_hold(ps.keptHold);
                 s.ending = true;
                 s.kept = true;
                 quick_switch::queue_layout(s.keys);
@@ -417,6 +441,7 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
     // ⓘ The layout from before is the listener's again at once, so the page
     // finds it when the layout key asks, or as it opens if it has not yet.
     if (kept != 0) config_move::keep_quick_view();
+    if (keptQuick != 0) config_move::stay_quick_view();
     if (did == Did::Nothing || did == Did::Lifted) return;
 
     const std::string ordinal = ctm_ordinal_for_device(deviceKey);
@@ -494,6 +519,8 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
                                        "layout it had before, and the touchpad is the config's again"
                                      : "pressed again: the window stays, in the layout it had before, "
                                        "and the touchpad is the config's again") :
+            did == Did::KeptQuick ? "the last finger lifted with the config preview up: the window "
+                                    "stays, in Quick, and the touchpad is the config's again" :
             did == Did::InFront ? "two fingers pressed, with the window in front already" :
             did == Did::TourBack ? "two fingers pressed, the tour's window not in front: brought back "
                                    "for the tour, and no window of the switch's own" :
@@ -546,6 +573,9 @@ inline bool holds_touchpad(const void *deviceKey, int fingers, bool pressed)
     // ⭐ And while the d-pad's app switcher has Alt down: its press picks, and
     // reaches neither Windows nor the game.
     if (pad != g_pads.end() && pad->second.app.alt) return true;
+    // ⭐ And after a keep, until the last finger lifts: the keeping press and
+    // every touch after it (quick_switch::KeptHold, 2026-11-12).
+    if (pad != g_pads.end() && pad->second.keptHold.on && fingers > 0) return true;
     const Session &s = g_session;
     return s.active && s.device == deviceKey && s.pressed && !s.ending;
 }

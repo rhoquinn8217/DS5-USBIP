@@ -176,8 +176,9 @@ inline Up armed_report(Armed &a, bool pressed, int fingers, long long nowMs)
 // keeps it, in the layout it had before (rhoquinn8217, 2026-10-28: "double
 // touchpad press should bring you to quick mode on the first press but on the
 // second press, it should bring you to simple or advance based on what you had
-// open last"), and lets the touchpad go; a swipe beside a resting finger steps
-// the config (swipe_steps, below); anything else does nothing.
+// open last"), the touchpad held until the last finger lifts (KeptHold,
+// below); a swipe beside a resting finger steps the config (swipe_steps,
+// below); anything else does nothing.
 enum class Held { Stay, Step, Keep, Close };
 
 inline Held while_held(bool pressEdge, int fingers, int steps)
@@ -186,6 +187,31 @@ inline Held while_held(bool pressEdge, int fingers, int steps)
     if (pressEdge) return Held::Keep;
     if (steps != 0) return Held::Step;
     return Held::Stay;
+}
+
+// ⭐ A KEEP HOLDS THE TOUCHPAD UNTIL THE LAST FINGER LIFTS (rhoquinn8217,
+// 2026-11-12: "during a quick switch, pressing the touchpad should restrict
+// whatever it's rebound to and make the config stay"): the press that keeps
+// the window, and every touch after it, reach neither Windows, the game nor
+// the listener's touchpad mouse until no finger is on the pad; then the
+// touchpad is the config's again. ⓘ Until then a keep let the touchpad go
+// at once (2026-10-27: "press again to lift restriction"), so the keeping
+// press went out as the touchpad's click, which could land outside the
+// window and take the front from it.
+struct KeptHold {
+    bool on = false;
+};
+
+inline void keep_hold(KeptHold &k)
+{
+    k.on = true;
+}
+
+// Each report: still held while a finger is down, let go as the last lifts.
+inline bool kept_hold_report(KeptHold &k, int fingers)
+{
+    if (fingers == 0) k.on = false;
+    return k.on;
 }
 
 // ⭐ THE TOUR'S STAND-IN (rhoquinn8217, 2026-11-06: the tutorial plays the

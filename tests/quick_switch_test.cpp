@@ -116,7 +116,9 @@ int run_quick_switch_tests()
     {
         // ⓘ rhoquinn8217, 2026-10-27: "1 finger scroll up or down while the
         // other finger stays put" and "press again to lift restriction and
-        // the config window persists after both fingers are lifted".
+        // the config window persists after both fingers are lifted". ⓘ The
+        // touchpad stays held after that press until the fingers lift since
+        // 2026-11-12 (the next section).
         CTM_CHECK(while_held(false, 2, 0) == Held::Stay);
         CTM_CHECK(while_held(false, 1, 0) == Held::Stay);
         CTM_CHECK(while_held(false, 2, 1) == Held::Step);
@@ -125,6 +127,17 @@ int run_quick_switch_tests()
         CTM_CHECK(while_held(true, 1, 0) == Held::Keep);    // with one finger too
         CTM_CHECK(while_held(true, 2, 1) == Held::Keep);    // the press wins a step
         CTM_CHECK(while_held(false, 0, 0) == Held::Close);  // every finger up
+    }
+
+    section("quick switch: a keep holds the touchpad, its press too, until the last finger lifts (2026-11-12)");
+    {
+        KeptHold k;
+        CTM_CHECK(!kept_hold_report(k, 2));                 // nothing kept: not held
+        keep_hold(k);                                       // the second press
+        CTM_CHECK(kept_hold_report(k, 2));                  // the press itself
+        CTM_CHECK(kept_hold_report(k, 1));                  // one thumb still resting
+        CTM_CHECK(!kept_hold_report(k, 0));                 // the last finger up: the config's again
+        CTM_CHECK(!kept_hold_report(k, 2));                 // and not held by the next touch
     }
 
     section("quick switch: one thumb resting, the other swiping up then down, a step a swipe");
