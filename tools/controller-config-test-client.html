@@ -2,7 +2,7 @@
 <!--
   DS5-USBIP's Controller Configs page, served by the listener.
 
-  VERSION 2.70.6 -- see the changelog at the bottom of this comment.
+  VERSION 2.70.7 -- see the changelog at the bottom of this comment.
 
   WHAT IT STARTED AS. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -24,6 +24,14 @@
   not a tidy message about it.
 
   CHANGELOG
+    2.70.7   The pre-set selector's Cancel anchored at the card's foot and its
+             title at the top, the list alone scrolling between them ("In
+             the preset selector, cancel should be anchored"). The listener
+             keeps the config preview in front of the configs window and
+             centres it on Advanced, and a quick switch's second press now
+             keeps the touchpad held until the last finger lifts ("pressing
+             the touchpad should restrict whatever it's rebound to and make
+             the config stay") (rhoquinn8217, 2026-11-12).
     2.70.6   Rebind List lit while the config preview is up ("light up
              Rebind List while the preview is open"); the pre-set selector's
              card scrolls with the halo, which ran below its foot ("I meant
@@ -2864,6 +2872,19 @@
     font-size:3vh; padding:1.2vh 2.5vw; }
   body.compact #presetList .prow > button:first-child { font-size:3vh; padding:1.4vh 2vw; }
   body.compact #presetList small { font-size:2.4vh; }
+  /* ⭐ CANCEL ANCHORED (rhoquinn8217, 2026-11-12: "In the preset selector,
+     cancel should be anchored"): the pre-set selector's card a column, its
+     title at the top and Cancel at the foot standing still, the list alone
+     scrolling between them (presetKeepInView), where the whole card scrolled
+     and Cancel came into sight only at the list's end. */
+  /* ⓘ The list keeps room round its rows for the ring, drawn outside its
+     row, which its own scrolling would cut: 8px each side, and the rows
+     back where they stood (its margins); its hairline on the first row. */
+  body.compact #presetBox .confirmCard { display:flex; flex-direction:column; overflow:hidden; }
+  body.compact #presetBox #presetList { flex:1 1 auto; min-height:0; overflow:auto;
+    margin-left:-8px; margin-right:-8px; padding:6px 8px; border-top:none; }
+  body.compact #presetBox #presetList .prow:first-child { border-top:1px solid #2c2e36; }
+  body.compact #presetBox .confirmBtns { flex:0 0 auto; }
   /* ⭐ The settings window fits the compact windows as the pre-set boxes do,
      and scrolls inside itself; the halo's row is kept in sight. */
   body.compact #ctlSetBox .confirmCard { font-size:3vh; width:auto; max-width:72vw;
@@ -3847,7 +3868,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.70.6</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.70.7</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -5621,19 +5642,24 @@ function settingsKeepInView(el) {
 // window high has no room for. Read from the rows' places on screen, which
 // is the card's own units here: only Advanced is zoomed, and there the card
 // does not scroll.
+// ⭐ The list alone scrolls in Simple, between the title and Cancel, which
+// stand still (2026-11-12: "cancel should be anchored"): Cancel needs no
+// scrolling to. Where the list does not scroll, the card does, as before.
 var PRESET_RING_PX = 8;       // the ring, drawn outside its row
 function presetKeepInView(el) {
   if (!PRESET_OPEN || !el) return false;
   var card = document.querySelector('#presetBox .confirmCard');
   if (!card || !card.contains(el)) return false;
-  if (card.scrollHeight <= card.clientHeight) return true;
+  var list = document.getElementById('presetList');
+  var box = list && list.scrollHeight > list.clientHeight ? list : card;
+  if (!box.contains(el) || box.scrollHeight <= box.clientHeight) return true;
   var row = (el.closest && el.closest('.prow')) || el;
-  var top0 = card.getBoundingClientRect().top + card.clientTop - card.scrollTop;
+  var top0 = box.getBoundingClientRect().top + box.clientTop - box.scrollTop;
   var rr = row.getBoundingClientRect();
   var top = rr.top - top0 - PRESET_RING_PX, bottom = rr.bottom - top0 + PRESET_RING_PX;
   if (row.classList.contains('prow') && !row.previousElementSibling) top = 0;
-  if (top < card.scrollTop) card.scrollTop = top;
-  else if (bottom > card.scrollTop + card.clientHeight) card.scrollTop = bottom - card.clientHeight;
+  if (top < box.scrollTop) box.scrollTop = top;
+  else if (bottom > box.scrollTop + box.clientHeight) box.scrollTop = bottom - box.clientHeight;
   return true;
 }
 
@@ -14777,6 +14803,7 @@ function selfTest() {
     var psDev = deviceByOrdinal(psOrd) || null;
     var psKind = psDev ? settingsKindOf(psDev.kind) : null;
     var psKeep = PRESETS, psSteps = 0, psHidden = 0, psScrolled = 0, psOver = false;
+    var psByList = false, psCancelIn = false, psCancelStill = true;
     try {
       PRESETS = [];
       for (var psi = 0; psi < 14; psi++) {
@@ -14784,7 +14811,17 @@ function selfTest() {
       }
       openPresetPicker(psOrd, psDev);
       var psCard = document.querySelector('#presetBox .confirmCard');
-      psOver = !!psCard && psCard.scrollHeight > psCard.clientHeight;
+      var psList = document.getElementById('presetList');
+      var psCancel = document.querySelector('#presetBox .confirmBtns button');
+      // ⭐ Cancel anchored (2.70.7, "cancel should be anchored"): the list
+      // scrolls, not the card, and Cancel is in sight before any step and
+      // stays where it is.
+      psByList = !!psList && psList.scrollHeight > psList.clientHeight;
+      var psScroller = psByList ? psList : psCard;
+      psOver = !!psScroller && psScroller.scrollHeight > psScroller.clientHeight;
+      var psC0 = psCard ? psCard.getBoundingClientRect() : null;
+      var psX0 = psCancel ? psCancel.getBoundingClientRect() : null;
+      psCancelIn = !!psX0 && !!psC0 && psX0.top >= psC0.top - 1 && psX0.bottom <= psC0.bottom + 1;
       for (var pss = 0; pss < 18 && psCard; pss++) {
         gpKeyMove(1);
         var psEl = GP_FOCUS[GP_INDEX];
@@ -14792,18 +14829,23 @@ function selfTest() {
         var psR = psEl.getBoundingClientRect(), psC = psCard.getBoundingClientRect();
         psSteps++;
         if (psR.top < psC.top - 1 || psR.bottom > psC.bottom + 1) psHidden++;
-        psScrolled = Math.max(psScrolled, psCard.scrollTop);
+        psScrolled = Math.max(psScrolled, psScroller.scrollTop);
+        if (psCancel && psX0 && Math.abs(psCancel.getBoundingClientRect().top - psX0.top) > 1) psCancelStill = false;
       }
     } finally {
       presetCancel();
       PRESETS = psKeep;
     }
-    psOk = psSteps > 0 && psHidden === 0 && (!psOver || psScrolled > 0);
-    psNote = psSteps + ' steps, ' + psHidden + ' out of sight, card ' +
-             (psOver ? 'scrolled to ' + Math.round(psScrolled) : 'fits without scrolling');
+    psOk = psSteps > 0 && psHidden === 0 && (!psOver || (psScrolled > 0 && psByList)) &&
+           psCancelIn && psCancelStill;
+    psNote = psSteps + ' steps, ' + psHidden + ' out of sight, ' +
+             (psOver ? (psByList ? 'the list' : 'the card') + ' scrolled to ' + Math.round(psScrolled)
+                     : 'fits without scrolling') +
+             ', Cancel ' + (psCancelIn ? 'in sight' : 'OUT of sight') + ' at the start, ' +
+             (psCancelStill ? 'still' : 'MOVED');
   }
   ok('Simple: Rebind List lit while the list is up', litOk, litNote);
-  ok('Simple: the pre-set selector scrolls with the halo, every row in sight', psOk, psNote);
+  ok('Simple: the pre-set selector scrolls its list with the halo, every row in sight, Cancel anchored', psOk, psNote);
   // ⭐ A QUESTION KEEPS ITS HALO ON CANCEL THROUGH A REPAINT in Simple and
   // Quick (2026-11-12): the device poll's repaint put it on OK.
   var pqHaloed = 'not a compact view';

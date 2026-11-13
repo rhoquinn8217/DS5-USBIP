@@ -17,9 +17,12 @@
 // windows or the game"): the gate takes the pad only once the window has the
 // front, half a second on, so until then the touches and the press went out
 // with the report. mouse_exclusive.inl blanks them while holds_touchpad says
-// so. ⭐ A second press keeps the window, in the layout it had before, and
-// lets the touchpad go (quick_switch::while_held; config_move::keep_quick_view;
-// the page's KeyV). ⭐ AND SO DOES R3, which opens the controller's settings
+// so. ⭐ A second press keeps the window, in the layout it had before
+// (quick_switch::while_held; config_move::keep_quick_view; the page's KeyV),
+// and since 2026-11-12 the touchpad stays held, that press included, until
+// the last finger lifts ("pressing the touchpad should restrict whatever it's
+// rebound to and make the config stay"; quick_switch::KeptHold), where it was
+// let go at once. ⭐ AND SO DOES R3, which opens the controller's settings
 // over it (rhoquinn8217, 2026-11-09: "when quick switching, if R3 is press to
 // open settings treat it like the user has pressed the touchpad again to keep
 // the config window up and open the settings window"): the gate hands the
@@ -95,6 +98,7 @@ struct PadState {
     quick_switch::Armed closeArmed;    // pressed with two fingers, the window in front: it closes as it comes up
     quick_switch::AppSwitch app;       // the d-pad's app switcher: Alt, and the Tabs on their way
     quick_switch::Press r3;            // R3 going in: while the window is held up, a keep
+    quick_switch::KeptHold keptHold;   // kept: the touchpad held until the last finger lifts
 };
 
 inline std::mutex g_mutex;
@@ -237,6 +241,8 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
         // ⓘ Read on every report, as the press is, so R3 held as the window
         // came is no press.
         const bool r3Edge = quick_switch::press_edge(ps.r3, r3);
+        // ⓘ A keep's hold on the touchpad goes as the last finger lifts.
+        quick_switch::kept_hold_report(ps.keptHold, fingers);
         // ⭐ A press of the touchpad while the d-pad's app switcher has Alt down
         // picks, as Cross does (quick_switch::app_switch_press). The press is
         // the switcher's then: it arms, keeps and closes nothing.
@@ -305,10 +311,13 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
                 did = Did::Lifted;
                 break;
             case quick_switch::Held::Keep:
-                // ⭐ The window is the person's now: the touchpad goes back to
-                // the config, the window stays when the fingers lift, and it
-                // takes the layout it had before, the page told by the layout
-                // key after any steps still on their way (key()).
+                // ⭐ The window is the person's now: it stays when the fingers
+                // lift, and it takes the layout it had before, the page told by
+                // the layout key after any steps still on their way (key()).
+                // ⭐ The touchpad stays the switch's, this press included, until
+                // the last finger lifts (quick_switch::KeptHold, 2026-11-12);
+                // then it goes back to the config.
+                quick_switch::keep_hold(ps.keptHold);
                 s.ending = true;
                 s.kept = true;
                 quick_switch::queue_layout(s.keys);
@@ -564,6 +573,9 @@ inline bool holds_touchpad(const void *deviceKey, int fingers, bool pressed)
     // ⭐ And while the d-pad's app switcher has Alt down: its press picks, and
     // reaches neither Windows nor the game.
     if (pad != g_pads.end() && pad->second.app.alt) return true;
+    // ⭐ And after a keep, until the last finger lifts: the keeping press and
+    // every touch after it (quick_switch::KeptHold, 2026-11-12).
+    if (pad != g_pads.end() && pad->second.keptHold.on && fingers > 0) return true;
     const Session &s = g_session;
     return s.active && s.device == deviceKey && s.pressed && !s.ending;
 }
