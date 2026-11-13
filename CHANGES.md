@@ -221,6 +221,7 @@ carry it; upstream's own history is unchanged.
 | 2026-11-12 | In Simple and Quick, a question's halo stays on Cancel when the window repaints for the controllers' poll, where it moved to OK, Archive's question included. | `47d46b8`, merge `62cda93` |
 | 2026-11-12 | The pre-set selector scrolls with the halo, which ran below its foot, and in Simple its title and Cancel stand still while the list alone scrolls. | `f9f11e7`, `cb048e5`, merge `62cda93` |
 | 2026-11-12 | The quick config switch: the second press of the touchpad, which keeps the window, now holds the touchpad, that press included, until the last finger lifts. It had let the touchpad go at once, so the press went out as the touchpad's click, which could land outside the window and take the front from it. | `cb048e5`, merge `62cda93` |
+| 2026-11-13 | The touchpad drawn in the configs window, as the DualSense's touchpad: alone, or with one or two fingers. The touchpad settings are named by it and the rest of their key in words, so touchpad_one_finger_tap reads as the one-finger touchpad and "- tap", in the editor and in the config preview, the key kept on the row's hover; a dropdown that chooses a number of fingers has the chosen one's touchpad after it; each touchpad says on hover which it is; and the preview has a key for the three above its foot's line. The preview's own button at its foot is PS or V by the input in hand, and changes as the input does while the box is open. | `88bc5df`, `804353d`, `0b9d189`, merge `30952fa` |
 
 ## Files changed
 
@@ -235,7 +236,7 @@ ENet library, removed with the ENet transport).
  .github/ISSUE_TEMPLATE/config.yml             |     5 +
  .github/ISSUE_TEMPLATE/feature-request.yml    |    22 +
  .gitignore                                    |    43 +-
- CHANGES.md                                    |   519 +
+ CHANGES.md                                    |   520 +
  LINK                                          |     0
  README.md                                     |   291 +-
  THIRD-PARTY-NOTICES.txt                       |   618 +
@@ -507,7 +508,7 @@ ENet library, removed with the ENet transport).
  tests/window_move_test.cpp                    |   136 +
  tests/window_open_rule_test.cpp               |    43 +
  tests/window_size_rule_test.cpp               |   129 +
- tools/controller-config-test-client.html      | 20081 ++++++++++++++++++++++++
+ tools/controller-config-test-client.html      | 20291 ++++++++++++++++++++++++
  tools/create-desktop-shortcut.bat             |    46 +
  tools/create-desktop-shortcut.ps1             |   148 +
  tools/osk-mockups.py                          |   103 +
@@ -515,5 +516,5 @@ ENet library, removed with the ENet transport).
  tools/sbc-golden-gen/ffmpeg_side.cpp          |   117 +
  tools/sbc-golden-gen/ffmpeg_side.h            |    15 +
  tools/sbc-golden-gen/main.cpp                 |   131 +
- 285 files changed, 87567 insertions(+), 6132 deletions(-)
+ 285 files changed, 87778 insertions(+), 6132 deletions(-)
 ```
