@@ -34,6 +34,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <deque>
 #include <ios>
 #include <map>
 #include <mutex>
@@ -237,6 +238,7 @@ bool ctm_rebind_editing_field();
 void ctm_ui_notify(const std::string &message);
 
 #include "../src/input/trigger_effect.inl"
+#include "../src/input/window_select.inl"
 #include "../src/input/rebind.inl"
 
 // ---- The checks' own helpers -----------------------------------------------
@@ -246,6 +248,7 @@ using ctm_rebind::kBtnFaceRight;
 using ctm_rebind::kBtnFaceLeft;
 using ctm_rebind::kBtnFaceUp;
 using ctm_rebind::kBtnL1;
+using ctm_rebind::kBtnR1;
 using ctm_rebind::kBtnL2;
 using ctm_rebind::kBtnR2;
 using ctm_rebind::kBtnStart;
@@ -817,6 +820,98 @@ int run_rebind_tests()
         send(kPadA, pressing({kBtnFaceDown, kBtnFaceUp, kBtnStart}));
         CTM_CHECK(keys_are(kPadA, {}));
         CTM_CHECK_EQ(static_cast<int>(mouse_of(kPadA)), 0);
+    }
+
+    // ⭐ WINDOW SELECT THROUGH THE REBINDER (window_select.inl; 2026-11-12,
+    // Desktop Mode's hand-over), over real time, as its keys are timed: a
+    // report every 5 ms. Tab is 0x2B, Enter 0x28, Escape 0x29, KeyA 0x04;
+    // Alt is the modifiers' 0x04.
+    auto has_key = [](const void *pad, uint8_t usage) {
+        for (uint8_t k : keys_of(pad)) {
+            if (k == usage) return true;
+        }
+        return false;
+    };
+    auto alt_down = [](const void *pad) { return (mods_of(pad) & 0x04) != 0; };
+    auto settle = [](const std::vector<uint8_t> &report, int reports) {
+        for (int n = 0; n < reports; ++n) {
+            send(kPadA, report);
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+    };
+
+    section("rebinder: Window Select holds Alt, a Tab a press, and Cross bound to Enter picks without sending Enter");
+    {
+        reset();
+        g_strings["ds5.rebind_5"] = "WindowSelectNext";
+        g_strings["ds5.rebind_0"] = "Enter";
+        const std::vector<uint8_t> down = send(kPadA, pressing({kBtnR1}));
+        CTM_CHECK(!game_sees(down, kBtnR1));
+        CTM_CHECK(alt_down(kPadA));                       // Alt first, at once
+        bool sawTab = false;
+        for (int n = 0; n < 60; ++n) {
+            send(kPadA, n < 10 ? pressing({kBtnR1}) : at_rest());
+            if (has_key(kPadA, 0x2B)) sawTab = true;
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+        CTM_CHECK(sawTab);
+        CTM_CHECK(alt_down(kPadA));                       // held between presses
+        bool sawEnter = false;
+        for (int n = 0; n < 40; ++n) {
+            send(kPadA, n < 20 ? pressing({kBtnFaceDown}) : at_rest());
+            if (has_key(kPadA, 0x28)) sawEnter = true;
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+        CTM_CHECK(!sawEnter);                             // it picked
+        CTM_CHECK(!alt_down(kPadA));
+        send(kPadA, pressing({kBtnFaceDown}));
+        CTM_CHECK(keys_are(kPadA, {0x28}));               // Enter again, Alt up
+        CTM_CHECK(said("window select: Alt down") && said("window select: Alt up"));
+    }
+
+    section("rebinder: Window Select's Circle bound to Escape cancels: Esc with Alt held, then Alt up");
+    {
+        reset();
+        g_strings["ds5.rebind_5"] = "WindowSelectNext";
+        g_strings["ds5.rebind_1"] = "Escape";
+        send(kPadA, pressing({kBtnR1}));
+        settle(at_rest(), 40);
+        CTM_CHECK(alt_down(kPadA));
+        bool escWithAlt = false;
+        for (int n = 0; n < 40; ++n) {
+            send(kPadA, n < 20 ? pressing({kBtnFaceRight}) : at_rest());
+            if (has_key(kPadA, 0x29) && alt_down(kPadA)) escWithAlt = true;
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+        CTM_CHECK(escWithAlt);
+        CTM_CHECK(!alt_down(kPadA));
+        CTM_CHECK(keys_are(kPadA, {}));
+    }
+
+    section("rebinder: while Window Select holds Alt, any other key lets Alt go first and never goes out with it");
+    {
+        reset();
+        g_strings["ds5.rebind_5"] = "WindowSelectNext";
+        g_strings["ds5.rebind_2"] = "KeyA";
+        g_strings["ds5.rebind_12"] = "ArrowUp";
+        send(kPadA, pressing({kBtnR1}));
+        settle(at_rest(), 40);
+        // ⓘ An arrow keeps Alt, and goes out with it.
+        send(kPadA, pressing({kBtnDpadUp}));
+        CTM_CHECK(alt_down(kPadA) && has_key(kPadA, 0x52));
+        settle(at_rest(), 4);
+        CTM_CHECK(alt_down(kPadA));
+        bool keyWithAlt = false, sawKey = false;
+        for (int n = 0; n < 20; ++n) {
+            send(kPadA, pressing({kBtnFaceLeft}));
+            if (has_key(kPadA, 0x04)) {
+                sawKey = true;
+                if (alt_down(kPadA)) keyWithAlt = true;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+        CTM_CHECK(sawKey && !keyWithAlt);
+        CTM_CHECK(!alt_down(kPadA));
     }
 
     reset();

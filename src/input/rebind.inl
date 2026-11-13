@@ -35,6 +35,28 @@ struct TurboState { bool phaseDown; long long nextFlipMs; };
 inline std::map<std::pair<const void *, int>, TurboState> g_turbo;
 inline std::mutex g_turboMutex;
 
+// ⭐ WINDOW SELECT, EACH PAD ITS OWN (window_select.inl): its Alt and the keys
+// on their way, the bound buttons held on the report before (for their
+// presses), the buttons held back while held (Enter picked, Escape cancelled),
+// those waiting for Alt to go up (anything else), and the touchpad's press.
+struct WindowSelectPad {
+    window_select::State state;
+    uint32_t heldBefore = 0;
+    uint32_t holdBack = 0;
+    uint32_t waitForAlt = 0;
+    bool touchBefore = false;
+};
+inline std::map<const void *, WindowSelectPad> g_windowSelect;
+inline std::mutex g_windowSelectMutex;
+
+// Its Alt let go at once and its state forgotten: the pad gone, or the gate
+// taking it, whose own keys go out without Alt.
+inline void window_select_forget(const void *deviceKey)
+{
+    std::lock_guard<std::mutex> lock(g_windowSelectMutex);
+    g_windowSelect.erase(deviceKey);
+}
+
 inline long long now_ms()
 {
     return std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -717,6 +739,8 @@ inline void apply(const void *deviceKey,
     }
 
     if (gating) {
+        // ⓘ Window Select's Alt goes with the gate: its keys go out without it.
+        window_select_forget(deviceKey);
         // ⛔ BUILT HERE, not borrowed. `section` is not created until well
         // below this branch -- after the gate has already returned -- so
         // reaching for it compiled nowhere. ⓘ At the TOP, because the Square
@@ -1028,6 +1052,27 @@ inline void apply(const void *deviceKey,
     for (int i = 0; i < kButtonCount; ++i) pressAfter[i] = false;
     bool anyPressAfter = false;
 
+    // ⭐ WINDOW SELECT (window_select.inl): this pad's, copied out and put back
+    // after the loop, so nothing below is called holding its lock.
+    const long long wsNow = now_ms();
+    WindowSelectPad ws;
+    {
+        std::lock_guard<std::mutex> lock(g_windowSelectMutex);
+        const auto found = g_windowSelect.find(deviceKey);
+        if (found != g_windowSelect.end()) ws = found->second;
+    }
+    const bool wsAltBefore = ws.state.alt;
+    // ⓘ The touchpad pressed in while Alt is held is a click, as a mouse
+    // button bound to one is: it goes out first, Alt after (the touchpad's
+    // own click is the touchpad mouse's, which this does not see).
+    if (layout->touch.present && len >= touch_min_len(*layout)) {
+        const bool touchNow = touch_pressed(*layout, data, len);
+        if (touchNow && !ws.touchBefore && window_select::active(ws.state)) {
+            window_select::other_press(ws.state, window_select::Other::Click, wsNow);
+        }
+        ws.touchBefore = touchNow;
+    }
+
     for (int i = 0; i < kButtonCount; ++i) {
         // ⛔⛔ A TRIGGER BOUND THROUGH THE GESTURE IS NOT ALSO BOUND HERE.
         //
@@ -1061,6 +1106,15 @@ inline void apply(const void *deviceKey,
             // is one step further out: publishing only while something is BOUND
             // latches it too, once a binding can be taken away mid-press.
             gaveUpATrigger = true;
+            // ⓘ Window Select: the trigger's click goes out first, Alt after.
+            {
+                const uint32_t bit = 1u << i;
+                const bool pulled = is_pressed(*layout, data, len, i);
+                if (pulled && (ws.heldBefore & bit) == 0 && window_select::active(ws.state)) {
+                    window_select::other_press(ws.state, window_select::Other::Click, wsNow);
+                }
+                if (pulled) ws.heldBefore |= bit; else ws.heldBefore &= ~bit;
+            }
             continue;
         }
 
@@ -1127,6 +1181,36 @@ inline void apply(const void *deviceKey,
         // same day (rhoquinn8217, 2026-11-07: "fn passthrough setting doesn't
         // seem necessary, Lets remove them.").
         clear_button(*layout, data, len, i);
+
+        // ⭐ WINDOW SELECT (window_select.inl; rhoquinn8217, 2026-11-12, Desktop
+        // Mode's hand-over). A button bound to WindowSelectBack or
+        // WindowSelectNext steps Windows' picker, Alt held; while it is held,
+        // another bound button's press acts by what it is bound to: Enter and
+        // Escape held back while held (they picked or cancelled), anything that
+        // lets Alt go waiting until Alt is up, the rest as ever.
+        {
+            const uint32_t bit = 1u << i;
+            const bool press = held && (ws.heldBefore & bit) == 0;
+            if (held) ws.heldBefore |= bit; else ws.heldBefore &= ~bit;
+            const int dir = window_select::step_of(code);
+            if (dir != 0) {
+                if (press) window_select::step(ws.state, dir, wsNow);
+                continue;
+            }
+            if (!held) {
+                ws.holdBack &= ~bit;
+                ws.waitForAlt &= ~bit;
+            } else if (press && window_select::active(ws.state)) {
+                const window_select::Other what = window_select::classify(code);
+                if (window_select::other_press(ws.state, what, wsNow)) ws.holdBack |= bit;
+                if (what == window_select::Other::LetGo) ws.waitForAlt |= bit;
+            }
+            if ((ws.holdBack & bit) != 0) continue;
+            if ((ws.waitForAlt & bit) != 0) {
+                if (ws.state.alt) continue;
+                ws.waitForAlt &= ~bit;
+            }
+        }
 
         // ⭐⭐ A CONTROLLER BUTTON BECOMES ANOTHER CONTROLLER BUTTON
         // (T-242 part A). ⓘ First, because `button_` is an unambiguous prefix
@@ -1222,6 +1306,28 @@ inline void apply(const void *deviceKey,
         if ((triggerPressed & (1u << i)) != 0) set_button(*layout, data, len, i);
     }
 
+    // ⭐ WINDOW SELECT'S ALT, AND ITS TAB OR ESC (window_select.inl), with what
+    // the bindings hold, and its state put back for the next report.
+    const window_select::Keys wsKeys = window_select::keys(ws.state, wsNow);
+    if (wsKeys.alt) {
+        modifiers = static_cast<uint8_t>(modifiers | 0x04);
+        const KeyName *wk = wsKeys.key == window_select::kEscape ? key_for("Escape")
+                          : wsKeys.key != window_select::kNone   ? key_for("Tab") : nullptr;
+        if (wk != nullptr && wk->usage != 0 && keyCount < 6) keys[keyCount++] = wk->usage;
+        if (wsKeys.key == window_select::kShiftTab) modifiers = static_cast<uint8_t>(modifiers | 0x02);
+    }
+    if (wsAltBefore != wsKeys.alt) {
+        device_log::input(device_log::msg() << "window select: Alt " << (wsKeys.alt ? "down" : "up"));
+    }
+    {
+        std::lock_guard<std::mutex> lock(g_windowSelectMutex);
+        if (wsKeys.alt || ws.heldBefore != 0 || ws.holdBack != 0 || ws.waitForAlt != 0 || ws.touchBefore) {
+            g_windowSelect[deviceKey] = ws;
+        } else {
+            g_windowSelect.erase(deviceKey);
+        }
+    }
+
     // ⭐ THE D-PAD'S APP SWITCHER'S ALT AND TAB (app_keys, above), with what
     // the bindings hold. ⓘ Here as well as in the gate: Windows' switcher
     // takes the front from the window, and the gate lets go of the pad then.
@@ -1238,7 +1344,7 @@ inline void apply(const void *deviceKey,
     // 2026-10-05). Publishing only while a binding exists left a key down for
     // good once its last binding was taken away mid-press, or when the gate's
     // keys were still down as the window dropped behind.
-    if (anyBound || appAlt || ctm_keyboard_device::holds_for(deviceKey)) {
+    if (anyBound || appAlt || wsKeys.alt || ctm_keyboard_device::holds_for(deviceKey)) {
         ctm_keyboard_device::set_state_for(deviceKey, modifiers, keys, keyCount);
     }
     // ⓘ This once ran only when something was bound to a mouse button, so a
@@ -1311,6 +1417,8 @@ void rebind_forget_pad(const void *deviceKey)
     held_edges::forget(deviceKey);
     // ⭐ And its quick switch state, its app switcher's Alt above all.
     quick_switch_forget_pad(deviceKey);
+    // ⭐ And its Window Select's Alt.
+    ctm_rebind::window_select_forget(deviceKey);
 }
 
 bool ctm_rebind_config_mode()

@@ -554,6 +554,7 @@ static std::string rest_keys_json()
 "MediaPlayPause","MediaStop","MediaTrackPrevious","MediaTrackNext",
 "MouseLeft","MouseRight","MouseMiddle","MouseWheelUp","MouseWheelDown",
 "KeyboardDS5_USBIP","KeyboardSteam","KeyboardWindows",
+"WindowSelectBack","WindowSelectNext",
 "button_cross","button_circle","button_square","button_triangle",
 "button_l1","button_r1","button_l2","button_r2","button_l3","button_r3",
 "button_dpad_up","button_dpad_down","button_dpad_left","button_dpad_right",

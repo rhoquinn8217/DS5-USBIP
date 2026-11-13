@@ -18,6 +18,8 @@
 #include <cstring>
 #include <string>
 
+#include "window_select.inl"   // its two values, read here as every value is
+
 // ⓘ Outside the namespace: this file opens ctm_rebind itself, and including it
 // inside would nest a second one.
 #include "button_layout.inl"
@@ -202,7 +204,7 @@ inline int pad_button_for(const std::string &code)
     return index >= 0 ? index : kNoSuchPadButton;
 }
 
-enum Kind : uint8_t { kNone = 0, kMouseButton, kMouseWheel, kKey, kPadButton, kOsk };
+enum Kind : uint8_t { kNone = 0, kMouseButton, kMouseWheel, kKey, kPadButton, kOsk, kWindowSelect };
 
 // What one value asks for. Only the fields of its own kind mean anything.
 struct Target {
@@ -213,6 +215,7 @@ struct Target {
     uint8_t modifier = 0;    // kKey: the modifier's bit, or 0 for a plain key
     int button = -1;         // kPadButton: the standard index
     int osk = -1;            // kOsk: which keyboard (kOskSteam, kOskWindows, kOskOurs)
+    int step = 0;            // kWindowSelect: +1 WindowSelectNext, -1 WindowSelectBack
 };
 
 // ⭐ In the order the rebinder asks: a pad button first, because its prefix
@@ -236,6 +239,15 @@ inline Target parse(const std::string &code)
     if (osk >= 0) {
         t.kind = kOsk;
         t.osk = osk;
+        return t;
+    }
+
+    // ⭐ Window Select (window_select.inl): the rebinder steps Windows' picker
+    // with it, Alt held; a touchpad gesture does nothing with it.
+    const int step = window_select::step_of(code);
+    if (step != 0) {
+        t.kind = kWindowSelect;
+        t.step = step;
         return t;
     }
 
