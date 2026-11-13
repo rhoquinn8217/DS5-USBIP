@@ -983,11 +983,11 @@ inline std::atomic_bool g_previewFollowing{false};
 // as the on-screen keyboard had at first (overlay_window.inl), which went
 // solid because at 55% it was hard to read: 80% here at first, for a box
 // of words, then 90% once seen ("less transparent preview window", the
-// same day).
+// same day), then 95% ("less transparent", again).
 // The browser draws the box in software (--disable-gpu, preview_open), and
 // Windows lays a layered window's picture over what is behind it.
 // ⓘ Once for each box the look finds (preview_follow), and said in the log.
-inline const BYTE kPreviewAlpha = 230;
+inline const BYTE kPreviewAlpha = 242;
 inline std::atomic<HWND> g_previewSeeThrough{nullptr};
 
 inline void preview_see_through(HWND pv)
