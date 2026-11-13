@@ -31,7 +31,11 @@
 // ⓘ This file has no windows.h, so the test binary can reach it.
 #pragma once
 
+#include <cctype>
+#include <map>
 #include <string>
+#include <utility>
+#include <vector>
 
 namespace default_config {
 
@@ -75,6 +79,52 @@ inline First first_controller(bool waiting, bool takesConfig, bool alreadyAutoLi
 {
     if (!waiting || !takesConfig) return First::None;
     return alreadyAutoLinked ? First::Leave : First::Claim;
+}
+
+// ⭐ A COPY MADE BEFORE, BROUGHT UP TO DATE (rhoquinn8217, 2026-11-12, asked
+// whether a default_windows_config made before should change with an update:
+// "2. a"): one nobody edited, still reading exactly the preset as it shipped,
+// is brought to the preset now; one that differs is left as it is, and the
+// log says so. `have`: the copy's settings as loaded, a blank value counting
+// as none; `now` and `before`: the preset now and as it shipped, key to value.
+// Keys and values compared without case, as the config reader keeps them.
+enum class Copy { Current, Unedited, Edited };
+
+using Pairs = std::vector<std::pair<std::string, std::string>>;
+
+inline std::map<std::string, std::string> folded(const Pairs &pairs)
+{
+    std::map<std::string, std::string> out;
+    for (const auto &p : pairs) {
+        if (p.second.empty()) continue;
+        std::string k, v;
+        for (char c : p.first) k.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+        for (char c : p.second) v.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+        out[k] = v;
+    }
+    return out;
+}
+
+inline Copy copy_state(const Pairs &have, const Pairs &now, const Pairs &before)
+{
+    const std::map<std::string, std::string> h = folded(have);
+    if (h == folded(now)) return Copy::Current;
+    if (h == folded(before)) return Copy::Unedited;
+    return Copy::Edited;
+}
+
+// The keys the preset had as it shipped and has no more, as they were
+// written: what bringing an unedited copy up to date clears.
+inline std::vector<std::string> dropped_keys(const Pairs &now, const Pairs &before)
+{
+    const std::map<std::string, std::string> n = folded(now);
+    std::vector<std::string> out;
+    for (const auto &p : before) {
+        std::string k;
+        for (char c : p.first) k.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+        if (!p.second.empty() && n.find(k) == n.end()) out.push_back(p.first);
+    }
+    return out;
 }
 
 // ⭐ THE CONFIG A BRIDGE READS AS IT STARTS. Desktop Mode handing over
