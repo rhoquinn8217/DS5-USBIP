@@ -2,7 +2,7 @@
 <!--
   DS5-USBIP's Controller Configs page, served by the listener.
 
-  VERSION 2.70.4 -- see the changelog at the bottom of this comment.
+  VERSION 2.70.5 -- see the changelog at the bottom of this comment.
 
   WHAT IT STARTED AS. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -24,6 +24,14 @@
   not a tidy message about it.
 
   CHANGELOG
+    2.70.5   Simple's wheel and the PS lines under it as tall as the buttons
+             at its right, the wheel's top level with New's and the lines'
+             bottom with Archive's, its 5 lines kept ("shrink the wheel so
+             that ... matches the horizontal length of the buttons to the
+             right of the wheel"); and a Rebind List button under Auto
+             link, which shows or hides the config preview as PS does
+             ("add "Rebind List" button under "Auto link"") (rhoquinn8217,
+             2026-11-12).
     2.70.4   The config preview, round 7 (rhoquinn8217, 2026-11-12): PS's line
              reads "show/hide rebind list"; Cross no longer edits in Quick,
              and its "edit" line is gone; PS held three seconds goes
@@ -3137,15 +3145,29 @@
   body.compact:not(.quick) #compactBox .cpick-label { font-size:calc(3.6 * var(--vh)); top:0; bottom:auto;
     transform:translateY(-50%); background:linear-gradient(to bottom, #15161a 50%, #1d1f26 50%); }
   body.compact:not(.quick) #compactBox .cname .devemo { font-size:0.8em; margin-right:0.3em; }
-  body.compact:not(.quick) #compactBox .cpick-wrap { display:inline-grid; grid-template-columns:auto auto; align-items:center;
+  /* ⭐ THE WHEEL AND THE PS LINES UNDER IT AS TALL AS THE BUTTONS (rhoquinn8217,
+     2026-11-12: "shrink the wheel so that horizontal length of the wheel and
+     the PS button legend under it matches the horizontal length of the
+     buttons to the right of the wheel"): the buttons span both of the
+     panel's rows, the lines take the second, and the wheel the rest, so the
+     wheel's top meets New's and the lines' bottom Archive's. Its 5 lines
+     stay ("go back to the wheel being 5 lines long"): the drum's text is a
+     sixth of the wheel's height, 5 lines of 1.2, so it shrinks and grows
+     with it. With no lines (an Xbox pad's legend, no button for the list
+     yet) the wheel is the buttons' height. ⓘ Six buttons the same day
+     (Rebind List): the wheel with the lines is as tall as it was alone. */
+  body.compact:not(.quick) #compactBox .cpick-wrap { display:inline-grid; grid-template-columns:auto auto;
+    grid-template-rows:1fr auto; align-items:center;
     column-gap:2vw; padding:calc(3 * var(--vh)) 2vw; min-width:0; box-sizing:border-box;
     background:#1d1f26; border:1px solid #2c2e36; border-radius:8px; }
-  body.compact:not(.quick) #compactBox .cwheel { position:relative; display:inline-flex; min-width:50vw; }
-  body.compact:not(.quick) #compactBox .cwheel > select { opacity:0; height:calc(32.4 * var(--vh));
+  body.compact:not(.quick) #compactBox .cwheel { position:relative; display:inline-flex; min-width:50vw;
+    grid-column:1; grid-row:1; align-self:stretch; }
+  body.compact:not(.quick) #compactBox .cwheel > select { opacity:0; height:auto; align-self:stretch;
     font-size:calc(5.4 * var(--vh)); appearance:none; -webkit-appearance:none;
     width:100%; min-width:0; border:0; padding:0 0.9em; }
   body.compact:not(.quick) #compactBox .cdrum { position:absolute; inset:0; pointer-events:none; border-radius:6px;
-    font-size:calc(5.4 * var(--vh)); }
+    font-size:calc(5.4 * var(--vh)); container-type:size; }
+  body.compact:not(.quick) #compactBox .cdrum > * { font-size:calc(100cqh / 6); }
   body.compact:not(.quick) #compactBox .cdrum-frame { position:absolute; left:0.18em; right:0.18em; top:50%;
     height:1.3em; margin-top:-0.65em; box-sizing:border-box;
     border:2px solid #3a3d47; border-radius:0.22em; background:#262833; }
@@ -3177,17 +3199,19 @@
   /* ⓘ Five buttons since 2026-10-22 (Archive), in the wheel's 32.4vh still,
      so the panel kept its height and the window its halved margins: each
      0.5vh of padding over and under, from 0.7, and 0.55vh between them,
-     from 1, the text the size it was. */
+     from 1, the text the size it was. ⓘ Six since 2026-11-12 (Rebind List),
+     the same size: the wheel and the PS lines under it take their height
+     (above), which the wheel and the lines had already. */
   /* ⭐ THE CONFIG PREVIEW'S LINE, CENTRED UNDER THE WHEEL IN THE BOX
      (2026-11-11; out of the box and back the next day): the panel's grid
      sets it in the wheel's column, on a row of its own. ⭐ Two of them side
      by side since 2026-11-12, "show/hide rebind list" and "hold to edit". */
-  body.compact:not(.quick) #compactBox .cvhints { grid-column:1; justify-self:center;
+  body.compact:not(.quick) #compactBox .cvhints { grid-column:1; grid-row:2; justify-self:center;
     display:inline-flex; align-items:center; gap:1.4em; margin-top:calc(0.6 * var(--vh));
     font-size:calc(2.8 * var(--vh)); color:#9a9ca5; white-space:nowrap; }
   body.compact:not(.quick) #compactBox .cvhint { display:inline-flex; align-items:center; gap:0.35em; }
   body.compact:not(.quick) #compactBox .csbtns { display:flex; flex-direction:column; align-items:stretch;
-    gap:calc(0.55 * var(--vh)); }
+    gap:calc(0.55 * var(--vh)); grid-column:2; grid-row:1 / span 2; }
   /* ⭐ GREYED, YET REACHABLE AND PRESSABLE (2026-10-22: "don't skip over
      disable buttons in simple mode. When click, show pop up why they are
      disabled"): dimmed by its own colours rather than by opacity, which
@@ -3805,7 +3829,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.70.4</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.70.5</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -8733,7 +8757,10 @@ function drumRowAt(sel, clientY) {
   var drum = sel.parentNode && sel.parentNode.querySelector('.cdrum');
   if (!drum || sel.options.length < 2) return 0;
   var box = drum.getBoundingClientRect();
-  var em = parseFloat(getComputedStyle(drum).fontSize) || 0;
+  // ⓘ The rows' own size, which Simple sets on the drum's parts rather than
+  // on the drum (a sixth of the wheel's height); Quick's parts inherit it.
+  var view = drum.querySelector('.cdrum-view') || drum;
+  var em = parseFloat(getComputedStyle(view).fontSize) || 0;
   if (!em || !box.height) return 0;
   var at = (clientY - box.top - box.height / 2) / em;
   var half = box.height / 2 / em;
@@ -12948,7 +12975,14 @@ function paintCompact() {
                   '<button onclick="newConfigFor(\'' + esc(d.ordinal) + '\')">New</button>' +
                   // ⓘ Asked first while the config preview is up (compactEdit).
                   '<button onclick="compactEdit()">Edit</button>' +
-                  unlinkBtn() + autoBtn + archiveBtn + '</span>' +
+                  unlinkBtn() + autoBtn +
+                  // ⭐ REBIND LIST UNDER AUTO LINK (rhoquinn8217, 2026-11-12: "add
+                  // "Rebind List" button under "Auto link""): a press shows or hides
+                  // the config preview, as PS and V do (togglePreview), for a mouse
+                  // and for a pad with no button for it.
+                  '<button class="crebind-btn" onclick="togglePreview()" title="show or hide the ' +
+                  'rebind list of the config on the wheel">Rebind List</button>' +
+                  archiveBtn + '</span>' +
                   // ⭐ THE CONFIG PREVIEW UNDER THE WHEEL, IN THE BOX (rhoquinn8217,
                   // 2026-11-11: "Centered under the wheel ... show the PS button
                   // symbol and show "view rebind list"", 2026-11-12: "show rebind
@@ -14624,6 +14658,46 @@ function selfTest() {
      pvDid.join(',') + ' armed=' + pvArmed + ' ' +
      (pvHint ? pvHint.className + ':' + pvHint.textContent : 'no line') +
      (pvHoldLine ? ' / ' + pvHoldLine.textContent : ''));
+  // ⭐ SIMPLE'S REBIND LIST, AND THE WHEEL AS TALL AS THE BUTTONS (2.70.5;
+  // rhoquinn8217, 2026-11-12: "shrink the wheel so that horizontal length of
+  // the wheel and the PS button legend under it matches the horizontal
+  // length of the buttons to the right of the wheel", then "add "Rebind
+  // List" button under "Auto link""): Rebind List between Auto link and
+  // Archive, its press showing or hiding the list; the wheel's top level
+  // with New's, the lines' bottom (the wheel's, with none) with Archive's;
+  // and 5 lines of the drum's text in the wheel.
+  var rlNote = 'not Simple', rlOk = true;
+  if (COMPACT && !QUICK && document.getElementById('cpick')) {
+    var rlBtns = Array.prototype.slice.call(document.querySelectorAll('#compactBox .csbtns > button'));
+    var rlBtn = document.querySelector('#compactBox .csbtns > .crebind-btn');
+    var rlAt = rlBtns.indexOf(rlBtn);
+    var rlToggled = 0, rlKeep = togglePreview;
+    try {
+      togglePreview = function () { rlToggled++; };
+      if (rlBtn && rlBtn.onclick) rlBtn.onclick();     // the handler alone, not a click's others
+    } finally { togglePreview = rlKeep; }
+    var rlWheel = document.querySelector('#compactBox .cwheel');
+    var rlLines = document.querySelector('#compactBox .cvhints');
+    var rlView = document.querySelector('#compactBox .cdrum-view');
+    var rlRect = function (el) { return el ? el.getBoundingClientRect() : null; };
+    var rlW = rlRect(rlWheel), rlL = rlRect(rlLines);
+    var rlF = rlRect(rlBtns[0]), rlZ = rlRect(rlBtns[rlBtns.length - 1]);
+    var rlEm = rlView ? parseFloat(getComputedStyle(rlView).fontSize) || 0 : 0;
+    var rlFoot = rlL ? rlL.bottom : rlW ? rlW.bottom : 0;
+    var rlLaid = !!(rlW && rlW.height && rlF && rlZ);
+    rlOk = !!rlBtn && rlAt > 0 && rlBtns[rlAt - 1].classList.contains('cauto-btn') &&
+           !!rlBtns[rlAt + 1] && rlBtns[rlAt + 1].classList.contains('carchive-btn') &&
+           rlBtn.textContent === 'Rebind List' && rlToggled === 1 &&
+           (!rlLaid || (Math.abs(rlW.top - rlF.top) < 1.5 && Math.abs(rlFoot - rlZ.bottom) < 1.5 &&
+                        rlEm > 0 && Math.abs(rlW.height - 6 * rlEm) < 1.5));
+    rlNote = 'at ' + rlAt + ' of ' + rlBtns.length + ', toggled ' + rlToggled +
+             (rlLaid ? ', wheel top ' + rlW.top.toFixed(1) + ' / New ' + rlF.top.toFixed(1) +
+                       ', foot ' + rlFoot.toFixed(1) + ' / Archive ' + rlZ.bottom.toFixed(1) +
+                       ', wheel ' + rlW.height.toFixed(1) + ' / 6 x ' + rlEm.toFixed(2)
+                     : ', not laid out');
+  }
+  ok('Simple: Rebind List under Auto link shows and hides the list; the wheel and its PS lines as tall as the buttons, 5 lines',
+     rlOk, rlNote);
   // ⭐ A QUESTION KEEPS ITS HALO ON CANCEL THROUGH A REPAINT in Simple and
   // Quick (2026-11-12): the device poll's repaint put it on OK.
   var pqHaloed = 'not a compact view';
@@ -19320,7 +19394,8 @@ function startPage() {
 // ⓘ PS on a pad (rebind.inl sends KeyP with the gate's three modifiers) or V
 // on a keyboard shows it and hides it, from this window, and held three
 // seconds is Edit (previewKeyDown): "show/hide rebind list" and "hold to
-// edit" under Simple's wheel and Quick's auto link (2026-11-12). The hold
+// edit" under Simple's wheel and Quick's auto link (2026-11-12). Simple's
+// Rebind List button shows and hides it too (the same day). The hold
 // goes straight to Advanced; Simple's Edit button asks first while the box is
 // up. ⭐ THE BOX NEVER KEEPS THE FRONT (rhoquinn8217,
 // 2026-11-12: "clicking the preview moves focus to the config window"): the
