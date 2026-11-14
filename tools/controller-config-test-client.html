@@ -2,7 +2,7 @@
 <!--
   DS5-USBIP's Controller Configs page, served by the listener.
 
-  VERSION 2.72.2 -- see the changelog at the bottom of this comment.
+  VERSION 2.72.3 -- see the changelog at the bottom of this comment.
 
   WHAT IT STARTED AS. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -24,6 +24,11 @@
   not a tidy message about it.
 
   CHANGELOG
+    2.72.3   (rhoquinn8217, 2026-11-14) A topic ends with its own box: "This is the
+             end of the <topic> tutorial. More tutorials can be found in the
+             DS5-USBIP tray icon menu", Finish tutorial ending it; Switching modes'
+             QUICK MODE step stands over the window's middle and its last step
+             reminds you to press Circle, then select the mode selector.
     2.72.2   (rhoquinn8217, 2026-11-14) The d-pad in the tour's words as "Use [d-pad]
              to move left", its direction lit, in every tour; the mode list no
              longer shuts as a step opens it; no tour starts by itself over one that
@@ -3920,7 +3925,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.72.2</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.72.3</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -16339,7 +16344,7 @@ function selfTest() {
     modeView = 'advanced';
     modeSeen.push(tutWordsSide(TUT_SIMPLE[4]) === 'center' && tutModeTo() === '');
     modeView = 'quick';
-    modeSeen.push(tutWordsSide(TUT_SIMPLE[8]) === 'below' && tutWordsOverQuick());
+    modeSeen.push(tutWordsSide(TUT_SIMPLE[8]) === 'center' && tutWordsOverQuick());
     TUT.at = 0;
     modeView = 'simple';
     modeSeen.push(modePickerHtml('tutModeTest').indexOf('value="quick">') >= 0);
@@ -17854,6 +17859,14 @@ function tutPartDesc(id) {
 }
 // A tutorial topic: one part run alone.
 function tutIsTopic() { return !!TUT && !!TUT.parts && TUT.parts.length === 1 && !TUT.whole; }
+// ⭐ A TOPIC'S LAST STEP (rhoquinn8217, 2026-11-14), in place of the tour's: where more are, and Finish tutorial.
+function tutTopicEndStep() {
+  return { lit: function () { return []; }, act: 'end',
+           words: function () {
+             return 'This is the end of the ' + tutPartName(TUT.parts[0]) + ' tutorial. More tutorials can be found in ' +
+                    'the DS5-USBIP tray icon menu. Choose ' + tutHl('Finish tutorial') + '.';
+           } };
+}
 function tutPartName(id) {
   for (var i = 0; i < TUT_PARTS.length; i++) if (TUT_PARTS[i].id === id) return TUT_PARTS[i].name;
   return '';
@@ -17959,8 +17972,8 @@ function tutModesPart(kind) {
            // ⓘ The tip says to press Circle: Circle does nothing on it (`noEndKey`).
            { side: 'center', sideOwn: true, noEndKey: true, lit: function () { return []; },
              words: function () {
-               return 'Tip: to switch modes quickly, press ' + tutKey('close') + ' to go to the footer, then ' +
-                      tutDpadMove(['left']) + ' to the mode selector.';
+               return 'Remember, when you want to switch modes, press ' + tutKey('close') + ' to go to the footer, ' +
+                      'then select the mode selector.';
              } });
   return out;
 }
@@ -17984,7 +17997,7 @@ function tutModeSaid(kind, first) {
     : kind === 'quick'
     ? 'This is QUICK MODE. It uses a minimal interface, made for quickly switching between your configs.'
     : "This is Simple Mode. It's where to get started: where you create your own configs or ones from presets, and manage them.";
-  return { side: kind === 'quick' ? 'below' : 'center', sideOwn: true, views: [kind],
+  return { side: 'center', sideOwn: true, views: [kind],
            lit: function () { return [tutWholeOf(kind)]; },
            anchors: function () { return [tutModePick(kind)]; },
            words: function () { return what + (first ? " Let's take a look at the other two modes." : ''); } };
@@ -19222,6 +19235,7 @@ function tutBegin(kind, parts) {
   TUT = { kind: kind, phase: 'intro', at: 0, done: [], mem: [], busy: false, focus: null,
           saved: ACTIVE, parts: parts, whole: parts.length === order.length, skipped: {},
           steps: tutAllSteps(kind).filter(function (s) { return !s.part || parts.indexOf(s.part) >= 0; }) };
+  if (TUT.parts.length === 1 && !TUT.whole) TUT.steps[TUT.steps.length - 1] = tutTopicEndStep();
   // ⭐ At this mode's large size, borrowed from DS5-USBIP (tutLargeSize).
   TUT.startMode = tutViewKind();
   tutSizeAsk({ large: true });
@@ -19320,6 +19334,8 @@ function tutBarKey(code, gated, plain) {
 // type over the window's middle (the words window's `big`), the dim goes, and
 // confetti falls over the window; Done, R2, Circle or Cross ends the tour.
 function tutCongrats() {
+  // ⭐ A topic ends at its own last step: Finish tutorial ends it, no card after.
+  if (tutIsTopic()) { tutFinish(); return; }
   tutCloseOpen();
   TUT.phase = 'done';
   TUT.focus = null;
