@@ -802,9 +802,17 @@ inline void refresh(HWND hwnd)
         g_placing = g_posted.load();
     }
     const HWND win = c.show ? configs_window() : nullptr;
-    if (win == nullptr || IsIconic(win) || GetForegroundWindow() != win) {
+    // ⭐ WORDS IN THE MIDDLE OF THE SCREEN STAY WHEN ANOTHER WINDOW HAS THE FRONT (rhoquinn8217, 2026-11-14, the
+    // quick switch's window select: "the tutorial box does not come back in front after a window switch"): they
+    // are not beside the configs window, so a window picked in front of it hides nothing they point at. They stay
+    // on top of it, never taking the focus.
+    const bool onScreen = c.prefer == tbr::Prefer::Screen;
+    if (win == nullptr || IsIconic(win) || (!onScreen && GetForegroundWindow() != win)) {
         hide_now(hwnd);
         return;
+    }
+    if (onScreen && GetForegroundWindow() != win) {
+        SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
     }
     const UINT dpi = GetDpiForWindow(win);
     const RECT frame = frame_of(win);

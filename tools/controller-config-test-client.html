@@ -17540,7 +17540,10 @@ function tutShrink() {
   if (TUT_SHRUNK) return;
   TUT_SHRUNK = true;
   if (TUT_SIZING) {
-    var cx = window.screenX + window.outerWidth / 2, cy = window.screenY + window.outerHeight / 2;
+    // ⭐ The middle of the screen, behind the words that stand there (2026-11-14: the shrunk window "should
+    // stay behind it ... to look like it's not there"), not about where the window was.
+    var cx = (window.screen.availLeft || 0) + window.screen.availWidth / 2;
+    var cy = (window.screen.availTop || 0) + window.screen.availHeight / 2;
     window.resizeTo(1, 1);
     // ⓘ resizeTo is asynchronous: centred where the window was once the
     // browser has made it as small as it goes.
