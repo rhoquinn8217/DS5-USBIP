@@ -380,6 +380,14 @@ inline Layout compute_layout(HDC dc, Fonts *fonts, const Content &c, UINT dpi,
     // the window's middle (tbr::place_at, Center).
     const int innerGap = px(z.innerGap, dpi);
     const int innerH = textH + (c.buttons.empty() ? 0 : innerGap + btnH);
+    // ⭐ A MINIMUM SIZE FOR THE WORDS' BOX (rhoquinn8217, 2026-11-14: a short description "looks awkwardly
+    // small compared to the buttons underneath"): never narrower than the buttons under it, nor shorter
+    // than two lines of words.
+    if (!card) {
+        if (!c.buttons.empty() && boxW < rowW) boxW = rowW;
+        const int least = 2 * L.pad + 2 * L.lineH;
+        if (boxH < least) boxH = least;
+    }
     if (card) {
         L.centred = true;
         const int wide = (textW > rowW ? textW : rowW) + 2 * L.pad;

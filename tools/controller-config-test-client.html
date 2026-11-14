@@ -2,7 +2,7 @@
 <!--
   DS5-USBIP's Controller Configs page, served by the listener.
 
-  VERSION 2.72.4 -- see the changelog at the bottom of this comment.
+  VERSION 2.72.5 -- see the changelog at the bottom of this comment.
 
   WHAT IT STARTED AS. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -24,6 +24,12 @@
   not a tidy message about it.
 
   CHANGELOG
+    2.72.5   (rhoquinn8217, 2026-11-14) The controller settings' steps hold the window: it
+             stays open between them (a click outside, Circle and Close do not shut it
+             until the last asks), the one that says what it holds scrolls and nothing
+             else, the rate and Reset steps reach that control alone, Reset's question
+             has a step of its own, and the last asks you to close it; the arrow at
+             R3's step points at the gear. A topic's card reads "Tutorial: <topic>".
     2.72.4   (rhoquinn8217, 2026-11-14) Your controllers in their steps: the polling
              rate said, R3 pressed, the controller's settings said, the rate set to
              250 Hz and said, Reset with its question, the defaults said; the
@@ -3930,7 +3936,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.72.4</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.72.5</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -3992,14 +3998,14 @@
      outside the the setting box should close it"): pressed and let go on the
      dim around it, so a press that starts on a row and ends outside does not. -->
 <div id="ctlSetBox" style="display:none" onmousedown="CTLSET_DOWN = (event.target === this)"
-     onclick="if (event.target === this &amp;&amp; CTLSET_DOWN) closeControllerSettings(); CTLSET_DOWN = false">
+     onclick="if (event.target === this &amp;&amp; CTLSET_DOWN &amp;&amp; !tutHoldSettings()) closeControllerSettings(); CTLSET_DOWN = false">
   <div class="confirmCard">
     <h2 id="ctlSetTitle">Controller settings</h2>
     <div id="ctlSetSub"></div>
     <div id="ctlSetRows"></div>
     <div id="ctlSetFoot"><span id="ctlSetHint"></span>
       <span id="ctlSetBtns"><button id="ctlSetReset" onclick="resetControllerSettings()">Reset</button>
-      <button id="ctlSetClose" onclick="closeControllerSettings()">Close</button></span></div>
+      <button id="ctlSetClose" onclick="if (!tutHoldSettings()) closeControllerSettings()">Close</button></span></div>
   </div>
 </div>
 
@@ -11126,7 +11132,7 @@ function gpKeyBack() {
     return;
   }
   if (GP_SELECTING) { gpSelectEnd(false); return; }
-  if (SETTINGS_OPEN) { closeControllerSettings(); return; }
+  if (SETTINGS_OPEN) { if (!tutHoldSettings()) closeControllerSettings(); return; }
   if (RENAMING) { cancelRename(); return; }
   // ⭐ IN SIMPLE AND QUICK, CIRCLE GOES TO THE CLOSE BUTTON RATHER THAN
   // CLOSING. Simple first (rhoquinn8217, 2026-09-20: *"circle button or esc on
@@ -16490,7 +16496,7 @@ function selfTest() {
     TUT = keepRun;
     ok('the tutorial: a run of one part is that part and the last step, its card naming it; some parts ' +
        'are the tour, in its order, its card naming them; all of them the tour as it was',
-       oneSteps === 7 && oneLast && oneTitle === 'Tutorial Topic' &&
+       oneSteps === 7 && oneLast && oneTitle === 'Tutorial: Quick switch' &&
        oneWords === 'This tutorial goes over putting the window away with Close, and bringing it back mid-game with the ' +
                   'two-finger touchpad quick switch, including window select.' &&
        oneDone === 'Tutorial Topic Completed' &&
@@ -16614,6 +16620,19 @@ function selfTest() {
     var wholeTour = !tutIsTopic();
     TUT = keepTC;
     ok('the tutorial: only one part run alone is a topic, with no confetti', topicBody && wholeTour, topicBody + ',' + wholeTour);
+    // the controller settings' steps hold the window: open, scroll only, one control, its question, then closed
+    ['simple', 'quick'].forEach(function (k) {
+      var keepCS = [TUT, TUT_MOCK];
+      TUT = { kind: k, made: '' };
+      TUT_MOCK = tutMockMake(k);
+      var cs = tutAllSteps(k).filter(function (s) { return s.part === 'controllers'; });
+      var shape = cs.length === 10 && cs[4].scrollOnly && cs[4].holdOpen && !!cs[5].holdFocus && cs[5].holdOpen &&
+                  !!cs[6].holdFocus && cs[6].holdOpen && cs[7].holdOpen && cs[7].act === true && cs[8].act === true &&
+                  !cs[8].holdOpen && !cs[3].holdOpen && cs[3].act === true && /polling rate is now/.test(cs[6].words()) &&
+                  /Choose \[\[OK\]\]/.test(cs[7].words()) && /close the settings window/.test(cs[8].words());
+      TUT = keepCS[0]; TUT_MOCK = keepCS[1];
+      ok('the tutorial: ' + k + '\'s settings steps hold the window and each asks for one thing', shape, '' + cs.length);
+    });
   }
 
   // The pre-set page's Triggers keep the left trigger's rows in the left
@@ -17945,7 +17964,7 @@ function tutPartPassed(s) {
 function tutCardTitle() {
   var card = TUT_CARDS[TUT.kind];
   // ⭐ A topic's card names no topic (rhoquinn8217, 2026-11-14): it says what it goes over.
-  return tutIsTopic() ? 'Tutorial Topic' : card.title;
+  return tutIsTopic() ? 'Tutorial: ' + tutPartName(TUT.parts[0]) : card.title;
 }
 function tutCardWords() {
   var card = TUT_CARDS[TUT.kind];
@@ -18146,7 +18165,13 @@ function tutSettingsOpen() {
 function tutSettingsShut() { if (SETTINGS_OPEN) closeControllerSettings(); }
 function tutSettingsBox() { return SETTINGS_OPEN ? tutCard('ctlSetBox') : []; }
 function tutRateBox() { var s = tutById('cs-rate'); return s ? [s] : tutSettingsBox(); }
+function tutResetDone() { var p = tutPad(); return !CONFIRM_CB && !!p && TUT_MOCK.limits[p.ordinal] !== '250'; }
+// ⭐ THE STEPS HOLD THE WINDOW (rhoquinn8217, 2026-11-14): open between them (`holdOpen`: a click outside,
+// Circle and Close do not shut it), scrolled and nothing else on the one that says what it holds
+// (`scrollOnly`), and the halo held on one control on the ones that use it (`holdFocus`,
+// `pointerOnly`: the key and the mouse reach that control alone).
 function tutSettingsSteps(kind) {
+  var resetBtn = function () { return tutById('ctlSetReset'); };
   return [
     // 3: the polling rate and its limit, under it.
     { side: 'below', sideOwn: true, arrowDir: 'up', enter: tutSettingsShut,
@@ -18154,44 +18179,93 @@ function tutSettingsSteps(kind) {
       words: function () {
         return 'This line shows how often ' + tutNick() + ' reports to the PC, and the limit you have set for it.';
       } },
-    // 4: R3, which opens the settings.
+    // 4: R3, which opens the settings; the arrow at the gear where there is one.
     { side: 'right', sideOwn: true, act: true, enter: tutSettingsShut,
       lit: function () {
         return SETTINGS_OPEN ? tutSettingsBox()
              : kind === 'quick' ? tutRateLine(kind) : tutRateLine(kind).concat(tutQ('.cname .crate .csetgear'));
       },
-      anchors: function () { return tutRateLine(kind); },
+      anchors: function () {
+        var gear = kind === 'quick' ? [] : tutQ('.cname .crate .csetgear');
+        return gear.length ? gear : tutRateLine(kind);
+      },
       keys: function (code, gated, plain) { return (gated && code === 'KeyL') || (plain && code === 'KeyS'); },
       words: function () { return 'Press ' + tutKey('rate') + ' to open ' + tutNick() + "'s own settings."; },
       done: function () { return !!SETTINGS_OPEN; } },
-    // 5: the window, from its right.
-    { side: 'right', sideOwn: true, inSettings: true, keepOpen: true, arrowDir: 'left', enter: tutSettingsOpen,
+    // 5: the window, from its right. Scroll only.
+    { side: 'right', sideOwn: true, inSettings: true, keepOpen: true, holdOpen: true, scrollOnly: true,
+      arrowDir: 'left', enter: tutSettingsOpen,
       lit: tutSettingsBox, anchors: tutSettingsBox,
       words: function () { return "These are " + tutNick() + "'s own settings."; } },
-    // 6: the rate to 250 Hz.
-    { side: 'right', sideOwn: true, act: true, inSettings: true, keepOpen: true,
+    // 6: the rate to 250 Hz: the halo held on the rate limit.
+    { side: 'right', sideOwn: true, act: true, inSettings: true, keepOpen: true, holdOpen: true,
+      holdFocus: function () { return tutById('cs-rate'); },
+      pointerOnly: function () { var s = tutById('cs-rate'); return s ? [s.closest('.csrow')] : []; },
       enter: function () { tutSettingsOpen(); tutRateEnter(); },
+      tick: tutHoldFocus,
       lit: tutSettingsBox, anchors: tutRateBox,
       words: function () { return 'Change the polling rate to ' + tutHl('250 Hz') + '.'; },
       done: tutRateDone },
-    // 7: said to be set.
-    { side: 'right', sideOwn: true, inSettings: true, keepOpen: true, enter: tutSettingsOpen,
-      lit: tutRateBox, anchors: tutRateBox,
-      words: function () { return tutNick() + "'s polling rate is now " + tutHl('250 Hz') + '.'; } },
-    // 8: Reset, and its question.
-    { side: 'right', sideOwn: true, act: true, inSettings: true, keepOpen: true,
-      enter: function () { tutSettingsOpen(); },
-      lit: tutSettingsBox, anchors: function () { var b = tutById('ctlSetReset'); return b ? [b] : tutSettingsBox(); },
+    // 7: the rate said, and Reset: the halo held on it.
+    { side: 'right', sideOwn: true, act: true, inSettings: true, keepOpen: true, holdOpen: true,
+      holdFocus: resetBtn,
+      pointerOnly: function () { var b = resetBtn(); return b ? [b] : []; },
+      enter: tutSettingsOpen, tick: tutHoldFocus,
+      lit: tutSettingsBox, anchors: function () { var b = resetBtn(); return b ? [b] : tutSettingsBox(); },
       words: function () {
-        return "Let's reset all settings. " + tutDpadSelect(true).replace(' to select', ' to move to') + ' the ' +
-               tutHl('Reset') + ' button and press ' + tutKey('select') + ', then choose ' + tutHl('OK') + '.';
+        return tutNick() + "'s polling rate is now " + tutHl('250 Hz') + ". Let's reset all settings. " +
+               tutDpadSelect(true).replace(' to select', ' to move to') + ' the ' + tutHl('Reset') +
+               ' button and press ' + tutKey('select') + '.';
       },
-      done: function () { var p = tutPad(); return !CONFIRM_CB && !!p && TUT_MOCK.limits[p.ordinal] !== '250'; } },
-    // 9: the defaults, said.
-    { side: 'right', sideOwn: true, inSettings: true, enter: tutSettingsOpen,
+      done: function () { return !!CONFIRM_CB; } },
+    // 8: its question, to answer OK; Cancel goes back to Reset.
+    { side: 'right', sideOwn: true, act: true, inSettings: true, keepOpen: true, holdOpen: true,
+      enter: function () { tutSettingsOpen(); if (!CONFIRM_CB) resetControllerSettings(); },
+      tick: function () {
+        if (CONFIRM_CB || tutResetDone()) { TUT.cgAt = 0; return; }
+        TUT.cgAt = TUT.cgAt || Date.now();
+        if (Date.now() - TUT.cgAt > 1200) { TUT.cgAt = 0; TUT.done[TUT.at - 1] = false; TUT.done[TUT.at] = false; tutShow(TUT.at - 1); }
+      },
+      lit: tutConfirmCard, anchors: tutConfirmCard,
+      words: function () {
+        return 'Choose ' + tutHl('OK') + ' to reset ' + tutNick() + "'s settings.";
+      },
+      done: tutResetDone },
+    // 9: the defaults, said, and the window shut.
+    { side: 'right', sideOwn: true, act: true, inSettings: true, enter: tutSettingsOpen,
       lit: tutSettingsBox, anchors: function () { return []; },
-      words: function () { return tutNick() + "'s settings are now set to defaults."; } }
+      words: function () {
+        return tutNick() + "'s settings are now set to defaults. Press " + tutKey('close') + ' or choose ' +
+               tutHl('Close') + ' to close the settings window.';
+      },
+      done: function () { return !SETTINGS_OPEN; } }
   ];
+}
+// The halo held on a step's control while the window is up (`holdFocus`), unless it is choosing in it.
+function tutHoldFocus() {
+  var s = tutStep();
+  if (!s || !s.holdFocus || !SETTINGS_OPEN || CONFIRM_CB || GP_SELECTING) return;
+  var el = s.holdFocus();
+  if (el && GP_FOCUS[GP_INDEX] !== el && GP_FOCUS.indexOf(el) >= 0) focusElement(el);
+}
+// Whether the settings window is to stay open on this step (a click outside, Circle, Close).
+function tutHoldSettings() {
+  var s = TUT ? tutStep() : null;
+  return !!(s && s.holdOpen);
+}
+// The keys a step that scrolls or holds one control lets through while the window is up: its own keys, and
+// R2 and L2 (tutBarThroughSettings), nothing else.
+function tutSettingsKeyBlocked(code, gated, plain) {
+  var s = TUT ? tutStep() : null;
+  if (!s || !SETTINGS_OPEN || CONFIRM_CB || RENAMING || !(s.scrollOnly || s.holdFocus)) return false;
+  var bar = tutBarKey(code, gated, plain);
+  if (bar === 'next' || bar === 'prev') return false;
+  var updown = (gated && (code === 'KeyW' || code === 'KeyS')) || (plain && (code === 'ArrowUp' || code === 'ArrowDown'));
+  var press = (gated && code === 'Enter') || (plain && (code === 'Enter' || code === 'Space'));
+  var back = (gated && code === 'KeyZ') || (plain && code === 'Escape');
+  if (s.scrollOnly) return !updown;
+  if (GP_SELECTING && GP_SELECTING === s.holdFocus()) return !(updown || press || back);
+  return !press;
 }
 
 // ---- Quick switch, the part Simple and Quick have -------------------------------
@@ -19982,7 +20056,10 @@ window.addEventListener('keydown', function (ev) {
   if (!TUT) return;
   var gated = ev.ctrlKey && ev.altKey && ev.shiftKey;
   var plain = !ev.ctrlKey && !ev.altKey && !ev.metaKey && !ev.shiftKey;
-  if (tutPageModal() && !tutBarThroughSettings(ev.code, gated, plain)) return;
+  if (tutPageModal() && !tutBarThroughSettings(ev.code, gated, plain)) {
+    if (tutSettingsKeyBlocked(ev.code, gated, plain)) { ev.preventDefault(); ev.stopImmediatePropagation(); }
+    return;
+  }
   if (tutTakeKey(ev.code, gated, plain, ev.repeat)) return;
   ev.preventDefault();
   ev.stopImmediatePropagation();
@@ -20022,14 +20099,20 @@ function tutPadPoll(edge, pressed, now) {
 // ⛔⛔ AND AHEAD OF EVERY POINTER HANDLER: a press, or the wheel, anywhere but
 // what a step lets you use goes nowhere. ⓘ The page's own question, while
 // it is up, takes the mouse too.
-function tutAllows(t) {
+function tutAllows(t, type) {
   if (!TUT) return true;
   var root = tutById('tutRoot');
   if (root && t && root.contains(t)) return true;
   var box = CONFIRM_CB ? document.getElementById('confirmBox')
           : RENAMING ? document.getElementById('renameRow')
           : SETTINGS_OPEN ? document.getElementById('ctlSetBox') : null;
-  if (box && t && box.contains(t)) return true;
+  if (box && t && box.contains(t)) {
+    // ⭐ The settings window's steps: scroll alone, or the one control (2026-11-14).
+    var hs = box.id === 'ctlSetBox' ? tutStep() : null;
+    if (hs && hs.scrollOnly) return type === 'wheel';
+    if (hs && hs.pointerOnly) return hs.pointerOnly().some(function (el) { return !!el && el.contains(t); });
+    return true;
+  }
   var s = tutStep();
   if (s && (s.act === true || s.free) && !TUT.busy && (!s.pointer || s.pointer())) {
     var hits = tutHits(s);
@@ -20040,7 +20123,7 @@ function tutAllows(t) {
 ['pointerdown', 'mousedown', 'mouseup', 'click', 'dblclick', 'auxclick', 'contextmenu', 'wheel']
   .forEach(function (type) {
     window.addEventListener(type, function (ev) {
-      if (!TUT || tutAllows(ev.target)) return;
+      if (!TUT || tutAllows(ev.target, ev.type)) return;
       ev.preventDefault();
       ev.stopImmediatePropagation();
     }, { capture: true, passive: false });
