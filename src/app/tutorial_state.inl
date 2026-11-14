@@ -84,25 +84,25 @@ struct Part {
     const wchar_t *name;    // the tray's
     bool tours[4];          // by Kind: which tours have it
 };
-inline constexpr int kPartCount = 8;
+inline constexpr int kPartCount = 7;
+// ⭐ Making and managing configs are ONE topic since 2026-11-14 (rhoquinn8217: "Combine making configs and
+// managing configs into one topic and always use simple mode for this tutorial"): Simple's only.
 inline constexpr Part kParts[kPartCount] = {
-    { "modes",       L"Switching modes",       { false, true,  true,  true  } },
-    { "controllers", L"Your controllers",      { false, true,  true,  false } },
-    { "making",      L"Making configs",        { false, true,  false, true  } },
-    { "managing",    L"Managing configs",      { false, true,  true,  true  } },
-    { "window",      L"The window",            { false, true,  true,  true  } },
-    { "switch",      L"Quick switch",          { false, true,  true,  false } },
-    { "overview",    L"The Overview and tabs", { false, false, false, true  } },
-    { "customizing", L"Customizing configs",   { false, false, false, true  } },
+    { "modes",       L"Switching modes",          { false, true,  true,  true  } },
+    { "controllers", L"Your controllers",         { false, true,  true,  false } },
+    { "configs",     L"Making and managing configs", { false, true, false, false } },
+    { "window",      L"The window",               { false, true,  true,  true  } },
+    { "switch",      L"Quick switch",             { false, true,  true,  false } },
+    { "overview",    L"The Overview and tabs",    { false, false, false, true  } },
+    { "customizing", L"Customizing configs",      { false, false, false, true  } },
 };
 
-// Each tour's parts in the order it runs them, as places in kParts. ⓘ
-// Advanced's makes a config before customizing it, and archives it after.
+// Each tour's parts in the order it runs them, as places in kParts.
 inline std::vector<int> tour_parts(int kind)
 {
-    if (kind == Simple) return { 0, 1, 2, 3, 4, 5 };
-    if (kind == Quick) return { 0, 1, 3, 4, 5 };
-    if (kind == Advanced) return { 0, 6, 2, 7, 3, 4 };
+    if (kind == Simple) return { 0, 1, 2, 3, 4 };
+    if (kind == Quick) return { 0, 1, 3, 4 };
+    if (kind == Advanced) return { 0, 5, 6, 3 };
     return {};
 }
 

@@ -209,6 +209,10 @@ std::string ui_tour_pad_take();
 // ⓘ And whether its step lets the d-pad's window switcher open, for the tour
 // to try window select (quick_switch_session.inl). Defined below.
 void ui_tour_switcher(bool on);
+// ⓘ The tour's words back on top after a pick (tutorial_bubble.inl), and which legend buttons its step lets
+// work, a bit each: 1 Options (position), 2 Create (size) (config_move.inl). Defined below.
+void ui_tutorial_words_raise();
+void ui_tour_legend(int allowed);
 // ⓘ The tour's window shrunk in place of a close: no place or size kept from
 // it (config_move.inl). Defined below.
 void ui_tour_shrunk(bool on);
@@ -590,6 +594,14 @@ void ui_tour_pad(bool on)
 void ui_tour_switcher(bool on)
 {
     quick_switch_session::mock_switcher(on);
+}
+void ui_tutorial_words_raise()
+{
+    tutorial_bubble::raise();
+}
+void ui_tour_legend(int allowed)
+{
+    config_move::set_tour_legend(allowed);
 }
 std::string ui_tour_pad_take()
 {

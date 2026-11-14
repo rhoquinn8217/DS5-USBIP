@@ -1053,6 +1053,10 @@ inline std::atomic_int  g_tutorialAsked{tutorial_state::None};
 // the part of the tour the tray asked for, or -1 for all of it.
 inline std::atomic<uint32_t> g_tutorialPartsDone{0};
 inline std::atomic_int  g_tutorialAskedPart{-1};
+// ⭐ WHICH LEGEND BUTTONS A TOUR'S STEP LETS WORK (rhoquinn8217, 2026-11-14: "don't allow create button to be
+// pressed", "don't allow options button to be pressed"): Options (1) and Create (2), the two the listener acts
+// on from the pad's own report. The page says it with each step's words; with no tour up both work.
+inline std::atomic_int  g_tourLegend{3};
 inline std::mutex g_stampMutex;
 inline std::string g_installStamp;
 
@@ -1504,6 +1508,13 @@ inline void set_tutorial_seen(int kind, bool seen)
     state_save();
 }
 
+inline void set_tour_legend(int allowed) { g_tourLegend.store(allowed); }
+// 1 Options, 2 Create. ⓘ Only while a tour's words are up: a page that went away leaves them working.
+inline bool legend_allows(int bit)
+{
+    return !ui_tutorial_words_up() || (g_tourLegend.load() & bit) != 0;
+}
+
 // The tray's list of tutorials: one asked for there, taken by the page, with
 // the part of it asked for, or -1 for the whole tour. ⓘ The part first, so
 // a page reading between the two never takes a part as the whole tour.
@@ -1707,11 +1718,13 @@ inline void resize_next(HWND hwnd)
 // which has no keyboard equivalent and is not what P is for.
 inline void position_tap()
 {
+    if (!legend_allows(1)) return;
     if (HWND h = page_window()) snap_next(h);
 }
 
 inline void size_next()
 {
+    if (!legend_allows(2)) return;
     if (HWND h = page_window()) resize_next(h);
 }
 
@@ -1833,7 +1846,9 @@ inline bool handle_report(const void *deviceKey, const ctm_rebind::Layout &lay,
     // ⓘ R3 is given back. It is a gyro gate as of T-235, and a button that
     // resizes a window while also aiming is a collision waiting to happen.
     if (r3_edge(deviceKey, ctm_overlay::button_down(lay, data, len, 8))) {
-        if (HWND h = page_window()) resize_next(h);
+        if (legend_allows(2)) {
+            if (HWND h = page_window()) resize_next(h);
+        }
         // The press goes through; the page no longer acts on Create.
     }
 
@@ -1847,11 +1862,13 @@ inline bool handle_report(const void *deviceKey, const ctm_rebind::Layout &lay,
     if (mv.released) flush_pos();
 
     if (mv.tapped) {
-        if (HWND h = page_window()) snap_next(h);
+        if (legend_allows(1)) {
+            if (HWND h = page_window()) snap_next(h);
+        }
         return false;   // the release itself goes through; the page ignores Options anyway
     }
     if (mv.holding) {
-        if (mv.dx != 0 || mv.dy != 0) {
+        if ((mv.dx != 0 || mv.dy != 0) && legend_allows(1)) {
             if (HWND h = page_window()) nudge(h, mv.dx, mv.dy);
         }
         return true;

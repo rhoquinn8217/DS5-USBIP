@@ -207,7 +207,12 @@ enum class Side { Above, Below, Right, Left };
 // the rule below. Center is over the window's middle, not beside it
 // (2026-10-26: "For the introduction and closing step of the tutorial, put
 // the bubble in the center of the config window").
-enum class Prefer { None, Above, Below, Left, Right, Center };
+enum class Prefer { None, Above, Below, Left, Right, Center, Screen };
+
+// ⭐ SCREEN: the middle of the SCREEN, not of the window (rhoquinn8217, 2026-11-14, the quick switch's
+// steps: "keep the tutorial step box in the center of the screen and don't move it around when quick mode
+// opens or closes"). Centred as Center is, with no arrow.
+inline bool centred(Prefer p) { return p == Prefer::Center || p == Prefer::Screen; }
 
 // The page names it "above", "below", "left", "right" or "center"; anything
 // else is None.
@@ -218,6 +223,7 @@ inline Prefer parse_prefer(const std::string &side)
     if (side == "left") return Prefer::Left;
     if (side == "right") return Prefer::Right;
     if (side == "center") return Prefer::Center;
+    if (side == "screen") return Prefer::Screen;
     return Prefer::None;
 }
 
@@ -289,11 +295,12 @@ inline Placement place_at(const Box &win, const Box &work, int stackW, int stack
     const int margin = gap;
     // ⭐ CENTER: the words and buttons over the middle of the window itself,
     // kept on the screen, with no arrow to point anywhere.
-    if (prefer == Prefer::Center) {
+    if (centred(prefer)) {
         Placement p;
-        const int x = clamp_to(win.left + (win.width() - stackW) / 2, work.left + margin,
+        const Box &ref = prefer == Prefer::Screen ? work : win;
+        const int x = clamp_to(ref.left + (ref.width() - stackW) / 2, work.left + margin,
                                work.right - margin - stackW);
-        const int y = clamp_to(win.top + (win.height() - stackH) / 2, work.top + margin,
+        const int y = clamp_to(ref.top + (ref.height() - stackH) / 2, work.top + margin,
                                work.bottom - margin - stackH);
         p.window = { x, y, x + stackW, y + stackH };
         p.arrowsAt.push_back(0);

@@ -132,6 +132,19 @@ int run_tutorial_bubble_rule_tests()
         CTM_CHECK(found);
     }
 
+    section("tutorial words: Screen is the middle of the screen, Center the middle of the window");
+    {
+        CTM_CHECK(tbr::parse_prefer("screen") == tbr::Prefer::Screen);
+        CTM_CHECK(tbr::centred(tbr::Prefer::Screen) && tbr::centred(tbr::Prefer::Center) && !tbr::centred(tbr::Prefer::Left));
+        const tbr::Box win{ 1000, 900, 1400, 1100 }, work{ 0, 0, 2000, 1200 };
+        const tbr::Placement screen = tbr::place_at(win, work, 300, 100, 0, 10, 8, { { 500, 500 } }, tbr::Prefer::Screen);
+        CTM_CHECK_EQ(screen.window.left, 850);
+        CTM_CHECK_EQ(screen.window.top, 550);
+        const tbr::Placement centre = tbr::place_at(win, work, 300, 100, 0, 10, 8, { { 500, 500 } }, tbr::Prefer::Center);
+        CTM_CHECK_EQ(centre.window.left, 1050);
+        CTM_CHECK_EQ(centre.window.top, 950);
+    }
+
     section("tutorial words: above Simple's window, clear of it and on the screen");
     {
         const auto p = tbr::place(simple, work, 380, 130, 12, 10, 10, 500, 400);

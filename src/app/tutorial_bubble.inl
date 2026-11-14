@@ -407,7 +407,7 @@ inline Layout compute_layout(HDC dc, Fonts *fonts, const Content &c, UINT dpi,
     // title bar one more thing to keep off. Where the words stand now stays,
     // while it still covers nothing, so a tip changing or the wheel turning
     // under them moves nothing.
-    if (c.hasTarget && c.prefer != tbr::Prefer::Center) {
+    if (c.hasTarget && !tbr::centred(c.prefer)) {
         const int cw = client.right - client.left, ch = client.bottom - client.top;
         const auto onPage = [&](const tbr::Box &b) {
             return tbr::Box{ client.left + cw * b.left / 1000, client.top + ch * b.top / 1000,
@@ -470,7 +470,7 @@ inline Layout compute_layout(HDC dc, Fonts *fonts, const Content &c, UINT dpi,
         x += btnW[i] + between;
     }
     // ⓘ None over the window's middle: there is nothing beside it to point at.
-    if (!c.arrow || c.prefer == tbr::Prefer::Center) return L;
+    if (!c.arrow || tbr::centred(c.prefer)) return L;
     for (const int a : L.place.arrowsAt) {
         Layout::Tri t{};
         switch (L.place.side) {
@@ -845,7 +845,7 @@ inline void refresh(HWND hwnd)
     ReleaseDC(hwnd, dc);
     {
         std::lock_guard<std::mutex> lock(g_mutex);
-        g_side = c.prefer == tbr::Prefer::Center ? "center" : tbr::side_name(g_layout.place.side);
+        g_side = tbr::centred(c.prefer) ? "center" : tbr::side_name(g_layout.place.side);
     }
     SetWindowRgn(hwnd, make_region(g_layout), FALSE);   // ⓘ Windows owns the region now
     const tbr::Box &w = g_layout.place.window;
@@ -1037,6 +1037,17 @@ inline void update(const Content &c)
 inline void hide()
 {
     update(Content());
+}
+
+// ⭐ BACK ON TOP (2026-11-14: after a window is picked in a tour's window select, "make the tutorial
+// box come back in focus"): the words stay topmost, never active; this puts them above whatever the pick
+// brought to the front, without taking the focus.
+inline void raise()
+{
+    const HWND h = g_hwnd.load();
+    if (h != nullptr && IsWindowVisible(h)) {
+        SetWindowPos(h, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+    }
 }
 
 // The side the words stand on now, for the arrow the page draws: "left",
@@ -1306,7 +1317,7 @@ inline int replay_mode(int argc, wchar_t **argv)
         const tbr::Box &w = L.place.window;
         const bool stayed = keep && w.left == here.x && w.top == here.y;
         std::wcout << n << L" " << (c.title.empty() ? c.count : c.title) << L" "
-                   << (c.prefer == tbr::Prefer::Center ? L"center" : wide(tbr::side_name(L.place.side))) << L" "
+                   << (tbr::centred(c.prefer) ? L"center" : wide(tbr::side_name(L.place.side))) << L" "
                    << w.left << L"," << w.top << L" " << w.width() << L"x" << w.height()
                    << (stayed ? L" stayed" : L" placed") << (c.hasTarget ? L"" : L" (no target)") << L"\n";
         here = POINT{ w.left, w.top };

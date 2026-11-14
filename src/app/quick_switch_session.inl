@@ -646,6 +646,7 @@ inline void raise_tour_after_pick(const void *deviceKey)
             if (!g_mockOn.load() || pad == g_pads.end() || !quick_switch::mock_up(pad->second.mock)) return;
         }
         const std::wstring picked = ctm_open_ui::front_after_pick();
+        ui_tutorial_words_raise();
         device_log::input_w() << L"quick switch: the tour's window select picked "
                               << (picked.empty() ? std::wstring(L"a window") : picked)
                               << L": the tour's window back in front of it, a finger still on the touchpad";

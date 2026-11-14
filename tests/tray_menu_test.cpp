@@ -81,10 +81,9 @@ int run_tray_menu_tests()
 
     section("tutorial: the parts, each once, the tours that have them and each tour's order");
     {
-        CTM_CHECK_EQ(tutorial_state::kPartCount, 8);
-        const char *ids[] = { "modes", "controllers", "making", "managing", "window", "switch",
-                              "overview", "customizing" };
-        const char *names[] = { "Switching modes", "Your controllers", "Making configs", "Managing configs",
+        CTM_CHECK_EQ(tutorial_state::kPartCount, 7);
+        const char *ids[] = { "modes", "controllers", "configs", "window", "switch", "overview", "customizing" };
+        const char *names[] = { "Switching modes", "Your controllers", "Making and managing configs",
                                 "The window", "Quick switch", "The Overview and tabs", "Customizing configs" };
         for (int i = 0; i < tutorial_state::kPartCount; ++i) {
             CTM_CHECK_EQ(std::string(tutorial_state::kParts[i].id), std::string(ids[i]));
@@ -94,9 +93,9 @@ int run_tray_menu_tests()
             for (int j = 0; j < i; ++j) CTM_CHECK(narrow(tutorial_state::kParts[j].name) != std::string(names[i]));
         }
         CTM_CHECK_EQ(tutorial_state::part_index("expert"), -1);
-        CTM_CHECK(tutorial_state::tour_parts(tutorial_state::Simple) == std::vector<int>({ 0, 1, 2, 3, 4, 5 }));
-        CTM_CHECK(tutorial_state::tour_parts(tutorial_state::Quick) == std::vector<int>({ 0, 1, 3, 4, 5 }));
-        CTM_CHECK(tutorial_state::tour_parts(tutorial_state::Advanced) == std::vector<int>({ 0, 6, 2, 7, 3, 4 }));
+        CTM_CHECK(tutorial_state::tour_parts(tutorial_state::Simple) == std::vector<int>({ 0, 1, 2, 3, 4 }));
+        CTM_CHECK(tutorial_state::tour_parts(tutorial_state::Quick) == std::vector<int>({ 0, 1, 3, 4 }));
+        CTM_CHECK(tutorial_state::tour_parts(tutorial_state::Advanced) == std::vector<int>({ 0, 5, 6, 3 }));
         CTM_CHECK(tutorial_state::tour_parts(tutorial_state::None).empty());
         // ⓘ A tour lists a part exactly when the part says that tour has it.
         for (int kind = tutorial_state::Simple; kind <= tutorial_state::Advanced; ++kind) {
@@ -111,17 +110,17 @@ int run_tray_menu_tests()
     section("tutorial: the parts done, kept in window-state.txt by their ids, and told to the page");
     {
         CTM_CHECK_EQ(tutorial_state::parse_parts(""), 0u);
-        CTM_CHECK_EQ(tutorial_state::parse_parts("modes,switch"), (1u << 0) | (1u << 5));
-        CTM_CHECK_EQ(tutorial_state::parse_parts(" switch , modes "), (1u << 0) | (1u << 5));
-        CTM_CHECK_EQ(tutorial_state::parse_parts("modes,expert,,window"), (1u << 0) | (1u << 4));   // junk left out
-        CTM_CHECK_EQ(tutorial_state::parts_list((1u << 5) | (1u << 0)), std::string("modes,switch"));
+        CTM_CHECK_EQ(tutorial_state::parse_parts("modes,switch"), (1u << 0) | (1u << 4));
+        CTM_CHECK_EQ(tutorial_state::parse_parts(" switch , modes "), (1u << 0) | (1u << 4));
+        CTM_CHECK_EQ(tutorial_state::parse_parts("modes,expert,,window"), (1u << 0) | (1u << 3));   // junk left out
+        CTM_CHECK_EQ(tutorial_state::parts_list((1u << 4) | (1u << 0)), std::string("modes,switch"));
         CTM_CHECK_EQ(tutorial_state::parts_list(0), std::string(""));
-        CTM_CHECK_EQ(tutorial_state::parts_line((1u << 7) | (1u << 6)),
+        CTM_CHECK_EQ(tutorial_state::parts_line((1u << 6) | (1u << 5)),
                      std::string("tutorial_parts_done = overview,customizing\n"));
         CTM_CHECK_EQ(tutorial_state::parts_line(0), std::string("tutorial_parts_done = \n"));
         const uint32_t all = (1u << tutorial_state::kPartCount) - 1;
         CTM_CHECK_EQ(tutorial_state::parse_parts(tutorial_state::parts_list(all)), all);
-        CTM_CHECK_EQ(tutorial_state::json(true, false, false, tutorial_state::Simple, 5, (1u << 0) | (1u << 5)),
+        CTM_CHECK_EQ(tutorial_state::json(true, false, false, tutorial_state::Simple, 4, (1u << 0) | (1u << 4)),
                      std::string(R"({"simple_seen":true,"quick_seen":false,"advanced_seen":false,"request":"simple","part":"switch","parts_done":"modes,switch"})"));
         // ⓘ A part with no tour asked for is no request.
         CTM_CHECK_EQ(tutorial_state::json(false, false, false, tutorial_state::None, 3, 0),
@@ -134,13 +133,14 @@ int run_tray_menu_tests()
         CTM_CHECK_EQ(kind_for_part(0, tutorial_state::Quick), int(tutorial_state::Quick));        // modes: all three
         CTM_CHECK_EQ(kind_for_part(0, tutorial_state::Advanced), int(tutorial_state::Advanced));
         CTM_CHECK_EQ(kind_for_part(1, tutorial_state::Advanced), int(tutorial_state::Simple));    // controllers: not Advanced
-        CTM_CHECK_EQ(kind_for_part(2, tutorial_state::Quick), int(tutorial_state::Simple));       // making: not Quick
-        CTM_CHECK_EQ(kind_for_part(5, tutorial_state::Quick), int(tutorial_state::Quick));        // switch
-        CTM_CHECK_EQ(kind_for_part(5, tutorial_state::Advanced), int(tutorial_state::Simple));
-        CTM_CHECK_EQ(kind_for_part(6, tutorial_state::Simple), int(tutorial_state::Advanced));    // overview: Advanced only
-        CTM_CHECK_EQ(kind_for_part(7, tutorial_state::None), int(tutorial_state::Advanced));
+        CTM_CHECK_EQ(kind_for_part(2, tutorial_state::Quick), int(tutorial_state::Simple));       // configs: Simple's alone, always
+        CTM_CHECK_EQ(kind_for_part(2, tutorial_state::Advanced), int(tutorial_state::Simple));
+        CTM_CHECK_EQ(kind_for_part(4, tutorial_state::Quick), int(tutorial_state::Quick));        // switch
+        CTM_CHECK_EQ(kind_for_part(4, tutorial_state::Advanced), int(tutorial_state::Simple));
+        CTM_CHECK_EQ(kind_for_part(5, tutorial_state::Simple), int(tutorial_state::Advanced));    // overview: Advanced only
+        CTM_CHECK_EQ(kind_for_part(6, tutorial_state::None), int(tutorial_state::Advanced));
         CTM_CHECK_EQ(kind_for_part(-1, tutorial_state::Simple), int(tutorial_state::None));
-        CTM_CHECK_EQ(kind_for_part(8, tutorial_state::Simple), int(tutorial_state::None));
+        CTM_CHECK_EQ(kind_for_part(7, tutorial_state::Simple), int(tutorial_state::None));
     }
 
     section("tutorial: the tray's ids for Mode's tours and Topic's parts, and back");
@@ -160,12 +160,12 @@ int run_tray_menu_tests()
         };
         for (int i = 0; i < tray_menu::kTutorialCount; ++i) back(i, -1);
         for (int part = 0; part < tutorial_state::kPartCount; ++part) back(-1, part);
-        CTM_CHECK_EQ(seen.size(), size_t(3 + 8));
+        CTM_CHECK_EQ(seen.size(), size_t(3 + 7));
         CTM_CHECK(tray_menu::tutorial_id(first, 0, -1) == first);
         CTM_CHECK(!tray_menu::tutorial_choice(first, first - 1, nullptr));
         CTM_CHECK(!tray_menu::tutorial_choice(first, first + 3, nullptr));                        // past the tours
         CTM_CHECK(!tray_menu::tutorial_choice(first, first + tray_menu::kTopicIds - 1, nullptr));  // before the parts
-        CTM_CHECK(!tray_menu::tutorial_choice(first, first + tray_menu::kTopicIds + 8, nullptr));  // past the parts
+        CTM_CHECK(!tray_menu::tutorial_choice(first, first + tray_menu::kTopicIds + 7, nullptr));  // past the parts
         // ⓘ Clear of the other ids the menu uses: the devices' block ends at 164.
         CTM_CHECK(tray_menu::tutorial_id(first, -1, tutorial_state::kPartCount - 1) < 400u);
     }

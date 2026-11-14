@@ -968,6 +968,11 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
             ui_tour_switcher(flag("show") && flag("pad") && flag("switcher"));
             // ⓘ And the window shrunk for the tour ("shrunk"): nothing of it kept.
             ui_tour_shrunk(flag("show") && flag("shrunk"));
+            // ⭐ And which legend button the step lets work ("position" Options, "resize" Create, none else).
+            {
+                const std::string legend = text("legend");
+                ui_tour_legend(!flag("show") ? 3 : legend == "position" ? 1 : legend == "resize" ? 2 : 0);
+            }
             *out = rest_http_response(200, R"({"ok":true})");
             return true;
         }
