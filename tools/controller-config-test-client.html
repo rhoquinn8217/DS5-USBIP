@@ -2,7 +2,7 @@
 <!--
   DS5-USBIP's Controller Configs page, served by the listener.
 
-  VERSION 2.72.5 -- see the changelog at the bottom of this comment.
+  VERSION 2.72.6 -- see the changelog at the bottom of this comment.
 
   WHAT IT STARTED AS. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -24,6 +24,10 @@
   not a tidy message about it.
 
   CHANGELOG
+    2.72.6   (rhoquinn8217, 2026-11-14) Move anywhere, press one control: Reset's step lets the
+             halo move and presses only Reset; its question allows OK alone, the halo starting on
+             it, and so do both tours' Archive questions; the last settings step allows the Close
+             button alone, the arrow at it.
     2.72.5   (rhoquinn8217, 2026-11-14) The controller settings' steps hold the window: it
              stays open between them (a click outside, Circle and Close do not shut it
              until the last asks), the one that says what it holds scrolls and nothing
@@ -3936,7 +3940,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.72.5</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.72.6</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -16627,8 +16631,8 @@ function selfTest() {
       TUT_MOCK = tutMockMake(k);
       var cs = tutAllSteps(k).filter(function (s) { return s.part === 'controllers'; });
       var shape = cs.length === 10 && cs[4].scrollOnly && cs[4].holdOpen && !!cs[5].holdFocus && cs[5].holdOpen &&
-                  !!cs[6].holdFocus && cs[6].holdOpen && cs[7].holdOpen && cs[7].act === true && cs[8].act === true &&
-                  !cs[8].holdOpen && !cs[3].holdOpen && cs[3].act === true && /polling rate is now/.test(cs[6].words()) &&
+                  !!cs[6].pressOnly && cs[6].holdOpen && !!cs[7].pressOnly && cs[7].holdOpen && cs[7].act === true &&
+                  cs[8].act === true && !!cs[8].pressOnly && !cs[8].holdOpen && !cs[3].holdOpen && cs[3].act === true && /polling rate is now/.test(cs[6].words()) &&
                   /Choose \[\[OK\]\]/.test(cs[7].words()) && /close the settings window/.test(cs[8].words());
       TUT = keepCS[0]; TUT_MOCK = keepCS[1];
       ok('the tutorial: ' + k + '\'s settings steps hold the window and each asks for one thing', shape, '' + cs.length);
@@ -18206,42 +18210,56 @@ function tutSettingsSteps(kind) {
       lit: tutSettingsBox, anchors: tutRateBox,
       words: function () { return 'Change the polling rate to ' + tutHl('250 Hz') + '.'; },
       done: tutRateDone },
-    // 7: the rate said, and Reset: the halo held on it.
+    // 7: the rate said, and Reset, at the bottom: the halo goes where it likes, only Reset presses.
     { side: 'right', sideOwn: true, act: true, inSettings: true, keepOpen: true, holdOpen: true,
-      holdFocus: resetBtn,
+      pressOnly: resetBtn,
       pointerOnly: function () { var b = resetBtn(); return b ? [b] : []; },
-      enter: tutSettingsOpen, tick: tutHoldFocus,
+      enter: tutSettingsOpen,
       lit: tutSettingsBox, anchors: function () { var b = resetBtn(); return b ? [b] : tutSettingsBox(); },
       words: function () {
         return tutNick() + "'s polling rate is now " + tutHl('250 Hz') + ". Let's reset all settings. " +
                tutDpadSelect(true).replace(' to select', ' to move to') + ' the ' + tutHl('Reset') +
-               ' button and press ' + tutKey('select') + '.';
+               ' button at the bottom and press ' + tutKey('select') + '.';
       },
       done: function () { return !!CONFIRM_CB; } },
-    // 8: its question, to answer OK; Cancel goes back to Reset.
+    // 8: its question: OK alone, the halo starts on it (a Cancel would only come back here).
     { side: 'right', sideOwn: true, act: true, inSettings: true, keepOpen: true, holdOpen: true,
+      pressOnly: tutOkOnly, pointerOnly: tutOkPointer,
       enter: function () { tutSettingsOpen(); if (!CONFIRM_CB) resetControllerSettings(); },
       tick: function () {
+        tutFocusOk();
         if (CONFIRM_CB || tutResetDone()) { TUT.cgAt = 0; return; }
         TUT.cgAt = TUT.cgAt || Date.now();
         if (Date.now() - TUT.cgAt > 1200) { TUT.cgAt = 0; TUT.done[TUT.at - 1] = false; TUT.done[TUT.at] = false; tutShow(TUT.at - 1); }
       },
-      lit: tutConfirmCard, anchors: tutConfirmCard,
+      lit: tutConfirmCard, anchors: function () { var y = tutById('confirmYes'); return y && CONFIRM_CB ? [y] : tutConfirmCard(); },
       words: function () {
         return 'Choose ' + tutHl('OK') + ' to reset ' + tutNick() + "'s settings.";
       },
       done: tutResetDone },
-    // 9: the defaults, said, and the window shut.
+    // 9: the defaults, said, and Close, the one thing that works: the arrow at it.
     { side: 'right', sideOwn: true, act: true, inSettings: true, enter: tutSettingsOpen,
-      lit: tutSettingsBox, anchors: function () { return []; },
+      pressOnly: function () { return SETTINGS_OPEN ? tutById('ctlSetClose') : null; },
+      pointerOnly: function () { var c = tutById('ctlSetClose'); return c ? [c] : []; },
+      lit: tutSettingsBox, anchors: function () { var c = tutById('ctlSetClose'); return c ? [c] : []; },
       words: function () {
-        return tutNick() + "'s settings are now set to defaults. Press " + tutKey('close') + ' or choose ' +
-               tutHl('Close') + ' to close the settings window.';
+        return tutNick() + "'s settings are now set to defaults. " +
+               tutDpadSelect(true).replace(' to select', ' to move to') + ' ' + tutHl('Close') +
+               ' and press ' + tutKey('select') + ' to close the settings window.';
       },
       done: function () { return !SETTINGS_OPEN; } }
   ];
 }
 // The halo held on a step's control while the window is up (`holdFocus`), unless it is choosing in it.
+// The halo on OK as a question comes up, once: it starts on Cancel, which these steps do not allow.
+function tutFocusOk() {
+  if (!CONFIRM_CB) { if (TUT) TUT.okFocused = false; return; }
+  if (!TUT || TUT.okFocused) return;
+  var y = tutById('confirmYes');
+  if (y && GP_FOCUS.indexOf(y) >= 0) { focusElement(y); TUT.okFocused = true; }
+}
+function tutOkOnly() { return CONFIRM_CB ? tutById('confirmYes') : null; }
+function tutOkPointer() { var y = tutOkOnly(); return y ? [y] : null; }
 function tutHoldFocus() {
   var s = tutStep();
   if (!s || !s.holdFocus || !SETTINGS_OPEN || CONFIRM_CB || GP_SELECTING) return;
@@ -18257,12 +18275,25 @@ function tutHoldSettings() {
 // R2 and L2 (tutBarThroughSettings), nothing else.
 function tutSettingsKeyBlocked(code, gated, plain) {
   var s = TUT ? tutStep() : null;
-  if (!s || !SETTINGS_OPEN || CONFIRM_CB || RENAMING || !(s.scrollOnly || s.holdFocus)) return false;
+  if (!s || RENAMING) return false;
   var bar = tutBarKey(code, gated, plain);
   if (bar === 'next' || bar === 'prev') return false;
   var updown = (gated && (code === 'KeyW' || code === 'KeyS')) || (plain && (code === 'ArrowUp' || code === 'ArrowDown'));
+  var sideways = (gated && (code === 'KeyA' || code === 'KeyD')) || (plain && (code === 'ArrowLeft' || code === 'ArrowRight'));
   var press = (gated && code === 'Enter') || (plain && (code === 'Enter' || code === 'Space'));
   var back = (gated && code === 'KeyZ') || (plain && code === 'Escape');
+  // ⭐ MOVE ANYWHERE, PRESS ONE CONTROL (rhoquinn8217, 2026-11-14: "Allow the user to move but only be
+  // able to select Reset", "don't allow user to click cancel", "don't allow the user to click anything
+  // other than the close button"): the halo goes where it likes, a press counts only on `pressOnly`'s
+  // control, Circle and every other key do nothing.
+  if (s.pressOnly) {
+    var only = s.pressOnly();
+    if (!only) return false;
+    if (updown || sideways) return false;
+    if (press) return GP_FOCUS[GP_INDEX] !== only;
+    return true;
+  }
+  if (!SETTINGS_OPEN || CONFIRM_CB || !(s.scrollOnly || s.holdFocus)) return false;
   if (s.scrollOnly) return !updown;
   if (GP_SELECTING && GP_SELECTING === s.holdFocus()) return !(updown || press || back);
   return !press;
@@ -18668,6 +18699,7 @@ var TUT_SIMPLE = tutTour([
     tutMarkStep(),
     // 19 (*"do a step for archive"*)
     { side: 'right', act: true, focus: '.csbtns .carchive-btn', split: true, enter: tutArchiveEnter,
+      pressOnly: tutOkOnly, pointerOnly: tutOkPointer, tick: tutFocusOk,
       lit: function () { return tutQ('.csbtns .carchive-btn').concat(tutConfirmCard()); },
       anchors: function () { return tutQ('.csbtns .carchive-btn'); },
       hits: function () { return tutQ('.csbtns .carchive-btn'); },
@@ -19219,7 +19251,7 @@ var TUT_ADVANCED = tutTour([
     { side: 'left', lit: function () { return [tutAdvPick()]; }, words: tutWordsMark },
     // 26: Archive Config, as Simple's Archive.
     { side: 'right', act: true, split: true, focus: function () { return tutAdvButton('archive'); },
-      enter: tutArchiveEnter,
+      enter: tutArchiveEnter, pressOnly: tutOkOnly, pointerOnly: tutOkPointer, tick: tutFocusOk,
       lit: function () { return [tutAdvButton('archive')].concat(tutConfirmCard()); },
       anchors: function () { return [tutAdvButton('archive')]; },
       hits: function () { return [tutAdvButton('archive')]; },
@@ -20108,9 +20140,10 @@ function tutAllows(t, type) {
           : SETTINGS_OPEN ? document.getElementById('ctlSetBox') : null;
   if (box && t && box.contains(t)) {
     // ⭐ The settings window's steps: scroll alone, or the one control (2026-11-14).
-    var hs = box.id === 'ctlSetBox' ? tutStep() : null;
-    if (hs && hs.scrollOnly) return type === 'wheel';
-    if (hs && hs.pointerOnly) return hs.pointerOnly().some(function (el) { return !!el && el.contains(t); });
+    var hs = box.id === 'ctlSetBox' || box.id === 'confirmBox' ? tutStep() : null;
+    if (hs && hs.scrollOnly && box.id === 'ctlSetBox') return type === 'wheel';
+    var only = hs && hs.pointerOnly ? hs.pointerOnly() : null;
+    if (only) return only.some(function (el) { return !!el && el.contains(t); });
     return true;
   }
   var s = tutStep();
