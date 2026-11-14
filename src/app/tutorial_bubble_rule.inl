@@ -83,6 +83,38 @@ inline std::vector<ButtonSpec> parse_buttons(const std::string &spec)
     return out;
 }
 
+// ⭐⭐ THE D-PAD'S MARK WITH A DIRECTION LIT (rhoquinn8217, 2026-11-14: the legend's
+// window select mark has "the direction in that symbol" highlighted): the
+// page marks it [[*✜:left]], or [[*✜:up+down]] for two arms; a plain [[*✜]]
+// (a step that says "select") has none lit. Arms as bits.
+inline constexpr unsigned kArmUp = 1, kArmDown = 2, kArmLeft = 4, kArmRight = 8;
+
+inline bool is_dpad_glyph(const std::wstring &glyph)
+{
+    return !glyph.empty() && glyph[0] == L'✜';
+}
+
+// The arms a d-pad mark lights: none for anything else, a plain ✜, or a
+// direction the page does not know.
+inline unsigned dpad_arms(const std::wstring &glyph)
+{
+    const size_t colon = glyph.find(L':');
+    if (!is_dpad_glyph(glyph) || colon == std::wstring::npos) return 0;
+    unsigned arms = 0;
+    size_t at = colon + 1;
+    while (at <= glyph.size()) {
+        size_t plus = glyph.find(L'+', at);
+        if (plus == std::wstring::npos) plus = glyph.size();
+        const std::wstring word = glyph.substr(at, plus - at);
+        if (word == L"up") arms |= kArmUp;
+        else if (word == L"down") arms |= kArmDown;
+        else if (word == L"left") arms |= kArmLeft;
+        else if (word == L"right") arms |= kArmRight;
+        at = plus + 1;
+    }
+    return arms;
+}
+
 // What a line may break between: plain words, the spaces between them, and
 // each lit name WHOLE, dashes and spaces and all (*"Don't wrap it on it's
 // dashes"*). ⭐ A lit piece that starts with * is a controller's button, drawn

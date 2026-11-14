@@ -241,7 +241,7 @@ inline bool gdiplus_up()
 
 inline int mark_w(const std::wstring &glyph, int h)
 {
-    return glyph == kDpad ? h : ctm_overlay::mark_width(glyph.c_str(), h);
+    return tbr::is_dpad_glyph(glyph) ? h : ctm_overlay::mark_width(glyph.c_str(), h);
 }
 
 // ⭐ THE BUTTON THAT PRESSES IT, in it, before its name (2026-10-29: "add R2
@@ -261,7 +261,7 @@ inline int button_mark_w(HDC dc, const Fonts *f, const Button &b, int h, UINT dp
 
 inline void draw_glyph_mark(HDC dc, int x, int y, int h, const std::wstring &glyph, COLORREF colour)
 {
-    if (glyph != kDpad) {
+    if (!tbr::is_dpad_glyph(glyph)) {
         ctm_overlay::draw_mark(dc, x, y, h, glyph.c_str(), colour);
         return;
     }
@@ -279,6 +279,18 @@ inline void draw_glyph_mark(HDC dc, int x, int y, int h, const std::wstring &gly
     Gdiplus::PointF p[12];
     for (int i = 0; i < 12; ++i) p[i] = Gdiplus::PointF(x + u[i][0] * s, y + u[i][1] * s);
     g.DrawPolygon(&pen, p, 12);
+    // ⭐ The direction lit (tbr::dpad_arms): its arm filled, as the legend draws it.
+    const unsigned arms = tbr::dpad_arms(glyph);
+    if (arms != 0) {
+        Gdiplus::SolidBrush brush(Gdiplus::Color(255, GetRValue(colour), GetGValue(colour), GetBValue(colour)));
+        auto fill = [&](float l, float t, float r, float b) {
+            g.FillRectangle(&brush, x + l * s, y + t * s, (r - l) * s, (b - t) * s);
+        };
+        if (arms & tbr::kArmUp) fill(7.6f, 3.2f, 12.4f, 7.6f);
+        if (arms & tbr::kArmDown) fill(7.6f, 12.4f, 12.4f, 16.8f);
+        if (arms & tbr::kArmLeft) fill(3.2f, 7.6f, 7.6f, 12.4f);
+        if (arms & tbr::kArmRight) fill(12.4f, 7.6f, 16.8f, 12.4f);
+    }
 }
 
 // ⓘ Where the words stand now, and the side of what is lit they were placed

@@ -111,6 +111,27 @@ int run_tutorial_bubble_rule_tests()
     const tbr::Box work{ 0, 0, 1920, 1040 };
     const tbr::Box simple{ 528, 560, 1392, 1030 };
 
+    section("tutorial words: the d-pad's mark lights the direction the page names");
+    {
+        CTM_CHECK(tbr::is_dpad_glyph(L"✜"));
+        CTM_CHECK(tbr::is_dpad_glyph(L"✜:left"));
+        CTM_CHECK(!tbr::is_dpad_glyph(L"L1"));
+        CTM_CHECK(!tbr::is_dpad_glyph(L""));
+        CTM_CHECK_EQ(tbr::dpad_arms(L"✜"), 0u);                          // plain: nothing lit
+        CTM_CHECK_EQ(tbr::dpad_arms(L"✜:left"), tbr::kArmLeft);
+        CTM_CHECK_EQ(tbr::dpad_arms(L"✜:up+down"), tbr::kArmUp | tbr::kArmDown);
+        CTM_CHECK_EQ(tbr::dpad_arms(L"✜:left+right"), tbr::kArmLeft | tbr::kArmRight);
+        CTM_CHECK_EQ(tbr::dpad_arms(L"✜:sideways"), 0u);                 // an unknown word lights nothing
+        CTM_CHECK_EQ(tbr::dpad_arms(L"✜:left+sideways"), tbr::kArmLeft);
+        CTM_CHECK_EQ(tbr::dpad_arms(L"X:left"), 0u);                         // not the d-pad's
+        const auto toks = tbr::tokens(tbr::parse(L"Use [[*✜:left]] to move."));
+        bool found = false;
+        for (const auto &tk : toks) {
+            if (tk.mark) { found = true; CTM_CHECK(tk.text == L"✜:left"); }
+        }
+        CTM_CHECK(found);
+    }
+
     section("tutorial words: above Simple's window, clear of it and on the screen");
     {
         const auto p = tbr::place(simple, work, 380, 130, 12, 10, 10, 500, 400);
