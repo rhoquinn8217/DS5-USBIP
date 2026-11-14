@@ -74,8 +74,8 @@ inline std::string seen_line(const char *key, bool seen)
 // is done in either, and a tour starting by itself leaves it out. The page
 // holds the steps, each tour's own for a part; the listener keeps which parts
 // are done, in window-state.txt as "tutorial_parts_done = modes,switch", and
-// lists them in the tray: under each mode its own, in its order, below Whole
-// tutorial, and under By topic every part once, in this order.
+// lists them in the tray, under Start Tutorial's Topic, every part once in
+// this order, a tick on each done; its Mode starts a whole tour.
 // ⛔ THE PAGE HAS THE SAME LIST (TUT_PARTS in controller-config-test-client.html):
 // the same ids, names and tours. A part added or renamed is added or renamed
 // in both.
@@ -153,7 +153,7 @@ inline std::string parts_line(uint32_t done)
     return std::string(kPartsDoneKey) + " = " + parts_list(done) + "\n";
 }
 
-// ⭐ WHICH TOUR A PART FROM BY TOPIC RUNS IN: the one for the mode the window is
+// ⭐ WHICH TOUR A PART FROM TOPIC RUNS IN: the one for the mode the window is
 // in when that tour has it, else the first that does, Simple, Quick, Advanced.
 inline int kind_for_part(int part, int currentKind)
 {

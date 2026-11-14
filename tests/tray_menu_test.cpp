@@ -65,9 +65,10 @@ int run_tray_menu_tests()
     section("tutorial: the tray's list, each tour going to the layout it is named for");
     {
         CTM_CHECK_EQ(tray_menu::kTutorialCount, 3);
-        CTM_CHECK_EQ(narrow(tray_menu::kTutorials[0].name), std::string("Simple mode"));
-        CTM_CHECK_EQ(narrow(tray_menu::kTutorials[1].name), std::string("Quick mode"));
-        CTM_CHECK_EQ(narrow(tray_menu::kTutorials[2].name), std::string("Advanced mode"));
+        // ⓘ Under Mode, in kModes' order, by the mode's name (2026-11-13).
+        CTM_CHECK_EQ(narrow(tray_menu::kTutorials[0].name), std::string("Advanced"));
+        CTM_CHECK_EQ(narrow(tray_menu::kTutorials[1].name), std::string("Simple"));
+        CTM_CHECK_EQ(narrow(tray_menu::kTutorials[2].name), std::string("Quick"));
         for (int i = 0; i < tray_menu::kTutorialCount; ++i) {
             const tray_menu::Tutorial &t = tray_menu::kTutorials[i];
             CTM_CHECK(t.mode >= 0 && t.mode < tray_menu::kModeCount);
@@ -89,7 +90,7 @@ int run_tray_menu_tests()
             CTM_CHECK_EQ(std::string(tutorial_state::kParts[i].id), std::string(ids[i]));
             CTM_CHECK_EQ(narrow(tutorial_state::kParts[i].name), std::string(names[i]));
             CTM_CHECK_EQ(tutorial_state::part_index(ids[i]), i);
-            // ⓘ No name twice: By topic lists each once ("I said not to have duplicates").
+            // ⓘ No name twice: Topic lists each once ("I said not to have duplicates").
             for (int j = 0; j < i; ++j) CTM_CHECK(narrow(tutorial_state::kParts[j].name) != std::string(names[i]));
         }
         CTM_CHECK_EQ(tutorial_state::part_index("expert"), -1);
@@ -127,7 +128,7 @@ int run_tray_menu_tests()
                      std::string(R"({"simple_seen":false,"quick_seen":false,"advanced_seen":false,"request":"","part":"","parts_done":""})"));
     }
 
-    section("tutorial: By topic's part runs in the mode the window is in when its tour has it");
+    section("tutorial: Topic's part runs in the mode the window is in when its tour has it");
     {
         using tutorial_state::kind_for_part;
         CTM_CHECK_EQ(kind_for_part(0, tutorial_state::Quick), int(tutorial_state::Quick));        // modes: all three
@@ -142,10 +143,10 @@ int run_tray_menu_tests()
         CTM_CHECK_EQ(kind_for_part(8, tutorial_state::Simple), int(tutorial_state::None));
     }
 
-    section("tutorial: the tray's ids for each tour, its parts and By topic, and back");
+    section("tutorial: the tray's ids for Mode's tours and Topic's parts, and back");
     {
-        CTM_CHECK_EQ(narrow(tray_menu::kWholeTutorial), std::string("Whole tutorial"));
-        CTM_CHECK_EQ(narrow(tray_menu::kByTopic), std::string("By topic"));
+        CTM_CHECK_EQ(narrow(tray_menu::kTutorialMode), std::string("Mode"));
+        CTM_CHECK_EQ(narrow(tray_menu::kTutorialTopic), std::string("Topic"));
         const unsigned first = 300;
         std::vector<unsigned> seen;
         auto back = [&](int tour, int part) {
@@ -157,18 +158,14 @@ int run_tray_menu_tests()
             CTM_CHECK_EQ(c.tour, tour);
             CTM_CHECK_EQ(c.part, part);
         };
-        for (int i = 0; i < tray_menu::kTutorialCount; ++i) {
-            back(i, -1);
-            for (int part : tutorial_state::tour_parts(tray_menu::kTutorials[i].kind)) back(i, part);
-        }
+        for (int i = 0; i < tray_menu::kTutorialCount; ++i) back(i, -1);
         for (int part = 0; part < tutorial_state::kPartCount; ++part) back(-1, part);
-        CTM_CHECK_EQ(seen.size(), size_t(3 + 6 + 5 + 6 + 8));
+        CTM_CHECK_EQ(seen.size(), size_t(3 + 8));
         CTM_CHECK(tray_menu::tutorial_id(first, 0, -1) == first);
         CTM_CHECK(!tray_menu::tutorial_choice(first, first - 1, nullptr));
-        CTM_CHECK(!tray_menu::tutorial_choice(first, tray_menu::tutorial_id(first, -1, -1), nullptr));   // By topic has no whole
-        CTM_CHECK(!tray_menu::tutorial_choice(first, tray_menu::tutorial_id(first, 1, 6), nullptr));     // Quick has no Overview
-        CTM_CHECK(!tray_menu::tutorial_choice(first, first + 4 * tray_menu::kTourIds, nullptr));        // past the blocks
-        CTM_CHECK(!tray_menu::tutorial_choice(first, first + tray_menu::kTourIds - 1, nullptr));        // a slot past the parts
+        CTM_CHECK(!tray_menu::tutorial_choice(first, first + 3, nullptr));                        // past the tours
+        CTM_CHECK(!tray_menu::tutorial_choice(first, first + tray_menu::kTopicIds - 1, nullptr));  // before the parts
+        CTM_CHECK(!tray_menu::tutorial_choice(first, first + tray_menu::kTopicIds + 8, nullptr));  // past the parts
         // ⓘ Clear of the other ids the menu uses: the devices' block ends at 164.
         CTM_CHECK(tray_menu::tutorial_id(first, -1, tutorial_state::kPartCount - 1) < 400u);
     }

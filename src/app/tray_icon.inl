@@ -45,7 +45,7 @@ inline const UINT kIdHeader   = 10;
 // tenth as many.
 inline const UINT   kIdDeviceFirst = 100;
 inline const size_t kMaxListed     = 64;
-// ⓘ And the tutorials': each tour, its parts, and By topic's, from here
+// ⓘ And the tutorials': Mode's tours and Topic's parts, from here
 // (tray_menu::tutorial_id).
 inline const UINT   kIdTutorialFirst = 300;
 
@@ -408,8 +408,8 @@ inline void remove_old_controllers()
 // tours, by change_layout, and opens if it was not open: asked for here, it is
 // wanted. The page collects the request within a second and starts the tour on
 // its practice controllers, so nothing needs to be bridged for it.
-// ⭐ A part alone, or the whole tour (part -1), since 2026-11-13; By topic's
-// part in the tour tutorial_state::kind_for_part picks for it.
+// ⭐ A part alone, or the whole tour (part -1), since 2026-11-13; a part from
+// Topic in the tour tutorial_state::kind_for_part picks for it.
 inline void start_tutorial(const tray_menu::Tutorial &tour, int part)
 {
     ui_tutorial_ask(tour.kind, part);
@@ -421,8 +421,10 @@ inline void start_tutorial(const tray_menu::Tutorial &tour, int part)
     const bool wasOpen = open.found != nullptr;
     change_layout(tour.mode);
     if (!wasOpen) ctm_chord_show_ui(ordinal);
-    device_log::session_w() << L"tray: Start Tutorial, " << tour.name << L", "
-                            << (part < 0 ? tray_menu::kWholeTutorial : tutorial_state::kParts[part].name)
+    device_log::session_w() << L"tray: Start Tutorial, "
+                            << (part < 0 ? std::wstring(tray_menu::kTutorialMode) + L", " + tour.name
+                                         : std::wstring(tray_menu::kTutorialTopic) + L", " +
+                                           tutorial_state::kParts[part].name + L", in " + tour.name)
                             << (wasOpen ? L"" : L"; the config window is opening for it");
 }
 
@@ -492,26 +494,22 @@ inline void show_menu(HWND hwnd)
     // ⭐ Start Tutorial above it (rhoquinn8217, 2026-10-14), the other thing
     // here that is wanted now and then rather than every day: a list of the
     // tutorials since 2026-10-26.
-    // ⭐ Each tour in parts, and By topic, since 2026-11-13 (tray_menu.inl):
-    // a tick on a part done, read as the menu opens.
+    // ⭐ Mode and Topic since 2026-11-13 (tray_menu.inl): a whole tour for each
+    // mode, and every part, a tick on a part done, read as the menu opens.
     const HMENU tours = CreatePopupMenu();
-    const uint32_t partsDone = ui_tutorial_parts_done();
-    auto partLine = [&](HMENU into, int tour, int part) {
-        const bool done = (partsDone & (1u << part)) != 0;
-        AppendMenuW(into, MF_STRING | (done ? MF_CHECKED : 0u),
-                    tray_menu::tutorial_id(kIdTutorialFirst, tour, part), tutorial_state::kParts[part].name);
-    };
+    const HMENU modes = CreatePopupMenu();
     for (int i = 0; i < tray_menu::kTutorialCount; ++i) {
-        const HMENU parts = CreatePopupMenu();
-        AppendMenuW(parts, MF_STRING, tray_menu::tutorial_id(kIdTutorialFirst, i, -1), tray_menu::kWholeTutorial);
-        AppendMenuW(parts, MF_SEPARATOR, 0, nullptr);
-        for (int part : tutorial_state::tour_parts(tray_menu::kTutorials[i].kind)) partLine(parts, i, part);
-        AppendMenuW(tours, MF_POPUP, reinterpret_cast<UINT_PTR>(parts), tray_menu::kTutorials[i].name);
+        AppendMenuW(modes, MF_STRING, tray_menu::tutorial_id(kIdTutorialFirst, i, -1), tray_menu::kTutorials[i].name);
     }
-    AppendMenuW(tours, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(tours, MF_POPUP, reinterpret_cast<UINT_PTR>(modes), tray_menu::kTutorialMode);
     const HMENU topics = CreatePopupMenu();
-    for (int part = 0; part < tutorial_state::kPartCount; ++part) partLine(topics, -1, part);
-    AppendMenuW(tours, MF_POPUP, reinterpret_cast<UINT_PTR>(topics), tray_menu::kByTopic);
+    const uint32_t partsDone = ui_tutorial_parts_done();
+    for (int part = 0; part < tutorial_state::kPartCount; ++part) {
+        const bool done = (partsDone & (1u << part)) != 0;
+        AppendMenuW(topics, MF_STRING | (done ? MF_CHECKED : 0u),
+                    tray_menu::tutorial_id(kIdTutorialFirst, -1, part), tutorial_state::kParts[part].name);
+    }
+    AppendMenuW(tours, MF_POPUP, reinterpret_cast<UINT_PTR>(topics), tray_menu::kTutorialTopic);
     AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(tours), tray_menu::kStartTutorial);
     AppendMenuW(menu, MF_STRING, kIdRemoveOld, tray_menu::kRemoveOld);
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
@@ -546,7 +544,7 @@ inline void show_menu(HWND hwnd)
     if (tray_menu::tutorial_choice(kIdTutorialFirst, chosen, &tourPicked)) {
         int tour = tourPicked.tour;
         if (tour < 0) {
-            // ⓘ By topic: the tour of the mode the window is in, if it has
+            // ⓘ Topic: the tour of the mode the window is in, if it has
             // the part, else the first that does (tutorial_state::kind_for_part).
             bool compact = false, quick = false;
             ui_view_get(&compact, &quick, nullptr);

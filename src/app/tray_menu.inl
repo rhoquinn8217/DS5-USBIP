@@ -165,64 +165,64 @@ inline constexpr int kModeCount = 3;
 // tutorials in the tray for now"*): each tours one layout, which the window
 // goes to as it starts. `mode` is its place in kModes, `kind` the page's name
 // for it (tutorial_state::Kind: 1 Simple, 2 Quick, 3 Advanced). ⓘ Advanced's
-// since 2026-10-29, last, as the tours were made.
+// since 2026-10-29, last, as the tours were made; first since 2026-11-13,
+// under Mode in kModes' order and by the mode's own name (*"Mode has 3
+// options Advance, Simple and Quick"*).
 struct Tutorial {
     const wchar_t *name;
     int mode;
     int kind;
 };
 inline constexpr Tutorial kTutorials[3] = {
-    { L"Simple mode",   1, 1 },
-    { L"Quick mode",    2, 2 },
-    { L"Advanced mode", 0, 3 },
+    { L"Advanced", 0, 3 },
+    { L"Simple",   1, 1 },
+    { L"Quick",    2, 2 },
 };
 inline constexpr int kTutorialCount = 3;
 
-// ⭐⭐ EACH TOUR IN PARTS, AND BY TOPIC (rhoquinn8217, 2026-11-13: "I want to
-// expand the Tutorial selection in the tray so that the user can select to go
-// through the entire one or one of the parts", then "Add a last section that
-// shows all the parts without duplicating them", named By topic). Each mode's
-// line opens Whole tutorial, a line, and that tour's parts in the order it
-// runs them; below a line, By topic opens every part once, in
-// tutorial_state::kParts' order. A part done has a tick wherever it is listed.
-inline const wchar_t *const kWholeTutorial = L"Whole tutorial";
-inline const wchar_t *const kByTopic = L"By topic";
+// ⭐⭐ MODE AND TOPIC (rhoquinn8217, 2026-11-13: "don't show the parts for the
+// modes in the tray. Instead "Start Tutorial" should have 2 options, Mode and
+// Topic. Mode has 3 options Advance, Simple and Quick. Topic has the 8 you've
+// listed"). Mode starts a whole tour (kTutorials); Topic one part, every part
+// once in tutorial_state::kParts' order, a tick on a part done. ⓘ Each mode's
+// parts under it, below Whole tutorial, and By topic below them, came first
+// the same day and went at that word.
+inline const wchar_t *const kTutorialMode = L"Mode";
+inline const wchar_t *const kTutorialTopic = L"Topic";
 
 // ⓘ The menu's ids for them, counted from the first the menu gives the
-// tutorials: a block of kTourIds for each tour in kTutorials' order, its
-// first the whole tour and the rest a part each by its place in kParts, then
-// By topic's block, whose first is unused.
-inline constexpr unsigned kTourIds = 20;
-static_assert(tutorial_state::kPartCount < static_cast<int>(kTourIds), "a block holds every part");
+// tutorials: Mode's, a tour each in kTutorials' order, then Topic's from
+// kTopicIds on, a part each by its place in kParts.
+inline constexpr unsigned kTopicIds = 20;
+static_assert(kTutorialCount < static_cast<int>(kTopicIds), "the tours' ids end before the parts'");
 
-// What a choice asks for: `tour` a place in kTutorials, or -1 for By topic;
-// `part` a place in kParts, or -1 for the whole tour.
+// What a choice asks for: `tour` a place in kTutorials for its whole tour, or
+// -1 for a part from Topic; `part` a place in kParts, or -1 for a whole tour.
 struct TutorialChoice {
     int tour = -1;
     int part = -1;
 };
 
+// A whole tour's id (`part` -1), or a part's from Topic (`tour` -1).
 inline unsigned tutorial_id(unsigned first, int tour, int part)
 {
-    const unsigned block = tour < 0 ? static_cast<unsigned>(kTutorialCount) : static_cast<unsigned>(tour);
-    return first + block * kTourIds + (part < 0 ? 0u : 1u + static_cast<unsigned>(part));
+    return tour >= 0 ? first + static_cast<unsigned>(tour) : first + kTopicIds + static_cast<unsigned>(part);
 }
 
 // The choice an id from the menu stands for; false for an id that is none of
-// the tutorials'. ⓘ A part a tour does not have is none: the menu never lists one.
+// the tutorials'.
 inline bool tutorial_choice(unsigned first, unsigned id, TutorialChoice *out)
 {
     if (id < first) return false;
     const unsigned offset = id - first;
-    const unsigned block = offset / kTourIds;
-    const unsigned slot = offset % kTourIds;
-    if (block > static_cast<unsigned>(kTutorialCount)) return false;
     TutorialChoice c;
-    c.tour = block == static_cast<unsigned>(kTutorialCount) ? -1 : static_cast<int>(block);
-    c.part = slot == 0 ? -1 : static_cast<int>(slot) - 1;
-    if (c.part >= tutorial_state::kPartCount) return false;
-    if (c.tour < 0 && c.part < 0) return false;    // By topic has no whole tour
-    if (c.tour >= 0 && c.part >= 0 && !tutorial_state::kParts[c.part].tours[kTutorials[c.tour].kind]) return false;
+    if (offset < static_cast<unsigned>(kTutorialCount)) {
+        c.tour = static_cast<int>(offset);
+    } else if (offset >= kTopicIds && offset < kTopicIds + static_cast<unsigned>(tutorial_state::kPartCount)) {
+        c.part = static_cast<int>(offset - kTopicIds);
+    } else {
+        return false;
+    }
     if (out != nullptr) *out = c;
     return true;
 }
