@@ -354,7 +354,10 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
                 // play the switch in the tour's window, which a close would
                 // end, and so would a window of the switch's own in its place.
                 // Out of the front, the tour's window is brought back (below).
-                switch (quick_switch::arming(inFront, g_mockOn.load())) {
+                // ⭐ And for the whole of a tutorial, not only its steps that play the switch (rhoquinn8217,
+                // 2026-11-14: "prevent any time a tutorial is running ... two finger press from closing the
+                // config window"): a press with the window in front closed it and ended the tour.
+                switch (quick_switch::arming(inFront, g_mockOn.load() || ui_tutorial_words_up())) {
                 case quick_switch::Arming::Close:
                     quick_switch::arm(ps.closeArmed, now_ms());
                     did = Did::Closing;
@@ -372,7 +375,7 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
                 }
             }
         } else if (ps.closeArmed.on) {
-            if (g_mockOn.load()) {
+            if (g_mockOn.load() || ui_tutorial_words_up()) {
                 ps.closeArmed = quick_switch::Armed();
             } else {
                 const bool wasSpent = ps.closeArmed.spent;
