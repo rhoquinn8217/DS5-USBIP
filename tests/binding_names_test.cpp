@@ -255,7 +255,7 @@ int run_binding_names_tests()
         // ⓘ Well over a hundred today. A short list means the read went wrong.
         CTM_CHECK(names.size() > 100);
         int unknown = 0;
-        int keys = 0, mouse = 0, keyboards = 0, buttons = 0;
+        int keys = 0, mouse = 0, keyboards = 0, buttons = 0, windowSelect = 0;
         for (const std::string &name : names) {
             const binding::Target t = parse(name);
             if (t.kind == binding::kNone) {
@@ -266,10 +266,13 @@ int run_binding_names_tests()
             if (t.kind == binding::kMouseButton || t.kind == binding::kMouseWheel) ++mouse;
             if (t.kind == binding::kOsk) ++keyboards;
             if (t.kind == binding::kPadButton) ++buttons;
+            if (t.kind == binding::kWindowSelect) ++windowSelect;
         }
         CTM_CHECK_EQ(unknown, 0);
         CTM_CHECK_EQ(mouse, 5);
         CTM_CHECK_EQ(keyboards, 3);
+        // ⓘ Window Select's two (2026-11-12): back and next.
+        CTM_CHECK_EQ(windowSelect, 2);
         // ⓘ The seventeen any pad can be given; the Edge's four are rebound,
         // not offered as buttons to press.
         CTM_CHECK_EQ(buttons, static_cast<int>(ctm_rebind::kSharedButtonCount));

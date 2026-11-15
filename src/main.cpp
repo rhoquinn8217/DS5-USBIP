@@ -424,6 +424,7 @@ inline bool take_first_controller();
 #include "app/protocol_level.inl"    // whether this listener and a TV app can work together; agent.inl answers with it
 #include "app/open_on_bridge.inl"      // whether a bridge opens the settings window; agent.inl and the tray ask it
 #include "app/quick_switch.inl"        // the quick config switch: its setting, its swipe, its keys; pure
+#include "input/window_select.inl"     // Window Select: Alt held through Windows' picker; pure
 #include "app/agent.inl"
 #include "input/mouse_device.inl"      // needs g_agent_usbip_server, find_relative_asset, run_usbip_attach
 #include "input/keyboard_device.inl"   // same dependencies as the mouse above

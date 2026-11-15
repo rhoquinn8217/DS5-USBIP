@@ -394,11 +394,29 @@ inline const Setting kL2GyroStickAiming[] = {
 // first controller after a fresh install auto linked to it
 // (default_config_rule.inl).
 // ⓘ Every pad: an Xbox pad has no touchpad or gyro, and the rest acts on it.
+// ⭐ AND DESKTOP MODE'S, SINCE 2026-11-12 (rhoquinn8217: *"we can adjust the
+// default windows config to match everything the aurora-tv rebinds do except
+// for the keyboard which is essentially the same"*, so that *"The transition
+// between aurora-tv managing controllers and DS5-USBIP managing controllers"*
+// is *"seemless"*): a controller Desktop Mode hands over reads this config
+// (protocol_level::desktop_link), so it does what Desktop Mode did: Create
+// Tab, L1 and R1 Window Select (window_select.inl), and the right stick quick
+// from the first push at Desktop Mode's speed (sqrt past a 13% dead zone, as
+// its 4096 of 32768; 2400 pixels a second at full tilt, which crosses a 4K
+// screen in the 1.6 seconds Desktop Mode takes). Triangle and PS stay
+// unbound (their word: *"Triangle should just be unset"*, *"No buttons should
+// be bound to legend or cursor"*), and right click stays the two-finger tap
+// (*"Right click should be two finger tap"*).
+// ⓘ A copy made before keeps what it had until default_config::ensure brings
+// it up to date, and only if nobody edited it (kDefaultWindowsConfigV1).
 inline const Setting kDefaultWindowsConfig[] = {
     { "rebind_0",  "Enter" },               /* cross  */
     { "rebind_1",  "Escape" },              /* circle */
     { "rebind_2",  "KeyboardDS5_USBIP" },   /* square -- our on-screen keyboard */
     /* ⓘ No rebind_3: Triangle is left blank (their word). */
+    { "rebind_4",  "WindowSelectBack" },    /* l1 -- Alt+Shift+Tab, Alt held */
+    { "rebind_5",  "WindowSelectNext" },    /* r1 -- Alt+Tab, Alt held */
+    { "rebind_8",  "Tab" },                 /* create */
     { "rebind_12", "ArrowUp" },
     { "rebind_13", "ArrowDown" },
     { "rebind_14", "ArrowLeft" },
@@ -418,6 +436,39 @@ inline const Setting kDefaultWindowsConfig[] = {
        and up when the finger lifts, so a press that moves drags, as in
        touchpad-to-mouse. ⓘ The touchpad's click has no rebind_N: this is
        the setting that makes it click. */
+    { "touchpad_press_touch_drag", "MouseLeft" },
+    { "gyro_no_passthrough", "true" },
+    { "gyro_to_mouse_gate_type", "while_held" },
+    { "gyro_to_mouse_gate_button", "r3" },
+    { "right_stick_mouse_curve", "sqrt" },
+    { "right_stick_mouse_deadzone", "13" },
+    { "right_stick_mouse_speed", "2400" },
+};
+
+// ⓘ THE PRESET AS IT SHIPPED FROM 2026-11-07 (1.0.0), kept only to know a
+// copy nobody has edited: one that still reads exactly this is brought to the
+// preset above at the next start (default_config::copy_state, rhoquinn8217,
+// 2026-11-12, asked about old copies: "2. a"), and one that differs is
+// left as it is.
+inline const Setting kDefaultWindowsConfigV1[] = {
+    { "rebind_0",  "Enter" },
+    { "rebind_1",  "Escape" },
+    { "rebind_2",  "KeyboardDS5_USBIP" },
+    { "rebind_12", "ArrowUp" },
+    { "rebind_13", "ArrowDown" },
+    { "rebind_14", "ArrowLeft" },
+    { "rebind_15", "ArrowRight" },
+    CTM_PRESET_TRIGGER_CLICKS,
+    { "right_stick_mode", "mouse" },
+    { "right_stick_no_passthrough", "true" },
+    { "left_stick_mode", "scroll" },
+    { "left_stick_no_passthrough", "true" },
+    { "touchpad_no_passthrough", "true" },
+    { "touchpad_to_mouse", "true" },
+    { "touchpad_scroll", "2" },
+    { "touchpad_scroll_natural", "true" },
+    { "touchpad_one_finger_tap", "MouseLeft" },
+    { "touchpad_two_finger_tap", "MouseRight" },
     { "touchpad_press_touch_drag", "MouseLeft" },
     { "gyro_no_passthrough", "true" },
     { "gyro_to_mouse_gate_type", "while_held" },

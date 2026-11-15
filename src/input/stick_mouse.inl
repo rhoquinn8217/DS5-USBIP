@@ -109,7 +109,13 @@ inline Which parse_which(const std::string &raw)
     return Which::Off;
 }
 
-enum class Curve { Linear, Quadratic, Cubic };
+// ⭐ SQRT, AS THE TV MOVES ITS POINTER (rhoquinn8217, 2026-11-12, Desktop
+// Mode's hand-over: "The transition between aurora-tv managing controllers and
+// DS5-USBIP managing controllers needs to be seemless"): aurora-tv's Desktop
+// Mode and Virtual Mouse move it by the square root of the stick past their
+// dead zone, quick from the first push, where the other three are slower
+// there. default_windows_config's right stick uses it.
+enum class Curve { Linear, Quadratic, Cubic, Sqrt };
 
 inline Curve parse_curve(const std::string &raw)
 {
@@ -117,6 +123,7 @@ inline Curve parse_curve(const std::string &raw)
     for (char c : raw) v.push_back(static_cast<char>((c >= 'A' && c <= 'Z') ? c - 'A' + 'a' : c));
     if (v == "linear") return Curve::Linear;
     if (v == "cubic") return Curve::Cubic;
+    if (v == "sqrt") return Curve::Sqrt;
     return Curve::Quadratic;      // the default: precise low end, quick edges
 }
 
@@ -125,6 +132,7 @@ inline float apply_curve(Curve curve, float t)
     switch (curve) {
         case Curve::Linear: return t;
         case Curve::Cubic: return t * t * t;
+        case Curve::Sqrt: return t <= 0.0f ? 0.0f : std::sqrt(t);
         case Curve::Quadratic: break;
     }
     return t * t;

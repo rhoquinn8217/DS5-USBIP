@@ -204,6 +204,19 @@ void both_halves_for(std::vector<uint8_t> &r, long long ms, long long everyMs = 
 
 int run_stick_mouse_tests()
 {
+    section("stick: the sqrt curve, quick from the first push as the TV's pointer (2026-11-12)");
+    {
+        using ctm_stick_mouse::Curve;
+        CTM_CHECK(ctm_stick_mouse::parse_curve("sqrt") == Curve::Sqrt);
+        CTM_CHECK(ctm_stick_mouse::parse_curve("SQRT") == Curve::Sqrt);
+        CTM_CHECK(ctm_stick_mouse::parse_curve("") == Curve::Quadratic);       // the default stays
+        CTM_CHECK(ctm_stick_mouse::apply_curve(Curve::Sqrt, 0.25f) == 0.5f);
+        CTM_CHECK(ctm_stick_mouse::apply_curve(Curve::Sqrt, 1.0f) == 1.0f);
+        CTM_CHECK(ctm_stick_mouse::apply_curve(Curve::Sqrt, 0.0f) == 0.0f);
+        // ⓘ Above linear everywhere between: quicker at every push short of full.
+        CTM_CHECK(ctm_stick_mouse::apply_curve(Curve::Sqrt, 0.09f) > ctm_stick_mouse::apply_curve(Curve::Linear, 0.09f));
+    }
+
     section("stick: nothing configured moves nothing");
     {
         reset_stubs();

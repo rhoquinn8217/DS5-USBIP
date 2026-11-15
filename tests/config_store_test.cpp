@@ -761,6 +761,14 @@ int run_config_store_tests()
             CTM_CHECK(value("touchpad_press_touch_drag") == "MouseLeft");
             CTM_CHECK(value("left_trigger_steady_cursor_pull").empty() &&
                       value("right_trigger_steady_cursor_pull").empty());
+            // ⭐ And Desktop Mode's since 2026-11-12: Create Tab, L1 and R1 Window
+            // Select, the right stick on sqrt at its speed; PS and Triangle
+            // unbound, right click the two-finger tap.
+            CTM_CHECK(value("rebind_8") == "Tab");
+            CTM_CHECK(value("rebind_4") == "WindowSelectBack" && value("rebind_5") == "WindowSelectNext");
+            CTM_CHECK(value("right_stick_mouse_curve") == "sqrt" && value("right_stick_mouse_deadzone") == "13" &&
+                      value("right_stick_mouse_speed") == "2400");
+            CTM_CHECK(value("rebind_16").empty() && value("rebind_3").empty());
             CTM_CHECK(std::string(p->label) == "default_windows_config");
             CTM_CHECK(ctm_presets::suits(*p, "ds5") && ctm_presets::suits(*p, "ds5_edge") &&
                       ctm_presets::suits(*p, "ds4") && ctm_presets::suits(*p, "xbox"));
@@ -792,6 +800,67 @@ int run_config_store_tests()
         CTM_CHECK(default_config::first_line() == "default_windows_config_first_controller = 1\n");
         CTM_CHECK(default_config::parse_first("1") && !default_config::parse_first("0") &&
                   !default_config::parse_first(""));
+    }
+
+    section("default_windows_config: a copy made before is brought up to date only if nobody edited it (2026-11-12)");
+    {
+        using default_config::Copy;
+        const default_config::Pairs before = {{"rebind_0", "Enter"}, {"touchpad_scroll", "2"}};
+        const default_config::Pairs now = {{"rebind_0", "Enter"}, {"touchpad_scroll", "2"}, {"rebind_8", "Tab"}};
+        // As it shipped, with the reader's folding and a blank left behind: unedited.
+        CTM_CHECK(default_config::copy_state({{"REBIND_0", "enter"}, {"touchpad_scroll", "2"}, {"rebind_9", ""}},
+                                             now, before) == Copy::Unedited);
+        // Already the preset now: nothing to do.
+        CTM_CHECK(default_config::copy_state(now, now, before) == Copy::Current);
+        // A value changed, a key added or one taken away: edited, left alone.
+        CTM_CHECK(default_config::copy_state({{"rebind_0", "Space"}, {"touchpad_scroll", "2"}}, now, before) ==
+                  Copy::Edited);
+        CTM_CHECK(default_config::copy_state({{"rebind_0", "Enter"}, {"touchpad_scroll", "2"}, {"rebind_3", "KeyA"}},
+                                             now, before) == Copy::Edited);
+        CTM_CHECK(default_config::copy_state({{"rebind_0", "Enter"}}, now, before) == Copy::Edited);
+        // ⭐ The real preset as it shipped reads as unedited against the preset now.
+        default_config::Pairs shipped, current;
+        for (const auto &s : ctm_presets::kDefaultWindowsConfigV1) shipped.emplace_back(s.key, s.value);
+        const ctm_presets::Preset *p = ctm_presets::find(default_config::kName);
+        CTM_CHECK(p != nullptr);
+        if (p != nullptr) {
+            for (size_t i = 0; i < p->count; ++i) current.emplace_back(p->settings[i].key, p->settings[i].value);
+            CTM_CHECK(default_config::copy_state(shipped, current, shipped) == Copy::Unedited);
+            CTM_CHECK(default_config::copy_state(current, current, shipped) == Copy::Current);
+            // Nothing it shipped with has gone, so bringing it up to date clears nothing.
+            CTM_CHECK(default_config::dropped_keys(current, shipped).empty());
+        }
+        // A key the preset no longer has is cleared, as it was written; a
+        // blank one, or one only written in another case, is not.
+        const std::vector<std::string> gone = default_config::dropped_keys(
+            {{"REBIND_0", "Space"}}, {{"rebind_0", "Enter"}, {"Touchpad_Scroll", "2"}, {"rebind_9", ""}});
+        CTM_CHECK_EQ(gone.size(), static_cast<size_t>(1));
+        CTM_CHECK(!gone.empty() && gone[0] == "Touchpad_Scroll");
+    }
+
+    section("default_windows_config: Desktop Mode's hand-over reads it for that bridge alone (2026-11-12)");
+    {
+        using default_config::StartWhy;
+        // ⭐ Handed over, the config there: it, for this bridge, over any auto link.
+        auto s = default_config::start_link(true, true, "touchpad_to_mouse", "");
+        CTM_CHECK(s.config == "default_windows_config" && s.thisBridgeOnly && s.why == StartWhy::DesktopMode);
+        s = default_config::start_link(true, true, "", "");
+        CTM_CHECK(s.config == "default_windows_config" && s.thisBridgeOnly && s.why == StartWhy::DesktopMode);
+        // ⓘ Over the first controller's link as well: the hand-over decides this bridge.
+        s = default_config::start_link(true, true, "", "default_windows_config");
+        CTM_CHECK(s.config == "default_windows_config" && s.thisBridgeOnly && s.why == StartWhy::DesktopMode);
+        // Not handed over: the auto link, kept, as ever.
+        s = default_config::start_link(false, true, "touchpad_to_mouse", "");
+        CTM_CHECK(s.config == "touchpad_to_mouse" && !s.thisBridgeOnly && s.why == StartWhy::AutoLink);
+        // Handed over with no default_windows_config (archived): as without the word.
+        s = default_config::start_link(true, false, "touchpad_to_mouse", "");
+        CTM_CHECK(s.config == "touchpad_to_mouse" && !s.thisBridgeOnly && s.why == StartWhy::AutoLink);
+        // The first controller's link for this bridge, with no auto link and no hand-over.
+        s = default_config::start_link(false, true, "", "default_windows_config");
+        CTM_CHECK(s.config == "default_windows_config" && s.thisBridgeOnly && s.why == StartWhy::FirstController);
+        // Nothing at all: the controller's own buttons.
+        s = default_config::start_link(false, false, "", "");
+        CTM_CHECK(s.config.empty() && !s.thisBridgeOnly && s.why == StartWhy::None);
     }
 
     section("presets: a label names a button as {btn:N}, for the page to draw");
@@ -1040,9 +1109,20 @@ int run_config_store_tests()
             "left_stick_mouse_deadzone", "left_stick_scroll_speed",
             "touchpad_mouse_speed", "touchpad_scroll_speed"
         };
+        // ⭐ ONE EXCEPTION, AND IT IS NOT A GUESS: default_windows_config's
+        // right stick is Desktop Mode's, copied from the TV so a controller it
+        // hands over moves the pointer as it did (rhoquinn8217, 2026-11-12).
+        // Only those three keys, and only at those values.
+        const auto desktopMode = [](const std::string &preset, const std::string &key, const std::string &value) {
+            return preset == default_config::kName &&
+                   ((key == "right_stick_mouse_curve" && value == "sqrt") ||
+                    (key == "right_stick_mouse_deadzone" && value == "13") ||
+                    (key == "right_stick_mouse_speed" && value == "2400"));
+        };
         for (size_t i = 0; i < ctm_presets::preset_count(); ++i) {
             const ctm_presets::Preset &p = ctm_presets::kPresets[i];
             for (size_t k = 0; k < p.count; ++k) {
+                if (desktopMode(p.name, p.settings[k].key, p.settings[k].value)) continue;
                 for (const char *bad : tuning) {
                     CTM_CHECK(std::string(p.settings[k].key) != bad);
                 }
