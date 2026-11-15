@@ -2,7 +2,7 @@
 <!--
   DS5-USBIP's Controller Configs page, served by the listener.
 
-  VERSION 2.72.11 -- see the changelog at the bottom of this comment.
+  VERSION 2.72.12 -- see the changelog at the bottom of this comment.
 
   WHAT IT STARTED AS. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -24,6 +24,8 @@
   not a tidy message about it.
 
   CHANGELOG
+    2.72.12  (rhoquinn8217, 2026-11-14) Advanced: the size step starts the window at the large size so the
+             next size changes it; a step for Quick switch: Window select in the Overview.
     2.72.11  (rhoquinn8217, 2026-11-14) Quick switch instructions bold and gold; the window selector step
              is done once a window is picked; a press on the window kept open puts it away; a topic ends
              with '<topic> completed.' and a small confetti in its box; button marks on the start and the
@@ -3960,7 +3962,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.72.11</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.72.12</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -15819,8 +15821,8 @@ function selfTest() {
     var advWords = TUT_ADVANCED.map(function (st) { return st.words(); });
     TUT = keepTutA;
     TUT_MOCK = keepMockA;
-    ok('the tutorial: Advanced has thirty-four steps, each with words, the last ending it',
-       TUT_ADVANCED.length === 34 && TUT_ADVANCED[33].act === 'end' &&
+    ok('the tutorial: Advanced has thirty-five steps, each with words, the last ending it',
+       TUT_ADVANCED.length === 35 && TUT_ADVANCED[34].act === 'end' &&
        advWords.every(function (w) { return !!w && w.indexOf('undefined') < 0; }),
        advWords.join(' / '));
     // ⓘ Each box alone: the help line under the quick switch went into its
@@ -15930,7 +15932,7 @@ function selfTest() {
     // ⓘ Not the last steps since 2.66.144: Simple's last says only to finish.
     // ⭐ And since the tours went into parts (2026-11-13), Switching modes is
     // one part in both: its Circle, left and tip say the same.
-    var advPairs = [[33, 39]];
+    var advPairs = [[34, 39]];
     var advUnlike = advPairs.filter(function (n) {
       var a = TUT_ADVANCED[n[0] - 1], b = TUT_SIMPLE[n[1] - 1];
       return advSame(a) !== advSame(b) || advKind(a) !== advKind(b);
@@ -15939,14 +15941,14 @@ function selfTest() {
     TUT_MOCK = keepAdv[1];
     ok('the tutorial: the steps Advanced shares with Simple say the same words, and wait the same way',
        advUnlike.length === 0, advUnlike.join(', ') || 'all alike');
-    var advShape = [13, 14, 17, 18, 19, 20, 22, 23, 24, 25, 26, 27, 28, 30, 31].map(function (n) {
+    var advShape = [13, 15, 18, 19, 20, 21, 23, 24, 25, 26, 27, 28, 29, 31, 32].map(function (n) {
       var st = TUT_ADVANCED[n - 1];
       return n + ':' + (st.act === true ? 'act' : st.free ? 'free' : 'look');
     }).join(' ');
     ok('the tutorial: Advanced renames its config, ticks a box, opens a list and picks from it, and ' +
        'has a value box pressed and then changed, each in steps of their own',
-       advShape === '13:look 14:look 17:act 18:free 19:act 20:look 22:free 23:act 24:act 25:free 26:act ' +
-                     '27:act 28:free 30:act 31:free', advShape);
+       advShape === '13:look 15:look 18:act 19:free 20:act 21:look 23:free 24:act 25:act 26:free 27:act ' +
+                     '28:act 29:free 31:act 32:free', advShape);
   }
 
   // The tour opens a list for a step that wants it open, opens it again when
@@ -16001,9 +16003,9 @@ function selfTest() {
     TUT.at = 0;
     var barFirst = tutStepButtons(TUT_ADVANCED[0]);
     var barDone = tutWordsCongrats();
-    TUT.at = 33;
+    TUT.at = 34;
     INPUT_LAST = 'pad';
-    var barLast = tutStepButtons(TUT_ADVANCED[33]);
+    var barLast = tutStepButtons(TUT_ADVANCED[34]);
     var barLastWords = tutWordsEnd();
     TUT = keepBar[0];
     INPUT_LAST = keepBar[1];
@@ -16495,7 +16497,7 @@ function selfTest() {
        orders.join(' / ') === 'modes,controllers,configs,window,switch / ' +
                               'modes,controllers,window,switch / ' +
                               'modes,overview,customizing,window' &&
-       toursRight && tagged && sizes.join(' / ') === '12,10,14,4,8 / 12,10,3,8 / 12,6,13,2',
+       toursRight && tagged && sizes.join(' / ') === '12,10,14,4,8 / 12,10,3,8 / 12,7,13,2',
        orders.join(' / ') + ' / ' + sizes.join(' / '));
     ok('the tutorial: a tour that starts by itself runs the parts not done, and none with all done',
        left === 'controllers,window' && autoParts.join(',') === 'true,true,true',
@@ -17878,6 +17880,16 @@ function tutMarkStep() {
 // mode's legend has resize.
 function tutSizeStep(legend) {
   return { side: 'below', free: true, split: true, legend: 'resize', focus: '.cgroup button.csize',
+           // ⭐ Advanced's window is at its small size after the modes part switched into it, while DS5-USBIP holds
+           // the tour's large size: the first resize went to the small one and changed nothing (2026-11-14, "step 33
+           // in advance mode doesn't change the size"). So the step starts it at the large size.
+           enter: function () {
+             if (COMPACT || !TUT_SIZING) return;
+             var w = Math.round(screen.availWidth * 0.97), h = Math.round(screen.availHeight * 0.94);
+             window.resizeTo(w, h);
+             window.moveTo(Math.round(((window.screen.availLeft || 0) + screen.availWidth - w) / 2),
+                           Math.round(((window.screen.availTop || 0) + screen.availHeight - h) / 2));
+           },
            lit: function () { return tutQ(legend, '.cgroup button.csize'); },
            anchors: function () { return tutQ('.cgroup button.csize'); },
            hits: function () { return tutQ('.cgroup button.csize'); },
@@ -19067,6 +19079,16 @@ var TUT_ADVANCED = tutTour([
                'configs mid-game: press the touchpad with two fingers and Quick opens while a finger rests ' +
                'on it. Swipe another finger up or down, or push the right stick up or down, to change the ' +
                'config; lifting closes it, and pressing again keeps it open.';
+      } },
+    // The third global option (2026-11-14, "add a step describing the quick switch global option"): the window
+    // selector during a quick switch, shown and locked as the other two.
+    { side: 'left', enter: tutAdvOverview,
+      lit: function () { var l = tutById('appSwitcherLabel'); return l ? [l] : []; },
+      anchors: function () { return tutA('#appSwitcher'); },
+      words: function () {
+        return 'Ticked, ' + tutHl('Quick switch: Window select') + ' lets you bring up another window during a quick ' +
+               'switch: ' + tutDpadMove(['left', 'right']) + ', or move the right stick left or right, to open the ' +
+               'window selector (Alt+Tab), then pick a window with ' + tutKey('select') + ' or a touchpad press.';
       } },
     // 3: the controllers bridged, a row each, and its heading.
     { side: 'left', enter: tutAdvOverview,
