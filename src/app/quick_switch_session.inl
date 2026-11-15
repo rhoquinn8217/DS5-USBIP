@@ -753,6 +753,11 @@ inline void app_keys(const void *deviceKey, bool *alt, int *tab)
             // ⓘ Whether or not a finger is still on the touchpad: a press of it picks, and the finger lifts.
             if (k.wentUp && k.picked && g_mockOn.load() && g_mockSwitcher.load()) {
                 tourRaise = true;
+                // ⭐ And the page hears it, for the step that asks the person to pick a window.
+                if (g_mockEvents.size() < 256) {
+                    if (!g_mockEvents.empty()) g_mockEvents += ",";
+                    g_mockEvents += "picked";
+                }
             }
         }
         // ⛔ The listener's own raise presses Alt to be let take the front

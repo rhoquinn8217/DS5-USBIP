@@ -2,7 +2,7 @@
 <!--
   DS5-USBIP's Controller Configs page, served by the listener.
 
-  VERSION 2.72.8 -- see the changelog at the bottom of this comment.
+  VERSION 2.72.9 -- see the changelog at the bottom of this comment.
 
   WHAT IT STARTED AS. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -24,6 +24,10 @@
   not a tidy message about it.
 
   CHANGELOG
+    2.72.9   (rhoquinn8217, 2026-11-14) The quick switch topic in rhoquinn8217's own steps: Close; what
+             is coming; switch to a config the step names; why to use it; pick a window in the
+             window selector; keep the window with a double press; a free try; the last word. With
+             no touchpad controller bridged each is read, and the why and the free try are left out.
     2.72.8   (rhoquinn8217, 2026-11-14) The quick switch topic's words stay on top of every
              window on every step, going back included.
     2.72.7   (rhoquinn8217, 2026-11-14) Making and managing configs are one topic, always
@@ -3949,7 +3953,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.72.8</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.72.9</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -15695,8 +15699,8 @@ function selfTest() {
        lateCfg.configs.length === 5 && lateCfg.configs[0].name === 'shared',
        JSON.stringify(mockDevs[0]));
     var tourWords = TUT_QUICK.map(function (s) { return s.words(); });
-    ok('the tutorial: Quick has thirty-two steps, each with words, the last ending it',
-       TUT_QUICK.length === 32 && TUT_QUICK[31].act === 'end' &&
+    ok('the tutorial: Quick has thirty-four steps, each with words, the last ending it',
+       TUT_QUICK.length === 34 && TUT_QUICK[33].act === 'end' &&
        tourWords.every(function (w) { return !!w && w.indexOf('undefined') < 0; }),
        tourWords.join(' / '));
     TUT_MOCK = keepMock;
@@ -15724,8 +15728,8 @@ function selfTest() {
     var simpleWords = TUT_SIMPLE.map(function (st) { return st.words(); });
     TUT = keepTutS;
     TUT_MOCK = keepMockS;
-    ok('the tutorial: Simple has forty-seven steps, each with words, the last ending it',
-       TUT_SIMPLE.length === 47 && TUT_SIMPLE[46].act === 'end' &&
+    ok('the tutorial: Simple has forty-nine steps, each with words, the last ending it',
+       TUT_SIMPLE.length === 49 && TUT_SIMPLE[48].act === 'end' &&
        TUT_SIMPLE.filter(function (st) { return st.act === 'end'; }).length === 1 &&
        simpleWords.every(function (w) { return !!w && w.indexOf('undefined') < 0; }),
        simpleWords.join(' / '));
@@ -16251,7 +16255,7 @@ function selfTest() {
     var shrinkSeen = [];
     closeWindow();
     shrinkSeen.push(TUT_SHRUNK);
-    TUT.at = 41;
+    TUT.at = 42;
     tutPadEnter();
     tutPadEvent('open');
     shrinkSeen.push(!TUT_SHRUNK && shrinkView === 'quick');
@@ -16259,17 +16263,18 @@ function selfTest() {
     shrinkSeen.push(!TUT_SHRUNK && !TUT.padKept && shrinkView === 'quick');
     tutPadEvent('lift');
     shrinkSeen.push(TUT_SHRUNK && shrinkView === 'quick');
-    TUT.at = 44;
+    TUT.at = 45;
     tutPadEnter();
     tutPadEvent('open');
     tutPadEvent('keep');
     shrinkSeen.push(!TUT_SHRUNK && TUT.padKept === true && shrinkView === 'simple');
     tutPadEvent('lift');
     shrinkSeen.push(!TUT_SHRUNK && modes.join(',') === 'quick,simple');
-    var shrinkSteps = TUT_SIMPLE[40].fakeClose === true && TUT_SIMPLE[41].pad === 'try' &&
-                      TUT_SIMPLE[44].pad === 'keep' && TUT_SIMPLE[41].views.join(',') === 'simple,quick' &&
-                      TUT_SIMPLE[44].views.join(',') === 'simple,quick' &&
-                      [40, 41, 44].every(function (i) { return !/tray/i.test(TUT_SIMPLE[i].words()); });
+    var shrinkSteps = TUT_SIMPLE[40].fakeClose === true && TUT_SIMPLE[42].pad === 'try' &&
+                      TUT_SIMPLE[45].pad === 'keep' && TUT_SIMPLE[46].pad === 'free' &&
+                      TUT_SIMPLE[42].views.join(',') === 'simple,quick' &&
+                      TUT_SIMPLE[45].views.join(',') === 'simple,quick' &&
+                      [40, 41, 42, 43, 44, 45, 46].every(function (i) { return !/tray/i.test(TUT_SIMPLE[i].words()); });
     TUT = keepShrink[0];
     TUT_SHRUNK = keepShrink[1];
     TUT_SIZING = keepShrink[2];
@@ -16335,14 +16340,14 @@ function selfTest() {
     TUT_SHRUNK = false;
     padSeen.push(tutPadKeys('KeyJ', true, false) && tutPadKeys('KeyK', true, false) &&
                  tutPadKeys('KeyS', true, false) && !tutPadKeys('KeyJ', false, true) &&
-                 tutWordsSide(TUT_SIMPLE[41]) === 'screen');
+                 tutWordsSide(TUT_SIMPLE[42]) === 'screen');
     TUT_SHRUNK = true;
     padSeen.push(!tutPadKeys('KeyJ', true, false) && !tutPadKeys('KeyS', true, false) &&
-                 tutWordsSide(TUT_SIMPLE[41]) === 'screen' && tutWordsSide(TUT_SIMPLE[44]) === 'screen');
+                 tutWordsSide(TUT_SIMPLE[42]) === 'screen' && tutWordsSide(TUT_SIMPLE[45]) === 'screen');
     TUT_SHRUNK = keepPad;
-    padSeen.push(TUT_SIMPLE[41].keys === tutPadKeys && TUT_SIMPLE[44].keys === tutPadKeys &&
-                 tutWordsSide(TUT_SIMPLE[45]) === 'center' && tutWordsSide(TUT_SIMPLE[39]) === 'left' &&
-                 tutWordsSide(TUT_SIMPLE[46]) === 'center' &&
+    padSeen.push(TUT_SIMPLE[42].keys === tutPadKeys && TUT_SIMPLE[45].keys === tutPadKeys &&
+                 tutWordsSide(TUT_SIMPLE[47]) === 'center' && tutWordsSide(TUT_SIMPLE[39]) === 'left' &&
+                 tutWordsSide(TUT_SIMPLE[48]) === 'center' &&
                  tutWordsSide(TUT_SIMPLE[12]) === 'left');
     // ⭐ Simple's mode steps (2.66.145): only the mode asked for to choose,
     // the words over Advanced's middle and above Quick's window, and the last
@@ -16374,17 +16379,16 @@ function selfTest() {
     modeSeen.push(modePickerHtml('tutModeTest').indexOf('value="quick">') >= 0);
     TUT = keepMode[0]; COMPACT = keepMode[1]; QUICK = keepMode[2];
     setMode = keepMode[3]; tutViewKind = keepMode[4]; TUT_SHRUNK = keepMode[5];
-    var lastWords = TUT_SIMPLE[46].words(), tipWords = TUT_SIMPLE[39].words();
+    var lastWords = TUT_SIMPLE[48].words(), tipWords = TUT_SIMPLE[39].words();
     modeSeen.push(/^Use quick switch to set a mouse mode/.test(tutWordsTrySwitch()) &&
                   tutWordsTrySwitch().indexOf('borderless') > 0 &&
-                  TUT_SIMPLE[45].words === tutWordsTrySwitch && TUT_SIMPLE[46].act === 'end' &&
+                  TUT_SIMPLE[47].words === tutWordsTrySwitch && TUT_SIMPLE[48].act === 'end' &&
                   TUT_SIMPLE[39].free === true && !TUT_SIMPLE[39].act && tipWords.indexOf('tip') >= 0 &&
                   tipWords.indexOf(tutWordsTutorials()) < 0 && tipWords.indexOf(tutHl('Continue')) >= 0 &&
                   lastWords.indexOf(tutWordsTutorials()) === 0 && lastWords.indexOf(tutHl('Finish tutorial')) >= 0 &&
                   lastWords.indexOf('borderless') < 0 &&
                   /^This is Simple Mode\. .*Let's take a look at the other two modes\.$/.test(TUT_SIMPLE[0].words()) &&
                   tutWordsEnd().indexOf(tutWordsTutorials()) >= 0 && !/two fingers/.test(tutWordsEnd()) &&
-                  /^Now we will learn how to bring back the window\. /.test(tutWordsPadTry()) &&
                   !/shrink/.test(TUT_SIMPLE[40].words()) &&
                   !TUT_SIMPLE.some(function (st) { return st.words === tutWordsBack; }));
     ok('the tutorial: a mode step lets only its mode be chosen, the words stand over Advanced\'s middle and ' +
@@ -16406,22 +16410,22 @@ function selfTest() {
     // press's step has none. And no other step in the three tours needs
     // anything. On made-up state, put back after.
     var keepSkip = [TUT, TUT_REAL, QUICK_SWITCH];
-    TUT = { kind: 'simple', phase: 'step', at: 41, done: [], mem: [], busy: false, focus: null, made: '' };
+    TUT = { kind: 'simple', phase: 'step', at: 42, done: [], mem: [], busy: false, focus: null, made: '' };
     var skipSeen = [];
     var bar = function (n) { TUT.at = n - 1; return tutStepButtons(TUT_SIMPLE[n - 1]).split('|')[0]; };
     TUT_REAL = [];
     QUICK_SWITCH = true;
-    skipSeen.push(/^next:Continue:go/.test(bar(42)), /^next:Continue:go/.test(bar(45)),
-                  tutCanContinue(TUT_SIMPLE[44]) === true);
+    skipSeen.push(/^next:Continue:go/.test(bar(43)), /^next:Continue:go/.test(bar(46)),
+                  tutCanContinue(TUT_SIMPLE[45]) === true);
     TUT_REAL = [{ ordinal: 'x1', kind: 'xbox' }];
-    skipSeen.push(/^next:Continue:go/.test(bar(45)));
+    skipSeen.push(/^next:Continue:go/.test(bar(46)));
     TUT_REAL = [{ ordinal: 'd1', kind: 'ds4_usb' }];
-    skipSeen.push(/^next:Continue:go/.test(bar(42)), /^next:Continue:off/.test(bar(45)),
-                  tutCanContinue(TUT_SIMPLE[44]) === false);
+    skipSeen.push(/^next:Continue:off/.test(bar(43)), /^next:Continue:off/.test(bar(46)),
+                  tutCanContinue(TUT_SIMPLE[45]) === false);
     TUT_REAL = [{ ordinal: 'e1', kind: 'ds5_edge' }];
-    skipSeen.push(/^next:Continue:off/.test(bar(45)));
+    skipSeen.push(/^next:Continue:off/.test(bar(46)));
     QUICK_SWITCH = false;
-    skipSeen.push(/^next:Continue:go/.test(bar(45)));
+    skipSeen.push(/^next:Continue:go/.test(bar(46)));
     var needOnly = [TUT_SIMPLE, TUT_QUICK, TUT_ADVANCED].every(function (list) {
       return list.every(function (s, i) {
         return !s.needs || (s.part === 'switch' && (s.needs === 'touchpad' || s.needs === 'switcher'));
@@ -16484,7 +16488,7 @@ function selfTest() {
        orders.join(' / ') === 'modes,controllers,configs,window,switch / ' +
                               'modes,controllers,window,switch / ' +
                               'modes,overview,customizing,window' &&
-       toursRight && tagged && sizes.join(' / ') === '12,10,14,4,6 / 12,10,3,6 / 12,6,13,2',
+       toursRight && tagged && sizes.join(' / ') === '12,10,14,4,8 / 12,10,3,8 / 12,6,13,2',
        orders.join(' / ') + ' / ' + sizes.join(' / '));
     ok('the tutorial: a tour that starts by itself runs the parts not done, and none with all done',
        left === 'controllers,window' && autoParts.join(',') === 'true,true,true',
@@ -16507,7 +16511,7 @@ function selfTest() {
     TUT = keepRun;
     ok('the tutorial: a run of one part is that part and the last step, its card naming it; some parts ' +
        'are the tour, in its order, its card naming them; all of them the tour as it was',
-       oneSteps === 7 && oneLast && oneTitle === 'Tutorial: Quick switch' &&
+       oneSteps === 9 && oneLast && oneTitle === 'Tutorial: Quick switch' &&
        oneWords === 'This tutorial goes over putting the window away with Close, and bringing it back mid-game with the ' +
                   'two-finger touchpad quick switch, including window select.' &&
        oneDone === 'Tutorial Topic Completed' &&
@@ -16536,31 +16540,39 @@ function selfTest() {
        modesSteps[11].side === 'center' &&
        leftKey === tutHl('\u2190') && leftPad === tutMark(PAD_LEGEND_PS.dpad + ':left'),
        leftKey + ' / ' + leftPad);
-    // ⭐ Window select (2026-11-13): Quick's legend names it on the steps that
-    // show it and try it, the step that tries it lets DS5-USBIP's switcher
-    // through, and Skip with the box off.
-    var wsSteps = tutAllSteps('quick').filter(function (s) { return s.windowSelect || s.switcher; });
-    var keepWs = [TUT, COMPACT, QUICK, APP_SWITCHER, QUICK_SWITCH, TUT_REAL];
+    // ⭐ The quick switch's own steps (2026-11-14): the window selector's step and the free try let DS5-USBIP's
+    // switcher through and Quick's legend names window select on them; the window selector's step waits for a
+    // pick; the why and the free try are left out with no touchpad; the box off is said.
+    var wsSteps = tutAllSteps('quick').filter(function (s) { return s.part === 'switch' && s.switcher; });
+    var keepWs = [TUT, COMPACT, QUICK, APP_SWITCHER, QUICK_SWITCH, TUT_REAL, TUT_MOCK];
     COMPACT = true; QUICK = true;
+    TUT_MOCK = tutMockMake('quick');
     TUT = { kind: 'quick', phase: 'step', at: tutAllSteps('quick').indexOf(wsSteps[0]), done: [] };
     var wsShown = switchWindowSelect();
     TUT.at = tutAllSteps('quick').indexOf(wsSteps[1]);
     var wsTried = switchWindowSelect();
     QUICK_SWITCH = true; APP_SWITCHER = false;
     TUT_REAL = [{ ordinal: 'd1', kind: 'ds5_usb' }];
-    var wsSkip = /^next:Continue:go/.test(tutStepButtons(wsSteps[1])) && /Window select/.test(wsSteps[1].words());
+    var wsSkip = /^next:Continue:go/.test(tutStepButtons(wsSteps[0])) && /Window select/.test(wsSteps[0].words());
     APP_SWITCHER = true;
-    var wsCan = /^next:Continue:go/.test(tutStepButtons(wsSteps[1]));
+    var wsCan = /^next:Continue:off/.test(tutStepButtons(wsSteps[0])) && /Alt\+Tab/.test(wsSteps[0].words());
+    var swSteps = tutAllSteps('quick').filter(function (s) { return s.part === 'switch'; });
+    var skipsWith = swSteps.map(function (s) { return s.skip ? s.skip() : false; }).join(',');
+    TUT_REAL = [];
+    var skipsWithout = swSteps.map(function (s) { return s.skip ? s.skip() : false; }).join(',');
+    var seqNext = [tutNextAt(0), tutNextAt(2)];
+    TUT = { kind: 'quick', phase: 'step', at: 0, parts: ['switch'], whole: false, steps: swSteps, done: [] };
+    var nextSkips = [tutNextAt(3), tutPrevAt(5)];
     TUT.at = 0;
-    var wsElse = switchWindowSelect();
     TUT = keepWs[0]; COMPACT = keepWs[1]; QUICK = keepWs[2]; APP_SWITCHER = keepWs[3];
-    QUICK_SWITCH = keepWs[4]; TUT_REAL = keepWs[5];
-    ok('the tutorial: window select is shown and tried in the quick switch, its switcher let through, Skip ' +
-       'with its box off',
-       wsSteps.length === 2 && wsSteps[0].windowSelect && wsSteps[1].switcher === true &&
-       wsSteps[1].pad === 'try' && wsSteps[1].needs === 'switcher' && wsShown && wsTried && !wsElse &&
-       wsSkip && wsCan && /Alt\+Tab/.test(tutWordsWindowSelect()),
-       [wsShown, wsTried, wsElse, wsSkip, wsCan].join(','));
+    QUICK_SWITCH = keepWs[4]; TUT_REAL = keepWs[5]; TUT_MOCK = keepWs[6];
+    ok('the tutorial: the quick switch\'s window selector and free try let the switcher through, the selector waits ' +
+       'for a pick, and with no touchpad the why and the free try are left out',
+       wsSteps.length === 2 && wsSteps[0].act === true && wsSteps[0].needs === 'switcher' && wsSteps[1].pad === 'free' &&
+       wsShown && wsTried && wsSkip && wsCan &&
+       skipsWith === 'false,false,false,false,false,false,false,false' &&
+       skipsWithout === 'false,false,false,true,false,false,true,false' && nextSkips.join(',') === '4,4',
+       [wsShown, wsTried, wsSkip, wsCan, skipsWith, skipsWithout, nextSkips.join('/')].join(' | '));
   }
 
   // ⭐ 2026-11-14: the d-pad in the words with its direction lit, "Use [d-pad] to move left", in every
@@ -17582,12 +17594,14 @@ function tutPadEnter() {
 function tutPadEvent(word) {
   var s = tutStep();
   if (!s || !s.pad) return;
-  if (word === 'open') tutUnshrink('quick');
-  else if (word === 'lift' && !TUT.padKept) tutShrink();
-  else if (word === 'keep' && s.pad === 'keep') {
+  if (word === 'open') {
+    if (s.pad === 'free') TUT.padKept = false;
+    tutUnshrink('quick');
+  } else if (word === 'lift' && !TUT.padKept) tutShrink();
+  else if (word === 'keep' && (s.pad === 'keep' || s.pad === 'free')) {
     TUT.padKept = true;
     tutUnshrink(TUT.kind === 'quick' ? 'quick' : 'simple');
-  }
+  } else if (word === 'picked') TUT.padPicked = true;
 }
 // ⭐⭐ THE TOUR AT ITS WINDOW'S LARGE SIZE (2.66.142; rhoquinn8217, 2026-11-06:
 // *"when tutorial starts, resize the window to its large mode"*): a tour
@@ -17676,34 +17690,6 @@ function tutPadReason(s) {
   if (!QUICK_SWITCH) return tutHl('Quick switch: 2-finger touchpad gesture') + ' is off in the Overview.';
   if (s && s.needs === 'switcher' && !APP_SWITCHER) return tutHl('Quick switch: Window select') + ' is off in the Overview.';
   return 'No DualSense or DS4 is bridged, so there is no touchpad to try this on.';
-}
-function tutWordsPadTry() {
-  var s = tutSteps()[TUT ? TUT.at : 0];
-  // ⓘ Opening on the way back (2.66.147; rhoquinn8217, 2026-11-06: *"step 33
-  // should start with "Now we we learn who to bring back the window.""*).
-  if (!tutCanDo(s)) {
-    return tutPadReason(s) + ' With a DualSense or DS4, you press the touchpad with two fingers and keep one ' +
-           'finger on it. Quick Mode comes up as the press comes up: swipe a finger up or down, or push the ' +
-           'right stick up or down, to switch configs. It goes away when you stop touching the touchpad. ' +
-           'Choose ' + tutHl('Continue') + '.';
-  }
-  return 'Now we will learn how to bring back the window. With the two finger quick switch on a ' +
-         'DualSense or DS4, press the touchpad with two fingers and keep one finger on it. Quick Mode ' +
-         'comes up as the press comes up: swipe a finger up or ' +
-         'down, or push the right stick up or down, to switch configs. It goes away when you stop ' +
-         'touching the touchpad. Try it, then choose ' + tutHl('Continue') + '.';
-}
-function tutWordsPadKeep() {
-  var s = tutSteps()[TUT ? TUT.at : 0];
-  var back = tutModeTitle(TUT && TUT.kind === 'quick' ? 'quick' : 'simple');
-  if (!tutCanDo(s)) {
-    return tutPadReason(s) + ' With a DualSense or DS4, you press the touchpad twice with two fingers, keeping a ' +
-           'finger on it in between: Quick Mode comes up at the first press, and the second brings this window ' +
-           'back in ' + back + ', the mode you used last. Choose ' + tutHl('Continue') + '.';
-  }
-  return 'Now press the touchpad twice with two fingers, keeping a finger on it in between: Quick Mode ' +
-         'comes up at the first press, and the second brings this window back in ' + back + ', the mode you ' +
-         'used last.';
 }
 function tutWordsCircle() { return 'Press ' + tutKey('close') + ' to see where it takes you.'; }
 function tutWordsClose() {
@@ -18336,22 +18322,6 @@ function tutCloseStep(kind) {
 // window switcher, which DS5-USBIP lets through on that step (the words'
 // `switcher`). In the words of the box's own hover (TIP_WINDOW_SELECT), with
 // a DualSense's marks: the switch is a touchpad's.
-function tutWordsWindowSelect() {
-  return 'During a quick switch, ' + tutDpadMove(['left', 'right']) + ', or use the right stick, to bring up ' +
-         'another window, like Alt+Tab. Select the window with ' + tutKey('select') + ' or a touchpad press.';
-}
-function tutWordsSwitcherTry() {
-  var s = tutSteps()[TUT ? TUT.at : 0];
-  if (!tutCanDo(s)) {
-    return tutPadReason(s) + ' With a DualSense or DS4, while Quick is up, ' + tutDpadMove(['left', 'right']) +
-           ', or use the right stick, to bring up another window, like Alt+Tab. Select the window with ' +
-           tutKey('select') + ' or a touchpad press: Quick comes back in front of it while your finger stays ' +
-           'on the touchpad. Choose ' + tutHl('Continue') + '.';
-  }
-  return 'Try it: press the touchpad with two fingers and keep one finger on it, then ' +
-         tutDpadMove(['left', 'right']) + '. Select a window with ' + tutKey('select') + ': Quick comes back in ' +
-         'front of it while your finger stays on the touchpad. Then choose ' + tutHl('Continue') + '.';
-}
 // ⓘ Quick's legend names the window select on the steps that show it
 // (switchWindowSelect): drawn again as that changes.
 var TUT_WS_PAINTED = false;
@@ -18362,51 +18332,102 @@ function tutWsPaint() {
   if (COMPACT && QUICK) paintCompact();
 }
 
-// ⭐ THE QUICK SWITCH, ITS OWN PART (2026-11-13), in Simple's tour and in
-// Quick's (*"Simple Mode will have the quick switch part. Quick mode should
-// also have it."*): Close pressed, the two finger press tried, window select
-// shown and tried, the double press, and why to use it. Simple's goes to Quick
-// and back for the press; Quick's stays in Quick, and its double press brings
-// Quick back.
+// ⭐⭐ THE QUICK SWITCH, IN THEIR OWN STEPS (rhoquinn8217, 2026-11-14, quick-switch-steps-2 (1).csv: "Quick Switch
+// tutorial is messy. Lets clean it up"), in Simple's tour and in Quick's: Close pressed; what is coming said; the two
+// finger press, to switch to a config the step names; why it is worth using; the window selector, to pick a window; the
+// double press, to keep the window; and the window left open to try all of it, then the last word. With no DualSense,
+// Edge or DS4 bridged (or the box off in the Overview) each is a Read step that says it and ends with "choose Continue",
+// and the two that only play it (the why, the free try) are left out: `skip`.
+function tutQsSwitchTarget() {
+  var p = tutPad();
+  if (!p || !TUT_MOCK) return '';
+  var now = TUT_MOCK.links[p.ordinal];
+  var rest = TUT_MOCK.configs.filter(function (c) { return c !== now; });
+  return rest.length ? rest[0] : '';
+}
+// The reason, first, where the box is off rather than the pad missing.
+function tutQsReason(s) {
+  return !tutCanDo(s) && (!QUICK_SWITCH || (s && s.needs === 'switcher' && !APP_SWITCHER)) ? tutPadReason(s) + ' ' : '';
+}
+function tutQsEnd(s, doIt) { return tutCanDo(s) ? doIt : ' Choose ' + tutHl('Continue') + '.'; }
 function tutSwitchPart(kind) {
   var views = kind === 'quick' ? ['quick'] : ['simple', 'quick'];
   var back = kind === 'quick' ? 'quick' : 'simple';
+  var self = function (st) { return function () { return !tutCanDo(st); }; };
+  var s3 = { screen: true, act: true, pad: 'try', needs: 'touchpad', views: views,
+    enter: function () { tutPadEnter(); TUT.sw = false; TUT.swTarget = tutQsSwitchTarget(); },
+    keyAim: '#cpick', keys: tutPadKeys,
+    lit: function () { return TUT_SHRUNK ? [] : tutQ('.cwheel'); },
+    // done when the controller uses the config the step named, by whatever way it was switched to
+    done: function () {
+      var p = tutPad();
+      if (p && TUT.swTarget && TUT_MOCK.links[p.ordinal] === TUT.swTarget) TUT.sw = true;
+      return !!TUT.sw;
+    },
+    words: function () {
+      return tutQsReason(s3) + 'With a DualSense or DS4, press the touchpad with two fingers and keep one finger on it. ' +
+             'Quick Mode will come up and will stay up as long as you are touching the touchpad. While touching the ' +
+             'touchpad, swipe a finger up or down, ' + tutDpadMove(['up', 'down']) + ', or push the right stick up or ' +
+             'down to switch configs. The window will go away when you stop touching the touchpad.' +
+             tutQsEnd(s3, ' Switch to ' + tutHl((TUT && TUT.swTarget) || tutQsSwitchTarget() || 'another config') + ' now.');
+    } };
+  var s4 = { screen: true, free: true, pad: 'try', needs: 'touchpad', views: views,
+    enter: tutPadEnter, keyAim: '#cpick', keys: tutPadKeys,
+    lit: function () { return TUT_SHRUNK ? [] : tutQ('.cwheel'); },
+    words: function () {
+      return 'Quick switch offers a convenient way to switch to a config on the fly. You can quickly switch to your ' +
+             'preferred mouse mode config when you start your PC. When you start a game, you can quickly switch to a ' +
+             "custom config you've made for that game. You may even have multiple configs you plan to switch between " +
+             'in the same game. When you close the game, you can quickly switch back to your mouse mode to drive your ' +
+             'desktop.';
+    } };
+  s4.skip = self(s4);
+  var s5 = { screen: true, act: true, pad: 'try', switcher: true, needs: 'switcher', views: views,
+    enter: function () {
+      if (tutCanDo(s5)) { tutPadEnter(); TUT.padPicked = false; return; }
+      if (FOOTER_MODE) setFooterMode(false);
+      tutUnshrink('quick');
+    },
+    keyAim: '#cpick', keys: tutPadKeys,
+    lit: function () { return TUT_SHRUNK ? [] : tutQ('.clegend .lgi:nth-child(5)'); },
+    done: function () { return !!TUT.padPicked; },
+    words: function () {
+      return tutQsReason(s5) + 'During a quick switch, ' + tutDpadMove(['left', 'right']) + ', or move the right stick ' +
+             'left or right, to bring up the window selector (Alt+Tab).' +
+             tutQsEnd(s5, ' Select a window with ' + tutKey('select') + ' or a touchpad press.');
+    } };
+  var s6 = { screen: true, act: true, pad: 'keep', needs: 'touchpad', must: true, views: views,
+    enter: function () { tutPadEnter(); if (!tutCanDo(s6)) tutUnshrink(back); },
+    keyAim: '#cpick', keys: tutPadKeys,
+    tick: function () { if (TUT.padKept && tutViewKind() === back) tutShow(tutNextAt(TUT.at)); },
+    lit: function () { return TUT_SHRUNK ? [] : [tutWholeOf(tutViewKind())]; },
+    anchors: function () { var m = tutById('cselMode'); return m ? [m] : []; },
+    words: function () {
+      return tutQsReason(s6) + 'Now to keep the window open, press the touchpad twice with two fingers. The first ' +
+             'press will always bring up Quick Mode until you stop touching the touchpad. Pressing the touchpad again ' +
+             'with two fingers without lifting your fingers off the touchpad keeps the config window open even if you ' +
+             'stop touching the touchpad. If you were using a different mode last, the config window will switch to ' +
+             'that mode on the second press.' + tutQsEnd(s6, ' Press the touchpad with two fingers twice.');
+    } };
+  var s7 = { side: 'above', free: true, pad: 'free', switcher: true, needs: 'touchpad', views: views,
+    enter: function () { TUT.padKept = false; tutUnshrink(back); },
+    keyAim: '#cpick', keys: tutPadKeys,
+    lit: function () { return TUT_SHRUNK ? [] : [tutWholeOf(tutViewKind())]; },
+    anchors: function () { var m = tutById('cselMode'); return m ? [m] : []; },
+    words: function () {
+      return 'The config window now stays open and since ' + tutModeTitle(back) + ' was used last, the second press ' +
+             'opened the window in that Mode.';
+    } };
+  s7.skip = self(s7);
   return [
     tutCloseStep(kind),
-    // 32 (*"another step that lets the user try the 2 finger press hold to bring
-    // up quick mode and let it close when they let go"*; since 2.66.141 *"The
-    // user should see quick mode and be able to switch configs while touching
-    // the touchpad"*): the real press brings the real Quick up, its wheel
-    // stepped as in front, and puts it away again; a second press ignored here.
-    { side: 'above', screen: true, free: true, pad: 'try', needs: 'touchpad', views: views,
-      enter: tutPadEnter, keyAim: '#cpick', keys: tutPadKeys,
-      lit: function () { return TUT_SHRUNK ? [] : tutQ('.cwheel'); },
-      words: tutWordsPadTry },
-    // ⓘ Window select, shown (tutWordsWindowSelect): Quick up at its size.
-    { side: 'above', views: views, windowSelect: true,
-      enter: function () { if (FOOTER_MODE) setFooterMode(false); tutUnshrink('quick'); },
-      lit: function () { return tutQ('.clegend .lgi:nth-child(5)'); },
-      words: tutWordsWindowSelect },
-    // ⓘ And tried: the press as on the step before, DS5-USBIP's window
-    // switcher let through (`switcher`); Skip with the box off or no
-    // touchpad (tutCanDo).
-    { side: 'above', screen: true, free: true, pad: 'try', switcher: true, needs: 'switcher', views: views,
-      enter: tutPadEnter, keyAim: '#cpick', keys: tutPadKeys,
-      lit: function () { return TUT_SHRUNK ? [] : tutQ('.clegend .lgi:nth-child(5)'); },
-      words: tutWordsSwitcherTry },
-    // 33 (*"Moving on to the next step, instructs the user double press with two
-    // fingers to bring back simple mode"*): the second press keeps it, and the
-    // window is back in Simple. ⭐ That press is what moves it on (`must`), and
-    // Skip does with no DualSense or DS4 bridged (2.66.140).
-    { side: 'above', screen: true, free: true, pad: 'keep', needs: 'touchpad', must: true, views: views,
-      enter: tutPadEnter, keyAim: '#cpick', keys: tutPadKeys,
-      tick: function () { if (TUT.padKept && tutViewKind() === back) tutShow(TUT.at + 1); },
-      lit: function () { return TUT_SHRUNK ? [] : tutQ('.cwheel'); },
-      words: tutWordsPadKeep },
-    // 34: the two finger quick switch encouraged (2.66.145), the last step until
-    // 2.66.147 put the tip after it, over the window's middle as it was.
-    // ⓘ The window back in Simple at its size, however the step before was
-    // left: Skip, or the double press (2.66.141).
+    { screen: true, views: views, lit: function () { return []; },
+      words: function () {
+        return 'Now we will learn how to quickly bring back the window temporarily to switch configs or to switch to ' +
+               'another window.';
+      } },
+    s3, s4, s5, s6, s7,
+    // The last word, over the window's middle, the window back in its own mode at its size.
     { side: 'center', lit: function () { return []; }, words: tutWordsTrySwitch,
       enter: function () { if (TUT_SHRUNK || tutViewKind() !== back) tutUnshrink(back); } }
   ];
@@ -19699,6 +19720,19 @@ function tutShow(i, keep) {
   tutLayout(s);
 }
 
+// ⭐ A STEP LEFT OUT (`skip`, 2026-11-14): the next and the one before are the nearest that are not.
+function tutSkipped(i) { var st = tutSteps()[i]; return !!st && !!st.skip && st.skip(); }
+function tutNextAt(i) {
+  var n = i + 1, len = tutSteps().length;
+  while (n < len - 1 && tutSkipped(n)) n++;
+  return n;
+}
+function tutPrevAt(i) {
+  var n = i - 1;
+  while (n > 0 && tutSkipped(n)) n--;
+  return n;
+}
+
 function tutNext() {
   var s = tutStep();
   if (!s || TUT.busy) return;
@@ -19708,13 +19742,13 @@ function tutNext() {
   tutPartPassed(s);
   // ⓘ What the step shows stays up for the next where it says so
   // (`keepOpen`): the pre-set's page, from its sections to Use this.
-  tutShow(TUT.at + 1, !!s.keepOpen);
+  tutShow(tutNextAt(TUT.at), !!s.keepOpen);
 }
 
 function tutPrev() {
   if (!TUT || TUT.phase !== 'step' || TUT.at === 0 || TUT.busy) return;
   tutCloseOpen();
-  var back = TUT.at - 1;
+  var back = tutPrevAt(TUT.at);
   var s = tutSteps()[back];
   if (s.act === true && TUT.done[back]) {
     TUT.done[back] = false;
@@ -20104,7 +20138,7 @@ function tutTick() {
       tutRender();
     } else {
       tutPartPassed(s);
-      tutShow(TUT.at + 1, true);
+      tutShow(tutNextAt(TUT.at), true);
       s = tutStep();
     }
   }
