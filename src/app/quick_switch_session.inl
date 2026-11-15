@@ -640,16 +640,30 @@ inline void raise_tour_after_pick(const void *deviceKey)
 {
     std::thread([deviceKey]() {
         std::this_thread::sleep_for(std::chrono::milliseconds(kPickSettleMs));
-        {
-            std::lock_guard<std::mutex> lock(g_mutex);
-            const auto pad = g_pads.find(deviceKey);
-            if (!g_mockOn.load() || pad == g_pads.end() || !quick_switch::mock_up(pad->second.mock)) return;
+        // ⭐ UNTIL IT HAS THE FRONT (rhoquinn8217, 2026-11-14: the words stayed up but the picked window kept the
+        // focus, so R2 never reached the tour): raised and focused again every 200 ms for up to two seconds, as
+        // long as a finger holds Quick up, until the tour's window is the one in front.
+        std::wstring picked;
+        int tries = 0;
+        bool front = false;
+        for (; tries < 10 && !front; ++tries) {
+            {
+                std::lock_guard<std::mutex> lock(g_mutex);
+                const auto pad = g_pads.find(deviceKey);
+                if (!g_mockOn.load() || pad == g_pads.end() || !quick_switch::mock_up(pad->second.mock)) return;
+            }
+            const std::wstring name = ctm_open_ui::front_after_pick();
+            if (picked.empty()) picked = name;
+            ui_tutorial_words_raise();
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+            ctm_open_ui::FindState ours;
+            EnumWindows(ctm_open_ui::find_window_proc, reinterpret_cast<LPARAM>(&ours));
+            front = ours.found != nullptr && GetForegroundWindow() == ours.found;
         }
-        const std::wstring picked = ctm_open_ui::front_after_pick();
-        ui_tutorial_words_raise();
         device_log::input_w() << L"quick switch: the tour's window select picked "
                               << (picked.empty() ? std::wstring(L"a window") : picked)
-                              << L": the tour's window back in front of it, a finger still on the touchpad";
+                              << (front ? L": the tour's window back in front of it after " : L": the tour's window did NOT get the front, after ")
+                              << tries << L" tries, a finger still on the touchpad";
     }).detach();
 }
 
