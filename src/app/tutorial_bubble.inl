@@ -19,6 +19,7 @@
 // window is not the one in front: minimised, or behind a game, there is
 // nothing for it to point at.
 #pragma once
+#include <cmath>
 
 #pragma comment(lib, "user32.lib")
 #pragma comment(lib, "gdi32.lib")
@@ -66,6 +67,21 @@ struct Content {
 inline std::mutex g_mutex;
 inline Content g_content;
 inline std::string g_press;
+// ⭐ WORDS THAT STAY ON TOP (rhoquinn8217, 2026-11-14: "for the quick switch tutorial, make the tutorial box always in
+// front on every step"): shown, and kept above, whichever window has the front. Set by the page with the words.
+inline std::atomic_bool g_stay{false};
+inline void set_stay(bool on) { g_stay.store(on); }
+// ⭐ A SMALL CONFETTI DROP INSIDE THE BOX that ends a tutorial topic (rhoquinn8217, 2026-11-14: "do a smaller
+// confetti drop inside of that tutorial box"): set by the page with the card, drawn by the box itself for a few
+// seconds from when it came on. The window's own shape clips it to the box.
+inline std::atomic_bool g_confetti{false};
+inline std::atomic<ULONGLONG> g_confettiSince{0};
+inline constexpr ULONGLONG kConfettiMs = 4200;
+inline void set_confetti(bool on)
+{
+    if (on && !g_confetti.exchange(true)) g_confettiSince.store(GetTickCount64());
+    else if (!on) g_confetti.store(false);
+}
 // ⭐ WHETHER THE WORDS ARE STILL ON THEIR WAY (rhoquinn8217, 2026-10-29: "when
 // the bubble move to it's next spot remove the darkening completely then fade
 // in the darkening with the feather highlighted area"): each set of words the
@@ -83,6 +99,7 @@ inline std::atomic_bool g_running{ false };
 inline const wchar_t *const kClassName = L"DS5USBIP_TutorialWords";
 inline const UINT kMsgUpdate = WM_APP + 41;
 inline const UINT_PTR kFollowTimer = 1;
+inline const UINT_PTR kConfettiTimer = 2;
 
 // ⓘ The page's own colours: its tutorial's amber, its buttons, its halo.
 inline const COLORREF kFill = RGB(0x1d, 0x20, 0x30);
@@ -137,9 +154,9 @@ inline const CardSize &card_size(int big)
 // bubble used the window's own large type.
 struct Fonts {
     UINT dpi = 0;
-    HFONT text = nullptr, lit = nullptr, count = nullptr, button = nullptr, title = nullptr;
+    HFONT text = nullptr, lit = nullptr, emph = nullptr, count = nullptr, button = nullptr, title = nullptr;
     // ⓘ The congratulations card's, a set for each size (Content::big).
-    HFONT bigText[4] = {}, bigLit[4] = {}, bigButton[4] = {}, bigTitle[4] = {};
+    HFONT bigText[4] = {}, bigLit[4] = {}, bigEmph[4] = {}, bigButton[4] = {}, bigTitle[4] = {};
 };
 
 inline HFONT make_font(int sizePx, int weight, UINT dpi)
@@ -156,13 +173,14 @@ inline void fonts_for(Fonts *f, UINT dpi)
         if (h != nullptr) DeleteObject(h);
     }
     for (int k = 1; k <= 3; ++k) {
-        for (HFONT h : { f->bigText[k], f->bigLit[k], f->bigButton[k], f->bigTitle[k] }) {
+        for (HFONT h : { f->bigText[k], f->bigLit[k], f->bigEmph[k], f->bigButton[k], f->bigTitle[k] }) {
             if (h != nullptr) DeleteObject(h);
         }
     }
     f->dpi = dpi;
     f->text = make_font(16, FW_NORMAL, dpi);
     f->lit = make_font(16, FW_SEMIBOLD, dpi);
+    f->emph = make_font(16, FW_BOLD, dpi);
     f->count = make_font(12, FW_NORMAL, dpi);
     f->button = make_font(15, FW_SEMIBOLD, dpi);
     f->title = make_font(18, FW_SEMIBOLD, dpi);
@@ -170,6 +188,7 @@ inline void fonts_for(Fonts *f, UINT dpi)
         const CardSize &z = card_size(k);
         f->bigText[k] = make_font(z.text, FW_NORMAL, dpi);
         f->bigLit[k] = make_font(z.text, FW_SEMIBOLD, dpi);
+        f->bigEmph[k] = make_font(z.text, FW_BOLD, dpi);
         f->bigButton[k] = make_font(z.button, FW_SEMIBOLD, dpi);
         f->bigTitle[k] = make_font(z.title, FW_BOLD, dpi);
     }
@@ -177,9 +196,10 @@ inline void fonts_for(Fonts *f, UINT dpi)
 
 // ⓘ The words', the title's and the buttons' type, larger on the card that
 // ends a tour, as large as its size.
-inline HFONT words_font(const Fonts *f, const Content &c, bool lit)
+inline HFONT words_font(const Fonts *f, const Content &c, bool lit, bool emph = false)
 {
     const int k = card_of(c.big);
+    if (emph && !lit) return k ? f->bigEmph[k] : f->emph;
     return k ? (lit ? f->bigLit[k] : f->bigText[k]) : (lit ? f->lit : f->text);
 }
 inline HFONT title_font(const Fonts *f, const Content &c)
@@ -241,7 +261,7 @@ inline bool gdiplus_up()
 
 inline int mark_w(const std::wstring &glyph, int h)
 {
-    return glyph == kDpad ? h : ctm_overlay::mark_width(glyph.c_str(), h);
+    return tbr::is_dpad_glyph(glyph) ? h : ctm_overlay::mark_width(glyph.c_str(), h);
 }
 
 // ⭐ THE BUTTON THAT PRESSES IT, in it, before its name (2026-10-29: "add R2
@@ -261,7 +281,7 @@ inline int button_mark_w(HDC dc, const Fonts *f, const Button &b, int h, UINT dp
 
 inline void draw_glyph_mark(HDC dc, int x, int y, int h, const std::wstring &glyph, COLORREF colour)
 {
-    if (glyph != kDpad) {
+    if (!tbr::is_dpad_glyph(glyph)) {
         ctm_overlay::draw_mark(dc, x, y, h, glyph.c_str(), colour);
         return;
     }
@@ -279,6 +299,18 @@ inline void draw_glyph_mark(HDC dc, int x, int y, int h, const std::wstring &gly
     Gdiplus::PointF p[12];
     for (int i = 0; i < 12; ++i) p[i] = Gdiplus::PointF(x + u[i][0] * s, y + u[i][1] * s);
     g.DrawPolygon(&pen, p, 12);
+    // ⭐ The direction lit (tbr::dpad_arms): its arm filled, as the legend draws it.
+    const unsigned arms = tbr::dpad_arms(glyph);
+    if (arms != 0) {
+        Gdiplus::SolidBrush brush(Gdiplus::Color(255, GetRValue(colour), GetGValue(colour), GetBValue(colour)));
+        auto fill = [&](float l, float t, float r, float b) {
+            g.FillRectangle(&brush, x + l * s, y + t * s, (r - l) * s, (b - t) * s);
+        };
+        if (arms & tbr::kArmUp) fill(7.6f, 3.2f, 12.4f, 7.6f);
+        if (arms & tbr::kArmDown) fill(7.6f, 12.4f, 12.4f, 16.8f);
+        if (arms & tbr::kArmLeft) fill(3.2f, 7.6f, 7.6f, 12.4f);
+        if (arms & tbr::kArmRight) fill(12.4f, 7.6f, 16.8f, 12.4f);
+    }
 }
 
 // ⓘ Where the words stand now, and the side of what is lit they were placed
@@ -321,7 +353,7 @@ inline Layout compute_layout(HDC dc, Fonts *fonts, const Content &c, UINT dpi,
             L.widths.push_back(mark_w(t.text, L.markH) + 2 * px(2, dpi));
             continue;
         }
-        const SIZE s = measure(dc, words_font(fonts, c, t.lit), t.text);
+        const SIZE s = measure(dc, words_font(fonts, c, t.lit, t.emph), t.text);
         L.widths.push_back(s.cx + (t.lit ? 2 * L.litPad : 0));
     }
     L.lines = tbr::lines(L.toks, L.widths, maxWidth);
@@ -368,6 +400,14 @@ inline Layout compute_layout(HDC dc, Fonts *fonts, const Content &c, UINT dpi,
     // the window's middle (tbr::place_at, Center).
     const int innerGap = px(z.innerGap, dpi);
     const int innerH = textH + (c.buttons.empty() ? 0 : innerGap + btnH);
+    // ⭐ A MINIMUM SIZE FOR THE WORDS' BOX (rhoquinn8217, 2026-11-14: a short description "looks awkwardly
+    // small compared to the buttons underneath"): never narrower than the buttons under it, nor shorter
+    // than two lines of words.
+    if (!card) {
+        if (!c.buttons.empty() && boxW < rowW) boxW = rowW;
+        const int least = 2 * L.pad + 2 * L.lineH;
+        if (boxH < least) boxH = least;
+    }
     if (card) {
         L.centred = true;
         const int wide = (textW > rowW ? textW : rowW) + 2 * L.pad;
@@ -387,7 +427,7 @@ inline Layout compute_layout(HDC dc, Fonts *fonts, const Content &c, UINT dpi,
     // title bar one more thing to keep off. Where the words stand now stays,
     // while it still covers nothing, so a tip changing or the wheel turning
     // under them moves nothing.
-    if (c.hasTarget && c.prefer != tbr::Prefer::Center) {
+    if (c.hasTarget && !tbr::centred(c.prefer)) {
         const int cw = client.right - client.left, ch = client.bottom - client.top;
         const auto onPage = [&](const tbr::Box &b) {
             return tbr::Box{ client.left + cw * b.left / 1000, client.top + ch * b.top / 1000,
@@ -450,7 +490,7 @@ inline Layout compute_layout(HDC dc, Fonts *fonts, const Content &c, UINT dpi,
         x += btnW[i] + between;
     }
     // ⓘ None over the window's middle: there is nothing beside it to point at.
-    if (!c.arrow || c.prefer == tbr::Prefer::Center) return L;
+    if (!c.arrow || tbr::centred(c.prefer)) return L;
     for (const int a : L.place.arrowsAt) {
         Layout::Tri t{};
         switch (L.place.side) {
@@ -549,6 +589,38 @@ inline void paint_button(HDC dc, const Fonts *fonts, const Content &c, const But
     TextOutW(dc, x + mw, mid - ls.cy / 2, b.label.c_str(), static_cast<int>(b.label.size()));
 }
 
+// Pieces falling through the box, each with its own place, delay, pace and colour, worked out from its number.
+inline void draw_confetti(HDC dc, const RECT &box, ULONGLONG elapsedMs, UINT dpi)
+{
+    static const COLORREF colours[] = { RGB(0xf0, 0xb4, 0x29), RGB(0x6c, 0x8c, 0xff), RGB(0x7f, 0xd1, 0x8c),
+                                        RGB(0xff, 0x6b, 0x6b), RGB(0xc0, 0x84, 0xfc), RGB(0x4f, 0xd1, 0xc5),
+                                        RGB(0xff, 0xff, 0xff) };
+    const int w = box.right - box.left, h = box.bottom - box.top;
+    if (w <= 0 || h <= 0) return;
+    auto mix = [](unsigned v) {
+        v ^= v >> 16; v *= 0x7feb352dU; v ^= v >> 15; v *= 0x846ca68bU; v ^= v >> 16;
+        return v;
+    };
+    for (unsigned i = 0; i < 42; ++i) {
+        const double delay = (mix(i * 3 + 1) % 1400);
+        const double pace = 1500.0 + (mix(i * 3 + 2) % 1300);
+        const double t = (static_cast<double>(elapsedMs) - delay) / pace;
+        if (t < 0.0 || t > 1.0) continue;
+        const double fx = (mix(i * 3 + 3) % 1000) / 1000.0;
+        const int size = px(4 + static_cast<int>(mix(i * 7 + 5) % 4), dpi);
+        const int x = box.left + static_cast<int>(fx * w) + static_cast<int>(std::sin(t * 7.0 + i) * px(10, dpi));
+        const int y = box.top - size + static_cast<int>(t * (h + 2 * size));
+        HBRUSH b = CreateSolidBrush(colours[i % 7]);
+        HGDIOBJ old = SelectObject(dc, b);
+        HGDIOBJ oldPen = SelectObject(dc, GetStockObject(NULL_PEN));
+        if (i % 3 == 0) Ellipse(dc, x, y, x + size, y + size);
+        else Rectangle(dc, x, y, x + size, y + size * 3 / 2);
+        SelectObject(dc, oldPen);
+        SelectObject(dc, old);
+        DeleteObject(b);
+    }
+}
+
 inline void paint(HDC dc, Fonts *fonts, const Layout &L, int width, int height, COLORREF back)
 {
     HBRUSH backBrush = CreateSolidBrush(back);
@@ -564,6 +636,7 @@ inline void paint(HDC dc, Fonts *fonts, const Layout &L, int width, int height, 
     HGDIOBJ oldPen = SelectObject(dc, amberPen);
     HGDIOBJ oldBrush = SelectObject(dc, fill);
     RoundRect(dc, L.box.left, L.box.top, L.box.right, L.box.bottom, 2 * L.round, 2 * L.round);
+    if (g_confetti.load()) draw_confetti(dc, L.box, GetTickCount64() - g_confettiSince.load(), dpi);
 
     // The title or the count, then the lines, a lit name amber in an amber
     // outline.
@@ -594,7 +667,7 @@ inline void paint(HDC dc, Fonts *fonts, const Layout &L, int width, int height, 
         }
         for (const size_t i : line) {
             const tbr::Token &t = L.toks[i];
-            SelectObject(dc, words_font(fonts, L.content, t.lit));
+            SelectObject(dc, words_font(fonts, L.content, t.lit, t.emph));
             TEXTMETRICW tm{};
             GetTextMetricsW(dc, &tm);
             const int ty = y + (L.lineH - tm.tmHeight) / 2;
@@ -607,7 +680,7 @@ inline void paint(HDC dc, Fonts *fonts, const Layout &L, int width, int height, 
                 SetTextColor(dc, kAmber);
                 TextOutW(dc, x + L.litPad, ty, t.text.c_str(), static_cast<int>(t.text.size()));
             } else {
-                SetTextColor(dc, kText);
+                SetTextColor(dc, t.emph ? kAmber : kText);
                 TextOutW(dc, x, ty, t.text.c_str(), static_cast<int>(t.text.size()));
             }
             x += L.widths[i];
@@ -769,6 +842,36 @@ inline std::wstring box_text(const tbr::Box &b)
            std::to_wstring(b.bottom) + L";";
 }
 
+// ⭐ THE CONFIG WINDOW ON TOP TOO, while the words stay (2026-11-14: "have the config window and the tutorial boxes
+// on top of every window" in the quick switch tutorial): set topmost without taking the focus, the words raised over
+// it again whenever it has come above them, and let go of when the words stop staying or the window is gone.
+inline HWND g_toppedWin = nullptr;
+inline void keep_window_on_top(HWND win, HWND words)
+{
+    if (win == nullptr) {
+        if (g_toppedWin != nullptr) {
+            if (IsWindow(g_toppedWin)) {
+                SetWindowPos(g_toppedWin, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+            }
+            g_toppedWin = nullptr;
+        }
+        return;
+    }
+    const bool isTop = (GetWindowLongW(win, GWL_EXSTYLE) & WS_EX_TOPMOST) != 0;
+    if (!isTop || g_toppedWin != win) {
+        SetWindowPos(win, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+        g_toppedWin = win;
+    }
+    // ⓘ Is the words' window above the config window? Walk up from the config window.
+    bool wordsAbove = false;
+    for (HWND w = GetWindow(win, GW_HWNDPREV); w != nullptr; w = GetWindow(w, GW_HWNDPREV)) {
+        if (w == words) { wordsAbove = true; break; }
+    }
+    if (!wordsAbove && IsWindowVisible(words)) {
+        SetWindowPos(words, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+    }
+}
+
 // ⭐ PLACE AND SHOW, or hide: on every update from the page and on the timer.
 // Nothing is moved or drawn again unless something it depends on changed.
 // ⭐ A new place on the same screen is SLID to; the configs window moved, or
@@ -782,9 +885,18 @@ inline void refresh(HWND hwnd)
         g_placing = g_posted.load();
     }
     const HWND win = c.show ? configs_window() : nullptr;
-    if (win == nullptr || IsIconic(win) || GetForegroundWindow() != win) {
+    // ⭐ WORDS IN THE MIDDLE OF THE SCREEN STAY WHEN ANOTHER WINDOW HAS THE FRONT (rhoquinn8217, 2026-11-14, the
+    // quick switch's window select: "the tutorial box does not come back in front after a window switch"): they
+    // are not beside the configs window, so a window picked in front of it hides nothing they point at. They stay
+    // on top of it, never taking the focus.
+    const bool onScreen = c.prefer == tbr::Prefer::Screen || g_stay.load();
+    keep_window_on_top(g_stay.load() ? win : nullptr, hwnd);
+    if (win == nullptr || IsIconic(win) || (!onScreen && GetForegroundWindow() != win)) {
         hide_now(hwnd);
         return;
+    }
+    if (onScreen && GetForegroundWindow() != win) {
+        SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
     }
     const UINT dpi = GetDpiForWindow(win);
     const RECT frame = frame_of(win);
@@ -825,7 +937,7 @@ inline void refresh(HWND hwnd)
     ReleaseDC(hwnd, dc);
     {
         std::lock_guard<std::mutex> lock(g_mutex);
-        g_side = c.prefer == tbr::Prefer::Center ? "center" : tbr::side_name(g_layout.place.side);
+        g_side = tbr::centred(c.prefer) ? "center" : tbr::side_name(g_layout.place.side);
     }
     SetWindowRgn(hwnd, make_region(g_layout), FALSE);   // ⓘ Windows owns the region now
     const tbr::Box &w = g_layout.place.window;
@@ -902,6 +1014,11 @@ inline LRESULT CALLBACK wnd_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
     }
     case WM_TIMER:
         if (wp == kFollowTimer) refresh(hwnd);
+        else if (wp == kConfettiTimer) {
+            if (g_confetti.load() && GetTickCount64() - g_confettiSince.load() < kConfettiMs + 300 && IsWindowVisible(hwnd)) {
+                InvalidateRect(hwnd, nullptr, FALSE);
+            }
+        }
         return 0;
     default:
         if (msg == kMsgUpdate) {
@@ -936,6 +1053,7 @@ inline void thread_main()
     }
     g_hwnd.store(hwnd);
     SetTimer(hwnd, kFollowTimer, 100, nullptr);
+    SetTimer(hwnd, kConfettiTimer, 40, nullptr);
     refresh(hwnd);
     // ⓘ While the words slide: what is waiting, then a frame, then a step;
     // otherwise asleep until a message comes.
@@ -1017,6 +1135,38 @@ inline void update(const Content &c)
 inline void hide()
 {
     update(Content());
+}
+
+// ⭐ THE PAD'S R2, L2 AND CIRCLE AT THE SOURCE (rhoquinn8217, 2026-11-14: "capture the R2 L2 and circle at the
+// source to move the tutorial"): the words' buttons they stand for, pressed as a click on them is, for the page to
+// collect, with no window needing the focus. R2: the lit button (Begin, Continue, Finish tutorial, Keep going,
+// Done); L2: Go back; Circle: End tutorial, Skip, Keep going or Done, whichever the words have.
+// 0 R2, 1 L2, 2 Circle. True when there was a button to press.
+inline bool pad_press(int which)
+{
+    std::lock_guard<std::mutex> lock(g_mutex);
+    if (!g_content.show) return false;
+    std::string id;
+    for (const Button &b : g_content.buttons) {
+        if (which == 0 && id.empty() && b.kind == "go") id = b.id;
+        if (which == 1 && b.id == "prev") id = b.id;
+        if (which == 2 && (b.id == "end" || b.id == "skip" || b.id == "keep" || b.id == "done") &&
+            (id.empty() || b.id == "keep")) id = b.id;
+    }
+    if (id.empty()) return false;
+    g_press = id;
+    return true;
+}
+
+// ⭐ BACK ON TOP (2026-11-14: after a window is picked in a tour's window select, "make the tutorial
+// box come back in focus"): the words stay topmost, never active; this puts them above whatever the pick
+// brought to the front, without taking the focus.
+inline void raise()
+{
+    const HWND h = g_hwnd.load();
+    if (h != nullptr && IsWindowVisible(h)) {
+        SetWindowPos(h, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+    }
 }
 
 // The side the words stand on now, for the arrow the page draws: "left",
@@ -1286,7 +1436,7 @@ inline int replay_mode(int argc, wchar_t **argv)
         const tbr::Box &w = L.place.window;
         const bool stayed = keep && w.left == here.x && w.top == here.y;
         std::wcout << n << L" " << (c.title.empty() ? c.count : c.title) << L" "
-                   << (c.prefer == tbr::Prefer::Center ? L"center" : wide(tbr::side_name(L.place.side))) << L" "
+                   << (tbr::centred(c.prefer) ? L"center" : wide(tbr::side_name(L.place.side))) << L" "
                    << w.left << L"," << w.top << L" " << w.width() << L"x" << w.height()
                    << (stayed ? L" stayed" : L" placed") << (c.hasTarget ? L"" : L" (no target)") << L"\n";
         here = POINT{ w.left, w.top };

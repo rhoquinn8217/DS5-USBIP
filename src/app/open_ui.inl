@@ -355,6 +355,25 @@ inline void raise_now(HWND hwnd)
                  SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
 }
 
+// ⭐ THE FRONT BY FORCE (rhoquinn8217, 2026-11-14: after a window select pick in the tour "the tutorial box
+// still isn't keeping focus"): the Alt tap in focus_existing is not always enough, so the thread that owns the
+// front is attached to ours for the moment, which Windows takes as the right to give it away, and the window is
+// asked for twice more. True when it has the front after.
+inline bool force_foreground(HWND hwnd)
+{
+    if (hwnd == nullptr) return false;
+    if (IsIconic(hwnd)) ShowWindow(hwnd, SW_RESTORE);
+    const HWND front = GetForegroundWindow();
+    const DWORD frontThread = front != nullptr ? GetWindowThreadProcessId(front, nullptr) : 0;
+    const DWORD mine = GetCurrentThreadId();
+    const bool attached = frontThread != 0 && frontThread != mine && AttachThreadInput(mine, frontThread, TRUE);
+    BringWindowToTop(hwnd);
+    SetForegroundWindow(hwnd);
+    if (attached) AttachThreadInput(mine, frontThread, FALSE);
+    if (GetForegroundWindow() != hwnd) SwitchToThisWindow(hwnd, TRUE);
+    return GetForegroundWindow() == hwnd;
+}
+
 // The window there is, back in front; false when there is none.
 // ⓘ quick_switch_session.inl: the tour's window, for its stand-in.
 inline bool raise_existing()

@@ -21,13 +21,16 @@
 // ⓘ Its own file so the test binary can reach it.
 #pragma once
 
+#include <cstdint>
 #include <string>
+#include <vector>
 
 namespace tutorial_state {
 
 inline const char *const kSimpleSeenKey = "tutorial_simple_seen";
 inline const char *const kQuickSeenKey = "tutorial_quick_seen";
 inline const char *const kAdvancedSeenKey = "tutorial_advanced_seen";
+inline const char *const kPartsDoneKey = "tutorial_parts_done";
 inline const char *const kInstallStampKey = "install_stamp";
 // ⓘ Beside the exe, written by installer/ds5-usbip.iss. A build run from its
 // output folder has none, and never starts the tours again by itself.
@@ -60,14 +63,122 @@ inline std::string seen_line(const char *key, bool seen)
     return std::string(key) + " = " + (seen ? "1" : "0") + "\n";
 }
 
-// What GET /api/v1/ui/tutorial answers: whether each has been seen, and the
-// tour the tray asked for, or nothing.
-inline std::string json(bool simpleSeen, bool quickSeen, bool advancedSeen, int asked)
+// ⭐⭐ THE TOURS IN PARTS (rhoquinn8217, 2026-11-13: "I want to break up
+// simples tour into parts. Simple Mode will have the quick switch part. Quick
+// mode should also have it. What I want to do is have the app record if a
+// part has been completed. The tutorials that start automatically when going
+// to advance, simple and quick mode will always go through a set of tutorial
+// parts that have not already been done. If you start the tutorial in the
+// tray it goes through all of them."). Eight parts, each ONE part whatever
+// tours have it (*"I said not to have duplicates"*): a part two tours share
+// is done in either, and a tour starting by itself leaves it out. The page
+// holds the steps, each tour's own for a part; the listener keeps which parts
+// are done, in window-state.txt as "tutorial_parts_done = modes,switch", and
+// lists them in the tray, under Start Tutorial's Topic, every part once in
+// this order, a tick on each done; its Mode starts a whole tour.
+// ⛔ THE PAGE HAS THE SAME LIST (TUT_PARTS in controller-config-test-client.html):
+// the same ids, names and tours. A part added or renamed is added or renamed
+// in both.
+struct Part {
+    const char *id;         // the page's name for it, and window-state.txt's
+    const wchar_t *name;    // the tray's
+    bool tours[4];          // by Kind: which tours have it
+};
+inline constexpr int kPartCount = 7;
+// ⭐ Making and managing configs are ONE topic since 2026-11-14 (rhoquinn8217: "Combine making configs and
+// managing configs into one topic and always use simple mode for this tutorial"): Simple's only.
+inline constexpr Part kParts[kPartCount] = {
+    { "modes",       L"Switching modes",          { false, true,  true,  true  } },
+    { "controllers", L"Your controllers",         { false, true,  true,  false } },
+    { "configs",     L"Making and managing configs", { false, true, false, false } },
+    { "window",      L"The window",               { false, true,  true,  true  } },
+    { "switch",      L"Quick switch",             { false, true,  true,  false } },
+    { "overview",    L"The Overview and tabs",    { false, false, false, true  } },
+    { "customizing", L"Customizing configs",      { false, false, false, true  } },
+};
+
+// Each tour's parts in the order it runs them, as places in kParts.
+inline std::vector<int> tour_parts(int kind)
+{
+    if (kind == Simple) return { 0, 1, 2, 3, 4 };
+    if (kind == Quick) return { 0, 1, 3, 4 };
+    if (kind == Advanced) return { 0, 5, 6, 3 };
+    return {};
+}
+
+// A part's place in kParts by its id, or -1.
+inline int part_index(const std::string &id)
+{
+    for (int i = 0; i < kPartCount; ++i) {
+        if (id == kParts[i].id) return i;
+    }
+    return -1;
+}
+
+// The parts done, one bit each by their place in kParts, from window-state.txt's
+// "modes,switch". ⓘ An id this listener does not know is left out, and so is
+// junk: a part not done shows again, which costs a Skip at most.
+inline uint32_t parse_parts(const std::string &value)
+{
+    uint32_t done = 0;
+    size_t at = 0;
+    while (at <= value.size()) {
+        size_t comma = value.find(',', at);
+        if (comma == std::string::npos) comma = value.size();
+        std::string id = value.substr(at, comma - at);
+        while (!id.empty() && (id.front() == ' ' || id.front() == '\t')) id.erase(id.begin());
+        while (!id.empty() && (id.back() == ' ' || id.back() == '\t')) id.pop_back();
+        const int i = part_index(id);
+        if (i >= 0) done |= 1u << i;
+        at = comma + 1;
+    }
+    return done;
+}
+
+// The parts done as the page and window-state.txt name them, in kParts' order.
+inline std::string parts_list(uint32_t done)
+{
+    std::string out;
+    for (int i = 0; i < kPartCount; ++i) {
+        if (!(done & (1u << i))) continue;
+        if (!out.empty()) out += ",";
+        out += kParts[i].id;
+    }
+    return out;
+}
+
+// The line window-state.txt keeps them in.
+inline std::string parts_line(uint32_t done)
+{
+    return std::string(kPartsDoneKey) + " = " + parts_list(done) + "\n";
+}
+
+// ⭐ WHICH TOUR A PART FROM TOPIC RUNS IN: the one for the mode the window is
+// in when that tour has it, else the first that does, Simple, Quick, Advanced.
+inline int kind_for_part(int part, int currentKind)
+{
+    if (part < 0 || part >= kPartCount) return None;
+    if (currentKind >= Simple && currentKind <= Advanced && kParts[part].tours[currentKind]) {
+        return currentKind;
+    }
+    for (int kind = Simple; kind <= Advanced; ++kind) {
+        if (kParts[part].tours[kind]) return kind;
+    }
+    return None;
+}
+
+// What GET /api/v1/ui/tutorial answers: whether each has been seen, the tour
+// the tray asked for, or nothing, and the part of it, or nothing for the whole
+// tour; and the parts done.
+inline std::string json(bool simpleSeen, bool quickSeen, bool advancedSeen, int asked,
+                        int askedPart = -1, uint32_t partsDone = 0)
 {
     return std::string(R"({"simple_seen":)") + (simpleSeen ? "true" : "false") +
            R"(,"quick_seen":)" + (quickSeen ? "true" : "false") +
            R"(,"advanced_seen":)" + (advancedSeen ? "true" : "false") +
-           R"(,"request":")" + kind_name(asked) + R"("})";
+           R"(,"request":")" + kind_name(asked) +
+           R"(","part":")" + (asked != None && askedPart >= 0 && askedPart < kPartCount ? kParts[askedPart].id : "") +
+           R"(","parts_done":")" + parts_list(partsDone) + R"("})";
 }
 
 // A stamp read from the file: its first line, trimmed. ⓘ The installer writes

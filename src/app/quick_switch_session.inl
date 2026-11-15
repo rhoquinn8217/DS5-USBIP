@@ -114,6 +114,10 @@ inline std::atomic<unsigned> g_pageAsked{0};
 // no window, the tour's out of the front brought back instead
 // (quick_switch::arming), and the touchpad moves no cursor (holds_touchpad).
 inline std::atomic_bool g_mockOn{false};
+// ⭐ AND THE D-PAD'S WINDOW SWITCHER IN IT, on the one step that tries window
+// select (rhoquinn8217, 2026-11-13: "try it"), by the bubble's "switcher" flag:
+// while the stand-in's Quick is up, as the switch's own is (app_buttons).
+inline std::atomic_bool g_mockSwitcher{false};
 inline std::string g_mockEvents;   // under g_mutex: "open,lift,..." since the page last asked
 
 inline long long now_ms()
@@ -255,11 +259,17 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
         bool mockByStick = false;
         if (g_mockOn.load()) {
             const bool wasUp = quick_switch::mock_up(ps.mock);
-            if (const char *word = quick_switch::mock_report(ps.mock, pressEdge, pressed, fingers, now_ms())) {
+            // ⓘ A press that picked in the window switcher is the switcher's:
+            // the stand-in keeps nothing for it, as the switch does not.
+            if (const char *word = quick_switch::mock_report(ps.mock, pressEdge && !pickedByPress, pressed,
+                                                             fingers, now_ms())) {
                 if (g_mockEvents.size() < 256) {
                     if (!g_mockEvents.empty()) g_mockEvents += ",";
                     g_mockEvents += word;
                 }
+                // ⓘ The last finger lifting lets Alt go, as the switch's own
+                // Quick going does: Windows switches to the window it shows.
+                if (!quick_switch::mock_up(ps.mock)) quick_switch::app_switch_end(ps.app);
             }
             mockStep = quick_switch::mock_steps(ps.mock, wasUp, ps.mockSwipes, ps.mockStick, touch,
                                                 haveStick, rx, ry, &mockByStick);
@@ -344,7 +354,10 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
                 // play the switch in the tour's window, which a close would
                 // end, and so would a window of the switch's own in its place.
                 // Out of the front, the tour's window is brought back (below).
-                switch (quick_switch::arming(inFront, g_mockOn.load())) {
+                // ⭐ And for the whole of a tutorial, not only its steps that play the switch (rhoquinn8217,
+                // 2026-11-14: "prevent any time a tutorial is running ... two finger press from closing the
+                // config window"): a press with the window in front closed it and ended the tour.
+                switch (quick_switch::arming(inFront, g_mockOn.load() || ui_tutorial_words_up())) {
                 case quick_switch::Arming::Close:
                     quick_switch::arm(ps.closeArmed, now_ms());
                     did = Did::Closing;
@@ -362,7 +375,7 @@ inline void report(const void *deviceKey, bool pressed, const quick_switch::Touc
                 }
             }
         } else if (ps.closeArmed.on) {
-            if (g_mockOn.load()) {
+            if (g_mockOn.load() || ui_tutorial_words_up()) {
                 ps.closeArmed = quick_switch::Armed();
             } else {
                 const bool wasSpent = ps.closeArmed.spent;
@@ -623,6 +636,44 @@ inline void raise_after_pick(unsigned id)
     }).detach();
 }
 
+// ⭐ AND THE TOUR'S WINDOW, after a pick on the step that tries window select:
+// back in front of the window picked while the stand-in's Quick is still up,
+// as the switch's own comes back (raise_after_pick).
+inline void raise_tour_after_pick(const void *deviceKey)
+{
+    (void)deviceKey;
+    std::thread([]() {
+        std::this_thread::sleep_for(std::chrono::milliseconds(kPickSettleMs));
+        // ⭐ UNTIL IT HAS THE FRONT (rhoquinn8217, 2026-11-14: the words stayed up but the picked window kept the
+        // focus, so R2 never reached the tour): raised and focused again every 200 ms for up to three seconds, by the
+        // Alt tap first and by force after the third try, until the tour's window is the one in front. ⓘ Not only
+        // while a finger holds Quick up: a press of the touchpad picks and the finger lifts at once.
+        std::wstring picked;
+        int tries = 0;
+        bool front = false;
+        for (; tries < 15 && !front; ++tries) {
+            if (!g_mockOn.load() || !g_mockSwitcher.load()) return;   // the step is over: nothing to give back
+            ctm_open_ui::FindState ours;
+            EnumWindows(ctm_open_ui::find_window_proc, reinterpret_cast<LPARAM>(&ours));
+            if (ours.found == nullptr) return;
+            if (tries < 3) {
+                const std::wstring name = ctm_open_ui::front_after_pick();
+                if (picked.empty()) picked = name;
+            } else {
+                ctm_open_ui::force_foreground(ours.found);
+            }
+            ui_tutorial_words_raise();
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+            front = GetForegroundWindow() == ours.found;
+        }
+        device_log::input_w() << L"quick switch: the tour's window select picked "
+                              << (picked.empty() ? std::wstring(L"a window") : picked)
+                              << (front ? L": the tour's window back in front of it after "
+                                        : L": the tour's window did NOT get the front, after ")
+                              << tries << L" tries";
+    }).detach();
+}
+
 // ⭐ THE D-PAD'S APP SWITCHER (quick_switch::AppSwitch), every report of a pad
 // with a touchpad: its d-pad left and right, Cross, and its right stick, read
 // before anything changes the report. Returns the buttons it takes, as a mask
@@ -643,9 +694,14 @@ inline uint32_t app_buttons(const void *deviceKey, bool left, bool right, bool c
         const Session &s = g_session;
         // ⓘ Not while the tour's stand-in is on: its Quick takes the d-pad's up
         // and down and the switch's steps, and Alt+Tab would take the front
-        // from the tour.
-        const bool held = config_move::app_switcher_on() && !g_mockOn.load() &&
-                          s.active && s.device == deviceKey && s.pressed && !s.ending;
+        // from the tour. ⭐ But on the step that tries window select
+        // (g_mockSwitcher), while the stand-in's Quick is up: after a pick the
+        // tour's window comes back in front (raise_tour_after_pick).
+        const bool tourHeld = g_mockOn.load() && g_mockSwitcher.load() &&
+                              quick_switch::mock_up(pad->second.mock);
+        const bool held = config_move::app_switcher_on() &&
+                          (tourHeld || (!g_mockOn.load() && s.active && s.device == deviceKey &&
+                                        s.pressed && !s.ending));
         quick_switch::AppSwitch &a = pad->second.app;
         const bool wasAlt = a.alt;
         const long long now = now_ms();
@@ -678,6 +734,7 @@ inline void app_keys(const void *deviceKey, bool *alt, int *tab)
     bool picked = false;
     bool byPress = false;
     unsigned reraise = 0;
+    bool tourRaise = false;
     {
         std::lock_guard<std::mutex> lock(g_mutex);
         const auto pad = g_pads.find(deviceKey);
@@ -691,6 +748,16 @@ inline void app_keys(const void *deviceKey, bool *alt, int *tab)
             const Session &s = g_session;
             if (k.wentUp && k.picked && s.active && s.device == deviceKey && s.pressed && !s.ending) {
                 reraise = s.id;
+            }
+            // ⓘ The tour's: its stand-in's Quick still up after the pick.
+            // ⓘ Whether or not a finger is still on the touchpad: a press of it picks, and the finger lifts.
+            if (k.wentUp && k.picked && g_mockOn.load() && g_mockSwitcher.load()) {
+                tourRaise = true;
+                // ⭐ And the page hears it, for the step that asks the person to pick a window.
+                if (g_mockEvents.size() < 256) {
+                    if (!g_mockEvents.empty()) g_mockEvents += ",";
+                    g_mockEvents += "picked";
+                }
             }
         }
         // ⛔ The listener's own raise presses Alt to be let take the front
@@ -707,9 +774,10 @@ inline void app_keys(const void *deviceKey, bool *alt, int *tab)
             << "quick switch: " << ctm_ordinal_for_device(deviceKey) << " -- Alt let go "
             << (!picked ? "as the window went" : byPress ? "at the touchpad's press" : "at Cross")
             << ": Windows switches to the window it shows"
-            << (reraise != 0 ? ", and the Quick window comes back in front of it" : ""));
+            << (reraise != 0 || tourRaise ? ", and the Quick window comes back in front of it" : ""));
     }
     if (reraise != 0) raise_after_pick(reraise);
+    if (tourRaise) raise_tour_after_pick(deviceKey);
 }
 
 // ⭐ A PAD GOING AWAY TAKES ITS SWITCH STATE WITH IT, its app switcher's Alt
@@ -728,6 +796,11 @@ inline void forget_pad(const void *deviceKey)
 }
 
 // The tour's stand-in, on and off, and its words since the page last asked.
+inline void mock_switcher(bool on)
+{
+    g_mockSwitcher.store(on);
+}
+
 inline void mock_on(bool on)
 {
     g_mockOn.store(on);

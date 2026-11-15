@@ -1049,6 +1049,14 @@ inline std::atomic_bool g_tutorialSimpleSeen{false};
 inline std::atomic_bool g_tutorialQuickSeen{false};
 inline std::atomic_bool g_tutorialAdvancedSeen{false};
 inline std::atomic_int  g_tutorialAsked{tutorial_state::None};
+// ⓘ The parts done, a bit each by their place in tutorial_state::kParts, and
+// the part of the tour the tray asked for, or -1 for all of it.
+inline std::atomic<uint32_t> g_tutorialPartsDone{0};
+inline std::atomic_int  g_tutorialAskedPart{-1};
+// ⭐ WHICH LEGEND BUTTONS A TOUR'S STEP LETS WORK (rhoquinn8217, 2026-11-14: "don't allow create button to be
+// pressed", "don't allow options button to be pressed"): Options (1) and Create (2), the two the listener acts
+// on from the pad's own report. The page says it with each step's words; with no tour up both work.
+inline std::atomic_int  g_tourLegend{3};
 inline std::mutex g_stampMutex;
 inline std::string g_installStamp;
 
@@ -1111,7 +1119,8 @@ inline void state_save()
     out << quick_switch::app_switcher_line(g_appSwitcher.load());
     out << tutorial_state::seen_line(tutorial_state::kSimpleSeenKey, g_tutorialSimpleSeen.load())
         << tutorial_state::seen_line(tutorial_state::kQuickSeenKey, g_tutorialQuickSeen.load())
-        << tutorial_state::seen_line(tutorial_state::kAdvancedSeenKey, g_tutorialAdvancedSeen.load());
+        << tutorial_state::seen_line(tutorial_state::kAdvancedSeenKey, g_tutorialAdvancedSeen.load())
+        << tutorial_state::parts_line(g_tutorialPartsDone.load());
     {
         std::lock_guard<std::mutex> lock(g_stampMutex);
         if (!g_installStamp.empty()) {
@@ -1226,6 +1235,10 @@ inline void state_load()
             g_tutorialAdvancedSeen.store(tutorial_state::parse_seen(val));
             continue;
         }
+        if (key == tutorial_state::kPartsDoneKey) {
+            g_tutorialPartsDone.store(tutorial_state::parse_parts(val));
+            continue;
+        }
         if (key == tutorial_state::kInstallStampKey) {
             std::lock_guard<std::mutex> lock(g_stampMutex);
             g_installStamp = val;
@@ -1301,7 +1314,8 @@ inline void state_load()
         << " " << quick_switch::kAppSwitcherKey << "=" << (g_appSwitcher.load() ? 1 : 0)
         << " tutorial_simple_seen=" << (g_tutorialSimpleSeen.load() ? 1 : 0)
         << " tutorial_quick_seen=" << (g_tutorialQuickSeen.load() ? 1 : 0)
-        << " tutorial_advanced_seen=" << (g_tutorialAdvancedSeen.load() ? 1 : 0));
+        << " tutorial_advanced_seen=" << (g_tutorialAdvancedSeen.load() ? 1 : 0)
+        << " " << tutorial_state::kPartsDoneKey << "=" << tutorial_state::parts_list(g_tutorialPartsDone.load()));
 }
 
 // ⭐ THE FIRST START AFTER AN INSTALL (tutorial_state.inl): the window opens
@@ -1336,6 +1350,7 @@ inline void install_check(const std::wstring &exeFolder)
     g_tutorialSimpleSeen.store(false);
     g_tutorialQuickSeen.store(false);
     g_tutorialAdvancedSeen.store(false);
+    g_tutorialPartsDone.store(0);
     state_save();
     device_log::input(device_log::msg()
         << "ui/install: the first start after an install (" << stamp
@@ -1493,10 +1508,39 @@ inline void set_tutorial_seen(int kind, bool seen)
     state_save();
 }
 
-// The tray's list of tutorials: one asked for there, taken by the page.
-inline void ask_tutorial(int kind) { g_tutorialAsked.store(kind); }
+inline void set_tour_legend(int allowed) { g_tourLegend.store(allowed); }
+// 1 Options, 2 Create. ⓘ Only while a tour's words are up: a page that went away leaves them working.
+inline bool legend_allows(int bit)
+{
+    return !ui_tutorial_words_up() || (g_tourLegend.load() & bit) != 0;
+}
+
+// The tray's list of tutorials: one asked for there, taken by the page, with
+// the part of it asked for, or -1 for the whole tour. ⓘ The part first, so
+// a page reading between the two never takes a part as the whole tour.
+inline void ask_tutorial(int kind, int part)
+{
+    g_tutorialAskedPart.store(part);
+    g_tutorialAsked.store(kind);
+}
 inline int tutorial_asked() { return g_tutorialAsked.load(); }
-inline void take_tutorial() { g_tutorialAsked.store(tutorial_state::None); }
+inline int tutorial_asked_part() { return g_tutorialAskedPart.load(); }
+inline void take_tutorial()
+{
+    g_tutorialAsked.store(tutorial_state::None);
+    g_tutorialAskedPart.store(-1);
+}
+
+// ⭐ A PART DONE (tutorial_state.inl): set by the page as its last step is
+// passed, and kept at once; never undone but by an install.
+inline uint32_t tutorial_parts_done() { return g_tutorialPartsDone.load(); }
+inline void set_tutorial_part_done(int part)
+{
+    if (part < 0 || part >= tutorial_state::kPartCount) return;
+    const uint32_t bit = 1u << part;
+    if (g_tutorialPartsDone.fetch_or(bit) & bit) return;
+    state_save();
+}
 
 // This layout's slot, and the table it indexes.
 inline std::atomic_int &size_slot()
@@ -1674,11 +1718,13 @@ inline void resize_next(HWND hwnd)
 // which has no keyboard equivalent and is not what P is for.
 inline void position_tap()
 {
+    if (!legend_allows(1)) return;
     if (HWND h = page_window()) snap_next(h);
 }
 
 inline void size_next()
 {
+    if (!legend_allows(2)) return;
     if (HWND h = page_window()) resize_next(h);
 }
 
@@ -1765,12 +1811,59 @@ inline void nudge(HWND hwnd, int dx, int dy)
 //
 // ⓘ Options, R3 and the stick are read through the pad's own layout, so a DS4
 // or an Xbox pad moves the page as a DualSense does (2026-09-15).
+// ⭐⭐ A TUTORIAL WITH THE WINDOW NOT IN FRONT (rhoquinn8217, 2026-11-14: the window select step leaves another
+// window with the front and the keys go there: "capture the R2 L2 and circle at the source to move the tutorial and
+// everything else brings the config to the front and in focus"). From the pad's own report, each press of R2,
+// L2 or Circle presses the words' button for it (ui_tutorial_words_pad_press); any other button takes the
+// configs window to the front, at most once a second. ⓘ Not that last while the tour's stand-in plays the
+// switch (its d-pad and Cross pick a window) or a pad's switcher has Alt down.
+struct TourPadEdges {
+    bool r2 = false, l2 = false, circle = false, other = false;
+};
+inline std::mutex g_tourPadMutex;
+inline std::unordered_map<const void *, TourPadEdges> g_tourPad;
+inline std::atomic<long long> g_tourFrontAt{0};
+
+inline void tour_pad_report(const void *deviceKey, const ctm_rebind::Layout &lay, const uint8_t *data, size_t len)
+{
+    if (!ui_tutorial_words_up()) {
+        std::lock_guard<std::mutex> lock(g_tourPadMutex);
+        g_tourPad.erase(deviceKey);
+        return;
+    }
+    TourPadEdges now;
+    now.r2 = ctm_overlay::button_down(lay, data, len, 7);
+    now.l2 = ctm_overlay::button_down(lay, data, len, 6);
+    now.circle = ctm_overlay::button_down(lay, data, len, 1);
+    for (int b : { 0, 2, 3, 4, 5, 8, 9, 10, 11 }) {
+        if (ctm_overlay::button_down(lay, data, len, b)) now.other = true;
+    }
+    TourPadEdges was;
+    {
+        std::lock_guard<std::mutex> lock(g_tourPadMutex);
+        TourPadEdges &slot = g_tourPad[deviceKey];
+        was = slot;
+        slot = now;
+    }
+    if (now.r2 && !was.r2) ui_tutorial_words_pad_press(0);
+    if (now.l2 && !was.l2) ui_tutorial_words_pad_press(1);
+    if (now.circle && !was.circle) ui_tutorial_words_pad_press(2);
+    if (now.other && !was.other && !ui_tour_stand_in_on()) {
+        const long long t = static_cast<long long>(GetTickCount64());
+        if (t - g_tourFrontAt.load() > 1000) {
+            g_tourFrontAt.store(t);
+            ui_tutorial_window_front();
+        }
+    }
+}
+
 inline bool handle_report(const void *deviceKey, const ctm_rebind::Layout &lay,
                           const uint8_t *data, size_t len)
 {
     if (data == nullptr || len < lay.minLength) return false;
 
     if (!ctm_rebind_config_mode_effective()) {
+        tour_pad_report(deviceKey, lay, data, len);
         // ⛔ Not our window in front. Forget any hold in progress, on any pad,
         // so a release seen later -- with the page back in front -- is not
         // read as a tap.
@@ -1787,6 +1880,12 @@ inline bool handle_report(const void *deviceKey, const ctm_rebind::Layout &lay,
         return false;
     }
 
+    // ⓘ With the window in front the page has the keys; nothing is pressed here twice.
+    {
+        std::lock_guard<std::mutex> lock(g_tourPadMutex);
+        g_tourPad.erase(deviceKey);
+    }
+
     // ⭐⭐ CREATE RESIZES, NOT R3 (rhoquinn8217, 2026-09-20: *"don't use R3
     // to change the window size. Use the create button instead since it's not
     // used anymore."*). Index 8, kBtnSelect -- Create on a DualSense, Select
@@ -1800,7 +1899,9 @@ inline bool handle_report(const void *deviceKey, const ctm_rebind::Layout &lay,
     // ⓘ R3 is given back. It is a gyro gate as of T-235, and a button that
     // resizes a window while also aiming is a collision waiting to happen.
     if (r3_edge(deviceKey, ctm_overlay::button_down(lay, data, len, 8))) {
-        if (HWND h = page_window()) resize_next(h);
+        if (legend_allows(2)) {
+            if (HWND h = page_window()) resize_next(h);
+        }
         // The press goes through; the page no longer acts on Create.
     }
 
@@ -1814,11 +1915,13 @@ inline bool handle_report(const void *deviceKey, const ctm_rebind::Layout &lay,
     if (mv.released) flush_pos();
 
     if (mv.tapped) {
-        if (HWND h = page_window()) snap_next(h);
+        if (legend_allows(1)) {
+            if (HWND h = page_window()) snap_next(h);
+        }
         return false;   // the release itself goes through; the page ignores Options anyway
     }
     if (mv.holding) {
-        if (mv.dx != 0 || mv.dy != 0) {
+        if ((mv.dx != 0 || mv.dy != 0) && legend_allows(1)) {
             if (HWND h = page_window()) nudge(h, mv.dx, mv.dy);
         }
         return true;

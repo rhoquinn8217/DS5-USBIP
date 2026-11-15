@@ -59,6 +59,27 @@ int run_tutorial_bubble_rule_tests()
         CTM_CHECK(open.size() == 1 && open[0].text == L"half [[open" && !open[0].lit);
     }
 
+    section("tutorial words: an instruction between {{ and }} is bold gold, wraps as words, and keeps its lit names");
+    {
+        const auto p = tbr::parse(L"Plain. {{Press [[Continue]] now.}} After.");
+        CTM_CHECK_EQ(p.size(), size_t(5));
+        CTM_CHECK(p[0].text == L"Plain. " && !p[0].emph && !p[0].lit);
+        CTM_CHECK(p[1].text == L"Press " && p[1].emph && !p[1].lit);
+        CTM_CHECK(p[2].text == L"Continue" && p[2].emph && p[2].lit);
+        CTM_CHECK(p[3].text == L" now." && p[3].emph && !p[3].lit);
+        CTM_CHECK(p[4].text == L" After." && !p[4].emph);
+        const auto toks = tbr::tokens(p);
+        size_t emphWords = 0, plainWords = 0;
+        for (const auto &k : toks) {
+            if (k.space) continue;
+            if (k.emph) ++emphWords; else ++plainWords;
+        }
+        CTM_CHECK_EQ(emphWords, size_t(3));    // "Press", "Continue", "now."
+        CTM_CHECK_EQ(plainWords, size_t(2));   // "Plain.", "After."
+        const auto open = tbr::parse(L"half {{open");   // unclosed: plain text
+        CTM_CHECK(open.size() == 1 && open[0].text == L"half {{open" && !open[0].emph);
+    }
+
     section("tutorial words: a lit name never breaks at its dashes");
     {
         const auto toks = tbr::tokens(tbr::parse(L"Select [[stick-to-mouse]] to see what it does."));
@@ -110,6 +131,40 @@ int run_tutorial_bubble_rule_tests()
     // bottom centre, where it opens.
     const tbr::Box work{ 0, 0, 1920, 1040 };
     const tbr::Box simple{ 528, 560, 1392, 1030 };
+
+    section("tutorial words: the d-pad's mark lights the direction the page names");
+    {
+        CTM_CHECK(tbr::is_dpad_glyph(L"✜"));
+        CTM_CHECK(tbr::is_dpad_glyph(L"✜:left"));
+        CTM_CHECK(!tbr::is_dpad_glyph(L"L1"));
+        CTM_CHECK(!tbr::is_dpad_glyph(L""));
+        CTM_CHECK_EQ(tbr::dpad_arms(L"✜"), 0u);                          // plain: nothing lit
+        CTM_CHECK_EQ(tbr::dpad_arms(L"✜:left"), tbr::kArmLeft);
+        CTM_CHECK_EQ(tbr::dpad_arms(L"✜:up+down"), tbr::kArmUp | tbr::kArmDown);
+        CTM_CHECK_EQ(tbr::dpad_arms(L"✜:left+right"), tbr::kArmLeft | tbr::kArmRight);
+        CTM_CHECK_EQ(tbr::dpad_arms(L"✜:sideways"), 0u);                 // an unknown word lights nothing
+        CTM_CHECK_EQ(tbr::dpad_arms(L"✜:left+sideways"), tbr::kArmLeft);
+        CTM_CHECK_EQ(tbr::dpad_arms(L"X:left"), 0u);                         // not the d-pad's
+        const auto toks = tbr::tokens(tbr::parse(L"Use [[*✜:left]] to move."));
+        bool found = false;
+        for (const auto &tk : toks) {
+            if (tk.mark) { found = true; CTM_CHECK(tk.text == L"✜:left"); }
+        }
+        CTM_CHECK(found);
+    }
+
+    section("tutorial words: Screen is the middle of the screen, Center the middle of the window");
+    {
+        CTM_CHECK(tbr::parse_prefer("screen") == tbr::Prefer::Screen);
+        CTM_CHECK(tbr::centred(tbr::Prefer::Screen) && tbr::centred(tbr::Prefer::Center) && !tbr::centred(tbr::Prefer::Left));
+        const tbr::Box win{ 1000, 900, 1400, 1100 }, work{ 0, 0, 2000, 1200 };
+        const tbr::Placement screen = tbr::place_at(win, work, 300, 100, 0, 10, 8, { { 500, 500 } }, tbr::Prefer::Screen);
+        CTM_CHECK_EQ(screen.window.left, 850);
+        CTM_CHECK_EQ(screen.window.top, 550);
+        const tbr::Placement centre = tbr::place_at(win, work, 300, 100, 0, 10, 8, { { 500, 500 } }, tbr::Prefer::Center);
+        CTM_CHECK_EQ(centre.window.left, 1050);
+        CTM_CHECK_EQ(centre.window.top, 950);
+    }
 
     section("tutorial words: above Simple's window, clear of it and on the screen");
     {

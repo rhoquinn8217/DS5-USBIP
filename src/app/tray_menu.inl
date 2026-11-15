@@ -48,6 +48,7 @@
 #include <vector>
 
 #include "ctm/product.h"
+#include "tutorial_state.inl"
 
 namespace tray_menu {
 
@@ -164,18 +165,67 @@ inline constexpr int kModeCount = 3;
 // tutorials in the tray for now"*): each tours one layout, which the window
 // goes to as it starts. `mode` is its place in kModes, `kind` the page's name
 // for it (tutorial_state::Kind: 1 Simple, 2 Quick, 3 Advanced). ⓘ Advanced's
-// since 2026-10-29, last, as the tours were made.
+// since 2026-10-29, last, as the tours were made; first since 2026-11-13,
+// under Mode in kModes' order and by the mode's own name (*"Mode has 3
+// options Advance, Simple and Quick"*).
 struct Tutorial {
     const wchar_t *name;
     int mode;
     int kind;
 };
 inline constexpr Tutorial kTutorials[3] = {
-    { L"Simple mode",   1, 1 },
-    { L"Quick mode",    2, 2 },
-    { L"Advanced mode", 0, 3 },
+    { L"Advanced", 0, 3 },
+    { L"Simple",   1, 1 },
+    { L"Quick",    2, 2 },
 };
 inline constexpr int kTutorialCount = 3;
+
+// ⭐⭐ MODE AND TOPIC (rhoquinn8217, 2026-11-13: "don't show the parts for the
+// modes in the tray. Instead "Start Tutorial" should have 2 options, Mode and
+// Topic. Mode has 3 options Advance, Simple and Quick. Topic has the 8 you've
+// listed"). Mode starts a whole tour (kTutorials); Topic one part, every part
+// once in tutorial_state::kParts' order, a tick on a part done. ⓘ Each mode's
+// parts under it, below Whole tutorial, and By topic below them, came first
+// the same day and went at that word.
+inline const wchar_t *const kTutorialMode = L"Mode";
+inline const wchar_t *const kTutorialTopic = L"Topic";
+
+// ⓘ The menu's ids for them, counted from the first the menu gives the
+// tutorials: Mode's, a tour each in kTutorials' order, then Topic's from
+// kTopicIds on, a part each by its place in kParts.
+inline constexpr unsigned kTopicIds = 20;
+static_assert(kTutorialCount < static_cast<int>(kTopicIds), "the tours' ids end before the parts'");
+
+// What a choice asks for: `tour` a place in kTutorials for its whole tour, or
+// -1 for a part from Topic; `part` a place in kParts, or -1 for a whole tour.
+struct TutorialChoice {
+    int tour = -1;
+    int part = -1;
+};
+
+// A whole tour's id (`part` -1), or a part's from Topic (`tour` -1).
+inline unsigned tutorial_id(unsigned first, int tour, int part)
+{
+    return tour >= 0 ? first + static_cast<unsigned>(tour) : first + kTopicIds + static_cast<unsigned>(part);
+}
+
+// The choice an id from the menu stands for; false for an id that is none of
+// the tutorials'.
+inline bool tutorial_choice(unsigned first, unsigned id, TutorialChoice *out)
+{
+    if (id < first) return false;
+    const unsigned offset = id - first;
+    TutorialChoice c;
+    if (offset < static_cast<unsigned>(kTutorialCount)) {
+        c.tour = static_cast<int>(offset);
+    } else if (offset >= kTopicIds && offset < kTopicIds + static_cast<unsigned>(tutorial_state::kPartCount)) {
+        c.part = static_cast<int>(offset - kTopicIds);
+    } else {
+        return false;
+    }
+    if (out != nullptr) *out = c;
+    return true;
+}
 
 // Which of the three the window is in, or -1 when the listener has not been
 // told: it has just started for the first time and no window has opened yet.

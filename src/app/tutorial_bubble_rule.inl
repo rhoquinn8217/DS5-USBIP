@@ -21,10 +21,11 @@ namespace tutorial_bubble_rule {
 struct Piece {
     std::wstring text;
     bool lit = false;
+    bool emph = false;   // an instruction: bold, amber, and it wraps as plain words do
 };
 
 // The page marks a lit name as [[name]]. ⓘ An unclosed [[ stays plain text.
-inline std::vector<Piece> parse(const std::wstring &words)
+inline std::vector<Piece> parse_names(const std::wstring &words, bool emph)
 {
     std::vector<Piece> out;
     size_t at = 0;
@@ -33,11 +34,31 @@ inline std::vector<Piece> parse(const std::wstring &words)
         if (open == std::wstring::npos) break;
         const size_t close = words.find(L"]]", open + 2);
         if (close == std::wstring::npos) break;
-        if (open > at) out.push_back({ words.substr(at, open - at), false });
-        out.push_back({ words.substr(open + 2, close - open - 2), true });
+        if (open > at) out.push_back({ words.substr(at, open - at), false, emph });
+        out.push_back({ words.substr(open + 2, close - open - 2), true, emph });
         at = close + 2;
     }
-    if (at < words.size()) out.push_back({ words.substr(at), false });
+    if (at < words.size()) out.push_back({ words.substr(at), false, emph });
+    return out;
+}
+
+// ⭐ AN INSTRUCTION, BOLD AND GOLD (rhoquinn8217, 2026-11-14, the quick switch steps: "bold and gold the
+// instruction text so the user know what they need to do"): the page marks it {{what to do}}. Names lit inside
+// it stay lit. ⓘ An unclosed {{ stays plain text.
+inline std::vector<Piece> parse(const std::wstring &words)
+{
+    std::vector<Piece> out;
+    size_t at = 0;
+    while (at < words.size()) {
+        const size_t open = words.find(L"{{", at);
+        if (open == std::wstring::npos) break;
+        const size_t close = words.find(L"}}", open + 2);
+        if (close == std::wstring::npos) break;
+        if (open > at) for (const Piece &p : parse_names(words.substr(at, open - at), false)) out.push_back(p);
+        for (const Piece &p : parse_names(words.substr(open + 2, close - open - 2), true)) out.push_back(p);
+        at = close + 2;
+    }
+    if (at < words.size()) for (const Piece &p : parse_names(words.substr(at), false)) out.push_back(p);
     return out;
 }
 
@@ -83,6 +104,38 @@ inline std::vector<ButtonSpec> parse_buttons(const std::string &spec)
     return out;
 }
 
+// ⭐⭐ THE D-PAD'S MARK WITH A DIRECTION LIT (rhoquinn8217, 2026-11-14: the legend's
+// window select mark has "the direction in that symbol" highlighted): the
+// page marks it [[*✜:left]], or [[*✜:up+down]] for two arms; a plain [[*✜]]
+// (a step that says "select") has none lit. Arms as bits.
+inline constexpr unsigned kArmUp = 1, kArmDown = 2, kArmLeft = 4, kArmRight = 8;
+
+inline bool is_dpad_glyph(const std::wstring &glyph)
+{
+    return !glyph.empty() && glyph[0] == L'✜';
+}
+
+// The arms a d-pad mark lights: none for anything else, a plain ✜, or a
+// direction the page does not know.
+inline unsigned dpad_arms(const std::wstring &glyph)
+{
+    const size_t colon = glyph.find(L':');
+    if (!is_dpad_glyph(glyph) || colon == std::wstring::npos) return 0;
+    unsigned arms = 0;
+    size_t at = colon + 1;
+    while (at <= glyph.size()) {
+        size_t plus = glyph.find(L'+', at);
+        if (plus == std::wstring::npos) plus = glyph.size();
+        const std::wstring word = glyph.substr(at, plus - at);
+        if (word == L"up") arms |= kArmUp;
+        else if (word == L"down") arms |= kArmDown;
+        else if (word == L"left") arms |= kArmLeft;
+        else if (word == L"right") arms |= kArmRight;
+        at = plus + 1;
+    }
+    return arms;
+}
+
 // What a line may break between: plain words, the spaces between them, and
 // each lit name WHOLE, dashes and spaces and all (*"Don't wrap it on it's
 // dashes"*). ⭐ A lit piece that starts with * is a controller's button, drawn
@@ -95,6 +148,7 @@ struct Token {
     bool lit = false;
     bool space = false;
     bool mark = false;
+    bool emph = false;
 };
 
 inline std::vector<Token> tokens(const std::vector<Piece> &pieces)
@@ -103,9 +157,9 @@ inline std::vector<Token> tokens(const std::vector<Piece> &pieces)
     for (const Piece &p : pieces) {
         if (p.lit) {
             if (p.text.size() > 1 && p.text[0] == L'*') {
-                out.push_back({ p.text.substr(1), true, false, true });
+                out.push_back({ p.text.substr(1), true, false, true, p.emph });
             } else {
-                out.push_back({ p.text, true, false });
+                out.push_back({ p.text, true, false, false, p.emph });
             }
             continue;
         }
@@ -116,12 +170,12 @@ inline std::vector<Token> tokens(const std::vector<Piece> &pieces)
                 continue;
             }
             if (!word.empty()) {
-                out.push_back({ word, false, false });
+                out.push_back({ word, false, false, false, p.emph });
                 word.clear();
             }
-            out.push_back({ L" ", false, true });
+            out.push_back({ L" ", false, true, false, p.emph });
         }
-        if (!word.empty()) out.push_back({ word, false, false });
+        if (!word.empty()) out.push_back({ word, false, false, false, p.emph });
     }
     return out;
 }
@@ -175,7 +229,12 @@ enum class Side { Above, Below, Right, Left };
 // the rule below. Center is over the window's middle, not beside it
 // (2026-10-26: "For the introduction and closing step of the tutorial, put
 // the bubble in the center of the config window").
-enum class Prefer { None, Above, Below, Left, Right, Center };
+enum class Prefer { None, Above, Below, Left, Right, Center, Screen };
+
+// ⭐ SCREEN: the middle of the SCREEN, not of the window (rhoquinn8217, 2026-11-14, the quick switch's
+// steps: "keep the tutorial step box in the center of the screen and don't move it around when quick mode
+// opens or closes"). Centred as Center is, with no arrow.
+inline bool centred(Prefer p) { return p == Prefer::Center || p == Prefer::Screen; }
 
 // The page names it "above", "below", "left", "right" or "center"; anything
 // else is None.
@@ -186,6 +245,7 @@ inline Prefer parse_prefer(const std::string &side)
     if (side == "left") return Prefer::Left;
     if (side == "right") return Prefer::Right;
     if (side == "center") return Prefer::Center;
+    if (side == "screen") return Prefer::Screen;
     return Prefer::None;
 }
 
@@ -257,11 +317,12 @@ inline Placement place_at(const Box &win, const Box &work, int stackW, int stack
     const int margin = gap;
     // ⭐ CENTER: the words and buttons over the middle of the window itself,
     // kept on the screen, with no arrow to point anywhere.
-    if (prefer == Prefer::Center) {
+    if (centred(prefer)) {
         Placement p;
-        const int x = clamp_to(win.left + (win.width() - stackW) / 2, work.left + margin,
+        const Box &ref = prefer == Prefer::Screen ? work : win;
+        const int x = clamp_to(ref.left + (ref.width() - stackW) / 2, work.left + margin,
                                work.right - margin - stackW);
-        const int y = clamp_to(win.top + (win.height() - stackH) / 2, work.top + margin,
+        const int y = clamp_to(ref.top + (ref.height() - stackH) / 2, work.top + margin,
                                work.bottom - margin - stackH);
         p.window = { x, y, x + stackW, y + stackH };
         p.arrowsAt.push_back(0);
