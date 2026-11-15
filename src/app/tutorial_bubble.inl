@@ -1047,6 +1047,27 @@ inline void hide()
     update(Content());
 }
 
+// ⭐ THE PAD'S R2, L2 AND CIRCLE AT THE SOURCE (rhoquinn8217, 2026-11-14: "capture the R2 L2 and circle at the
+// source to move the tutorial"): the words' buttons they stand for, pressed as a click on them is, for the page to
+// collect, with no window needing the focus. R2: the lit button (Begin, Continue, Finish tutorial, Keep going,
+// Done); L2: Go back; Circle: End tutorial, Skip, Keep going or Done, whichever the words have.
+// 0 R2, 1 L2, 2 Circle. True when there was a button to press.
+inline bool pad_press(int which)
+{
+    std::lock_guard<std::mutex> lock(g_mutex);
+    if (!g_content.show) return false;
+    std::string id;
+    for (const Button &b : g_content.buttons) {
+        if (which == 0 && id.empty() && b.kind == "go") id = b.id;
+        if (which == 1 && b.id == "prev") id = b.id;
+        if (which == 2 && (b.id == "end" || b.id == "skip" || b.id == "keep" || b.id == "done") &&
+            (id.empty() || b.id == "keep")) id = b.id;
+    }
+    if (id.empty()) return false;
+    g_press = id;
+    return true;
+}
+
 // ⭐ BACK ON TOP (2026-11-14: after a window is picked in a tour's window select, "make the tutorial
 // box come back in focus"): the words stay topmost, never active; this puts them above whatever the pick
 // brought to the front, without taking the focus.

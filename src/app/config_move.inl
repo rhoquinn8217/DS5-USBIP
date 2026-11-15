@@ -1811,12 +1811,59 @@ inline void nudge(HWND hwnd, int dx, int dy)
 //
 // ⓘ Options, R3 and the stick are read through the pad's own layout, so a DS4
 // or an Xbox pad moves the page as a DualSense does (2026-09-15).
+// ⭐⭐ A TUTORIAL WITH THE WINDOW NOT IN FRONT (rhoquinn8217, 2026-11-14: the window select step leaves another
+// window with the front and the keys go there: "capture the R2 L2 and circle at the source to move the tutorial and
+// everything else brings the config to the front and in focus"). From the pad's own report, each press of R2,
+// L2 or Circle presses the words' button for it (ui_tutorial_words_pad_press); any other button takes the
+// configs window to the front, at most once a second. ⓘ Not that last while the tour's stand-in plays the
+// switch (its d-pad and Cross pick a window) or a pad's switcher has Alt down.
+struct TourPadEdges {
+    bool r2 = false, l2 = false, circle = false, other = false;
+};
+inline std::mutex g_tourPadMutex;
+inline std::unordered_map<const void *, TourPadEdges> g_tourPad;
+inline std::atomic<long long> g_tourFrontAt{0};
+
+inline void tour_pad_report(const void *deviceKey, const ctm_rebind::Layout &lay, const uint8_t *data, size_t len)
+{
+    if (!ui_tutorial_words_up()) {
+        std::lock_guard<std::mutex> lock(g_tourPadMutex);
+        g_tourPad.erase(deviceKey);
+        return;
+    }
+    TourPadEdges now;
+    now.r2 = ctm_overlay::button_down(lay, data, len, 7);
+    now.l2 = ctm_overlay::button_down(lay, data, len, 6);
+    now.circle = ctm_overlay::button_down(lay, data, len, 1);
+    for (int b : { 0, 2, 3, 4, 5, 8, 9, 10, 11 }) {
+        if (ctm_overlay::button_down(lay, data, len, b)) now.other = true;
+    }
+    TourPadEdges was;
+    {
+        std::lock_guard<std::mutex> lock(g_tourPadMutex);
+        TourPadEdges &slot = g_tourPad[deviceKey];
+        was = slot;
+        slot = now;
+    }
+    if (now.r2 && !was.r2) ui_tutorial_words_pad_press(0);
+    if (now.l2 && !was.l2) ui_tutorial_words_pad_press(1);
+    if (now.circle && !was.circle) ui_tutorial_words_pad_press(2);
+    if (now.other && !was.other && !ui_tour_stand_in_on()) {
+        const long long t = static_cast<long long>(GetTickCount64());
+        if (t - g_tourFrontAt.load() > 1000) {
+            g_tourFrontAt.store(t);
+            ui_tutorial_window_front();
+        }
+    }
+}
+
 inline bool handle_report(const void *deviceKey, const ctm_rebind::Layout &lay,
                           const uint8_t *data, size_t len)
 {
     if (data == nullptr || len < lay.minLength) return false;
 
     if (!ctm_rebind_config_mode_effective()) {
+        tour_pad_report(deviceKey, lay, data, len);
         // ⛔ Not our window in front. Forget any hold in progress, on any pad,
         // so a release seen later -- with the page back in front -- is not
         // read as a tap.
@@ -1831,6 +1878,12 @@ inline bool handle_report(const void *deviceKey, const ctm_rebind::Layout &lay,
         // it steered to is written here instead.
         flush_pos();
         return false;
+    }
+
+    // ⓘ With the window in front the page has the keys; nothing is pressed here twice.
+    {
+        std::lock_guard<std::mutex> lock(g_tourPadMutex);
+        g_tourPad.erase(deviceKey);
     }
 
     // ⭐⭐ CREATE RESIZES, NOT R3 (rhoquinn8217, 2026-09-20: *"don't use R3

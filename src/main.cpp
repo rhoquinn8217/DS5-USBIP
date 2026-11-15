@@ -213,6 +213,11 @@ void ui_tour_switcher(bool on);
 // work, a bit each: 1 Options (position), 2 Create (size) (config_move.inl). Defined below.
 void ui_tutorial_words_raise();
 void ui_tour_legend(int allowed);
+// ⓘ A pad's R2, L2 or Circle pressing the words' buttons, the configs window taken to the front, and whether the
+// tour's stand-in for the two finger switch is on. Defined below.
+bool ui_tutorial_words_pad_press(int which);
+void ui_tutorial_window_front();
+bool ui_tour_stand_in_on();
 // ⓘ The tour's window shrunk in place of a close: no place or size kept from
 // it (config_move.inl). Defined below.
 void ui_tour_shrunk(bool on);
@@ -602,6 +607,20 @@ void ui_tutorial_words_raise()
 void ui_tour_legend(int allowed)
 {
     config_move::set_tour_legend(allowed);
+}
+bool ui_tutorial_words_pad_press(int which)
+{
+    return tutorial_bubble::pad_press(which);
+}
+void ui_tutorial_window_front()
+{
+    ctm_open_ui::FindState ours;
+    EnumWindows(ctm_open_ui::find_window_proc, reinterpret_cast<LPARAM>(&ours));
+    if (ours.found != nullptr && GetForegroundWindow() != ours.found) ctm_open_ui::force_foreground(ours.found);
+}
+bool ui_tour_stand_in_on()
+{
+    return quick_switch_session::g_mockOn.load();
 }
 std::string ui_tour_pad_take()
 {

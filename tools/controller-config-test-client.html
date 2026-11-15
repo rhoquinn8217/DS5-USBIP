@@ -19499,7 +19499,9 @@ function tutSendWords() {
       body.legend = s.legend || 'none';
     }
     // ⓘ The question too, while the window is put away (tutWordsSide).
-    if (TUT_SHRUNK && body.side !== 'screen') body.side = 'center';
+    // ⭐ The window put away is behind the words in the middle of the screen, so they stand there, up
+    // whatever has the front (the End tutorial question too, 2026-11-14).
+    if (TUT_SHRUNK) body.side = 'screen';
     body.show = true;
     body.focus = focus;
     // ⓘ The window as small as it goes, for the tour: no place or size to keep.
@@ -19541,6 +19543,7 @@ function tutWordsSide(s) {
   // ⭐ THE MIDDLE OF THE SCREEN, wherever the window is (2026-11-14: the two finger steps' words "don't
   // move around when quick mode opens or closes").
   if (s.screen) return 'screen';
+  if (TUT_SHRUNK) return 'screen';
   if (TUT_SHRUNK || (s.act === 'end' && !s.side)) return 'center';
   // ⭐ Switching modes' steps stand where they were written to (`sideOwn`, 2026-11-13), right of
   // the selector but below Quick's short window.
