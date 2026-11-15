@@ -42,30 +42,39 @@ those, or a [DS5Dongle](https://github.com/awalol/DS5Dongle) to stay wireless.
 | **DualSense** | Your controller |
 | **Windows** | Your host machine's operating system |
 | **Moonlight-compatible host** | Streaming software on that Windows machine:<br>[Sunshine](https://github.com/LizardByte/Sunshine), [Apollo](https://github.com/ClassicOldSong/Apollo), [Vibepollo](https://github.com/Nonary/Vibepollo), [Vibeshine](https://github.com/Nonary/vibeshine), etc. |
-| **[rhoquinn8217/aurora-tv](https://github.com/rhoquinn8217/aurora-tv/releases)** | Download the `.ipk` from the [releases page](https://github.com/rhoquinn8217/aurora-tv/releases) and install it on your webOS TV/monitor. |
+| **[rhoquinn8217/aurora-tv](https://github.com/rhoquinn8217/aurora-tv/releases)** | The streaming client for your webOS TV/monitor |
 
 **Set up DS5-USBIP**
 
 1. Download the installer from the [releases page](https://github.com/rhoquinn8217/DS5-USBIP/releases).
-2. Run the installer. It is unsigned, so you need to select **Run anyway**.<br>
+2. Run the installer.<br>
    *Note: installation includes the required
    [usbip-win2](https://github.com/vadimgrn/usbip-win2/releases) driver and will
    require a restart.*
-3. Start DS5-USBIP from the Start menu. It lives in the tray.
+3. Start DS5-USBIP. (It lives in the tray.)
 
-**Bridge and play**
+**Set up rhoquinn8217/aurora-tv**
+
+1. Set up your streaming host ([Vibepollo](https://github.com/Nonary/Vibepollo), [Vibeshine](https://github.com/Nonary/vibeshine), [Apollo](https://github.com/ClassicOldSong/Apollo) or [Sunshine](https://github.com/LizardByte/Sunshine)).
+2. Download the rhoquinn8217/aurora-tv client `.ipk` from the [releases page](https://github.com/rhoquinn8217/aurora-tv/releases) and [install it on your webOS TV/monitor](https://www.reddit.com/r/MoonlightStreaming/comments/1s1cfb7/lg_tv_4k_120_fps_hdr_tutorial/).
+3. Open rhoquinn8217/aurora-tv on your webOS TV then [pair and confirm your pin with your streaming host](https://www.joeysretrohandhelds.com/guides/vibepollo-setup-guide/).
+
+**Stream, bridge and play**
 
 1. Connect a DualSense to the television: via Bluetooth or USB port.
 2. Start rhoquinn8217/aurora-tv on the television.
 3. Start the stream to the host.
-4. DualSense controllers will bridge automatically when the stream starts.<br>
-   *Note: Press and hold the DualSense touchpad with two fingers for 1 second to bridge, 4 seconds to release.*
-5. *Optional (Recommended): Open Controller Configs in the DS5-USBIP Windows
-   tray menu. Go through the tutorial then click "New" and create a
-   **touchpad-to-mouse (DS5|DS4)** pre-set.*
+4. Your DualSense will bridge to the host automatically when the stream starts (after signing in if your PC starts locked).
 
-**Start using the DualSense with gyro, touchpad, audio-based rumble and
-speaker audio (microphone on USB only).**
+> [!IMPORTANT]
+> *Your DualSense is now natively connected to your host PC with gyro, adaptive triggers, speaker audio and audio-based haptics (mic supported if connected via USB).*
+
+**(Optional) Set up DS5-USBIP controller rebind pre-sets**
+
+1. Open DS5-USBIP in the tray and select **Open Controller Configs**.
+2. Go through the tutorial or skip it.
+3. Create a new **touchpad-to-mouse (DS5|DS4)** pre-set.
+4. Drive Windows with only a controller.
 
 *Note: DS5-USBIP can be set up, stopped and started through the same stream.*
 
@@ -103,6 +112,7 @@ with only a controller.
 | **DualSense audio over the TV's USB port** | A DualSense's speaker, audio-based rumble and microphone travel as isochronous audio on the controller's own audio interfaces, not as HID traffic. Bluetooth carries input and audio in one report stream that can be forwarded whole; USB splits the audio onto endpoints of its own. This fork rebuilds the pad as the composite device presenting those interfaces and carries the streams both ways, so the speaker, rumble and microphone behave as they would on a cable. |
 | **DualSense Edge support** | The Edge's product ID was already recognised when listing devices, but DS5-USBIP rebuilt every DualSense from the same descriptor, so Windows saw a plain DualSense. The Edge differs by more than its product ID: a larger HID report descriptor, extra feature reports and different endpoint polling. This fork adds a descriptor for it, captured from the hardware's own kernel descriptor files, so Windows sees a DualSense Edge. |
 | **DS5Dongle support** | A DS5Dongle presents itself over USB as a DualSense or DualSense Edge, so a wireless controller still reaches the PC with its speaker, rumble, adaptive triggers and microphone. Using a DS5Dongle is also an alternative to a wireless DualSense connected over Bluetooth; the difference is that over Bluetooth the microphone doesn't work, while through a DS5Dongle it does, since it connects through the TV's USB path. You also have access to the DS5Dongle features from various [community forks](https://github.com/awalol/DS5Dongle#community-fork). |
+| **DS4Dongle support** | A [DS4Dongle](https://github.com/snipem/DS4Dongle) presents the DS4 paired to it over USB as a wired DS4 (CUH-ZCT2), so a wireless DS4 of either model reaches the PC with its speaker and headset audio. Identity comes from the controller's MAC address, so Auto Bridge and auto link follow the same controller whether it is connected via Bluetooth or with the DS4Dongle. The DS4's own speaker plays without a headset plugged in: DS5-USBIP sets the DS4Dongle's `audio_follow_jack` to 0 the first time it bridges it, and the dongle restarts once to take it. |
 | **Optional: controller rebinder and virtual keyboard** | A controller rebinder with stick, gyro and touchpad to mouse pre-sets. The pre-sets can be modified and saved, and a built-in virtual keyboard is available to the controller. The rebinder and the virtual keyboard both isolate the controller's input so a game does not receive it at the same time. |
 
 > The webOS limitation: its input driver reads Bluetooth microphone audio from the
@@ -157,17 +167,21 @@ the form there. Questions, setup help and ideas go to
 
 <a href="docs/images/ds5usbip-mode-simple.png"><img src="docs/images/ds5usbip-mode-simple.png" alt="Simple mode" width="531"></a> <a href="docs/images/ds5usbip-mode-quick.png"><img src="docs/images/ds5usbip-mode-quick.png" alt="Quick mode" width="465"></a>
 
-### Pre-sets
+**Config preview**
 
-<a href="docs/images/ds5usbip-preset-touchpad.png"><img src="docs/images/ds5usbip-preset-touchpad.png" alt="touchpad-to-mouse pre-set" width="498"></a> <a href="docs/images/ds5usbip-preset-gyro.png"><img src="docs/images/ds5usbip-preset-gyro.png" alt="gyro-to-mouse pre-set" width="498"></a>
+<a href="docs/images/ds5usbip-simple-preview.png"><img src="docs/images/ds5usbip-simple-preview.png" alt="Simple mode with the config preview beside it" width="996"></a>
+
+### Pre-sets and controller settings
+
+<a href="docs/images/ds5usbip-preset-gyro.png"><img src="docs/images/ds5usbip-preset-gyro.png" alt="gyro-to-mouse pre-set" width="500"></a> <a href="docs/images/ds5usbip-controller-settings.png"><img src="docs/images/ds5usbip-controller-settings.png" alt="A controller's settings, with Device tag and Reset" width="496"></a>
 
 ### Tray icon menu
 
-<a href="docs/images/ds5usbip-tray-devices.png"><img src="docs/images/ds5usbip-tray-devices.png" alt="Tray icon menu, Devices expanded" width="541"></a> <a href="docs/images/ds5usbip-tray-tutorial.png"><img src="docs/images/ds5usbip-tray-tutorial.png" alt="Tray icon menu, Start Tutorial expanded" width="455"></a>
+<a href="docs/images/ds5usbip-tray-devices.png"><img src="docs/images/ds5usbip-tray-devices.png" alt="Tray icon menu, Devices expanded" width="600"></a>
 
 ### Tutorial
 
-<a href="docs/images/ds5usbip-tutorial-simple.png"><img src="docs/images/ds5usbip-tutorial-simple.png" alt="Simple tutorial" width="488"></a> <a href="docs/images/ds5usbip-tutorial-quick.png"><img src="docs/images/ds5usbip-tutorial-quick.png" alt="Quick tutorial" width="508"></a>
+<a href="docs/images/ds5usbip-tutorial-simple.png"><img src="docs/images/ds5usbip-tutorial-simple.png" alt="Simple tutorial" width="475"></a> <a href="docs/images/ds5usbip-tutorial-quick.png"><img src="docs/images/ds5usbip-tutorial-quick.png" alt="Quick tutorial" width="521"></a>
 
 ## Clean-room
 
