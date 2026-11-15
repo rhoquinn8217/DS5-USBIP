@@ -2,7 +2,7 @@
 <!--
   DS5-USBIP's Controller Configs page, served by the listener.
 
-  VERSION 2.72.7 -- see the changelog at the bottom of this comment.
+  VERSION 2.72.8 -- see the changelog at the bottom of this comment.
 
   WHAT IT STARTED AS. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -24,6 +24,8 @@
   not a tidy message about it.
 
   CHANGELOG
+    2.72.8   (rhoquinn8217, 2026-11-14) The quick switch topic's words stay on top of every
+             window on every step, going back included.
     2.72.7   (rhoquinn8217, 2026-11-14) Making and managing configs are one topic, always
              in Simple, Edit read and not pressed; The window's steps let only their own
              legend button work (Options on the position step, Create on the size step, none
@@ -3947,7 +3949,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.72.7</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.72.8</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -19504,6 +19506,13 @@ function tutSendWords() {
     if (TUT_SHRUNK) body.side = 'screen';
     body.show = true;
     body.focus = focus;
+    // ⭐ The quick switch topic's words stay on top on every step, back and forward, the question and the
+    // end box too (2026-11-14: going back in the window select step lost them behind the other windows).
+    if (TUT && TUT.phase !== 'intro') {
+      var firstSwitch = -1;
+      steps.forEach(function (st, k) { if (firstSwitch < 0 && st.part === 'switch') firstSwitch = k; });
+      if (firstSwitch >= 0 && TUT.at >= firstSwitch) body.stay = true;
+    }
     // ⓘ The window as small as it goes, for the tour: no place or size to keep.
     if (TUT_SHRUNK) body.shrunk = true;
     // ⭐ What the step lights and what is on the window, for the listener to

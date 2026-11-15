@@ -66,6 +66,10 @@ struct Content {
 inline std::mutex g_mutex;
 inline Content g_content;
 inline std::string g_press;
+// ⭐ WORDS THAT STAY ON TOP (rhoquinn8217, 2026-11-14: "for the quick switch tutorial, make the tutorial box always in
+// front on every step"): shown, and kept above, whichever window has the front. Set by the page with the words.
+inline std::atomic_bool g_stay{false};
+inline void set_stay(bool on) { g_stay.store(on); }
 // ⭐ WHETHER THE WORDS ARE STILL ON THEIR WAY (rhoquinn8217, 2026-10-29: "when
 // the bubble move to it's next spot remove the darkening completely then fade
 // in the darkening with the feather highlighted area"): each set of words the
@@ -806,7 +810,7 @@ inline void refresh(HWND hwnd)
     // quick switch's window select: "the tutorial box does not come back in front after a window switch"): they
     // are not beside the configs window, so a window picked in front of it hides nothing they point at. They stay
     // on top of it, never taking the focus.
-    const bool onScreen = c.prefer == tbr::Prefer::Screen;
+    const bool onScreen = c.prefer == tbr::Prefer::Screen || g_stay.load();
     if (win == nullptr || IsIconic(win) || (!onScreen && GetForegroundWindow() != win)) {
         hide_now(hwnd);
         return;
