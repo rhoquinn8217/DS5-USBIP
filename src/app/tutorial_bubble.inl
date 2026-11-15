@@ -793,6 +793,36 @@ inline std::wstring box_text(const tbr::Box &b)
            std::to_wstring(b.bottom) + L";";
 }
 
+// ⭐ THE CONFIG WINDOW ON TOP TOO, while the words stay (2026-11-14: "have the config window and the tutorial boxes
+// on top of every window" in the quick switch tutorial): set topmost without taking the focus, the words raised over
+// it again whenever it has come above them, and let go of when the words stop staying or the window is gone.
+inline HWND g_toppedWin = nullptr;
+inline void keep_window_on_top(HWND win, HWND words)
+{
+    if (win == nullptr) {
+        if (g_toppedWin != nullptr) {
+            if (IsWindow(g_toppedWin)) {
+                SetWindowPos(g_toppedWin, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+            }
+            g_toppedWin = nullptr;
+        }
+        return;
+    }
+    const bool isTop = (GetWindowLongW(win, GWL_EXSTYLE) & WS_EX_TOPMOST) != 0;
+    if (!isTop || g_toppedWin != win) {
+        SetWindowPos(win, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+        g_toppedWin = win;
+    }
+    // ⓘ Is the words' window above the config window? Walk up from the config window.
+    bool wordsAbove = false;
+    for (HWND w = GetWindow(win, GW_HWNDPREV); w != nullptr; w = GetWindow(w, GW_HWNDPREV)) {
+        if (w == words) { wordsAbove = true; break; }
+    }
+    if (!wordsAbove && IsWindowVisible(words)) {
+        SetWindowPos(words, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+    }
+}
+
 // ⭐ PLACE AND SHOW, or hide: on every update from the page and on the timer.
 // Nothing is moved or drawn again unless something it depends on changed.
 // ⭐ A new place on the same screen is SLID to; the configs window moved, or
@@ -811,6 +841,7 @@ inline void refresh(HWND hwnd)
     // are not beside the configs window, so a window picked in front of it hides nothing they point at. They stay
     // on top of it, never taking the focus.
     const bool onScreen = c.prefer == tbr::Prefer::Screen || g_stay.load();
+    keep_window_on_top(g_stay.load() ? win : nullptr, hwnd);
     if (win == nullptr || IsIconic(win) || (!onScreen && GetForegroundWindow() != win)) {
         hide_now(hwnd);
         return;
