@@ -59,6 +59,27 @@ int run_tutorial_bubble_rule_tests()
         CTM_CHECK(open.size() == 1 && open[0].text == L"half [[open" && !open[0].lit);
     }
 
+    section("tutorial words: an instruction between {{ and }} is bold gold, wraps as words, and keeps its lit names");
+    {
+        const auto p = tbr::parse(L"Plain. {{Press [[Continue]] now.}} After.");
+        CTM_CHECK_EQ(p.size(), size_t(5));
+        CTM_CHECK(p[0].text == L"Plain. " && !p[0].emph && !p[0].lit);
+        CTM_CHECK(p[1].text == L"Press " && p[1].emph && !p[1].lit);
+        CTM_CHECK(p[2].text == L"Continue" && p[2].emph && p[2].lit);
+        CTM_CHECK(p[3].text == L" now." && p[3].emph && !p[3].lit);
+        CTM_CHECK(p[4].text == L" After." && !p[4].emph);
+        const auto toks = tbr::tokens(p);
+        size_t emphWords = 0, plainWords = 0;
+        for (const auto &k : toks) {
+            if (k.space) continue;
+            if (k.emph) ++emphWords; else ++plainWords;
+        }
+        CTM_CHECK_EQ(emphWords, size_t(3));    // "Press", "Continue", "now."
+        CTM_CHECK_EQ(plainWords, size_t(2));   // "Plain.", "After."
+        const auto open = tbr::parse(L"half {{open");   // unclosed: plain text
+        CTM_CHECK(open.size() == 1 && open[0].text == L"half {{open" && !open[0].emph);
+    }
+
     section("tutorial words: a lit name never breaks at its dashes");
     {
         const auto toks = tbr::tokens(tbr::parse(L"Select [[stick-to-mouse]] to see what it does."));

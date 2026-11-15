@@ -970,6 +970,7 @@ static bool rest_route_config(const RestRequest &req, std::string *out)
             ui_tour_shrunk(flag("show") && flag("shrunk"));
             // ⭐ And which legend button the step lets work ("position" Options, "resize" Create, none else).
             ui_tutorial_words_stay(flag("show") && flag("stay"));
+            ui_tutorial_words_confetti(flag("show") && flag("confetti"));
             {
                 const std::string legend = text("legend");
                 ui_tour_legend(!flag("show") ? 3 : legend == "position" ? 1 : legend == "resize" ? 2 : 0);

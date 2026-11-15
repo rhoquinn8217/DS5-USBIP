@@ -21,10 +21,11 @@ namespace tutorial_bubble_rule {
 struct Piece {
     std::wstring text;
     bool lit = false;
+    bool emph = false;   // an instruction: bold, amber, and it wraps as plain words do
 };
 
 // The page marks a lit name as [[name]]. ⓘ An unclosed [[ stays plain text.
-inline std::vector<Piece> parse(const std::wstring &words)
+inline std::vector<Piece> parse_names(const std::wstring &words, bool emph)
 {
     std::vector<Piece> out;
     size_t at = 0;
@@ -33,11 +34,31 @@ inline std::vector<Piece> parse(const std::wstring &words)
         if (open == std::wstring::npos) break;
         const size_t close = words.find(L"]]", open + 2);
         if (close == std::wstring::npos) break;
-        if (open > at) out.push_back({ words.substr(at, open - at), false });
-        out.push_back({ words.substr(open + 2, close - open - 2), true });
+        if (open > at) out.push_back({ words.substr(at, open - at), false, emph });
+        out.push_back({ words.substr(open + 2, close - open - 2), true, emph });
         at = close + 2;
     }
-    if (at < words.size()) out.push_back({ words.substr(at), false });
+    if (at < words.size()) out.push_back({ words.substr(at), false, emph });
+    return out;
+}
+
+// ⭐ AN INSTRUCTION, BOLD AND GOLD (rhoquinn8217, 2026-11-14, the quick switch steps: "bold and gold the
+// instruction text so the user know what they need to do"): the page marks it {{what to do}}. Names lit inside
+// it stay lit. ⓘ An unclosed {{ stays plain text.
+inline std::vector<Piece> parse(const std::wstring &words)
+{
+    std::vector<Piece> out;
+    size_t at = 0;
+    while (at < words.size()) {
+        const size_t open = words.find(L"{{", at);
+        if (open == std::wstring::npos) break;
+        const size_t close = words.find(L"}}", open + 2);
+        if (close == std::wstring::npos) break;
+        if (open > at) for (const Piece &p : parse_names(words.substr(at, open - at), false)) out.push_back(p);
+        for (const Piece &p : parse_names(words.substr(open + 2, close - open - 2), true)) out.push_back(p);
+        at = close + 2;
+    }
+    if (at < words.size()) for (const Piece &p : parse_names(words.substr(at), false)) out.push_back(p);
     return out;
 }
 
@@ -127,6 +148,7 @@ struct Token {
     bool lit = false;
     bool space = false;
     bool mark = false;
+    bool emph = false;
 };
 
 inline std::vector<Token> tokens(const std::vector<Piece> &pieces)
@@ -135,9 +157,9 @@ inline std::vector<Token> tokens(const std::vector<Piece> &pieces)
     for (const Piece &p : pieces) {
         if (p.lit) {
             if (p.text.size() > 1 && p.text[0] == L'*') {
-                out.push_back({ p.text.substr(1), true, false, true });
+                out.push_back({ p.text.substr(1), true, false, true, p.emph });
             } else {
-                out.push_back({ p.text, true, false });
+                out.push_back({ p.text, true, false, false, p.emph });
             }
             continue;
         }
@@ -148,12 +170,12 @@ inline std::vector<Token> tokens(const std::vector<Piece> &pieces)
                 continue;
             }
             if (!word.empty()) {
-                out.push_back({ word, false, false });
+                out.push_back({ word, false, false, false, p.emph });
                 word.clear();
             }
-            out.push_back({ L" ", false, true });
+            out.push_back({ L" ", false, true, false, p.emph });
         }
-        if (!word.empty()) out.push_back({ word, false, false });
+        if (!word.empty()) out.push_back({ word, false, false, false, p.emph });
     }
     return out;
 }

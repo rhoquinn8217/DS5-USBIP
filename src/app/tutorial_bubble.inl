@@ -19,6 +19,7 @@
 // window is not the one in front: minimised, or behind a game, there is
 // nothing for it to point at.
 #pragma once
+#include <cmath>
 
 #pragma comment(lib, "user32.lib")
 #pragma comment(lib, "gdi32.lib")
@@ -70,6 +71,17 @@ inline std::string g_press;
 // front on every step"): shown, and kept above, whichever window has the front. Set by the page with the words.
 inline std::atomic_bool g_stay{false};
 inline void set_stay(bool on) { g_stay.store(on); }
+// ⭐ A SMALL CONFETTI DROP INSIDE THE BOX that ends a tutorial topic (rhoquinn8217, 2026-11-14: "do a smaller
+// confetti drop inside of that tutorial box"): set by the page with the card, drawn by the box itself for a few
+// seconds from when it came on. The window's own shape clips it to the box.
+inline std::atomic_bool g_confetti{false};
+inline std::atomic<ULONGLONG> g_confettiSince{0};
+inline constexpr ULONGLONG kConfettiMs = 4200;
+inline void set_confetti(bool on)
+{
+    if (on && !g_confetti.exchange(true)) g_confettiSince.store(GetTickCount64());
+    else if (!on) g_confetti.store(false);
+}
 // ⭐ WHETHER THE WORDS ARE STILL ON THEIR WAY (rhoquinn8217, 2026-10-29: "when
 // the bubble move to it's next spot remove the darkening completely then fade
 // in the darkening with the feather highlighted area"): each set of words the
@@ -87,6 +99,7 @@ inline std::atomic_bool g_running{ false };
 inline const wchar_t *const kClassName = L"DS5USBIP_TutorialWords";
 inline const UINT kMsgUpdate = WM_APP + 41;
 inline const UINT_PTR kFollowTimer = 1;
+inline const UINT_PTR kConfettiTimer = 2;
 
 // ⓘ The page's own colours: its tutorial's amber, its buttons, its halo.
 inline const COLORREF kFill = RGB(0x1d, 0x20, 0x30);
@@ -141,9 +154,9 @@ inline const CardSize &card_size(int big)
 // bubble used the window's own large type.
 struct Fonts {
     UINT dpi = 0;
-    HFONT text = nullptr, lit = nullptr, count = nullptr, button = nullptr, title = nullptr;
+    HFONT text = nullptr, lit = nullptr, emph = nullptr, count = nullptr, button = nullptr, title = nullptr;
     // ⓘ The congratulations card's, a set for each size (Content::big).
-    HFONT bigText[4] = {}, bigLit[4] = {}, bigButton[4] = {}, bigTitle[4] = {};
+    HFONT bigText[4] = {}, bigLit[4] = {}, bigEmph[4] = {}, bigButton[4] = {}, bigTitle[4] = {};
 };
 
 inline HFONT make_font(int sizePx, int weight, UINT dpi)
@@ -160,13 +173,14 @@ inline void fonts_for(Fonts *f, UINT dpi)
         if (h != nullptr) DeleteObject(h);
     }
     for (int k = 1; k <= 3; ++k) {
-        for (HFONT h : { f->bigText[k], f->bigLit[k], f->bigButton[k], f->bigTitle[k] }) {
+        for (HFONT h : { f->bigText[k], f->bigLit[k], f->bigEmph[k], f->bigButton[k], f->bigTitle[k] }) {
             if (h != nullptr) DeleteObject(h);
         }
     }
     f->dpi = dpi;
     f->text = make_font(16, FW_NORMAL, dpi);
     f->lit = make_font(16, FW_SEMIBOLD, dpi);
+    f->emph = make_font(16, FW_BOLD, dpi);
     f->count = make_font(12, FW_NORMAL, dpi);
     f->button = make_font(15, FW_SEMIBOLD, dpi);
     f->title = make_font(18, FW_SEMIBOLD, dpi);
@@ -174,6 +188,7 @@ inline void fonts_for(Fonts *f, UINT dpi)
         const CardSize &z = card_size(k);
         f->bigText[k] = make_font(z.text, FW_NORMAL, dpi);
         f->bigLit[k] = make_font(z.text, FW_SEMIBOLD, dpi);
+        f->bigEmph[k] = make_font(z.text, FW_BOLD, dpi);
         f->bigButton[k] = make_font(z.button, FW_SEMIBOLD, dpi);
         f->bigTitle[k] = make_font(z.title, FW_BOLD, dpi);
     }
@@ -181,9 +196,10 @@ inline void fonts_for(Fonts *f, UINT dpi)
 
 // ⓘ The words', the title's and the buttons' type, larger on the card that
 // ends a tour, as large as its size.
-inline HFONT words_font(const Fonts *f, const Content &c, bool lit)
+inline HFONT words_font(const Fonts *f, const Content &c, bool lit, bool emph = false)
 {
     const int k = card_of(c.big);
+    if (emph && !lit) return k ? f->bigEmph[k] : f->emph;
     return k ? (lit ? f->bigLit[k] : f->bigText[k]) : (lit ? f->lit : f->text);
 }
 inline HFONT title_font(const Fonts *f, const Content &c)
@@ -337,7 +353,7 @@ inline Layout compute_layout(HDC dc, Fonts *fonts, const Content &c, UINT dpi,
             L.widths.push_back(mark_w(t.text, L.markH) + 2 * px(2, dpi));
             continue;
         }
-        const SIZE s = measure(dc, words_font(fonts, c, t.lit), t.text);
+        const SIZE s = measure(dc, words_font(fonts, c, t.lit, t.emph), t.text);
         L.widths.push_back(s.cx + (t.lit ? 2 * L.litPad : 0));
     }
     L.lines = tbr::lines(L.toks, L.widths, maxWidth);
@@ -573,6 +589,38 @@ inline void paint_button(HDC dc, const Fonts *fonts, const Content &c, const But
     TextOutW(dc, x + mw, mid - ls.cy / 2, b.label.c_str(), static_cast<int>(b.label.size()));
 }
 
+// Pieces falling through the box, each with its own place, delay, pace and colour, worked out from its number.
+inline void draw_confetti(HDC dc, const RECT &box, ULONGLONG elapsedMs, UINT dpi)
+{
+    static const COLORREF colours[] = { RGB(0xf0, 0xb4, 0x29), RGB(0x6c, 0x8c, 0xff), RGB(0x7f, 0xd1, 0x8c),
+                                        RGB(0xff, 0x6b, 0x6b), RGB(0xc0, 0x84, 0xfc), RGB(0x4f, 0xd1, 0xc5),
+                                        RGB(0xff, 0xff, 0xff) };
+    const int w = box.right - box.left, h = box.bottom - box.top;
+    if (w <= 0 || h <= 0) return;
+    auto mix = [](unsigned v) {
+        v ^= v >> 16; v *= 0x7feb352dU; v ^= v >> 15; v *= 0x846ca68bU; v ^= v >> 16;
+        return v;
+    };
+    for (unsigned i = 0; i < 42; ++i) {
+        const double delay = (mix(i * 3 + 1) % 1400);
+        const double pace = 1500.0 + (mix(i * 3 + 2) % 1300);
+        const double t = (static_cast<double>(elapsedMs) - delay) / pace;
+        if (t < 0.0 || t > 1.0) continue;
+        const double fx = (mix(i * 3 + 3) % 1000) / 1000.0;
+        const int size = px(4 + static_cast<int>(mix(i * 7 + 5) % 4), dpi);
+        const int x = box.left + static_cast<int>(fx * w) + static_cast<int>(std::sin(t * 7.0 + i) * px(10, dpi));
+        const int y = box.top - size + static_cast<int>(t * (h + 2 * size));
+        HBRUSH b = CreateSolidBrush(colours[i % 7]);
+        HGDIOBJ old = SelectObject(dc, b);
+        HGDIOBJ oldPen = SelectObject(dc, GetStockObject(NULL_PEN));
+        if (i % 3 == 0) Ellipse(dc, x, y, x + size, y + size);
+        else Rectangle(dc, x, y, x + size, y + size * 3 / 2);
+        SelectObject(dc, oldPen);
+        SelectObject(dc, old);
+        DeleteObject(b);
+    }
+}
+
 inline void paint(HDC dc, Fonts *fonts, const Layout &L, int width, int height, COLORREF back)
 {
     HBRUSH backBrush = CreateSolidBrush(back);
@@ -588,6 +636,7 @@ inline void paint(HDC dc, Fonts *fonts, const Layout &L, int width, int height, 
     HGDIOBJ oldPen = SelectObject(dc, amberPen);
     HGDIOBJ oldBrush = SelectObject(dc, fill);
     RoundRect(dc, L.box.left, L.box.top, L.box.right, L.box.bottom, 2 * L.round, 2 * L.round);
+    if (g_confetti.load()) draw_confetti(dc, L.box, GetTickCount64() - g_confettiSince.load(), dpi);
 
     // The title or the count, then the lines, a lit name amber in an amber
     // outline.
@@ -618,7 +667,7 @@ inline void paint(HDC dc, Fonts *fonts, const Layout &L, int width, int height, 
         }
         for (const size_t i : line) {
             const tbr::Token &t = L.toks[i];
-            SelectObject(dc, words_font(fonts, L.content, t.lit));
+            SelectObject(dc, words_font(fonts, L.content, t.lit, t.emph));
             TEXTMETRICW tm{};
             GetTextMetricsW(dc, &tm);
             const int ty = y + (L.lineH - tm.tmHeight) / 2;
@@ -631,7 +680,7 @@ inline void paint(HDC dc, Fonts *fonts, const Layout &L, int width, int height, 
                 SetTextColor(dc, kAmber);
                 TextOutW(dc, x + L.litPad, ty, t.text.c_str(), static_cast<int>(t.text.size()));
             } else {
-                SetTextColor(dc, kText);
+                SetTextColor(dc, t.emph ? kAmber : kText);
                 TextOutW(dc, x, ty, t.text.c_str(), static_cast<int>(t.text.size()));
             }
             x += L.widths[i];
@@ -965,6 +1014,11 @@ inline LRESULT CALLBACK wnd_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
     }
     case WM_TIMER:
         if (wp == kFollowTimer) refresh(hwnd);
+        else if (wp == kConfettiTimer) {
+            if (g_confetti.load() && GetTickCount64() - g_confettiSince.load() < kConfettiMs + 300 && IsWindowVisible(hwnd)) {
+                InvalidateRect(hwnd, nullptr, FALSE);
+            }
+        }
         return 0;
     default:
         if (msg == kMsgUpdate) {
@@ -999,6 +1053,7 @@ inline void thread_main()
     }
     g_hwnd.store(hwnd);
     SetTimer(hwnd, kFollowTimer, 100, nullptr);
+    SetTimer(hwnd, kConfettiTimer, 40, nullptr);
     refresh(hwnd);
     // ⓘ While the words slide: what is waiting, then a frame, then a step;
     // otherwise asleep until a message comes.

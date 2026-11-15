@@ -216,6 +216,7 @@ void ui_tour_legend(int allowed);
 // ⓘ A pad's R2, L2 or Circle pressing the words' buttons, the configs window taken to the front, and whether the
 // tour's stand-in for the two finger switch is on. Defined below.
 void ui_tutorial_words_stay(bool on);
+void ui_tutorial_words_confetti(bool on);
 bool ui_tutorial_words_pad_press(int which);
 void ui_tutorial_window_front();
 bool ui_tour_stand_in_on();
@@ -612,6 +613,10 @@ void ui_tour_legend(int allowed)
 void ui_tutorial_words_stay(bool on)
 {
     tutorial_bubble::set_stay(on);
+}
+void ui_tutorial_words_confetti(bool on)
+{
+    tutorial_bubble::set_confetti(on);
 }
 bool ui_tutorial_words_pad_press(int which)
 {

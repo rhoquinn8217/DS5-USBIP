@@ -2,7 +2,7 @@
 <!--
   DS5-USBIP's Controller Configs page, served by the listener.
 
-  VERSION 2.72.10 -- see the changelog at the bottom of this comment.
+  VERSION 2.72.11 -- see the changelog at the bottom of this comment.
 
   WHAT IT STARTED AS. Exercising the endpoints by hand, and seeing what the agent
   actually reports -- particularly whether a bridged controller comes back with
@@ -24,6 +24,10 @@
   not a tidy message about it.
 
   CHANGELOG
+    2.72.11  (rhoquinn8217, 2026-11-14) Quick switch instructions bold and gold; the window selector step
+             is done once a window is picked; a press on the window kept open puts it away; a topic ends
+             with '<topic> completed.' and a small confetti in its box; button marks on the start and the
+             end question; Advanced's Rename step is done by the rename it asked for.
     2.72.10  (rhoquinn8217, 2026-11-14) Quick switch: open and close 3 times then switch 3 times, then
              Continue; the double press kept first, then Continue; the window stays up on the free try;
              new last words; the config window is on top with the words.
@@ -3956,7 +3960,7 @@
      ⓘ The same number as VERSION at the top of this file, by hand, which
      the self-test checks: it sat at 2.66.4 for thirty-four versions while
      VERSION moved on. -->
-<div class="ovver">Controller Configs page <span id="pageVersion">2.72.10</span><span id="progVersion"></span></div>
+<div class="ovver">Controller Configs page <span id="pageVersion">2.72.11</span><span id="progVersion"></span></div>
 
 </div><!-- /pane-overview -->
 
@@ -16517,7 +16521,7 @@ function selfTest() {
        oneSteps === 9 && oneLast && oneTitle === 'Tutorial: Quick switch' &&
        oneWords === 'This tutorial goes over putting the window away with Close, and bringing it back mid-game with the ' +
                   'two-finger touchpad quick switch, including window select.' &&
-       oneDone === 'Tutorial Topic Completed' &&
+       / completed.$/.test(oneDone) && oneDone.indexOf('Tutorial') < 0 &&
        someTitle === 'Simple mode tutorial' && someFirst === 'modes' &&
        someWords === 'A short tour with practice controllers: Switching modes and Quick switch. Nothing in it ' +
                      'changes your real ones.' &&
@@ -16572,7 +16576,7 @@ function selfTest() {
     // The two do/try steps: Continue lights only after three opens, three puts away and three switches; and
     // after the press that keeps the window.
     TUT_REAL = [{ ordinal: 'd1', kind: 'ds5_usb' }]; QUICK_SWITCH = true;
-    var dtSteps = tutAllSteps('quick').filter(function (s) { return s.part === 'switch' && s.stay; });
+    var dtSteps = tutAllSteps('quick').filter(function (s) { return s.part === 'switch' && s.stay && !s.switcher; });
     var dtSeen = [dtSteps.length === 2 && dtSteps[0].pad === 'try' && dtSteps[1].pad === 'keep'];
     TUT = { kind: 'quick', phase: 'step', at: tutAllSteps('quick').indexOf(dtSteps[0]), done: [] };
     var dtPad = tutPad();
@@ -16936,6 +16940,9 @@ function tutById(id) { return document.getElementById(id); }
 // A name in the words, lit, and never broken at a dash: the listener draws
 // what is between [[ and ]] that way.
 function tutHl(name) { return '[[' + name + ']]'; }
+// What the person is to DO, bold and gold (2026-11-14: "bold and gold the instruction text so the user know
+// what they need to do"): the listener draws what is between {{ and }} that way; names inside stay lit.
+function tutDo(text) { return '{{' + text + '}}'; }
 
 // ---- the practice controllers -------------------------------------------------
 
@@ -17152,6 +17159,8 @@ function tutMockCall(method, path, body) {
       if (m.auto[name]) { m.auto[to] = m.auto[name]; delete m.auto[name]; }
       if (m.settings[name]) { m.settings[to] = m.settings[name]; delete m.settings[name]; }
       if (TUT && TUT.made === name) TUT.made = to;
+      // the tour's Rename step is done by the rename it asked for, whichever config the list had selected
+      if (TUT) TUT.renamedTo = to;
       return done({ ok: true });
     }
     // ⓘ Archived, as the listener does it: gone from the list, and every
@@ -17622,7 +17631,11 @@ function tutPadEnter() {
 function tutPadEvent(word) {
   var s = tutStep();
   if (!s || !s.pad) return;
-  if (word === 'open') {
+  if (word === 'open' && TUT.padKept && (s.pad === 'keep' || s.pad === 'free')) {
+    // the window is kept open: another two finger press puts it away, for the double press to bring it back
+    TUT.padKept = false;
+    tutShrink();
+  } else if (word === 'open') {
     if (s.pad === 'free') TUT.padKept = false;
     TUT.qsOpen = (TUT.qsOpen || 0) + 1;
     tutUnshrink('quick');
@@ -18384,7 +18397,7 @@ function tutQsSwitchTarget() {
 function tutQsReason(s) {
   return !tutCanDo(s) && (!QUICK_SWITCH || (s && s.needs === 'switcher' && !APP_SWITCHER)) ? tutPadReason(s) + ' ' : '';
 }
-function tutQsEnd(s, doIt) { return tutCanDo(s) ? doIt : ' Choose ' + tutHl('Continue') + '.'; }
+function tutQsEnd(s, doIt) { return tutCanDo(s) ? ' ' + tutDo(doIt) : ' Choose ' + tutHl('Continue') + '.'; }
 function tutSwitchPart(kind) {
   var views = kind === 'quick' ? ['quick'] : ['simple', 'quick'];
   var back = kind === 'quick' ? 'quick' : 'simple';
@@ -18411,7 +18424,7 @@ function tutSwitchPart(kind) {
              'Quick Mode will come up and will stay up as long as you are touching the touchpad. While touching the ' +
              'touchpad, swipe a finger up or down, ' + tutDpadMove(['up', 'down']) + ', or push the right stick up or ' +
              'down to switch configs. The window will go away when you stop touching the touchpad.' +
-             tutQsEnd(s3, ' Open and close the window 3 times, then switch configs 3 times, then choose ' +
+             tutQsEnd(s3, 'Open the window 3 times and move the wheel 3 times during a quick switch, then choose ' +
                           tutHl('Continue') + '.');
     } };
   var s4 = { screen: true, free: true, pad: 'try', needs: 'touchpad', views: views,
@@ -18425,7 +18438,7 @@ function tutSwitchPart(kind) {
              'desktop.';
     } };
   s4.skip = self(s4);
-  var s5 = { screen: true, act: true, pad: 'try', switcher: true, needs: 'switcher', views: views,
+  var s5 = { screen: true, act: true, stay: true, pad: 'try', switcher: true, needs: 'switcher', views: views,
     enter: function () {
       if (tutCanDo(s5)) { tutPadEnter(); TUT.padPicked = false; return; }
       if (FOOTER_MODE) setFooterMode(false);
@@ -18437,11 +18450,11 @@ function tutSwitchPart(kind) {
     words: function () {
       var keepTouch = ' While you are switching windows you must continue to touch the touchpad or the config ' +
                       'window and the window selector go away.';
-      return tutQsReason(s5) + 'During a quick switch, ' + tutDpadMove(['left', 'right']) + ', or move the right stick ' +
-             'left or right, to bring up the window selector (Alt+Tab).' +
-             (tutCanDo(s5) ? '' : keepTouch) +
-             tutQsEnd(s5, ' Select a window with ' + tutKey('select') + ' or a touchpad press.') +
-             (tutCanDo(s5) ? keepTouch : '');
+      return tutQsReason(s5) + 'The window selector (Alt+Tab) comes up during a quick switch.' +
+             (tutCanDo(s5) ? keepTouch : '') +
+             tutQsEnd(s5, 'During a quick switch, ' + tutDpadMove(['left', 'right']) + ' on the d-pad, then move the selector ' +
+                          'to another window and press ' + tutKey('select') + ' or the touchpad to bring it into focus, then choose ' +
+                          tutHl('Continue') + '.');
     } };
   var s6 = { screen: true, act: true, stay: true, pad: 'keep', needs: 'touchpad', views: views,
     enter: function () { tutPadEnter(); if (!tutCanDo(s6)) tutUnshrink(back); },
@@ -18454,7 +18467,7 @@ function tutSwitchPart(kind) {
              'press will always bring up Quick Mode until you stop touching the touchpad. Pressing the touchpad again ' +
              'with two fingers without lifting your fingers off the touchpad keeps the config window open even if you ' +
              'stop touching the touchpad. If you were using a different mode last, the config window will switch to ' +
-             'that mode on the second press.' + tutQsEnd(s6, ' Press the touchpad with two fingers twice, then choose ' + tutHl('Continue') + '.');
+             'that mode on the second press.' + tutQsEnd(s6, 'Press the touchpad with two fingers twice, then choose ' + tutHl('Continue') + '.');
     } };
   var s7 = { side: 'above', free: true, pad: 'free', switcher: true, needs: 'touchpad', views: views,
     // the window kept open by the step before stays up: a late 'lift' of that press must not put it away
@@ -19093,17 +19106,24 @@ var TUT_ADVANCED = tutTour([
     // has another name; Go back gives it its old one (tutRestore).
     { side: 'left', act: true,
       focus: function () { return tutAdvButton('renameConfig'); },
-      enter: function () { if (!TUT.done[TUT.at]) TUT.renameFrom = TUT.made; },
+      enter: function () {
+        if (TUT.done[TUT.at]) return;
+        var rp = tutPad();
+        TUT.renameFrom = (rp && TUT_MOCK && TUT_MOCK.links[rp.ordinal]) || TUT.made;
+        TUT.renamedTo = '';
+      },
       lit: function () { return RENAMING ? tutA('#renameRow') : [tutAdvButton('renameConfig')]; },
       anchors: function () { return RENAMING ? tutA('#renameRow') : [tutAdvButton('renameConfig')]; },
       hits: function () { return [tutAdvButton('renameConfig')]; },
       words: function () {
         var how = padLegend() === KEY_LEGEND ? 'type a new name'
                 : 'press ' + tutKey('toggle') + ' in the name box for a keyboard, and type a new name';
-        return 'Press ' + tutHl('Rename') + ' and give ' + tutHl(TUT.renameFrom || TUT.made || 'it') +
+        var rp = tutPad();
+        var rn = (rp && TUT_MOCK && TUT_MOCK.links[rp.ordinal]) || TUT.renameFrom || TUT.made || 'it';
+        return 'Press ' + tutHl('Rename') + ' and give ' + tutHl(rn) +
                ' a name of your own: ' + how + ', then choose ' + tutHl('Save') + '.';
       },
-      done: function () { return !!TUT.made && TUT.made !== TUT.renameFrom && !RENAMING; } },
+      done: function () { return !!TUT.renamedTo && !RENAMING; } },
     // 13: Copy, shown and locked.
     { side: 'left', lit: function () { return [tutAdvButton('copyConfigFor')]; },
       words: function () {
@@ -19454,7 +19474,7 @@ function tutCongrats() {
 function tutCardSize(kind) { return kind === 'advanced' ? 3 : kind === 'simple' ? 2 : 1; }
 function tutWordsCongrats() {
   var card = TUT_CARDS[TUT.kind];
-  if (tutIsTopic()) return 'Tutorial Topic Completed';
+  if (tutIsTopic()) return tutPartName(TUT.parts[0]) + ' completed.';
   return "You've finished the " + (card ? card.title : 'tutorial') + '.';
 }
 // ⓘ Pieces falling from above the window to below it, each its own colour,
@@ -19540,15 +19560,16 @@ function tutSendWords() {
     // tours): nothing is lit to stand beside then.
     if (TUT.phase === 'intro') {
       body = { title: tutCardTitle(), count: '', words: tutCardWords(),
-               buttons: 'skip:Skip:plain|begin:Begin tutorial:go', arrow: false, side: 'center' };
+               buttons: 'skip:Skip:plain:' + tutBarMark('close') + '|begin:Begin tutorial:go:' + tutBarMark('select'),
+               arrow: false, side: 'center' };
     } else if (TUT.phase === 'ask') {
       body = { title: 'End the tutorial?', count: '',
                words: "You're on step " + (TUT.at + 1) + ' of ' + steps.length + '.',
-               buttons: 'endyes:End tutorial:plain|keep:Keep going:go', arrow: false };
+               buttons: 'endyes:End tutorial:plain:' + tutBarMark('select') + '|keep:Keep going:go:' + tutBarMark('close'), arrow: false };
     } else if (TUT.phase === 'done') {
       body = { title: tutIsTopic() ? '' : 'Congratulations!', count: '', words: tutWordsCongrats(),
                buttons: 'done:Done:go:' + tutBarMark('next'), arrow: false, side: 'center',
-               big: tutIsTopic() ? 1 : tutCardSize(TUT.kind) };
+               big: tutIsTopic() ? 1 : tutCardSize(TUT.kind), confetti: tutIsTopic() };
     } else {
       // ⭐ NOT BEFORE THIS STEP'S OWN PLACE IS WORKED OUT (rhoquinn8217,
       // 2026-10-27: *"Sometimes window is positioned in a different spot then
