@@ -5,13 +5,12 @@
 ![transport](https://img.shields.io/badge/transport-USB%2FIP-2ea44f)
 ![fork of CTM-Bridge/CTM-USBIP](https://img.shields.io/badge/fork%20of-CTM--Bridge%2FCTM--USBIP-lightgrey)
 
-> **NOTICE:** If you want to use a DualSense with audio-based rumble on your
-> webOS TV, [aurora-tv](https://github.com/GuiDev1994/aurora-tv) and
-> [Vibepollo](https://github.com/Nonary/Vibepollo) already support it and will
-> likely support speaker audio eventually. DS5-USBIP and
-> [rhoquinn8217/aurora-tv](https://github.com/rhoquinn8217/aurora-tv) already
-> have both, with DS5-USBIP working alongside Vibepollo, however controllers
-> require a bridging step which can mostly be automated.
+> **NOTICE:** Vibepollo can send a DualSense's audio-based rumble to clients
+> built for it, but none of them runs on webOS. DS5-USBIP and
+> [rhoquinn8217/aurora-tv](https://github.com/rhoquinn8217/aurora-tv) carry
+> audio-based rumble and speaker audio from a webOS TV, with DS5-USBIP working
+> alongside Vibepollo. Controllers need a bridging step, which can mostly be
+> automated.
 
 DS5-USBIP is a fork of [ciprianmisaila's
 CTM-USBIP](https://github.com/CTM-Bridge/CTM-USBIP) that offers a DualSense
@@ -112,7 +111,7 @@ with only a controller.
 | **DualSense audio over the TV's USB port** | A DualSense's speaker, audio-based rumble and microphone travel as isochronous audio on the controller's own audio interfaces, not as HID traffic. Bluetooth carries input and audio in one report stream that can be forwarded whole; USB splits the audio onto endpoints of its own. This fork rebuilds the pad as the composite device presenting those interfaces and carries the streams both ways, so the speaker, rumble and microphone behave as they would on a cable. |
 | **DualSense Edge support** | The Edge's product ID was already recognised when listing devices, but DS5-USBIP rebuilt every DualSense from the same descriptor, so Windows saw a plain DualSense. The Edge differs by more than its product ID: a larger HID report descriptor, extra feature reports and different endpoint polling. This fork adds a descriptor for it, captured from the hardware's own kernel descriptor files, so Windows sees a DualSense Edge. |
 | **DS5Dongle support** | A DS5Dongle presents itself over USB as a DualSense or DualSense Edge, so a wireless controller still reaches the PC with its speaker, rumble, adaptive triggers and microphone. Using a DS5Dongle is also an alternative to a wireless DualSense connected over Bluetooth; the difference is that over Bluetooth the microphone doesn't work, while through a DS5Dongle it does, since it connects through the TV's USB path. You also have access to the DS5Dongle features from various [community forks](https://github.com/awalol/DS5Dongle#community-fork). |
-| **DS4Dongle support** | A [DS4Dongle](https://github.com/snipem/DS4Dongle) presents the DS4 paired to it over USB as a wired DS4 (CUH-ZCT2), so a wireless DS4 of either model reaches the PC with its speaker and headset audio. Identity comes from the controller's MAC address, so Auto Bridge and auto link follow the same controller whether it is connected via Bluetooth or with the DS4Dongle. The DS4's own speaker plays without a headset plugged in: DS5-USBIP sets the DS4Dongle's `audio_follow_jack` to 0 the first time it bridges it, and the dongle restarts once to take it. |
+| **DS4Dongle support** | A [DS4Dongle](https://github.com/snipem/DS4Dongle) presents the DS4 paired to it over USB as a wired DS4 (CUH-ZCT2), so a wireless DS4 of either model reaches the PC with its speaker and headset audio. Identity comes from the controller's MAC address, so Auto Bridge and auto link follow the same controller whether it is connected via Bluetooth or with the DS4Dongle. Audio plays through the headset or the speaker without extra setup. |
 | **Optional: controller rebinder and virtual keyboard** | A controller rebinder with stick, gyro and touchpad to mouse pre-sets. The pre-sets can be modified and saved, and a built-in virtual keyboard is available to the controller. The rebinder and the virtual keyboard both isolate the controller's input so a game does not receive it at the same time. |
 
 > The webOS limitation: its input driver reads Bluetooth microphone audio from the
@@ -129,12 +128,12 @@ Before ciprianmisaila's ctm-bridge-webos/CTM-USBIP, a DualSense connected to a
 USB port on a webOS TV could already send its input to a PC through the
 streaming software, and Windows saw it as a device with gyro, touchpad and
 adaptive triggers.
-However, it is limited in that it does not support audio-based rumble, speaker
-audio or microphone.
+However, from a webOS TV it was limited in that it did not support audio-based
+rumble, speaker audio or microphone.
 
 USB/IP allows devices to fully connect to a host over a network or the internet,
-providing the DualSense's audio features that the streaming software doesn't
-have. However, a USB/IP client has to reach out over the network or internet to
+providing the DualSense's audio features that currently no Moonlight client on webOS
+has. However, a USB/IP client has to reach out over the network or internet to
 the server that presents the device, but reaching out to a webOS TV is
 difficult, especially over the internet.
 
