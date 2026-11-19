@@ -224,6 +224,7 @@ carry it; upstream's own history is unchanged.
 | 2026-11-13 | The touchpad drawn in the configs window, as the DualSense's touchpad: alone, or with one or two fingers. The touchpad settings are named by it and the rest of their key in words, so touchpad_one_finger_tap reads as the one-finger touchpad and "- tap", in the editor and in the config preview, the key kept on the row's hover; a dropdown that chooses a number of fingers has the chosen one's touchpad after it; each touchpad says on hover which it is; and the preview has a key for the three above its foot's line. The preview's own button at its foot is PS or V by the input in hand, and changes as the input does while the box is open. | `88bc5df`, `804353d`, `0b9d189`, merge `30952fa` |
 | 2026-11-14 | The tutorials in parts: each tour is a set of topics (modes, controllers, configs, window, quick switch, overview, customizing), the app records which topics were done and a tour that starts by itself runs only the ones not done, and the tray's Start Tutorial has a Mode and a Topic list. A topic has its own intro, end box and completed card with a small confetti. The quick switch topic is played in the practice window, with do/try steps for the two finger press, the window selector and keeping the window, and the words and the config window stay on top. Instructions are bold and gold, button symbols follow the pad in use, and Advanced has a step for Quick switch: Window select | merge `cbca513` |
 | 2026-11-14 | Desktop Mode's handover. A controller aurora-tv's Desktop Mode hands over (BRIDGE_START ends desktop_link=1) reads default_windows_config for that bridge only, its own auto link kept for the next. default_windows_config does what Desktop Mode did: Create is Tab, L1 and R1 step Windows' window picker with Alt held (Cross picks, Circle cancels), and the right stick moves the pointer on a new sqrt curve, quick from the first push. A default_windows_config made before is brought up to date at the next start only if nobody edited it. | `f286857`, `feb7261`, `8c44f89`, merge `f2d77db` |
+| 2026-11-18 | The setup does not ask to restart Vibepollo when the PC restarts anyway, after it installed the usbip-win2 driver: Vibepollo restarts with the PC, and asking meant two restarts for one change | `5705172` |
 
 ## Files changed
 
@@ -238,9 +239,9 @@ ENet library, removed with the ENet transport).
  .github/ISSUE_TEMPLATE/config.yml             |     5 +
  .github/ISSUE_TEMPLATE/feature-request.yml    |    22 +
  .gitignore                                    |    43 +-
- CHANGES.md                                    |   524 +
+ CHANGES.md                                    |   525 +
  LINK                                          |     0
- README.md                                     |   291 +-
+ README.md                                     |   307 +-
  THIRD-PARTY-NOTICES.txt                       |   618 +
  app/compatibility.manifest                    |    27 +
  app/ctm-capture.vcxproj                       |    86 -
@@ -263,22 +264,22 @@ ENet library, removed with the ENet transport).
  docs/ctm-capture-controls.md                  |    70 -
  docs/images/ds5usbip-advanced-overview.png    |   Bin 0 -> 313356 bytes
  docs/images/ds5usbip-advanced-touchpad.png    |   Bin 0 -> 725906 bytes
+ docs/images/ds5usbip-controller-settings.png  |   Bin 0 -> 311431 bytes
  docs/images/ds5usbip-keyboard-sizes.png       |   Bin 0 -> 431047 bytes
- docs/images/ds5usbip-mode-advanced.png        |   Bin 0 -> 296414 bytes
- docs/images/ds5usbip-mode-quick.png           |   Bin 0 -> 78275 bytes
- docs/images/ds5usbip-mode-simple.png          |   Bin 0 -> 129085 bytes
- docs/images/ds5usbip-preset-gyro.png          |   Bin 0 -> 103788 bytes
- docs/images/ds5usbip-preset-touchpad.png      |   Bin 0 -> 127638 bytes
+ docs/images/ds5usbip-mode-advanced.png        |   Bin 0 -> 250365 bytes
+ docs/images/ds5usbip-mode-quick.png           |   Bin 0 -> 61641 bytes
+ docs/images/ds5usbip-mode-simple.png          |   Bin 0 -> 147593 bytes
+ docs/images/ds5usbip-preset-gyro.png          |   Bin 0 -> 130968 bytes
  docs/images/ds5usbip-quick-in-game.jpg        |   Bin 0 -> 516960 bytes
  docs/images/ds5usbip-quick.png                |   Bin 0 -> 51252 bytes
- docs/images/ds5usbip-section-gyro.png         |   Bin 0 -> 384681 bytes
+ docs/images/ds5usbip-section-gyro.png         |   Bin 0 -> 290691 bytes
  docs/images/ds5usbip-simple-dualsense.png     |   Bin 0 -> 341360 bytes
+ docs/images/ds5usbip-simple-preview.png       |   Bin 0 -> 253647 bytes
  docs/images/ds5usbip-simple-xbox.png          |   Bin 0 -> 283054 bytes
- docs/images/ds5usbip-tray-devices.png         |   Bin 0 -> 16332 bytes
+ docs/images/ds5usbip-tray-devices.png         |   Bin 0 -> 18033 bytes
  docs/images/ds5usbip-tray-menu.png            |   Bin 0 -> 25374 bytes
- docs/images/ds5usbip-tray-tutorial.png        |   Bin 0 -> 11979 bytes
- docs/images/ds5usbip-tutorial-quick.png       |   Bin 0 -> 86733 bytes
- docs/images/ds5usbip-tutorial-simple.png      |   Bin 0 -> 149160 bytes
+ docs/images/ds5usbip-tutorial-quick.png       |   Bin 0 -> 109722 bytes
+ docs/images/ds5usbip-tutorial-simple.png      |   Bin 0 -> 161455 bytes
  docs/rest_api.md                              |   218 +
  docs/steam_puck_knowledge.md                  |     5 +-
  include/ctm/audio_volume.h                    |    66 +
@@ -290,7 +291,7 @@ ENet library, removed with the ENet transport).
  installer/build-icon.ps1                      |   446 +
  installer/controller-path.txt                 |    68 +
  installer/ctm-usbip.iss                       |     3 +-
- installer/ds5-usbip.iss                       |   902 +
+ installer/ds5-usbip.iss                       |   910 +
  installer/icon-source.png                     |   Bin 0 -> 100705 bytes
  installer/make-icon-ds5.ps1                   |   236 +
  installer/trace-silhouette.py                 |   368 +
@@ -520,5 +521,5 @@ ENet library, removed with the ENet transport).
  tools/sbc-golden-gen/ffmpeg_side.cpp          |   117 +
  tools/sbc-golden-gen/ffmpeg_side.h            |    15 +
  tools/sbc-golden-gen/main.cpp                 |   131 +
- 287 files changed, 90400 insertions(+), 6132 deletions(-)
+ 287 files changed, 90426 insertions(+), 6131 deletions(-)
 ```
