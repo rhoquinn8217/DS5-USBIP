@@ -78,9 +78,13 @@ those, or a [DS5Dongle](https://github.com/awalol/DS5Dongle) to stay wireless.
 
 ## DS5-USBIP's Controller Configs
 
-Controller Configs is DS5-USBIP's window on the host. It rebinds a
-controller's buttons, keeps pre-sets you can switch mid-game, and carries a
-virtual keyboard the controller types on.
+Controller configs are buttons, sticks and touchpad rebind sets. Start with a
+ready-built mouse mode config or customize it with your preferred rebinds.
+Rebinds include shortcuts to a virtual keyboard and window select. Set a config
+to load when the controller connects. Use Quick Mode to switch to a custom
+built config when starting a game, or between multiple custom configs mid game.
+Have a config for any situation to drive the stream without ever having to use
+a mouse, keyboard or the remote.
 
 Ways to open the Controller Configs window:
 
@@ -88,8 +92,10 @@ Ways to open the Controller Configs window:
 - **Press the DualSense touchpad with two fingers, then keep one finger on
   it.**<br>
   Quick Mode opens and stays up while that finger rests there. Swipe your
-  other finger up or down to change config. Lift off and it goes away, or
-  press twice to leave it open and switch to the mode you were using last.
+  other finger up or down to change config. Lift off and it goes away.
+- **Press the DualSense touchpad twice with two fingers.**<br>
+  The window stays open after you lift off and switches to the mode you were
+  using last.
 - **Use the DS5-USBIP streaming overlay button in rhoquinn8217/aurora-tv.**
 
 ## What this fork adds
