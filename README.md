@@ -65,8 +65,7 @@ those, or a [DS5Dongle](https://github.com/awalol/DS5Dongle) to stay wireless.
 3. Start the stream to the host.
 4. Your DualSense will bridge to the host automatically when the stream starts (after signing in if your PC starts locked).
 
-> [!IMPORTANT]
-> *Your DualSense is now natively connected to your host PC with gyro, adaptive triggers, speaker audio and audio-based haptics (mic supported if connected via USB).*
+> **Your DualSense is now natively connected to your host PC with gyro, adaptive triggers, speaker audio and audio-based haptics (mic supported if connected via USB).**
 
 **(Optional) Set up DS5-USBIP controller rebind pre-sets**
 
