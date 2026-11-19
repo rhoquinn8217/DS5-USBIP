@@ -870,11 +870,19 @@ begin
   WizardForm.StatusLabel.Caption := 'Removing old controllers Windows kept from past bridges...';
   RemoveOldDevices(ExpandConstant('{app}\{#ExeName}'));
   if not StreamHostFound() then Exit;
+  { ⭐ NOT ASKED WHEN THE PC RESTARTS ANYWAY (rhoquinn8217, 2026-11-18, a
+    fresh install with Vibepollo already there): with the usbip-win2 driver
+    just installed, the PC restarts at the end of setup and Vibepollo with
+    it, so the change takes effect then. Asking first meant two restarts for
+    one change. InstallUsbip ran above, so NeedRestart is final here. }
   if WizardIsTaskSelected('vibepollo') then
   begin
     Code := EditStreamCommands('add');
     if Code = 10 then
-      AskToRestartStreamHost(WizardSilent(), 'Vibepollo will start {#AppName} as a stream starts, and quit it as the stream ends, once it has restarted.')
+    begin
+      if not NeedRestart() then
+        AskToRestartStreamHost(WizardSilent(), 'Vibepollo will start {#AppName} as a stream starts, and quit it as the stream ends, once it has restarted.');
+    end
     else if (Code <> 0) and (not WizardSilent()) then
       MsgBox('Setup could not add {#AppName} to Vibepollo''s stream commands (code ' + IntToStr(Code)
            + '), so Vibepollo will not start it by itself. Its settings file was left as it was.', mbError, MB_OK);
@@ -882,7 +890,7 @@ begin
   else
   begin
     Code := EditStreamCommands('remove');
-    if Code = 10 then
+    if (Code = 10) and not NeedRestart() then
       AskToRestartStreamHost(WizardSilent(), 'Vibepollo will stop starting {#AppName} with its streams once it has restarted.');
   end;
 end;
