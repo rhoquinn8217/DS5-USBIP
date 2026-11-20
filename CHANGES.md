@@ -226,6 +226,7 @@ carry it; upstream's own history is unchanged.
 | 2026-11-14 | Desktop Mode's handover. A controller aurora-tv's Desktop Mode hands over (BRIDGE_START ends desktop_link=1) reads default_windows_config for that bridge only, its own auto link kept for the next. default_windows_config does what Desktop Mode did: Create is Tab, L1 and R1 step Windows' window picker with Alt held (Cross picks, Circle cancels), and the right stick moves the pointer on a new sqrt curve, quick from the first push. A default_windows_config made before is brought up to date at the next start only if nobody edited it. | `f286857`, `feb7261`, `8c44f89`, merge `f2d77db` |
 | 2026-11-18 | The setup does not ask to restart Vibepollo when the PC restarts anyway, after it installed the usbip-win2 driver: Vibepollo restarts with the PC, and asking meant two restarts for one change | `5705172` |
 | 2026-11-19 | The setup leaves a usbip-win2 driver that is already installed alone, Vibepollo's included, which installs the driver with no usbip.exe: the setup took the missing usbip.exe for a missing driver and ran usbip-win2's setup over it, which made a second host controller, and every attach failed. The driver counts as installed when its host controller is there, in any state. The setup carries usbip-win2 0.9.8.1, the build Vibepollo installs, in place of 0.9.7.7, and where the driver came without usbip.exe it puts usbip-win2's usbip.exe, with the files and the Visual C++ runtime it loads, in usbip-win2 beside DS5-USBIP.exe. DS5-USBIP uses usbip-win2's own usbip.exe first | `cf1d06d`, merge `53988f8` |
+| 2026-11-19 | The setup mends a PC where an older setup, this one up to 231 or the public 0.2.0, ran usbip-win2's setup over Vibepollo's driver and left two host controllers, so it never bridged: it removes usbip-win2 with usbip-win2's own uninstaller, which takes away every host controller and driver package of it, and then installs it again. A controller still there after the uninstaller goes at the next restart, and the setup asks for that restart and a second run | `bc8187d`, merge `2168fc3` |
 
 ## Files changed
 
@@ -241,7 +242,7 @@ of 0.9.7.7, with its usbip.exe and the files that loads).
  .github/ISSUE_TEMPLATE/config.yml             |     5 +
  .github/ISSUE_TEMPLATE/feature-request.yml    |    22 +
  .gitignore                                    |    43 +-
- CHANGES.md                                    |   527 +
+ CHANGES.md                                    |   528 +
  LINK                                          |     0
  README.md                                     |   307 +-
  THIRD-PARTY-NOTICES.txt                       |   627 +
@@ -293,7 +294,7 @@ of 0.9.7.7, with its usbip.exe and the files that loads).
  installer/build-icon.ps1                      |   446 +
  installer/controller-path.txt                 |    68 +
  installer/ctm-usbip.iss                       |     3 +-
- installer/ds5-usbip.iss                       |   958 ++
+ installer/ds5-usbip.iss                       |  1036 ++
  installer/icon-source.png                     |   Bin 0 -> 100705 bytes
  installer/make-icon-ds5.ps1                   |   236 +
  installer/trace-silhouette.py                 |   368 +
@@ -493,7 +494,7 @@ of 0.9.7.7, with its usbip.exe and the files that loads).
  tests/sbc_encoder_test.cpp                    |   150 +
  tests/sbc_test_signals.h                      |   171 +
  tests/schema_json_test.cpp                    |   158 +
- tests/setup_driver_test.cpp                   |   126 +
+ tests/setup_driver_test.cpp                   |   149 +
  tests/stick_mouse_test.cpp                    |   749 +
  tests/stop_wait_test.cpp                      |    93 +
  tests/stream_commands_test.cpp                |   118 +
@@ -523,5 +524,5 @@ of 0.9.7.7, with its usbip.exe and the files that loads).
  tools/sbc-golden-gen/ffmpeg_side.cpp          |   117 +
  tools/sbc-golden-gen/ffmpeg_side.h            |    15 +
  tools/sbc-golden-gen/main.cpp                 |   131 +
- 287 files changed, 90550 insertions(+), 6138 deletions(-)
+ 287 files changed, 90652 insertions(+), 6138 deletions(-)
 ```
