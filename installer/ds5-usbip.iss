@@ -82,7 +82,7 @@
   #define Configuration "Release"
 #endif
 #define IconName "ctm-usbip.ico"
-#define UsbipInstaller "USBip-0.9.7.7-x64.exe"
+#define UsbipInstaller "USBip-0.9.8.1-x64.exe"
 #define SrcRoot ".."
 
 [Setup]
@@ -140,6 +140,11 @@ Source: "{#SrcRoot}\maps\*"; DestDir: "{app}\maps"; Flags: ignoreversion recurse
 ; unmodified, and its licence is installed beside the app.
 Source: "{#SrcRoot}\third_party\usbip-win2\{#UsbipInstaller}"; DestDir: "{tmp}"; Flags: deleteafterinstall
 Source: "{#SrcRoot}\third_party\usbip-win2\LICENSE.txt"; DestDir: "{app}"; DestName: "usbip-win2-LICENSE.txt"; Flags: ignoreversion
+; ⭐ And usbip-win2's usbip.exe with what it loads, from that same installer,
+; and the Visual C++ runtime they need, only where the driver came without
+; them (Vibepollo installs the driver alone): see GUsbipTools. Where each file
+; came from is in third_party\usbip-win2\README.md.
+Source: "{#SrcRoot}\third_party\usbip-win2\tools\*"; DestDir: "{app}\usbip-win2"; Flags: ignoreversion; Check: UsbipToolsNeeded
 ; Its own licence, and every other part that is someone else's, named and with
 ; their licences in full. tests/licence_files_test.cpp fails when they drift apart.
 Source: "{#SrcRoot}\LICENSE"; DestDir: "{app}"; DestName: "LICENSE.txt"; Flags: ignoreversion
@@ -212,6 +217,11 @@ var
   GInstallUsbip: Boolean;
   { Set by InstallUsbip when usbip-win2's setup failed or did not run. }
   GUsbipFailed: Boolean;
+  { Set in PrepareToInstall: the driver is there, but usbip-win2's own
+    usbip.exe is not (Vibepollo installs the driver alone), so [Files] puts
+    usbip-win2's usbip.exe and what it loads in usbip-win2 beside the
+    program, where DS5-USBIP looks for it after usbip-win2's own. }
+  GUsbipTools: Boolean;
   { The copy already installed: its version as Windows lists it, 0.1.0.N,
     and the uninstaller it was installed with. Both empty when there is
     none. }
@@ -732,6 +742,34 @@ begin
   if GDoneAfterUninstall then Confirm := False;
 end;
 
+{ ⭐ THE DRIVER, WHOEVER INSTALLED IT (rhoquinn8217, 2026-11-19, a PC where
+  Vibepollo had installed usbip-win2 first): "This is going to happen when
+  user install DS5-USBIP unless we make it so that DS5-USBIP really knows
+  that USBIP is installed." Vibepollo installs the driver alone, with no
+  usbip.exe, so the old test (usbip.exe in Program Files and the driver's
+  service) called it missing, and usbip-win2's setup ran over it: a second
+  host controller, two builds of the driver mixed, and every attach failed.
+  So the driver counts as installed when its service is registered and a
+  usbip-win2 host controller (ROOT\USBIP_WIN2\UDE) is present, working or
+  not: usbip-win2's setup run over a controller that is there makes a
+  second one. }
+function UsbipControllerPresent(): Boolean;
+var
+  Code: Integer;
+begin
+  Result := False;
+  if not RegKeyExists(HKLM, 'SYSTEM\CurrentControlSet\Services\usbip2_ude') then Exit;
+  if Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
+          '-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "exit [int](-not (Get-PnpDevice -PresentOnly -ErrorAction SilentlyContinue | Where-Object HardwareID -Contains ''ROOT\USBIP_WIN2\UDE''))"',
+          '', SW_HIDE, ewWaitUntilTerminated, Code) then
+  begin
+    Log('usbip-win2: its host controller check ended ' + IntToStr(Code) + ' (0 = one is there)');
+    Result := Code = 0;
+  end
+  else
+    Log('usbip-win2: its host controller check did not run: ' + SysErrorMessage(Code));
+end;
+
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
   Result := '';
@@ -746,12 +784,13 @@ begin
     Exit;
   end;
 
-  { Decided once, before the run steps, so the answer cannot change halfway.
-    ⭐ The driver's own service counts too (code review, 2026-11-01): a
-    usbip.exe whose driver had gone, half an uninstall, was taken for a good
-    install and never repaired. }
-  GInstallUsbip := (not FileExists(ExpandConstant('{commonpf64}\USBip\usbip.exe')))
-                or (not RegKeyExists(HKLM, 'SYSTEM\CurrentControlSet\Services\usbip2_ude'));
+  { Decided once, before the run steps, so the answer cannot change halfway:
+    see UsbipControllerPresent. ⭐ The driver's own service counts too (code
+    review, 2026-11-01): a usbip.exe whose driver had gone, half an
+    uninstall, was taken for a good install and never repaired. }
+  GInstallUsbip := not UsbipControllerPresent();
+  GUsbipTools := (not GInstallUsbip)
+                 and (not FileExists(ExpandConstant('{commonpf64}\USBip\usbip.exe')));
 
   { ⭐ Logged either way (clean-PC test, 2026-11-03): an upgrade's log said
     nothing about the driver, so a skip read the same as a step that never
@@ -760,6 +799,8 @@ begin
     Log('usbip-win2: missing or broken, its setup will run')
   else
     Log('usbip-win2: already installed, its setup is skipped');
+  if GUsbipTools then
+    Log('usbip-win2: its driver came without usbip.exe, so usbip-win2''s usbip.exe goes in usbip-win2\ beside {#ExeName}');
 end;
 
 { THE DRIVER: usbip-win2's own signed setup, unchanged, run only when
@@ -801,6 +842,13 @@ begin
     We run it /NORESTART, so the reboot prompt has to come from here instead,
     and only when we were the ones who installed it, and it went in. }
   Result := GInstallUsbip and not GUsbipFailed;
+end;
+
+{ [Files]: usbip-win2's usbip.exe beside the program, only where the driver
+  came without it. See GUsbipTools. }
+function UsbipToolsNeeded(): Boolean;
+begin
+  Result := GUsbipTools;
 end;
 
 { UNINSTALLING FROM WINDOWS' LIST, while DS5-USBIP runs: asked, then quit the

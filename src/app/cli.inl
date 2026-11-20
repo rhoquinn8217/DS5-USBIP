@@ -1,21 +1,30 @@
+// ⭐ usbip-win2'S OWN usbip.exe FIRST, then the setup's copy (rhoquinn8217,
+// 2026-11-19, a PC where Vibepollo had installed usbip-win2's driver alone).
+// A full usbip-win2 install's usbip.exe matches its own driver, so it wins;
+// the setup's copy (installer/ds5-usbip.iss, GUsbipTools) is there only for a
+// driver that came without one.
 static std::wstring resolve_usbip_exe_path()
 {
-    // 1. Next to ctm-usbip.exe (CTM Bridge install layout — bundled in
-    //    the Sunshine installer next to ctm-usbip).
+    // 1. usbip-win2's own install.
+    const std::wstring installed = L"C:\\Program Files\\USBip\\usbip.exe";
+    if (file_exists(installed)) return installed;
     wchar_t selfBuf[MAX_PATH] = {0};
     DWORD selfLen = GetModuleFileNameW(nullptr, selfBuf, MAX_PATH);
     if (selfLen > 0 && selfLen < MAX_PATH) {
         std::wstring self = selfBuf;
         const size_t slash = self.find_last_of(L"\\/");
         if (slash != std::wstring::npos) {
-            std::wstring sibling = self.substr(0, slash + 1) + L"usbip.exe";
+            const std::wstring dir = self.substr(0, slash + 1);
+            // 2. The setup's copy, in usbip-win2\ beside this program.
+            const std::wstring setupCopy = dir + L"usbip-win2\\usbip.exe";
+            if (file_exists(setupCopy)) return setupCopy;
+            // 3. Next to this program (CTM Bridge's install layout, bundled in
+            //    the Sunshine installer next to ctm-usbip).
+            const std::wstring sibling = dir + L"usbip.exe";
             if (file_exists(sibling)) return sibling;
         }
     }
-    // 2. usbip-win2 default install location.
-    const std::wstring legacy = L"C:\\Program Files\\USBip\\usbip.exe";
-    if (file_exists(legacy)) return legacy;
-    // 3. PATH (let CreateProcess search).
+    // 4. PATH (let CreateProcess search).
     return L"usbip.exe";
 }
 

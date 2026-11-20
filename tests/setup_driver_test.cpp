@@ -39,6 +39,16 @@ bool has(const std::string &text, const std::string &part)
     return text.find(part) != std::string::npos;
 }
 
+// Whether a file of the repo is there, found the way repo_text finds one.
+bool repo_has(const std::string &path)
+{
+    const char *prefixes[] = {"", "../", "../../", "../../../", "../../../../"};
+    for (const char *prefix : prefixes) {
+        if (std::ifstream(prefix + path, std::ios::binary)) return true;
+    }
+    return false;
+}
+
 }  // namespace
 
 int run_setup_driver_tests()
@@ -71,6 +81,45 @@ int run_setup_driver_tests()
     {
         CTM_CHECK(has(iss, "Log('usbip-win2: missing or broken, its setup will run')"));
         CTM_CHECK(has(iss, "Log('usbip-win2: already installed, its setup is skipped')"));
+    }
+
+    // ⭐ (rhoquinn8217, 2026-11-19): Vibepollo installs usbip-win2's driver
+    // alone, with no usbip.exe, and usbip-win2's setup run over it made a second
+    // host controller with two builds of the driver mixed: every attach failed.
+    section("setup: a driver another installer put there is left alone");
+    {
+        CTM_CHECK(has(iss, "Where-Object HardwareID -Contains ''ROOT\\USBIP_WIN2\\UDE''"));
+        CTM_CHECK(has(iss, "GInstallUsbip := not UsbipControllerPresent();"));
+        CTM_CHECK(!has(iss, "GInstallUsbip := (not FileExists("));
+    }
+
+    section("setup: usbip.exe is supplied where the driver came without it");
+    {
+        CTM_CHECK(has(iss, "DestDir: \"{app}\\usbip-win2\"; Flags: ignoreversion; Check: UsbipToolsNeeded"));
+        const std::string cli = repo_text("src/app/cli.inl");
+        const size_t own = cli.find("L\"C:\\\\Program Files\\\\USBip\\\\usbip.exe\"");
+        const size_t copy = cli.find("L\"usbip-win2\\\\usbip.exe\"");
+        CTM_CHECK(own != std::string::npos);
+        CTM_CHECK(copy != std::string::npos);
+        // usbip-win2's own usbip.exe, which matches its driver, before the copy.
+        CTM_CHECK(own < copy);
+    }
+
+    // ⭐ (a clean Windows 11 VM, 2026-11-19): a clean Windows has none of the
+    // Microsoft runtime DLLs usbip.exe loads, and 0.9.8.1's usbip.exe loads one
+    // that 0.9.7.7's did not (msvcp140_atomic_wait.dll). It also loads
+    // resources.dll by name. The copy the setup supplies starts only with every
+    // one of them beside it.
+    section("setup: the usbip.exe it supplies has everything it loads beside it");
+    {
+        const std::string tools = "third_party/usbip-win2/tools/";
+        CTM_CHECK(repo_has(tools + "usbip.exe"));
+        CTM_CHECK(repo_has(tools + "libusbip.dll"));
+        CTM_CHECK(repo_has(tools + "resources.dll"));
+        CTM_CHECK(repo_has(tools + "msvcp140.dll"));
+        CTM_CHECK(repo_has(tools + "msvcp140_atomic_wait.dll"));
+        CTM_CHECK(repo_has(tools + "vcruntime140.dll"));
+        CTM_CHECK(repo_has(tools + "vcruntime140_1.dll"));
     }
 
     return 0;
