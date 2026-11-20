@@ -212,6 +212,8 @@ Type: files; Name: "{app}\install-stamp.txt"
 
 const
   UninstallKey = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{5DAD18E8-3795-409F-AEEB-A0CCF8D0EF02}_is1';
+  { usbip-win2's own, which RepairUsbip waits on. }
+  UsbipUninstallKey = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{199505b0-b93d-4521-a8c7-897818e0205a}_is1';
 
 var
   GInstallUsbip: Boolean;
@@ -752,25 +754,94 @@ end;
   So the driver counts as installed when its service is registered and a
   usbip-win2 host controller (ROOT\USBIP_WIN2\UDE) is present, working or
   not: usbip-win2's setup run over a controller that is there makes a
-  second one. }
-function UsbipControllerPresent(): Boolean;
+  second one.
+  ⭐ HOW MANY, NOT WHETHER (rhoquinn8217, 2026-11-19: "fix it by itself"):
+  two or more is that fault, which this setup made up to 231 and the
+  public 0.2.0 makes too, and RepairUsbip mends it. The count comes back as
+  the exit code less 10, so a check that failed (exit 1) is not read as
+  none. A check that cannot count counts as one: usbip-win2's setup run over
+  a controller is the fault itself, and a repair on a guess would remove a
+  working driver. }
+function UsbipControllerCount(): Integer;
 var
   Code: Integer;
 begin
-  Result := False;
+  Result := 0;
   if not RegKeyExists(HKLM, 'SYSTEM\CurrentControlSet\Services\usbip2_ude') then Exit;
+  Result := 1;
   if Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
-          '-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "exit [int](-not (Get-PnpDevice -PresentOnly -ErrorAction SilentlyContinue | Where-Object HardwareID -Contains ''ROOT\USBIP_WIN2\UDE''))"',
+          '-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "try { exit (10 + @(Get-PnpDevice -PresentOnly -ErrorAction Stop | Where-Object HardwareID -Contains ''ROOT\USBIP_WIN2\UDE'').Count) } catch { exit 1 }"',
           '', SW_HIDE, ewWaitUntilTerminated, Code) then
   begin
-    Log('usbip-win2: its host controller check ended ' + IntToStr(Code) + ' (0 = one is there)');
-    Result := Code = 0;
+    if Code >= 10 then
+    begin
+      Result := Code - 10;
+      Log('usbip-win2: host controllers found: ' + IntToStr(Result));
+    end
+    else
+      Log('usbip-win2: its host controller check failed (exit ' + IntToStr(Code) + '), so it counts as one');
   end
   else
-    Log('usbip-win2: its host controller check did not run: ' + SysErrorMessage(Code));
+    Log('usbip-win2: its host controller check did not run (' + SysErrorMessage(Code) + '), so it counts as one');
+end;
+
+{ ⭐ TWO OR MORE HOST CONTROLLERS, MENDED (rhoquinn8217, 2026-11-19: "fix it
+  by itself"). usbip-win2's own uninstaller removes every usbip-win2 host
+  controller (devnode remove ROOT\USBIP_WIN2\UDE root) and every usbip-win2
+  driver package (pnputil /delete-driver, each one naming usbip2_ude or
+  usbip2_filter), whoever put them there, so it runs first, and then
+  usbip-win2's setup runs as on a PC that never had it: one controller, one
+  build. Vibepollo needs nothing of its own back, as it uses the controller
+  that is there. Without that uninstaller nothing is touched.
+  A controller still there afterwards goes at the next restart, so Setup
+  stops here and asks for a restart and a second run. Returns the message
+  Setup stops with, or nothing to carry on; Count is what is left. }
+function RepairUsbip(var Count: Integer; var NeedsRestart: Boolean): String;
+var
+  Uninstaller: String;
+  Code, Waited: Integer;
+  Ran: Boolean;
+begin
+  Result := '';
+  Uninstaller := ExpandConstant('{commonpf64}\USBip\unins000.exe');
+  if not FileExists(Uninstaller) then
+  begin
+    Log('usbip-win2: ' + IntToStr(Count) + ' host controllers, and no usbip-win2 uninstaller to mend them with: left as they are');
+    Exit;
+  end;
+  Log('usbip-win2: ' + IntToStr(Count) + ' host controllers, so usbip-win2 is removed with its own uninstaller and installed again');
+  Ran := Exec(Uninstaller, '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART', '', SW_HIDE, ewWaitUntilTerminated, Code);
+  if Ran then
+  begin
+    Log('usbip-win2 uninstaller: exit ' + IntToStr(Code));
+    { Its entry goes as the uninstall ends: a minute's grace for that. }
+    Waited := 0;
+    while RegKeyExists(HKLM, UsbipUninstallKey) and (Waited < 60000) do
+    begin
+      Sleep(500);
+      Waited := Waited + 500;
+    end;
+  end
+  else
+    Log('usbip-win2 uninstaller did not run: ' + SysErrorMessage(Code));
+  Count := UsbipControllerCount();
+  if Count = 0 then Exit;
+  if Ran and (Code = 0) then
+  begin
+    NeedsRestart := True;
+    Result := 'Setup removed the usbip-win2 driver to repair it, which was installed twice.'
+            + ' Windows finishes removing it when it restarts.' + #13#10#13#10
+            + 'Restart Windows, then run this setup again.';
+  end
+  else
+    Result := 'Setup could not repair the usbip-win2 driver, which is installed twice, and {#AppName}'
+            + ' cannot bridge a controller through it.' + #13#10#13#10
+            + 'Uninstall USBip from Windows'' Apps, restart Windows, then run this setup again.';
 end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  Count: Integer;
 begin
   Result := '';
 
@@ -785,10 +856,17 @@ begin
   end;
 
   { Decided once, before the run steps, so the answer cannot change halfway:
-    see UsbipControllerPresent. ⭐ The driver's own service counts too (code
+    see UsbipControllerCount. ⭐ The driver's own service counts too (code
     review, 2026-11-01): a usbip.exe whose driver had gone, half an
-    uninstall, was taken for a good install and never repaired. }
-  GInstallUsbip := not UsbipControllerPresent();
+    uninstall, was taken for a good install and never repaired. Two or
+    more controllers are mended first: see RepairUsbip. }
+  Count := UsbipControllerCount();
+  if Count >= 2 then
+  begin
+    Result := RepairUsbip(Count, NeedsRestart);
+    if Result <> '' then Exit;
+  end;
+  GInstallUsbip := Count = 0;
   GUsbipTools := (not GInstallUsbip)
                  and (not FileExists(ExpandConstant('{commonpf64}\USBip\usbip.exe')));
 

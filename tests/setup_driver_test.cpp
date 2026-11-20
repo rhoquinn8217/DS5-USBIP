@@ -89,8 +89,31 @@ int run_setup_driver_tests()
     section("setup: a driver another installer put there is left alone");
     {
         CTM_CHECK(has(iss, "Where-Object HardwareID -Contains ''ROOT\\USBIP_WIN2\\UDE''"));
-        CTM_CHECK(has(iss, "GInstallUsbip := not UsbipControllerPresent();"));
+        CTM_CHECK(has(iss, "GInstallUsbip := Count = 0;"));
         CTM_CHECK(!has(iss, "GInstallUsbip := (not FileExists("));
+    }
+
+    // ⭐ (rhoquinn8217, 2026-11-19: "fix it by itself"): up to 231, and in the
+    // public 0.2.0, this setup ran usbip-win2's setup over Vibepollo's driver
+    // and left two host controllers. Left alone, that PC never bridges again.
+    section("setup: two host controllers are mended with usbip-win2's own uninstaller");
+    {
+        // The count, with a check that failed told apart from none.
+        CTM_CHECK(has(iss, "try { exit (10 + @(Get-PnpDevice -PresentOnly -ErrorAction Stop"));
+        CTM_CHECK(has(iss, "} catch { exit 1 }"));
+        CTM_CHECK(has(iss, "if Count >= 2 then"));
+        CTM_CHECK(has(iss, "ExpandConstant('{commonpf64}\\USBip\\unins000.exe')"));
+        CTM_CHECK(has(iss, "Exec(Uninstaller, '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART'"));
+        // A controller left after it means a restart and a second run, never
+        // usbip-win2's setup run over it.
+        CTM_CHECK(has(iss, "NeedsRestart := True;"));
+        // Mended before GInstallUsbip is decided, so usbip-win2's setup runs
+        // after it.
+        const size_t repair = iss.find("Result := RepairUsbip(Count, NeedsRestart);");
+        const size_t decide = iss.find("GInstallUsbip := Count = 0;");
+        CTM_CHECK(repair != std::string::npos);
+        CTM_CHECK(decide != std::string::npos);
+        CTM_CHECK(repair < decide);
     }
 
     section("setup: usbip.exe is supplied where the driver came without it");
