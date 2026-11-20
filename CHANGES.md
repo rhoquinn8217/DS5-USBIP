@@ -225,13 +225,15 @@ carry it; upstream's own history is unchanged.
 | 2026-11-14 | The tutorials in parts: each tour is a set of topics (modes, controllers, configs, window, quick switch, overview, customizing), the app records which topics were done and a tour that starts by itself runs only the ones not done, and the tray's Start Tutorial has a Mode and a Topic list. A topic has its own intro, end box and completed card with a small confetti. The quick switch topic is played in the practice window, with do/try steps for the two finger press, the window selector and keeping the window, and the words and the config window stay on top. Instructions are bold and gold, button symbols follow the pad in use, and Advanced has a step for Quick switch: Window select | merge `cbca513` |
 | 2026-11-14 | Desktop Mode's handover. A controller aurora-tv's Desktop Mode hands over (BRIDGE_START ends desktop_link=1) reads default_windows_config for that bridge only, its own auto link kept for the next. default_windows_config does what Desktop Mode did: Create is Tab, L1 and R1 step Windows' window picker with Alt held (Cross picks, Circle cancels), and the right stick moves the pointer on a new sqrt curve, quick from the first push. A default_windows_config made before is brought up to date at the next start only if nobody edited it. | `f286857`, `feb7261`, `8c44f89`, merge `f2d77db` |
 | 2026-11-18 | The setup does not ask to restart Vibepollo when the PC restarts anyway, after it installed the usbip-win2 driver: Vibepollo restarts with the PC, and asking meant two restarts for one change | `5705172` |
+| 2026-11-19 | The setup leaves a usbip-win2 driver that is already installed alone, Vibepollo's included, which installs the driver with no usbip.exe: the setup took the missing usbip.exe for a missing driver and ran usbip-win2's setup over it, which made a second host controller, and every attach failed. The driver counts as installed when its host controller is there, in any state. The setup carries usbip-win2 0.9.8.1, the build Vibepollo installs, in place of 0.9.7.7, and where the driver came without usbip.exe it puts usbip-win2's usbip.exe, with the files and the Visual C++ runtime it loads, in usbip-win2 beside DS5-USBIP.exe. DS5-USBIP uses usbip-win2's own usbip.exe first | `cf1d06d`, merge `53988f8` |
 
 ## Files changed
 
 Generated from `git diff origin/main origin/rhqn-main --stat`, excluding
-`third_party/` (1272 files, +2942 -264776 -- the GamepadMotionHelpers library, FFmpeg's
-SBC encoder copied in where FFmpeg's binaries and the AMF headers were, and the
-ENet library, removed with the ENet transport).
+`third_party/` (1281 files, +2981 -264776 -- the GamepadMotionHelpers library, FFmpeg's
+SBC encoder copied in where FFmpeg's binaries and the AMF headers were, the
+ENet library, removed with the ENet transport, and usbip-win2 0.9.8.1 in place
+of 0.9.7.7, with its usbip.exe and the files that loads).
 
 ```
  .gitattributes                                |    48 +
@@ -239,10 +241,10 @@ ENet library, removed with the ENet transport).
  .github/ISSUE_TEMPLATE/config.yml             |     5 +
  .github/ISSUE_TEMPLATE/feature-request.yml    |    22 +
  .gitignore                                    |    43 +-
- CHANGES.md                                    |   525 +
+ CHANGES.md                                    |   527 +
  LINK                                          |     0
  README.md                                     |   307 +-
- THIRD-PARTY-NOTICES.txt                       |   618 +
+ THIRD-PARTY-NOTICES.txt                       |   627 +
  app/compatibility.manifest                    |    27 +
  app/ctm-capture.vcxproj                       |    86 -
  app/ctm-usbip-tests.vcxproj                   |   170 +
@@ -291,7 +293,7 @@ ENet library, removed with the ENet transport).
  installer/build-icon.ps1                      |   446 +
  installer/controller-path.txt                 |    68 +
  installer/ctm-usbip.iss                       |     3 +-
- installer/ds5-usbip.iss                       |   910 +
+ installer/ds5-usbip.iss                       |   958 ++
  installer/icon-source.png                     |   Bin 0 -> 100705 bytes
  installer/make-icon-ds5.ps1                   |   236 +
  installer/trace-silhouette.py                 |   368 +
@@ -306,7 +308,7 @@ ENet library, removed with the ENet transport).
  release.ps1                                   |   264 +
  src/app/agent.inl                             |  1623 +-
  src/app/agent_session_sweep.inl               |   375 +
- src/app/cli.inl                               |    66 +-
+ src/app/cli.inl                               |    89 +-
  src/app/common.inl                            |   166 +-
  src/app/config_move.inl                       |  1932 +++
  src/app/console_attach.inl                    |    82 +
@@ -491,7 +493,7 @@ ENet library, removed with the ENet transport).
  tests/sbc_encoder_test.cpp                    |   150 +
  tests/sbc_test_signals.h                      |   171 +
  tests/schema_json_test.cpp                    |   158 +
- tests/setup_driver_test.cpp                   |    77 +
+ tests/setup_driver_test.cpp                   |   126 +
  tests/stick_mouse_test.cpp                    |   749 +
  tests/stop_wait_test.cpp                      |    93 +
  tests/stream_commands_test.cpp                |   118 +
@@ -521,5 +523,5 @@ ENet library, removed with the ENet transport).
  tools/sbc-golden-gen/ffmpeg_side.cpp          |   117 +
  tools/sbc-golden-gen/ffmpeg_side.h            |    15 +
  tools/sbc-golden-gen/main.cpp                 |   131 +
- 287 files changed, 90426 insertions(+), 6131 deletions(-)
+ 287 files changed, 90550 insertions(+), 6138 deletions(-)
 ```
