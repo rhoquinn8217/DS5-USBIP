@@ -27,11 +27,20 @@ GamepadMotionHelpers: MIT License
   Built into DS5-USBIP.exe.
   https://github.com/JibbSmart/GamepadMotionHelpers
 
-usbip-win2 0.9.7.7: BSD 2-Clause License
+usbip-win2 0.9.8.1: BSD 2-Clause License
   The driver. The setup runs usbip-win2's own signed installer, unchanged, where
-  it is not already installed. Its licence is in usbip-win2-LICENSE.txt, beside
-  this file.
+  no usbip-win2 driver is installed. Where one is installed without usbip.exe,
+  the setup puts usbip.exe, libusbip.dll and resources.dll, from that same
+  installer, in usbip-win2 beside DS5-USBIP.exe. Its licence is in
+  usbip-win2-LICENSE.txt, beside this file.
   https://github.com/vadimgrn/usbip-win2
+
+Microsoft Visual C++ runtime 14.51: Microsoft Visual Studio license terms
+  msvcp140.dll, msvcp140_atomic_wait.dll, vcruntime140.dll and
+  vcruntime140_1.dll, which usbip.exe and libusbip.dll need, go beside them in
+  usbip-win2 when the setup puts them there. They are Distributable Code of
+  Microsoft Visual Studio.
+  https://learn.microsoft.com/cpp/windows/redistributing-visual-cpp-files
 
 
 ==============================================================================
