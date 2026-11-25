@@ -81,9 +81,10 @@ those, or a [DS5Dongle](https://github.com/awalol/DS5Dongle) to stay wireless.
 Controller configs have two uses: driving the Windows desktop with only the
 controller, and custom button configurations for games. A config is a set of
 rebinds for the buttons, sticks and touchpad. For the desktop, start from a pre-
-set that moves the mouse with the stick, gyro or touchpad. Rebinds can also open
-a virtual keyboard or switch between windows. For games, make your own configs
-and switch between them with Quick Mode, before or during a game.
+set that moves the mouse with the stick, gyro or touchpad. Buttons can also be
+set to shortcuts to bring up a virtual keyboard or switch between windows. For
+games, make your own configs and switch between them with Quick Mode, before or
+during a game.
 
 Ways to open the Controller Configs window:
 
