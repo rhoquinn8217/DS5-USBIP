@@ -78,13 +78,12 @@ those, or a [DS5Dongle](https://github.com/awalol/DS5Dongle) to stay wireless.
 
 ## DS5-USBIP's Controller Configs
 
-Controller configs are buttons, sticks and touchpad rebind sets. Start with a
-ready-built mouse mode config or customize it with your preferred rebinds.
-Rebinds include shortcuts to a virtual keyboard and window select. Set a config
-to load when the controller connects. Use Quick Mode to switch to a custom
-built config when starting a game, or between multiple custom configs mid game.
-Have a config for any situation to drive the stream without ever having to use
-a mouse, keyboard or the remote.
+Controller configs have two uses: driving the Windows desktop with only the
+controller, and custom button configurations for games. A config is a set of
+rebinds for the buttons, sticks and touchpad. For the desktop, start from a pre-
+set that moves the mouse with the stick, gyro or touchpad. Rebinds can also open
+a virtual keyboard or switch between windows. For games, make your own configs
+and switch between them with Quick Mode, before or during a game.
 
 Ways to open the Controller Configs window:
 
