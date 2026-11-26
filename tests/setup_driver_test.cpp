@@ -1,4 +1,4 @@
-// The setup's driver step (installer/ds5-usbip.iss).
+// The setup's driver step and its stream host (installer/ds5-usbip.iss).
 //
 // ⭐ WHAT THESE PROTECT (code review, 2026-11-01). usbip-win2's own setup ran
 // from [Run], where its exit code is never read: a driver that failed to
@@ -114,6 +114,22 @@ int run_setup_driver_tests()
         CTM_CHECK(repair != std::string::npos);
         CTM_CHECK(decide != std::string::npos);
         CTM_CHECK(repair < decide);
+    }
+
+    // ⭐ (rhoquinn8217, 2026-11-25, a VM that runs Rubylight): Rubylight keeps
+    // its settings in ProgramData, not beside its program, so the box was never
+    // offered there, and an uninstall left an entry whose failing "do" stopped
+    // every stream. And every word names the host found.
+    section("setup: Rubylight's settings are found where it keeps them, and the host is named");
+    {
+        CTM_CHECK(has(iss, "Services[4] := 'RubylightService';"));
+        CTM_CHECK(has(iss, "'butterpollo-service.exe'"));
+        CTM_CHECK(has(iss, "ExpandConstant('{commonappdata}\\Butterpollo\\config\\sunshine.conf')"));
+        CTM_CHECK(has(iss, "Description: \"Start {#AppName} when a {code:StreamHostName} stream starts"));
+        CTM_CHECK(has(iss, "GroupDescription: \"{code:StreamHostName}:\""));
+        CTM_CHECK(!has(iss, "'Restart Vibepollo now?"));
+        CTM_CHECK(!has(iss, "out of Vibepollo''s stream commands"));
+        CTM_CHECK(!has(iss, "'Vibepollo will "));
     }
 
     section("setup: usbip.exe is supplied where the driver came without it");

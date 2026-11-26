@@ -117,9 +117,10 @@ SetupLogging=yes
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
-; Ticked unless the person unticks it; only offered where Vibepollo is found
-; (StreamHostFound, below).
-Name: "vibepollo"; Description: "Start {#AppName} when a Vibepollo stream starts, and quit it when the stream ends"; GroupDescription: "Vibepollo:"; Check: StreamHostFound
+; Ticked unless the person unticks it; only offered where a stream host is
+; found (StreamHostFound, below), and named after the one found, Vibepollo or
+; Rubylight (StreamHostName).
+Name: "vibepollo"; Description: "Start {#AppName} when a {code:StreamHostName} stream starts, and quit it when the stream ends"; GroupDescription: "{code:StreamHostName}:"; Check: StreamHostFound
 
 [InstallDelete]
 ; FFmpeg's DLLs, which setups up to build 104 installed. The one part of FFmpeg
@@ -244,6 +245,8 @@ var
   GStreamHostLooked: Boolean;
   GStreamHostService: String;
   GStreamHostConfig: String;
+  { Its name, for every word this setup says about it: see StreamHostFound. }
+  GStreamHostName: String;
 
 { One value of the copy already installed, from the entry Windows lists it
   under: the machine's, or the person's for a copy installed without admin. }
@@ -402,8 +405,8 @@ end;
   restart ends any stream in progress.
   ====================================================================== }
 
-{ The folder of a service's program, from its ImagePath. }
-function ServiceProgramFolder(const Service: String): String;
+{ A service's program, from its ImagePath. }
+function ServiceProgramPath(const Service: String): String;
 var
   Path: String;
   P: Integer;
@@ -423,38 +426,63 @@ begin
     P := Pos('.exe ', Lowercase(Path));
     if P > 0 then Path := Copy(Path, 1, P + 3);
   end;
-  Result := ExtractFileDir(Path);
+  Result := Path;
 end;
 
-{ Vibepollo, or the Apollo or Sunshine it comes from, found by its Windows
-  service: its program is in its install folder's tools folder, its
-  settings in the install folder's config\sunshine.conf. }
+{ The stream host, found by its Windows service. Vibepollo, or the Apollo or
+  Sunshine it comes from, keeps its settings in its install folder's
+  config\sunshine.conf, and its program in that folder's tools folder.
+  ⭐ RUBYLIGHT KEEPS THEM ELSEWHERE (rhoquinn8217, 2026-11-25, a VM that runs
+  it). Its service runs butterpollo-service.exe, as ApolloService, or as
+  RubylightService beside another host, and its settings are
+  Butterpollo\config\sunshine.conf in ProgramData, in the same format. Looked
+  for beside the program only, they were never found: the box was not
+  offered, and an uninstall left our entry behind, whose failing "do" stops
+  Rubylight starting any stream. GStreamHostName names the host found, for
+  every word this setup says about it (rhoquinn8217: "the name of the host
+  it found"). }
 function StreamHostFound(): Boolean;
 var
   Services: TArrayOfString;
   I: Integer;
-  Dir: String;
+  Exe, Dir, Conf, HostName: String;
 begin
   if not GStreamHostLooked then
   begin
     GStreamHostLooked := True;
-    SetArrayLength(Services, 4);
+    SetArrayLength(Services, 5);
     Services[0] := 'ApolloService';
     Services[1] := 'VibepolloService';
     Services[2] := 'VibeshineService';
     Services[3] := 'SunshineService';
+    Services[4] := 'RubylightService';
     for I := 0 to GetArrayLength(Services) - 1 do
       if GStreamHostConfig = '' then
       begin
-        Dir := ServiceProgramFolder(Services[I]);
-        if Dir <> '' then
+        Exe := ServiceProgramPath(Services[I]);
+        if Exe <> '' then
         begin
+          Dir := ExtractFileDir(Exe);
           if CompareText(ExtractFileName(Dir), 'tools') = 0 then Dir := ExtractFileDir(Dir);
-          if FileExists(AddBackslash(Dir) + 'config\sunshine.conf') then
+          Conf := AddBackslash(Dir) + 'config\sunshine.conf';
+          if (CompareText(ExtractFileName(Exe), 'butterpollo-service.exe') = 0) or (Services[I] = 'RubylightService') then
+          begin
+            HostName := 'Rubylight';
+            if FileExists(ExpandConstant('{commonappdata}\Butterpollo\config\sunshine.conf')) then
+              Conf := ExpandConstant('{commonappdata}\Butterpollo\config\sunshine.conf');
+          end
+          else if Services[I] = 'VibeshineService' then
+            HostName := 'Vibeshine'
+          else if Services[I] = 'SunshineService' then
+            HostName := 'Sunshine'
+          else
+            HostName := 'Vibepollo';
+          if FileExists(Conf) then
           begin
             GStreamHostService := Services[I];
-            GStreamHostConfig := AddBackslash(Dir) + 'config\sunshine.conf';
-            Log('Vibepollo: service ' + GStreamHostService + ', settings ' + GStreamHostConfig);
+            GStreamHostConfig := Conf;
+            GStreamHostName := HostName;
+            Log('stream host: ' + HostName + ', service ' + GStreamHostService + ', settings ' + GStreamHostConfig);
           end;
         end;
       end;
@@ -462,7 +490,17 @@ begin
   Result := GStreamHostConfig <> '';
 end;
 
-{ Vibepollo stopped and started again, so it reads its settings. }
+{ The stream host's name: the one found, else Vibepollo, for every word this
+  setup shows about it, [Tasks] included through code:. }
+function StreamHostName(Param: String): String;
+begin
+  if StreamHostFound() then
+    Result := GStreamHostName
+  else
+    Result := 'Vibepollo';
+end;
+
+{ The stream host stopped and started again, so it reads its settings. }
 procedure RestartStreamHost();
 var
   Code: Integer;
@@ -470,9 +508,9 @@ begin
   if (not Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
                '-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "Restart-Service -Name ''' + GStreamHostService + ''' -Force -ErrorAction Stop"',
                '', SW_HIDE, ewWaitUntilTerminated, Code)) or (Code <> 0) then
-    MsgBox('Vibepollo did not restart (code ' + IntToStr(Code) + '). Restart it from Services, or restart the PC.', mbError, MB_OK)
+    MsgBox(StreamHostName('') + ' did not restart (code ' + IntToStr(Code) + '). Restart it from Services, or restart the PC.', mbError, MB_OK)
   else
-    Log('Vibepollo restarted');
+    Log(StreamHostName('') + ' restarted');
 end;
 
 { Asked first: a restart ends any stream in progress. Not asked at all when
@@ -480,8 +518,8 @@ end;
 procedure AskToRestartStreamHost(Silent: Boolean; const Why: String);
 begin
   if Silent then Exit;
-  if MsgBox(Why + #13#10#13#10 + 'Restart Vibepollo now? Any stream in progress ends.' + #13#10
-          + 'If not now, the change takes effect the next time Vibepollo starts.',
+  if MsgBox(Why + #13#10#13#10 + 'Restart ' + StreamHostName('') + ' now? Any stream in progress ends.' + #13#10
+          + 'If not now, the change takes effect the next time ' + StreamHostName('') + ' starts.',
             mbConfirmation, MB_YESNO) = IDYES then
     RestartStreamHost();
 end;
@@ -618,14 +656,14 @@ begin
     something to take out. }
   if OurStreamCommandsSet() then
   begin
-    GRemoveStreamChoice := NewChoice('Stop Vibepollo starting {#AppName}', Below, Width);
-    RemoveStreamNote := NewNote('Takes {#AppName} out of Vibepollo''s stream commands. {#AppName} stays installed, and your own Vibepollo commands stay.',
+    GRemoveStreamChoice := NewChoice('Stop ' + StreamHostName('') + ' starting {#AppName}', Below, Width);
+    RemoveStreamNote := NewNote('Takes {#AppName} out of ' + StreamHostName('') + '''s stream commands. {#AppName} stays installed, and your own ' + StreamHostName('') + ' commands stay.',
                                 Indent, GRemoveStreamChoice.Top + GRemoveStreamChoice.Height + ScaleY(2), Width - Indent, ScaleY(30));
     Below := RemoveStreamNote.Top + RemoveStreamNote.Height + ScaleY(8);
   end;
 
   if StreamHostFound() then
-    UninstallSays := 'Removes the program, its shortcuts, its firewall rule and its Vibepollo setting. Your configs and the usbip-win2 driver stay.'
+    UninstallSays := 'Removes the program, its shortcuts, its firewall rule and its ' + StreamHostName('') + ' setting. Your configs and the usbip-win2 driver stay.'
   else
     UninstallSays := 'Removes the program, its shortcuts and its firewall rule. Your configs and the usbip-win2 driver stay.';
   GUninstallChoice := NewChoice('Uninstall {#AppName}', Below, Width);
@@ -707,12 +745,12 @@ begin
       Code := EditStreamCommandsWith(Exe, 'remove');
       if (Code <> 0) and (Code <> 10) then
       begin
-        MsgBox('Setup could not take {#AppName} out of Vibepollo''s stream commands (code ' + IntToStr(Code)
-             + '). Vibepollo''s settings file was left as it was.', mbError, MB_OK);
+        MsgBox('Setup could not take {#AppName} out of ' + StreamHostName('') + '''s stream commands (code ' + IntToStr(Code)
+             + '). ' + StreamHostName('') + '''s settings file was left as it was.', mbError, MB_OK);
         Exit;
       end;
       if Code = 10 then
-        AskToRestartStreamHost(WizardSilent(), 'Vibepollo will stop starting {#AppName} with its streams once it has restarted.');
+        AskToRestartStreamHost(WizardSilent(), StreamHostName('') + ' will stop starting {#AppName} with its streams once it has restarted.');
       GDoneAfterUninstall := True;
       WizardForm.Close;
       Exit;
@@ -1007,17 +1045,17 @@ begin
     if Code = 10 then
     begin
       if not NeedRestart() then
-        AskToRestartStreamHost(WizardSilent(), 'Vibepollo will start {#AppName} as a stream starts, and quit it as the stream ends, once it has restarted.');
+        AskToRestartStreamHost(WizardSilent(), StreamHostName('') + ' will start {#AppName} as a stream starts, and quit it as the stream ends, once it has restarted.');
     end
     else if (Code <> 0) and (not WizardSilent()) then
-      MsgBox('Setup could not add {#AppName} to Vibepollo''s stream commands (code ' + IntToStr(Code)
-           + '), so Vibepollo will not start it by itself. Its settings file was left as it was.', mbError, MB_OK);
+      MsgBox('Setup could not add {#AppName} to ' + StreamHostName('') + '''s stream commands (code ' + IntToStr(Code)
+           + '), so ' + StreamHostName('') + ' will not start it by itself. Its settings file was left as it was.', mbError, MB_OK);
   end
   else
   begin
     Code := EditStreamCommands('remove');
     if (Code = 10) and not NeedRestart() then
-      AskToRestartStreamHost(WizardSilent(), 'Vibepollo will stop starting {#AppName} with its streams once it has restarted.');
+      AskToRestartStreamHost(WizardSilent(), StreamHostName('') + ' will stop starting {#AppName} with its streams once it has restarted.');
   end;
 end;
 
@@ -1032,5 +1070,5 @@ begin
   if not StreamHostFound() then Exit;
   Code := EditStreamCommands('remove');
   if Code = 10 then
-    AskToRestartStreamHost(UninstallSilent(), 'Until Vibepollo restarts, it still runs {#AppName}''s stream commands, and with {#AppName} gone a stream may not start.');
+    AskToRestartStreamHost(UninstallSilent(), 'Until ' + StreamHostName('') + ' restarts, it still runs {#AppName}''s stream commands, and with {#AppName} gone a stream may not start.');
 end;
